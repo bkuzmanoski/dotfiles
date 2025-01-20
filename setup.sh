@@ -177,19 +177,19 @@ sudo defaults write /Library/Preferences/com.apple.PowerManagement "Battery Powe
 # Keyboard shortcuts
 log "Configuring global keyboard shortcuts"
 
-backup_plist "NSGlobalDomain" false true
+# backup_plist "NSGlobalDomain" false true
 
-modifier_mapping=$(/bin/cat << 'EOF'
-<dict>
-  <key>HIDKeyboardModifierMappingSrc</key>
-  <integer>30064771129</integer>
-  <key>HIDKeyboardModifierMappingDst</key>
-  <integer>30064771300</integer>
-</dict>
-EOF
-)
+# modifier_mapping=$(/bin/cat << 'EOF'
+# <dict>
+#   <key>HIDKeyboardModifierMappingSrc</key>
+#   <integer>30064771129</integer>
+#   <key>HIDKeyboardModifierMappingDst</key>
+#   <integer>30064771300</integer>
+# </dict>
+# EOF
+# )
 
-defaults -currentHost write NSGlobalDomain com.apple.keyboard.modifiermapping.0-0-0 -array "${modifier_mapping}"
+# defaults -currentHost write NSGlobalDomain com.apple.keyboard.modifiermapping.0-0-0 -array "${modifier_mapping}"
 
 backup_plist "com.apple.symbolichotkeys"
 
