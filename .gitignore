@@ -1,0 +1,4 @@
+micro/*/
+!micro/colorschemes/
+Brewfile.lock.json
+.DS_Store

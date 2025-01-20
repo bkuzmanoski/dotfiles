@@ -1,0 +1,17 @@
+filekinds:
+  executable: { is_bold: false }
+
+file_type:
+  image: { foreground: Default }
+  video: { foreground: Default, is_bold: false }
+  music: { foreground: Default }
+  lossless: { foreground: Default, is_bold: false }
+  crypto: { foreground: Default, is_bold: false }
+  document: { foreground: Default }
+  compressed: { foreground: Default }
+  temp: { foreground: Default }
+  compiled: { foreground: Default }
+  build: { foreground: Default, is_bold: false, is_underline: false }
+  source: { foreground: Default, is_bold: false }
+
+punctuation: { is_bold: false }

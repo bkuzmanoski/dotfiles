@@ -1,0 +1,17 @@
+{
+  "autoclose": false,
+  "colorscheme": "zenith",
+  "diffgutter": true,
+  "divchars": "│─",
+  "divreverse": false,
+  "hlsearch": true,
+  "infobar": false,
+  "matchbracestyle": "highlight",
+  "rmtrailingws": true,
+  "scrollbar": true,
+  "scrollbarchar": "│",
+  "tabmovement": true,
+  "tabstospaces": true,
+  "statusformatl": " (filename) $(modified)  $(status.branch)  $(status.paste)",
+  "statusformatr": "Ln $(line), Col $(col)  $(opt:filetype) "
+}
