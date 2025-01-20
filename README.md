@@ -72,7 +72,6 @@ chmod +x setup.sh
 - Set display resolution
 - Disable "Automatically adjust brightness"
 - In Spotlight preferences, add `~/Pictures` to search privacy exclusions
-- Map the Caps Lock (⇪) modifier key to ⌃ Control
 - "Adopt" apps in App Store → Account
 
 #### Applications

@@ -1,6 +1,7 @@
 #!/bin/zsh
 
-# Default to non-verbose
+trap 'kill %1; exit 1' INT TERM
+
 VERBOSE=0
 
 # Parse flags
@@ -19,7 +20,9 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 set -e
 
 # Setup logging
-log_file="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S).log"
+log_dir="${HOME}/.dotfiles_setup"
+log_file="${log_dir}/$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "${log_dir}"
 touch "${log_file}"
 
 # Helper functions
@@ -30,7 +33,7 @@ log() {
 }
 
 error_log() {
-  echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') ${1}" | tee -a "${log_file}" >&2
+  echo "[ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${log_file}" >&2
 }
 
 backup_dir="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
@@ -38,10 +41,28 @@ mkdir -p "${backup_dir}"
 
 backup_plist() {
   local domain="${1}"
-  local backup_path="${backup_dir}/${domain//\//_}.plist"
-  log "Backing up ${domain} defaults to ${backup_path}"
-  if ! sudo defaults export "${domain}" "${backup_path}" 2>/dev/null; then
-    error_log "Failed to backup ${domain} defaults"
+  local use_sudo="${2:-false}"
+  local use_current_host="${3:-false}"
+
+  local sudo_cmd=""
+  local current_host_flag=""
+  local file_suffix=""
+
+  if [[ "${use_sudo}" == "true" ]]; then
+    sudo_cmd="sudo"
+    file_suffix=".sudo"
+  fi
+
+  if [[ "${use_current_host}" == "true" ]]; then
+    current_host_flag="-currentHost"
+    file_suffix="${file_suffix}.currentHost"
+  fi
+
+  local backup_path="${backup_dir}/${domain//\//_}${file_suffix}.plist"
+
+  log "Backing up defaults to ${backup_path}"
+  if ! ${sudo_cmd} defaults ${current_host_flag} export "${domain}" "${backup_path}"; then
+    error_log "Failed to backup ${sudo_cmd:+"${sudo_cmd} "}${current_host_flag:+"${current_host_flag} "}${domain} defaults (exiting)"
     exit 1
   fi
 }
@@ -65,8 +86,13 @@ log "Starting setup script"
 # done
 
 log "Installing Brewfile bundle"
-if ! brew bundle; then
-  error_log "brew bundle failed"
+if [[ -f "Brewfile" ]]; then
+  if ! brew bundle; then
+    error_log "brew bundle failed (exiting)"
+    exit 1
+  fi
+else
+  error_log "Brewfile not found (exiting)"
   exit 1
 fi
 
@@ -126,11 +152,11 @@ else
 fi
 
 # System settings
-log "Setting system defaults..."
+log "Configuring system defaults..."
 osascript -e 'tell application "System Settings" to quit'
 
 # Global settings
-log "Configuring global settings"
+log "Configuring global defaults"
 backup_plist "NSGlobalDomain"
 defaults write NSGlobalDomain AppleActionOnDoubleClick -string "Fill"
 defaults write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false
@@ -144,15 +170,39 @@ defaults write NSGlobalDomain InitialKeyRepeat -int 15
 defaults write NSGlobalDomain KeyRepeat -int 2
 
 # Power management
-log "Configuring power management"
-backup_plist "/Library/Preferences/com.apple.PowerManagement"
+log "Configuring power management defaults"
+backup_plist "/Library/Preferences/com.apple.PowerManagement" true false
 sudo defaults write /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0
 
 # Keyboard shortcuts
-log "Configuring keyboard shortcuts"
+log "Configuring global keyboard shortcuts"
+
+backup_plist "NSGlobalDomain" false true
+
+modifier_mapping=$(/bin/cat << 'EOF'
+<dict>
+  <key>HIDKeyboardModifierMappingSrc</key>
+  <integer>30064771129</integer>
+  <key>HIDKeyboardModifierMappingDst</key>
+  <integer>30064771300</integer>
+</dict>
+EOF
+)
+
+defaults -currentHost write NSGlobalDomain com.apple.keyboard.modifiermapping.0-0-0 -array "${modifier_mapping}"
+
 backup_plist "com.apple.symbolichotkeys"
 
-read -r -d "" hotkey_template << 'EOF'
+declare -A hotkey_params=(
+  [28]="51 20 1179648"
+  [29]="51 20 1441792"
+  [30]="52 21 1179648"
+  [31]="52 21 1441792"
+  [64]="32 49 1048576"
+  [184]="53 23 1179648"
+)
+
+hotkey_template=$(/bin/cat << 'EOF'
 <dict>
   <key>enabled</key><false/>
   <key>value</key><dict>
@@ -166,30 +216,23 @@ read -r -d "" hotkey_template << 'EOF'
   </dict>
 </dict>
 EOF
-
-declare -A hotkey_params=(
-  [28]="51 20 1179648"
-  [29]="51 20 1441792"
-  [30]="52 21 1179648"
-  [31]="52 21 1441792"
-  [64]="32 49 1048576"
-  [184]="53 23 1179648"
 )
 
-for key in "${!hotkey_params[@]}"; do
+for key in ${(k)hotkey_params}; do
   read -r p1 p2 p3 <<< "${hotkey_params[${key}]}"
   printf -v xml_entry "${hotkey_template}" "${p1}" "${p2}" "${p3}"
   defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${xml_entry}"
 done
 
 # Window Manager
-log "Configuring window manager"
+log "Configuring window manager defaults"
 backup_plist "com.apple.WindowManager"
 defaults write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
+defaults write com.apple.WindowManager EnableTilingByEdgeDrag -bool false
 defaults write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false
 
 # Universal Access
-log "Configuring Universal Access"
+log "Configuring Universal Access defaults"
 backup_plist "com.apple.universalaccess"
 defaults write com.apple.universalaccess closeViewScrollWheelToggle -bool true
 defaults write com.apple.universalaccess closeViewSmoothImages -bool false
@@ -197,32 +240,27 @@ defaults write com.apple.universalaccess closeViewSmoothImages -bool false
 # Menu Bar icons
 log "Configuring Menu Bar icons"
 
-log "Hiding Now Playing and Wi-Fi"
 backup_plist "com.apple.controlcenter"
 defaults write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0
 defaults write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0
 
-log "Hiding Siri"
 backup_plist "com.apple.Siri"
 defaults write com.apple.Siri StatusMenuVisible -bool false
 
-log "Hiding Spotlight"
 backup_plist "com.apple.Spotlight"
-defaults delete com.apple.Spotlight "NSStatusItem Visible Item-0"
+defaults read com.apple.Spotlight "NSStatusItem Visible Item-0" &> /dev/null && defaults delete com.apple.Spotlight "NSStatusItem Visible Item-0"
 
 # Software Updates
 log "Configuring software update settings"
 
-log "Enabling automatic macOS updates"
-backup_plist "/Library/Preferences/com.apple.SoftwareUpdate"
+backup_plist "/Library/Preferences/com.apple.SoftwareUpdate" true false
 sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
 
-log "Enabling automatic App Store updates"
-backup_plist "/Library/Preferences/com.apple.commerce"
+backup_plist "/Library/Preferences/com.apple.commerce" true false
 sudo defaults write /Library/Preferences/com.apple.commerce AutoUpdate -bool true
 
 # Set wallpaper
-wallpaper_image="${HOME}/.dotfiles/wallpapers/raycast.heic"
+wallpaper_image="$(pwd)/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
@@ -251,7 +289,7 @@ dock_items=(
   "/Applications/Visual Studio Code.app"
 )
 
-read -r -d "" dock_item_template << 'EOF'
+dock_item_template=$(/bin/cat << 'EOF'
 <dict>
   <key>tile-data</key>
   <dict>
@@ -265,6 +303,7 @@ read -r -d "" dock_item_template << 'EOF'
   </dict>
 </dict>
 EOF
+)
 
 for dock_item in "${dock_items[@]}"; do
   printf -v xml_entry "${dock_item_template}" "${dock_item}"
@@ -273,8 +312,10 @@ done
 
 # Finder
 log "Configuring Finder"
+
 backup_plist "com.apple.bird"
 defaults write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true
+
 backup_plist "com.apple.finder"
 defaults write com.apple.finder _FXSortFoldersFirst -bool true
 defaults write com.apple.finder FXDefaultSearchScope -string "SCcf"
@@ -343,3 +384,5 @@ echo
 echo "Setup completed! Restart your computer for all changes to take effect."
 
 log "Setup completed"
+
+kill %1
