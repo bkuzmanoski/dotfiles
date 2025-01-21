@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 
 trap 'kill %1; exit 1' INT TERM
 
@@ -20,24 +20,23 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
 set -e
 
 # Setup logging
-log_dir="${HOME}/.dotfiles_setup"
-log_file="${log_dir}/$(date +%Y%m%d_%H%M%S).log"
-mkdir -p "${log_dir}"
-touch "${log_file}"
+LOG_FILE="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$(dirname "${LOG_FILE}")"
+touch "${LOG_FILE}"
 
 # Helper functions
 log() {
   if [[ "${VERBOSE}" -eq 1 ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${log_file}"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${LOG_FILE}"
   fi
 }
 
 error_log() {
-  echo "[ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${log_file}" >&2
+  echo "[ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${LOG_FILE}" >&2
 }
 
-backup_dir="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
-mkdir -p "${backup_dir}"
+BACKUP_DIR="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
+mkdir -p "${BACKUP_DIR}"
 
 backup_plist() {
   local domain="${1}"
@@ -58,7 +57,7 @@ backup_plist() {
     file_suffix="${file_suffix}.currentHost"
   fi
 
-  local backup_path="${backup_dir}/${domain//\//_}${file_suffix}.plist"
+  local backup_path="${BACKUP_DIR}/${domain//\//_}${file_suffix}.plist"
 
   log "Backing up defaults to ${backup_path}"
   if ! ${sudo_cmd} defaults ${current_host_flag} export "${domain}" "${backup_path}"; then
@@ -68,6 +67,8 @@ backup_plist() {
 }
 
 log "Starting setup script"
+
+SCRIPT_DIR="${0:A:h}"
 
 # Install Homebrew (if not already installed)
 log "Checking Homebrew installation"
@@ -98,68 +99,53 @@ else
 fi
 
 # Setup dotfiles
-log "Linking .zprofile"
-if [[ -f ".zprofile" ]]; then
-  ln -sf "$(pwd)/.zprofile" ~/.zprofile || error_log "Failed to link .zprofile"
-else
-  error_log ".zprofile not found in current directory"
-fi
+typeset -A config_links=(
+  # Source = Target
+  [".zprofile"]="${HOME}/.zprofile"
+  [".zshrc"]="${HOME}/.zshrc"
+  ["ghostty"]="${HOME}/.config/ghostty"
+  ["bat"]="${HOME}/.config/bat"
+  ["btop"]="${HOME}/.config/btop"
+  ["colima"]="${HOME}/.colima/default"
+  ["eza"]="${HOME}/.config/eza"
+  ["micro"]="${HOME}/.config/micro"
+)
 
-log "Linking .zshrc"
-if [[ -f ".zshrc" ]]; then
-  ln -sf "$(pwd)/.zshrc" ~/.zshrc || error_log "Failed to link .zshrc"
-else
-  error_log ".zshrc not found in current directory"
-fi
+run_config_tasks() {
+  local config_name="$1"
+  case "$config_name" in
+    "bat")
+      command -v bat >/dev/null && bat cache --build # Rebuild bat cache so custom themes are available
+      ;;
+  esac
+}
 
-log "Linking Ghostty config"
-if [[ -d "$(pwd)/ghostty" ]]; then
-  ghostty_config_dir="${HOME}/.config/ghostty"
-  mkdir -p "$(dirname "${ghostty_config_dir}")"
-  ln -sf "$(pwd)/ghostty" "${ghostty_config_dir}" || error_log "Failed to link Ghostty directory"
+for config_name in "${(k)config_links[@]}"; do
+  source_path="${SCRIPT_DIR}/${config_name}"
+  target_path="${config_links[${config_name}]}"
 
-  touch "${HOME}/.hushlogin" # Suppress shell login message
-else
-  error_log "Ghostty directory not found"
-fi
+  log "Linking ${config_name}"
+  if [[ -e "${source_path}" ]]; then
+    # Backup existing file or directory if it exists and is not a symlink
+    if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
+      relative_path="${target_path#${HOME}/}"
+      backup_path="${BACKUP_DIR}/${relative_path}"
+      mkdir -p "$(dirname "${backup_path}")"
+      mv "${target_path}" "${backup_path}"
+      log "Backed up existing ${target_path} to ${backup_path}"
+    fi
 
-log "Linking bat config"
-if [[ -d "$(pwd)/bat" ]]; then
-  bat_config_dir="${HOME}/.config/bat"
-  mkdir -p "$(dirname "${bat_config_dir}")"
-  ln -sf "$(pwd)/bat" "${bat_config_dir}" || error_log "Failed to link bat directory"
+    # Link configuration files
+    mkdir -p "$(dirname "${target_path}")"
+    ln -sf "${source_path}" "${target_path}" || error_log "Failed to link ${config_name}"
 
-  bat cache --build # Rebuild bat cache so custom theme is available
-else
-  error_log "bat directory not found"
-fi
+    run_config_tasks "${config_name}"
+  else
+    error_log "${config_name} not found in ${SCRIPT_DIR}"
+  fi
+done
 
-log "Linking colima config"
-if [[ -d "$(pwd)/colima" ]]; then
-  colima_config_dir="${HOME}/.colima/default"
-  mkdir -p "$(dirname "${colima_config_dir}")"
-  ln -sf "$(pwd)/colima" "${colima_config_dir}" || error_log "Failed to link colima directory"
-else
-  error_log "colima directory not found"
-fi
-
-log "Linking eza config"
-if [[ -d "$(pwd)/eza" ]]; then
-  eza_config_dir="${HOME}/.config/eza"
-  mkdir -p "$(dirname "${eza_config_dir}")"
-  ln -sf "$(pwd)/eza" "${eza_config_dir}" || error_log "Failed to link eza directory"
-else
-  error_log "eza directory not found"
-fi
-
-log "Linking micro config"
-if [[ -d "$(pwd)/micro" ]]; then
-  micro_config_dir="${HOME}/.config/micro"
-  mkdir -p "$(dirname "${micro_config_dir}")"
-  ln -sf "$(pwd)/micro" "${micro_config_dir}" || error_log "Failed to link micro directory"
-else
-  error_log "micro directory not found"
-fi
+touch "${HOME}/.hushlogin" # Suppress shell login message
 
 # System settings
 log "Configuring system defaults..."
@@ -205,7 +191,7 @@ backup_plist "com.apple.symbolichotkeys"
 
 # These are the default params for these hotkeys
 # Including them means each hotkey can be toggled on/off in System Settings without needing to re-set the keybinding
-declare -A hotkey_params=(
+typeset -A hotkey_params=(
   [64]="32 49 1048576" # Show Spotlight search
   [28]="51 20 1179648" # Save picture of screen as a file
   [29]="51 20 1441792" # Copy picture of screen to the clipboard
@@ -230,7 +216,7 @@ hotkey_template=$(/bin/cat << 'EOF'
 EOF
 )
 
-for key in ${(k)hotkey_params}; do
+for key in "${(k)hotkey_params[@]}"; do
   read -r p1 p2 p3 <<< "${hotkey_params[${key}]}"
   printf -v xml_entry "${hotkey_template}" "${p1}" "${p2}" "${p3}"
   defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${xml_entry}" # Disable hotkeys above
@@ -272,7 +258,7 @@ backup_plist "/Library/Preferences/com.apple.commerce" true false
 sudo defaults write /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 
 # Set wallpaper
-wallpaper_image="$(pwd)/wallpapers/raycast.heic"
+wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
