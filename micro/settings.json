@@ -1,17 +1,16 @@
 {
-  "autoclose": false,
+  "autoclose": false, // Disable auto closing brackets
   "colorscheme": "zenith",
-  "diffgutter": true,
-  "divchars": "│─",
-  "divreverse": false,
-  "hlsearch": true,
-  "infobar": false,
-  "matchbracestyle": "highlight",
-  "rmtrailingws": true,
-  "scrollbar": true,
-  "scrollbarchar": "│",
-  "tabmovement": true,
-  "tabstospaces": true,
+  "diffgutter": true, // Show git diff markers in gutter
+  "divchars": "│─", // Split window divider characters
+  "divreverse": false, // Don't invert the color of window dividers
+  "hlsearch": true, // Highlight all matches when searching
+  "infobar": false, // Hide the info bar at the bottom
+  "matchbracestyle": "highlight", // Highlight matching brackets instead of underlining
+  "rmtrailingws": true, // Remove trailing whitespace on save
+  "scrollbar": true, // Show scrollbars
+  "scrollbarchar": "│", // Scrollbar character
+  "tabstospaces": true, // Use spaces instead of tabs
   "statusformatl": " (filename) $(modified)  $(status.branch)  $(status.paste)",
   "statusformatr": "Ln $(line), Col $(col)  $(opt:filetype) "
 }

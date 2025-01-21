@@ -8,15 +8,13 @@ precmd() {
 PROMPT="%F{8}[%f%~%F{8}]%f "
 
 # Shell Options
-setopt auto_cd
-setopt share_history
-setopt hist_ignore_dups
-setopt hist_ignore_space
-setopt hist_verify
+setopt auto_cd # Automatically cd into a directory if the command is a directory
+setopt hist_ignore_dups # Ignore duplicate commands in history
+setopt hist_ignore_space # Ignore commands starting with a space in history
 
 # Tools configuration
 export EDITOR="micro"
-export MANPAGER="sh -c 'col -bx | bat -l man -p'"
+export MANPAGER="sh -c 'col -bx | bat -l man -p'" # Use bat for man pages
 
 export EZA_CONFIG_DIR="${HOME}/.config/eza/"
 eza_opts="--all --group-directories-first --oneline"
@@ -67,37 +65,38 @@ export FZF_CTRL_R_OPTS=(
   "--bind='ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'"
 )
 
-export MICRO_TRUECOLOR=1
+export MICRO_TRUECOLOR=1 # Enable true color support in micro
 
 # Plugins
 autoload -Uz compinit
 compinit
 
-setopt always_to_end
-setopt complete_in_word
+setopt always_to_end # Move cursor to the end of the line when autocompleting
+setopt complete_in_word # Enable autocompletion in the middle of a word
 
-_comp_options+=(globdots)
+_comp_options+=(globdots) # Include dotfiles in autocompletion
 
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
-zstyle ':completion:*' rehash true
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case-insensitive completion
+zstyle ':completion:*' rehash true # Automatically find new executables in PATH
 
 if [[ -f "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh" ]]; then
   source "$HOME/.zsh/fzf-tab/fzf-tab.plugin.zsh"
 
-  zstyle ':completion:*' menu no
-  zstyle ':completion:*:git-checkout:*' sort false
+  zstyle ':completion:*' menu no # Disable completion menu since fzf-tab will handle it
+  zstyle ':completion:*:git-checkout:*' sort false # Disable sorting for git-checkout
 
-  zstyle ':fzf-tab:*' continuous-trigger '/'
-  zstyle ':fzf-tab:*' switch-group ',' '.'
-  zstyle ':fzf-tab:*' use-fzf-default-opts yes
+  zstyle ':fzf-tab:*' continuous-trigger '/' # Use '/' key to trigger continuous completion
+  zstyle ':fzf-tab:*' switch-group ',' '.' # Use ',' and '.' keys to switch between completion groups
+  zstyle ':fzf-tab:*' use-fzf-default-opts yes # Use FZF_DEFAULT_OPTS for fzf-tab
 else
   setopt auto_menu
-  zstyle ':completion:*' menu select
+  zstyle ':completion:*' menu select # Enable completion menu (if fzf-tab is not available)
 fi
 
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+# Syntax highlighting to match Zenith theme
 ZSH_HIGHLIGHT_STYLES[alias]="fg=4,bold"
 ZSH_HIGHLIGHT_STYLES[arg0]="fg=4,bold"
 ZSH_HIGHLIGHT_STYLES[autodirectory]="fg=7,underline"
@@ -125,13 +124,13 @@ ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 alias ..="cd .."
 alias ...="cd ../.."
 alias cat="bat"
-alias cp="cp -iv"
+alias cp="cp -iv" # Prompt before overwriting (-i) and show what's being copied (-v)
 alias ls="eza ${eza_opts}"
 alias lt="eza ${eza_opts} --tree --level=3"
-alias mv="mv -iv"
-alias mkdir="mkdir -pv"
-alias rm="rm -iv"
-alias -g -- --help="--help 2>&1 | bat --language=help --style=plain"
+alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
+alias mkdir="mkdir -pv" # Create parent directories as needed (-p) and show what's being created (-v)
+alias rm="rm -iv" # Confirm deletion of files (-i) and show what's being deleted (-v)
+alias -g -- --help="--help 2>&1 | bat --language=help --style=plain" # Global alias: pipe any --help output through bat with help syntax highlighting
 
 # Update reminders
 timestamp_dir="${HOME}/.update_timestamps"
