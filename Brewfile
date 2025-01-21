@@ -1,5 +1,3 @@
-tap "supabase/tap"
-
 brew "bat"
 brew "colima"
 brew "docker"
@@ -8,7 +6,6 @@ brew "ffmpeg"
 brew "fnm"
 brew "fzf"
 brew "micro"
-brew "supabase/tap/supabase"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 
