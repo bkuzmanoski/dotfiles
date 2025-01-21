@@ -121,15 +121,16 @@ ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 # Aliases
 alias ..="cd .."
 alias ...="cd ../.."
+alias -g -- --help="--help 2>&1 | bat --language=help --style=plain" # Global alias: pipe any --help output through bat with help syntax highlighting
 alias cat="bat"
 alias cp="cp -iv" # Prompt before overwriting (-i) and show what's being copied (-v)
 alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level=3"
 alias ll="eza --all --group-directories-first --long --header --no-permissions --no-user"
+alias llt="eza --all --group-directories-first --long --header --no-permissions --no-user --tree --level=3"
 alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
 alias mkdir="mkdir -pv" # Create parent directories as needed (-p) and show what's being created (-v)
 alias rm="rm -iv" # Confirm deletion of files (-i) and show what's being deleted (-v)
-alias -g -- --help="--help 2>&1 | bat --language=help --style=plain" # Global alias: pipe any --help output through bat with help syntax highlighting
 
 # Update reminders
 timestamp_dir="${HOME}/.update_timestamps"
