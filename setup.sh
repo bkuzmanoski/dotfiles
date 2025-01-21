@@ -118,7 +118,7 @@ if [[ -d "$(pwd)/ghostty" ]]; then
   mkdir -p "$(dirname "${ghostty_config_dir}")"
   ln -sf "$(pwd)/ghostty" "${ghostty_config_dir}" || error_log "Failed to link Ghostty directory"
 
-  touch "${HOME}/.hushlogin"
+  touch "${HOME}/.hushlogin" # Suppress shell login message
 else
   error_log "Ghostty directory not found"
 fi
@@ -129,7 +129,7 @@ if [[ -d "$(pwd)/bat" ]]; then
   mkdir -p "$(dirname "${bat_config_dir}")"
   ln -sf "$(pwd)/bat" "${bat_config_dir}" || error_log "Failed to link bat directory"
 
-  bat cache --build
+  bat cache --build # Rebuild bat cache so custom theme is available
 else
   error_log "bat directory not found"
 fi

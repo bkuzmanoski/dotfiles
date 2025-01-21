@@ -1,7 +1,7 @@
 theme = zenith
 
 window-padding-x = 12
-window-padding-y = 0
+window-padding-y = 6
 window-padding-color = extend
 resize-overlay = never
 unfocused-split-opacity = 1

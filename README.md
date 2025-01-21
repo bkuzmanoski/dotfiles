@@ -61,6 +61,8 @@ chmod +x setup.sh
 ./setup.sh -v
 ```
 
+The setup script is idempotent and can be re-run if there are any errors. See [Backup](#backups) and [Logs](#logs) below for help with troubleshooting.
+
 ### 5. Manual configuration steps
 
 #### System
@@ -95,7 +97,7 @@ chmod +x setup.sh
 
    - Add personal vault
    - Show Quick Access on icon click
-   - Clear Show Quick Access shortcut
+   - Set Show Quick Access shortcut to ⌃⇧Space
    - Clear Autofill shortcut
    - Set Compact density
    - Set security settings:
@@ -153,7 +155,7 @@ chmod +x setup.sh
 
     - Log in and enable Settings Sync
 
-## What's Included
+## What's included
 
 - `setup.sh`: Setup script that installs apps and configures settings
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew

@@ -7,10 +7,11 @@ precmd() {
 
 PROMPT="%F{8}[%f%~%F{8}]%f "
 
-# Shell Options
-setopt auto_cd # Automatically cd into a directory if the command is a directory
-setopt hist_ignore_dups # Ignore duplicate commands in history
-setopt hist_ignore_space # Ignore commands starting with a space in history
+# Shell options
+setopt AUTO_CD # Automatically cd into a directory if the command is a directory
+setopt GLOB_DOTS # Include hidden files in globbing
+setopt HIST_IGNORE_DUPS # Ignore duplicate commands in history
+setopt HIST_IGNORE_SPACE # Ignore commands starting with a space in history
 
 # Tools configuration
 export EDITOR="micro"
@@ -73,8 +74,6 @@ compinit
 
 setopt always_to_end # Move cursor to the end of the line when autocompleting
 setopt complete_in_word # Enable autocompletion in the middle of a word
-
-_comp_options+=(globdots) # Include dotfiles in autocompletion
 
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case-insensitive completion
 zstyle ':completion:*' rehash true # Automatically find new executables in PATH
