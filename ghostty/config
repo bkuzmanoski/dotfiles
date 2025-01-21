@@ -1,8 +1,9 @@
 theme = zenith
 
 window-padding-x = 12
-window-padding-y = 6
+window-padding-y = 0
 window-padding-color = extend
+window-step-resize = true
 resize-overlay = never
 unfocused-split-opacity = 1
 mouse-hide-while-typing = true
