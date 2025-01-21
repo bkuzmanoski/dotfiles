@@ -1,6 +1,3 @@
-colima/*
-!colima/default/colima.yaml
 micro/*/
 !micro/colorschemes/
-Brewfile.lock.json
 .DS_Store

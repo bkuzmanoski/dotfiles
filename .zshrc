@@ -18,7 +18,6 @@ export EDITOR="micro"
 export MANPAGER="sh -c 'col -bx | bat -l man -p'" # Use bat for man pages
 
 export EZA_CONFIG_DIR="${HOME}/.config/eza/"
-eza_opts="--all --group-directories-first --oneline"
 
 eval "$(fzf --zsh)"
 fzf_walker_skip_opts=".git,Containers,Daemon\ Containers,Group\ Containers,Mobile\ Documents,Movies,Music,Pictures,System"
@@ -44,7 +43,7 @@ export FZF_DEFAULT_OPTS=(
 export FZF_COMPLETION_DIR_OPTS=(
   "--walker=dir,hidden"
   "--walker-skip=${fzf_walker_skip_opts}"
-  "--preview='eza ${eza_opts} --color=always {}'"
+  "--preview='eza --all --group-directories-first --oneline --color=always {}'"
 )
 export FZF_COMPLETION_PATH_OPTS=(
   "--walker=file,hidden"
@@ -59,7 +58,7 @@ export FZF_CTRL_T_OPTS=(
 export FZF_ALT_C_OPTS=(
   "--walker=dir,hidden"
   "--walker-skip=${fzf_walker_skip_opts}"
-  "--preview='eza ${eza_opts} --color=always {}'"
+  "--preview='eza --all --group-directories-first --oneline --color=always {}'"
 )
 export FZF_CTRL_R_OPTS=(
   "--scheme=history"
@@ -124,8 +123,9 @@ alias ..="cd .."
 alias ...="cd ../.."
 alias cat="bat"
 alias cp="cp -iv" # Prompt before overwriting (-i) and show what's being copied (-v)
-alias ls="eza ${eza_opts}"
-alias lt="eza ${eza_opts} --tree --level=3"
+alias ls="eza --all --group-directories-first --oneline"
+alias lt="eza --all --group-directories-first --tree --level=3"
+alias ll="eza --all --group-directories-first --long --header --no-permissions --no-user"
 alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
 alias mkdir="mkdir -pv" # Create parent directories as needed (-p) and show what's being created (-v)
 alias rm="rm -iv" # Confirm deletion of files (-i) and show what's being deleted (-v)

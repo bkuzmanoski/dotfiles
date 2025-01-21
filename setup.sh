@@ -136,7 +136,7 @@ fi
 
 log "Linking colima config"
 if [[ -d "$(pwd)/colima" ]]; then
-  colima_config_dir="${HOME}/.colima"
+  colima_config_dir="${HOME}/.colima/default"
   mkdir -p "$(dirname "${colima_config_dir}")"
   ln -sf "$(pwd)/colima" "${colima_config_dir}" || error_log "Failed to link colima directory"
 else

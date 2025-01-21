@@ -13,4 +13,4 @@ cursor-style-blink = true
 adjust-cursor-thickness = 1
 
 macos-option-as-alt = true
-keybind = shift+option+backspace=text:\x15 # Delete line
+keybind = shift+option+backspace=text:\x15
