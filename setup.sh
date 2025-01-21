@@ -134,6 +134,15 @@ else
   error_log "bat directory not found"
 fi
 
+log "Linking colima config"
+if [[ -d "$(pwd)/colima" ]]; then
+  colima_config_dir="${HOME}/.colima"
+  mkdir -p "$(dirname "${colima_config_dir}")"
+  ln -sf "$(pwd)/colima" "${colima_config_dir}" || error_log "Failed to link colima directory"
+else
+  error_log "colima directory not found"
+fi
+
 log "Linking eza config"
 if [[ -d "$(pwd)/eza" ]]; then
   eza_config_dir="${HOME}/.config/eza"
