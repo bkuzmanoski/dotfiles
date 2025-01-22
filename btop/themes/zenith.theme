@@ -1,0 +1,65 @@
+# Zenith Theme
+
+# UI
+theme[main_bg]="#2f363b"
+theme[main_fg]="#839099"
+theme[inactive_fg]="#839099"
+theme[div_line]="#637079"
+
+theme[title]="#b4bbc2"
+theme[hi_fg]="#61abda"
+
+theme[selected_bg]="#39576a"
+theme[selected_fg]="#b4bbc2"
+
+theme[meter_bg]="#2f363b"
+theme[graph_text]="#2f363b"
+
+# CPU
+theme[cpu_box]="#637079"
+
+theme[cpu_start]="#64b280"
+theme[cpu_mid]="#d6b867"
+theme[cpu_end]="#e8838f"
+
+theme[temp_start]="#cf86c1"
+theme[temp_mid]="#9d86ce"
+theme[temp_end]="#e8838f"
+
+# mem/disks
+theme[mem_box]="#637079"
+
+theme[used_start]="#e8838f"
+theme[used_mid]=""
+theme[used_end]=""
+
+theme[available_start]="#d6b867"
+theme[available_mid]=""
+theme[available_end]=""
+
+theme[cached_start]="#61abda"
+theme[cached_mid]=""
+theme[cached_end]=""
+
+theme[free_start]="#64b280"
+theme[free_mid]=""
+theme[free_end]=""
+
+# net
+theme[net_box]="#637079"
+
+theme[download_start]="#9d86ce"
+theme[download_mid]=""
+theme[download_end]=""
+
+theme[upload_start]="#65b8c1"
+theme[upload_mid]=""
+theme[upload_end]=""
+
+# proc
+theme[proc_box]="#637079"
+theme[proc_misc]="#61abda"
+
+theme[process_start]="#b4bbc2"
+theme[process_mid]="#d6b867"
+theme[process_end]="#e8838f"

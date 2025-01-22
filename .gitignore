@@ -1,3 +1,4 @@
+**/*.log
 micro/*/
 !micro/colorschemes/
 .DS_Store
