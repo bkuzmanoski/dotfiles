@@ -1,74 +1,108 @@
 #!/usr/bin/env zsh
 
-trap 'kill %1; exit 1' INT TERM
+# --- Script setup ---
 
-VERBOSE=0
-
-# Parse flags
-while getopts "v" opt; do
-  case "${opt}" in
-    v) VERBOSE=1 ;;
-    *) echo "Usage: ${0} [-v]" >&2; exit 1 ;;
-  esac
-done
-
-# Maintain sudo timestamp
-sudo -v
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
-
-# Exit on error
+# Exit on unhandled errors and unset variables
 set -e
+set -u
 
-# Setup logging
+# Get directory where script is located (not necessarily the current working directory)
+SCRIPT_DIR="${0:A:h}"
+
+# Setup log directory and helper functions
 LOG_FILE="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$(dirname "${LOG_FILE}")"
 touch "${LOG_FILE}"
 
-# Helper functions
-log() {
-  if [[ "${VERBOSE}" -eq 1 ]]; then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${LOG_FILE}"
-  fi
-}
+_log() { echo "$(date '+%H:%M:%S'): $1" | tee -a "${LOG_FILE}" ${2:+"$2"} }
+log() { _log "$1" "" }
+log_error() { _log "[Error] $1" ">&2" }
 
-error_log() {
-  echo "[ERROR] [$(date '+%Y-%m-%d %H:%M:%S')] ${1}" | tee -a "${LOG_FILE}" >&2
-}
+# Get sudo privileges
+if ! sudo -v; then
+    log_error "Failed to obtain sudo privileges"
+    exit 1
+fi
 
+# Maintain sudo session in background process
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2> /dev/null &
+
+# Terminate background process on script exit
+SUDO_KEEP_ALIVE_PID=$!
+trap "kill ${SUDO_KEEP_ALIVE_PID}" EXIT
+
+# Set up backup directory and helper functions
 BACKUP_DIR="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
 mkdir -p "${BACKUP_DIR}"
 
+typeset -A BACKED_UP_DOMAINS
+
 backup_plist() {
-  local domain="${1}"
+  local domain="$1"
   local use_sudo="${2:-false}"
-  local use_current_host="${3:-false}"
 
-  local sudo_cmd=""
-  local current_host_flag=""
-  local file_suffix=""
+  local domain_key="${domain}${use_sudo:+".sudo"}"
 
-  if [[ "${use_sudo}" == "true" ]]; then
-    sudo_cmd="sudo"
-    file_suffix=".sudo"
-  fi
+  if [[ -z "${BACKED_UP_DOMAINS[${domain_key}]:-}" ]]; then
+    local sudo_cmd=""
 
-  if [[ "${use_current_host}" == "true" ]]; then
-    current_host_flag="-currentHost"
-    file_suffix="${file_suffix}.currentHost"
-  fi
+    if [[ "${use_sudo}" == "true" ]]; then
+      sudo_cmd="sudo"
+    fi
 
-  local backup_path="${BACKUP_DIR}/${domain//\//_}${file_suffix}.plist"
+    local backup_path="${BACKUP_DIR}/${domain_key//\//_}.plist"
 
-  log "Backing up defaults to ${backup_path}"
-  if ! ${sudo_cmd} defaults ${current_host_flag} export "${domain}" "${backup_path}"; then
-    error_log "Failed to backup ${sudo_cmd:+"${sudo_cmd} "}${current_host_flag:+"${current_host_flag} "}${domain} defaults (exiting)"
-    exit 1
+    log "Backing up ${domain}${sudo_cmd:+" (sudo)"} defaults"
+    if ! ${sudo_cmd} defaults export "${domain}" "${backup_path}"; then
+      log_error "Failed to backup ${domain}${sudo_cmd:+" (sudo)"} defaults, exiting"
+      exit 1
+    fi
+
+    BACKED_UP_DOMAINS[${domain_key}]=1
   fi
 }
 
-log "Starting setup script"
+defaults_write() {
+  local cmd="defaults"
+  local use_sudo=false
 
-SCRIPT_DIR="${0:A:h}"
+  if [[ "$1" == "--sudo" ]]; then
+    cmd="sudo defaults"
+    use_sudo=true
+    shift
+  fi
+
+  # Backup domain
+  local domain="$1"
+  backup_plist "${domain}" "${use_sudo}"
+
+  # Run defaults command
+  local output=$(${cmd} write "$@" 2>&1)
+  if [[ $? -eq 0 ]]; then
+    log "${cmd} write $*"
+  else
+    log_error "${cmd} write $* failed: ${output}"
+  fi
+}
+
+defaults_delete() {
+  # Check if key exists before deleting
+  if defaults read "$@" &> /dev/null; then
+    # Backup domain
+    local domain="$1"
+    backup_plist "${domain}"
+
+    # Run defaults command
+    local output=$(defaults delete "$@" 2>&1)
+    if [[ $? -eq 0 ]]; then
+      log "defaults delete $*"
+    else
+      log_error "defaults delete $* failed: ${output}"
+    fi
+  fi
+}
+
+# --- Main script ---
 
 # Install Homebrew (if not already installed)
 log "Checking Homebrew installation"
@@ -88,13 +122,13 @@ done
 
 # Install apps
 log "Installing Brewfile bundle"
-if [[ -f "Brewfile" ]]; then
-  if ! brew bundle; then
-    error_log "brew bundle failed (exiting)"
+if [[ -f "${SCRIPT_DIR}/Brewfile" ]]; then
+  if ! brew bundle --file="${SCRIPT_DIR}/Brewfile"; then
+    log_error "brew bundle failed, exiting"
     exit 1
   fi
 else
-  error_log "Brewfile not found (exiting)"
+  log_error "Brewfile not found, exiting"
   exit 1
 fi
 
@@ -113,9 +147,9 @@ typeset -A config_links=(
 
 run_config_tasks() {
   local config_name="$1"
-  case "$config_name" in
+  case "${config_name}" in
     "bat")
-      command -v bat >/dev/null && bat cache --build # Rebuild bat cache so custom themes are available
+      which -s bat > /dev/null && bat cache --build # Rebuild bat cache so custom themes are available
       ;;
   esac
 }
@@ -137,251 +171,155 @@ for config_name in "${(k)config_links[@]}"; do
 
     # Link configuration files
     mkdir -p "$(dirname "${target_path}")"
-    ln -sf "${source_path}" "${target_path}" || error_log "Failed to link ${config_name}"
+    ln -sf "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}"
 
     run_config_tasks "${config_name}"
   else
-    error_log "${config_name} not found in ${SCRIPT_DIR}"
+    log_error "${config_name} not found in ${SCRIPT_DIR}"
   fi
 done
 
 touch "${HOME}/.hushlogin" # Suppress shell login message
 
-# System settings
-log "Configuring system defaults..."
+log "Setting defaults..."
 osascript -e 'tell application "System Settings" to quit'
 
-# Global settings
-log "Configuring global defaults"
-backup_plist "NSGlobalDomain"
-defaults write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
-defaults write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
-defaults write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
-defaults write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
-defaults write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
-defaults write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
-defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
-defaults write NSGlobalDomain NSWindowShouldDragOnGesture -bool true # Click anywhere in window to move it with Control + Command
-defaults write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
-defaults write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
+# System and global settings
+defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
+defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
+defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
+defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
+defaults_write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
+defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
+defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
+defaults_write NSGlobalDomain NSWindowShouldDragOnGesture -bool true # Click anywhere in window to move it with Control + Command
+defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
+defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
+defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 
-# Power management
-log "Configuring power management defaults"
-backup_plist "/Library/Preferences/com.apple.PowerManagement" true false
-sudo defaults write /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 #  Disable automatic brightness reduction on battery
+# System hotkeys
+set_hotkey() {
+  local key="$1"
+  local enabled="$2"
+  local p1="$3" p2="$4" p3="$5"
 
-# Keyboard shortcuts
-log "Configuring global keyboard shortcuts"
+  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>${p1}</integer><integer>${p2}</integer><integer>${p3}</integer></array></dict></dict>"
+}
 
-# backup_plist "NSGlobalDomain" false true
-
-# modifier_mapping=$(/bin/cat << 'EOF'
-# <dict>
-#   <key>HIDKeyboardModifierMappingSrc</key>
-#   <integer>30064771129</integer>
-#   <key>HIDKeyboardModifierMappingDst</key>
-#   <integer>30064771300</integer>
-# </dict>
-# EOF
-# )
-
-# defaults -currentHost write NSGlobalDomain com.apple.keyboard.modifiermapping.0-0-0 -array "${modifier_mapping}" # Remap modifier keys
-
-backup_plist "com.apple.symbolichotkeys"
-
-# These are the default params for these hotkeys
-# Including them means each hotkey can be toggled on/off in System Settings without needing to re-set the keybinding
-typeset -A hotkey_params=(
-  [64]="32 49 1048576" # Show Spotlight search
-  [28]="51 20 1179648" # Save picture of screen as a file
-  [29]="51 20 1441792" # Copy picture of screen to the clipboard
-  [30]="52 21 1179648" # Save picture of selected area as a file
-  [31]="52 21 1441792" # Copy picture of selected area to the clipboard
-  [184]="53 23 1179648" # Screenshot and recording options
-)
-
-hotkey_template=$(/bin/cat << 'EOF'
-<dict>
-  <key>enabled</key><false/>
-  <key>value</key><dict>
-    <key>type</key><string>standard</string>
-    <key>parameters</key>
-    <array>
-      <integer>%d</integer>
-      <integer>%d</integer>
-      <integer>%d</integer>
-    </array>
-  </dict>
-</dict>
-EOF
-)
-
-for key in "${(k)hotkey_params[@]}"; do
-  read -r p1 p2 p3 <<< "${hotkey_params[${key}]}"
-  printf -v xml_entry "${hotkey_template}" "${p1}" "${p2}" "${p3}"
-  defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${xml_entry}" # Disable hotkeys above
-done
+# Default params included below so hotkeys can be toggled on/off in System Settings without needing to re-set the keybinding
+set_hotkey 64 "false" 32 49 1048576 # Show Spotlight search
+set_hotkey 28 "false" 51 20 1179648 # Save picture of screen as a file
+set_hotkey 29 "false" 51 20 1441792 # Copy picture of screen to the clipboard
+set_hotkey 30 "false" 52 21 1179648 # Save picture of selected area as a file
+set_hotkey 31 "false" 52 21 1441792 # Copy picture of selected area to the clipboard
+set_hotkey 184 "false" 53 23 1179648 # Screenshot and recording options
 
 # Window Manager
-log "Configuring window manager defaults"
-backup_plist "com.apple.WindowManager"
-defaults write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false # Disable click to show desktop
-defaults write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
-defaults write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
+defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false # Disable click to show desktop
+defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
+defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
 
 # Universal Access
-log "Configuring Universal Access defaults"
-backup_plist "com.apple.universalaccess"
-defaults write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
-defaults write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
+defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
+defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
 
 # Menu Bar icons
-log "Configuring Menu Bar icons"
-
-backup_plist "com.apple.controlcenter"
-defaults write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0 # Hide Now Playing icon in Menu Bar
-defaults write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0 # Hide Wi-Fi icon in Menu Bar
-
-backup_plist "com.apple.Siri"
-defaults write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
-
-backup_plist "com.apple.Spotlight"
-defaults read com.apple.Spotlight "NSStatusItem Visible Item-0" &> /dev/null && defaults delete com.apple.Spotlight "NSStatusItem Visible Item-0" # Hide Spotlight icon in Menu Bar
+defaults_write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0 # Hide Now Playing icon in Menu Bar
+defaults_write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0 # Hide Wi-Fi icon in Menu Bar
+defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
+defaults_delete com.apple.Spotlight "NSStatusItem Visible Item-0" # Hide Spotlight icon in Menu Bar
 
 # Software Updates
-log "Configuring software update settings"
-
-backup_plist "/Library/Preferences/com.apple.SoftwareUpdate" true false
-sudo defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
-
-backup_plist "/Library/Preferences/com.apple.commerce" true false
-sudo defaults write /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
+defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
+defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 
 # Set wallpaper
 wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
-
   escaped_path="$(echo "${wallpaper_image}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || error_log "Failed to set wallpaper"
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper"
 else
-  error_log "Wallpaper file not found"
+  log_error "Wallpaper file not found"
 fi
 
 # Dock
-log "Configuring Dock"
-backup_plist "com.apple.dock"
-defaults write com.apple.dock autohide -bool true # Enable Dock auto-hide
-defaults write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
-defaults write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
-defaults write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
-defaults write com.apple.dock persistent-apps -array # Clear all apps from Dock (will add custom apps below)
-defaults write com.apple.dock show-recents -bool false # Hide recent applications in Dock
-defaults write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
+defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
+defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
+defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
+defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
+defaults_write com.apple.dock show-recents -bool false # Hide recent applications in Dock
+defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
+defaults_write com.apple.dock persistent-apps -array # Clear existing Dock items
 
-dock_items=(
-  "/System/Applications/Mail.app"
-  "/Applications/Google Chrome.app"
-  "/Applications/Figma.app"
-  "/Applications/Visual Studio Code.app"
-)
+add_dock_app() {
+  local app_path="$1"
+  defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+}
 
-dock_item_template=$(/bin/cat << 'EOF'
-<dict>
-  <key>tile-data</key>
-  <dict>
-    <key>file-data</key>
-    <dict>
-      <key>_CFURLString</key>
-      <string>%s</string>
-      <key>_CFURLStringType</key>
-      <integer>0</integer>
-    </dict>
-  </dict>
-</dict>
-EOF
-)
-
-for dock_item in "${dock_items[@]}"; do
-  printf -v xml_entry "${dock_item_template}" "${dock_item}"
-  defaults write com.apple.dock persistent-apps -array-add "${xml_entry}" # Add custom apps to Dock
-done
+add_dock_app "/System/Applications/Mail.app"
+add_dock_app "/Applications/Google Chrome.app"
+add_dock_app "/Applications/Figma.app"
+add_dock_app "/Applications/Visual Studio Code.app"
 
 # Finder
-log "Configuring Finder"
-
-backup_plist "com.apple.bird"
-defaults write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppresse warnings when moving files out of iCloud Drive
-
-backup_plist "com.apple.finder"
-defaults write com.apple.finder _FXSortFoldersFirst -bool true # Sort folders first
-defaults write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
-defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
-defaults write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
-defaults write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
-defaults write com.apple.finder ShowPathbar -bool true # Show path bar
-defaults write com.apple.finder ShowRecentTags -bool false # Hide recent tags
-defaults write com.apple.finder ShowStatusBar -bool true # Show status bar
-defaults write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false # Hide external drives on Desktop
-defaults write com.apple.finder ShowHardDrivesOnDesktop -bool false # Hide internal drives on Desktop
-defaults write com.apple.finder ShowMountedServersOnDesktop -bool false # Hide servers on Desktop
-defaults write com.apple.finder ShowRemovableMediaOnDesktop -bool false # Hide removable media on Desktop
-defaults write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning when emptying Trash
+defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
+defaults_write com.apple.finder _FXSortFoldersFirst -bool true # Sort folders first
+defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
+defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
+defaults_write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
+defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
+defaults_write com.apple.finder ShowPathbar -bool true # Show path bar
+defaults_write com.apple.finder ShowRecentTags -bool false # Hide recent tags
+defaults_write com.apple.finder ShowStatusBar -bool true # Show status bar
+defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false # Hide external drives on Desktop
+defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false # Hide internal drives on Desktop
+defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false # Hide servers on Desktop
+defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false # Hide removable media on Desktop
+defaults_write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning when emptying Trash
 
 # Mail
-log "Configuring Mail"
-backup_plist "com.apple.mail"
-defaults write com.apple.mail AutoReplyFormat -int 1 # Set reply format to same as original message
-defaults write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all messages as read when opening a conversation
-defaults write com.apple.mail SendFormat -string "Plain" # Set default message format to plain text
-defaults write com.apple.mail SwipeAction -int 1 # Set default action to "Archive" instead of "Delete"
+defaults_write com.apple.mail AutoReplyFormat -int 1 # Set reply format to same as original message
+defaults_write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all messages as read when opening a conversation
+defaults_write com.apple.mail SendFormat -string "Plain" # Set default message format to plain text
+defaults_write com.apple.mail SwipeAction -int 1 # Set default action to "Archive" instead of "Delete"
 
 # TextEdit
-log "Configuring TextEdit"
-backup_plist "com.apple.TextEdit"
-defaults write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
-defaults write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
-defaults write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
-defaults write com.apple.TextEdit RichText -bool false # Use plain text by default
+defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
+defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
+defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
+defaults_write com.apple.TextEdit RichText -bool false # Use plain text by default
 
 # CleanShot X
-log "Configuring CleanShot X"
-backup_plist "pl.maketheweb.cleanshotx"
-defaults write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
-defaults write pl.maketheweb.cleanshotx afterScreenshotActions -array 1 # Copy to clipboard after taking a screenshot
-defaults write pl.maketheweb.cleanshotx allowURLSchemesAPI -string "55e857c66268b59047535d6f427d1ee8" # Allow applications to control CleanShot X (for Raycast integration)
-defaults write pl.maketheweb.cleanshotx crosshairMode -int 2 # Always enable crosshair mode for selection
-defaults write pl.maketheweb.cleanshotx cursorHighlightStyle -int 1 # Set cursor highlight style to "Filled"
-defaults write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
-defaults write pl.maketheweb.cleanshotx downscaleRetinaVideos -bool true # Downscale videos to 1x
-defaults write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
-defaults write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
-defaults write pl.maketheweb.cleanshotx highlightClicks -bool true # Highlight mouse clicks in recordings
-defaults write pl.maketheweb.cleanshotx keyboardOverlayStyle -int 1 # Set keyboard overlay style to "Light"
-defaults write pl.maketheweb.cleanshotx mergeAudioTracks -bool false # Keep audio tracks separate in recordings
-defaults write pl.maketheweb.cleanshotx recordComputerAudio -bool true # Record computer audio in recordings
-defaults write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do not remember last selection area for recordings
-defaults write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
-defaults write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
-defaults write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide Menu Bar icon
-defaults write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
+defaults_write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
+defaults_write pl.maketheweb.cleanshotx afterScreenshotActions -array 1 # Copy to clipboard after taking a screenshot
+defaults_write pl.maketheweb.cleanshotx allowURLSchemesAPI -string "55e857c66268b59047535d6f427d1ee8" # Allow applications to control CleanShot X (for Raycast integration)
+defaults_write pl.maketheweb.cleanshotx crosshairMode -int 2 # Always enable crosshair mode for selection
+defaults_write pl.maketheweb.cleanshotx cursorHighlightStyle -int 1 # Set cursor highlight style to "Filled"
+defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
+defaults_write pl.maketheweb.cleanshotx downscaleRetinaVideos -bool true # Downscale videos to 1x
+defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
+defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
+defaults_write pl.maketheweb.cleanshotx highlightClicks -bool true # Highlight mouse clicks in recordings
+defaults_write pl.maketheweb.cleanshotx keyboardOverlayStyle -int 1 # Set keyboard overlay style to "Light"
+defaults_write pl.maketheweb.cleanshotx mergeAudioTracks -bool false # Keep audio tracks separate in recordings
+defaults_write pl.maketheweb.cleanshotx recordComputerAudio -bool true # Record computer audio in recordings
+defaults_write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do not remember last selection area for recordings
+defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
+defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
+defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide Menu Bar icon
+defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
 
-osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/CleanShot X.app", hidden:true}'
+log "Configuring CleanShot X login item"
+osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/CleanShot X.app", hidden:true}' # Run CleanShot X on login
 
 # Google Chrome
-log "Configuring Google Chrome"
-backup_plist "com.google.Chrome"
-defaults write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
 
 # Raycast
-log "Configuring Raycast"
-backup_plist "com.raycast.macos"
-defaults write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
+defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
 
 echo
-echo "Setup completed! Restart your computer for all changes to take effect."
-
 log "Setup completed"
-
-kill %1
+echo "Restart your computer for all changes to take effect"
