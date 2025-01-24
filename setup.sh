@@ -184,6 +184,14 @@ touch "${HOME}/.hushlogin" # Suppress shell login message
 log "Setting defaults..."
 osascript -e 'tell application "System Settings" to quit'
 
+# Enable Touch ID for sudo
+if [[ ! -f /etc/pam.d/sudo_local ]]; then
+    echo "Enabling Touch ID for sudo"
+    echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
+else
+    echo "Warning: sudo_local already exists, skipping Touch ID for sudo configuration"
+fi
+
 # System and global settings
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
