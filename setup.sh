@@ -186,10 +186,10 @@ osascript -e 'tell application "System Settings" to quit'
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
-    echo "Enabling Touch ID for sudo"
+    log "Enabling Touch ID for sudo"
     echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 else
-    echo "Warning: sudo_local already exists, skipping Touch ID for sudo configuration"
+    log "Warning: sudo_local already exists, skipping Touch ID for sudo configuration"
 fi
 
 # System and global settings
