@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/bin/zsh
 
 # --- Script setup ---
 
@@ -16,20 +16,19 @@ touch "${LOG_FILE}"
 
 _log() { echo "$(date '+%H:%M:%S'): $1" | tee -a "${LOG_FILE}" ${2:+"$2"} }
 log() { _log "$1" "" }
-log_error() { _log "[Error] $1" ">&2" }
+log_error() { _log "[Error] $1" "/dev/stderr" }
 
 # Get sudo privileges
 if ! sudo -v; then
-    log_error "Failed to obtain sudo privileges"
-    exit 1
+  log_error "Failed to obtain sudo privileges."
+  exit 1
 fi
 
 # Maintain sudo session in background process
 while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2> /dev/null &
 
 # Terminate background process on script exit
-SUDO_KEEP_ALIVE_PID=$!
-trap "kill ${SUDO_KEEP_ALIVE_PID}" EXIT
+trap "kill $!" EXIT
 
 # Set up backup directory and helper functions
 BACKUP_DIR="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
@@ -52,9 +51,9 @@ backup_plist() {
 
     local backup_path="${BACKUP_DIR}/${domain_key//\//_}.plist"
 
-    log "Backing up ${domain}${sudo_cmd:+" (sudo)"} defaults"
+    log "Backing up ${domain}${sudo_cmd:+" (sudo)"} defaults."
     if ! ${sudo_cmd} defaults export "${domain}" "${backup_path}"; then
-      log_error "Failed to backup ${domain}${sudo_cmd:+" (sudo)"} defaults, exiting"
+      log_error "Failed to backup ${domain}${sudo_cmd:+" (sudo)"} defaults, exiting."
       exit 1
     fi
 
@@ -79,7 +78,7 @@ defaults_write() {
   # Run defaults command
   local output=$(${cmd} write "$@" 2>&1)
   if [[ $? -eq 0 ]]; then
-    log "${cmd} write $*"
+    log "Executing: ${cmd} write $*"
   else
     log_error "${cmd} write $* failed: ${output}"
   fi
@@ -95,7 +94,7 @@ defaults_delete() {
     # Run defaults command
     local output=$(defaults delete "$@" 2>&1)
     if [[ $? -eq 0 ]]; then
-      log "defaults delete $*"
+      log "Executing: defaults delete $*"
     else
       log_error "defaults delete $* failed: ${output}"
     fi
@@ -105,13 +104,14 @@ defaults_delete() {
 # --- Main script ---
 
 # Install Homebrew (if not already installed)
-log "Checking Homebrew installation"
+log "Checking Homebrew installation."
 if which -s brew; then
-  log "Homebrew is already installed"
+  log "Homebrew is already installed."
 else
   log "Installing Homebrew..."
-  echo "Install Command Line Tools when prompted"
+  echo "Install Command Line Tools when prompted."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
 # Wait for Xcode Command Line Tools installation to complete
@@ -121,28 +121,28 @@ until xcode-select -p &> /dev/null; do
 done
 
 # Install apps
-log "Installing Brewfile bundle"
+log "Installing Brewfile bundle."
 if [[ -f "${SCRIPT_DIR}/Brewfile" ]]; then
   if ! brew bundle --file="${SCRIPT_DIR}/Brewfile"; then
-    log_error "brew bundle failed, exiting"
+    log_error "brew bundle failed, exiting."
     exit 1
   fi
 else
-  log_error "Brewfile not found, exiting"
+  log_error "Brewfile not found, exiting."
   exit 1
 fi
 
 # Setup dotfiles
 typeset -A config_links=(
   # Source = Target
-  [".zprofile"]="${HOME}/.zprofile"
-  [".zshrc"]="${HOME}/.zshrc"
-  ["ghostty"]="${HOME}/.config/ghostty"
   ["bat"]="${HOME}/.config/bat"
   ["btop"]="${HOME}/.config/btop"
   ["colima"]="${HOME}/.colima/default"
   ["eza"]="${HOME}/.config/eza"
+  ["ghostty"]="${HOME}/.config/ghostty"
   ["micro"]="${HOME}/.config/micro"
+  [".zprofile"]="${HOME}/.zprofile"
+  [".zshrc"]="${HOME}/.zshrc"
 )
 
 run_config_tasks() {
@@ -182,14 +182,14 @@ done
 touch "${HOME}/.hushlogin" # Suppress shell login message
 
 log "Setting defaults..."
-osascript -e 'tell application "System Settings" to quit'
+osascript -e "tell application \"System Settings\" to quit"
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
-    log "Enabling Touch ID for sudo"
-    echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
+  log "Enabling Touch ID for sudo."
+  echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 else
-    log "Warning: sudo_local already exists, skipping Touch ID for sudo configuration"
+  log "Warning: sudo_local already exists, skipping Touch ID for sudo configuration."
 fi
 
 # System and global settings
@@ -247,9 +247,9 @@ wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
   escaped_path="$(echo "${wallpaper_image}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper"
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
-  log_error "Wallpaper file not found"
+  log_error "Wallpaper file not found."
 fi
 
 # Dock
@@ -319,8 +319,8 @@ defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystro
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide Menu Bar icon
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
 
-log "Configuring CleanShot X login item"
-osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/CleanShot X.app", hidden:true}' # Run CleanShot X on login
+log "Configuring CleanShot X login item."
+osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"/Applications/CleanShot X.app\", hidden:true}" # Run CleanShot X on login
 
 # Google Chrome
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
@@ -329,5 +329,5 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
 
 echo
-log "Setup completed"
-echo "Restart your computer for all changes to take effect"
+log "Setup completed."
+echo "Restart your computer for all changes to take effect."
