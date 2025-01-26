@@ -197,6 +197,7 @@ defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set doub
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
+defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 defaults_write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
