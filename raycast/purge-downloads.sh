@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 # Required parameters:
 # @raycast.schemaVersion 1
@@ -6,36 +6,37 @@
 # @raycast.mode silent
 
 # Optional parameters:
-# @raycast.packageName Finder Utilities
+# @raycast.packageName System
 
 # Documentation:
-# @raycast.author britown
+# @raycast.author Britown
 # @raycast.authorURL https://github.com/bkuzmanoski
 
 # Get the Downloads folder path and ensure it exists
-downloads=~/Downloads
-if [[ ! -d "$downloads" ]]; then
-  echo "Downloads directory not found"
+DOWNLOADS_DIR="${HOME}/Downloads"
+
+if [[ ! -d "${DOWNLOADS_DIR}" ]]; then
+  echo "Downloads directory not found."
   exit 1
 fi
 
 # Check if there are any files/folders to move
-if [[ -z "$(ls $downloads)" ]]; then
-  echo "Downloads folder is already empty"
+if [[ -z "$(ls "${DOWNLOADS_DIR}")" ]]; then
+  echo "Downloads folder is already empty."
   exit 0
 fi
 
 # Move items to trash
-osascript <<EOD
+osascript << EOD
   tell application "Finder"
-    set downloadsFolder to POSIX file "$downloads" as alias
+    set downloadsFolder to POSIX file "${DOWNLOADS_DIR}" as alias
     delete (every item of folder downloadsFolder)
   end tell
 EOD
 
-if [ $? -eq 0 ]; then
-  echo "Successfully moved items to trash"
+if (( ! $? )); then
+  echo "Successfully moved items to trash."
 else
-  echo "Error moving items to trash"
+  echo "Error moving items to trash."
   exit 1
 fi
