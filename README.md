@@ -5,12 +5,14 @@ This repository contains scripts and configuration files to automate the setup o
 ## What's included
 
 - **/assets**: Reference screenshots
-- **/backups**: Backups of settings that are otherwise synced via their respective apps
+- **/bat**: bat theme
+- **/btop**: btop configuration
+- **/colima**: colima configuration
 - **/eza**: eza theme
 - **/ghostty**: Ghostty configuration
 - **/micro**: micro configuration
 - **/raycast**: Raycast script commands
-- **/wallpapers**: Desktop wallpapers
+- **/wallpapers**: Desktop wallpapers (`raycast.heic` automatically adapts to light/dark mode)
 - `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew
 - `setup.sh`: Setup script that installs apps and configures settings
