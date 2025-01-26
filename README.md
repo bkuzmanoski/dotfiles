@@ -19,52 +19,14 @@ This repository contains scripts and configuration files to automate the setup o
 
 ## Installation
 
-### 1. Install Homebrew and Command Line Tools
-
-Start by installing Homebrew:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Install Command Line Tools when prompted. No need to update `.zprofile` when prompted.
-
-### 2. Configure Git
-
-Set up Git:
-
-```zsh
-# Set your name and email
-git config --global user.name "Brian Kuzmanoski"
-git config --global user.email "[GitHub email address]"
-
-# Generate SSH key
-ssh-keygen -t ed25519 -C "[GitHub email address]"
-
-# Start the SSH agent
-eval "$(ssh-agent -s)"
-
-# Add your SSH key to the agent
-ssh-add ~/.ssh/id_ed25519
-
-# Copy the public key to clipboard
-pbcopy < ~/.ssh/id_ed25519.pub
-```
-
-Add the new SSH key to your GitHub account:
-
-1. Go to GitHub → Settings → SSH and GPG keys
-2. Click "New SSH key"
-3. Paste the key and save
-
-### 3. Clone this repository
+### 1. Clone this repository
 
 ```zsh
 git clone git@github.com:bkuzmanoski/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ```
 
-### 4. Run the setup script
+### 2. Run the setup script
 
 ```zsh
 # Make the script executable
@@ -84,7 +46,7 @@ The setup script creates a backup of macOS and app defaults before making any ch
 
 A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
-### 5. Manual configuration steps
+### 3. Manual configuration steps
 
 #### System
 
