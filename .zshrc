@@ -1,7 +1,7 @@
 # Custom prompt
 precmd() {
   precmd() {
-    echo
+    print
   }
 }
 
@@ -62,7 +62,7 @@ export FZF_ALT_C_OPTS=(
 )
 export FZF_CTRL_R_OPTS=(
   "--scheme=history"
-  "--bind='ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'"
+  "--bind='ctrl-y:execute-silent(print -n {2..} | pbcopy)+abort'"
 )
 
 export MICRO_TRUECOLOR=1 # Enable true color support in micro
@@ -120,16 +120,17 @@ ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 
 # Aliases
 alias -g -- --help="--help 2>&1 | bat --language=help --style=plain" # Global alias: pipe any --help output through bat with help syntax highlighting
-alias ..="cd .."
 alias ...="cd ../.."
+alias ..="cd .."
 alias cat="bat"
 alias cp="cp -iv" # Prompt before overwriting (-i) and show what's being copied (-v)
-alias ls="eza --all --group-directories-first --oneline"
-alias lt="eza --all --group-directories-first --tree --level=3"
 alias ll="eza --all --group-directories-first --long --header --no-permissions --no-user"
 alias llt="eza --all --group-directories-first --long --header --no-permissions --no-user --tree --level=3"
-alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
+alias ls="eza --all --group-directories-first --oneline"
+alias lt="eza --all --group-directories-first --tree --level=3"
 alias mkdir="mkdir -pv" # Create parent directories as needed (-p) and show what's being created (-v)
+alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
+alias ow="~/.open-webui/ow.sh"
 alias rm="rm -iv" # Confirm deletion of files (-i) and show what's being deleted (-v)
 
 # Update reminders
@@ -169,23 +170,23 @@ check_update_timestamps() {
     fi
   done
 
-  (( updates_required )) && echo
+  (( updates_required )) && print
 }
 
 check_update_timestamps
 
 # Update functions
 brewup() (
-  cd ~/.dotfiles || { echo ".dotfiles directory not found."; exit 1; }
+  cd ~/.dotfiles || { print ".dotfiles directory not found."; exit 1; }
 
-  brew update || { echo "brew update failed."; exit 1; }
-  brew upgrade || { echo "brew upgrade failed."; exit 1; }
-  brew bundle || { echo "brew bundle failed."; exit 1; }
-  brew autoremove || { echo "brew autoremove failed."; exit 1; }
-  brew cleanup || { echo "brew cleanup failed."; exit 1; }
+  brew update || { print "brew update failed."; exit 1; }
+  brew upgrade || { print "brew upgrade failed."; exit 1; }
+  brew bundle || { print "brew bundle failed."; exit 1; }
+  brew autoremove || { print "brew autoremove failed."; exit 1; }
+  brew cleanup || { print "brew cleanup failed."; exit 1; }
 
   date +%s > "${timestamp_dir}/brew_last_update"
-  echo "brew update timestamp updated, next reminder in 30 days."
+  print "brew update timestamp updated, next reminder in 30 days."
 )
 
 fnmup() {
@@ -194,67 +195,67 @@ fnmup() {
 
   local current_version="$(fnm current)"
   local latest_version="$(fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)" || {
-    echo "Failed to fetch latest Node version."
+    print "Failed to fetch latest Node version."
     return 1
   }
   [[ -z "${latest_version}" ]] && {
-    echo "No LTS versions found."
+    print "No LTS versions found."
     return 1
   }
 
   if [[ "${current_version}" != "${latest_version}" ]]; then
-    echo "Current version: ${current_version}"
-    echo "Latest version: ${latest_version}"
-    echo
-    echo "New version available!"
+    print "Current version: ${current_version}"
+    print "Latest version: ${latest_version}"
+    print
+    print "New version available!"
     read -r "response?Install latest version? (y/N) "
     if [[ "${response}" =~ ^[Yy]$ ]]; then
       fnm install "${latest_version}" || {
-        echo "Failed to install Node ${latest_version}."
+        print "Failed to install Node ${latest_version}."
         return 1
       }
-      echo
+      print
       read -r "default?Set as default? (y/N) "
       if [[ "${default}" =~ ^[Yy]$ ]]; then
         fnm default "${latest_version}" || {
-          echo "Failed to set Node.js ${latest_version} as default."
+          print "Failed to set Node.js ${latest_version} as default."
           return 1
         }
-        echo "Node ${latest_version} is now default."
+        print "Node ${latest_version} is now default."
       fi
-      echo
+      print
       read -r "cleanup?Clean up old versions? (y/N) "
       if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
         local installed_versions="$(fnm ls | grep -v 'system' | grep -v "${latest_version}" | tr -d '* ' | grep -o 'v[0-9][0-9.]*')"
         if [[ -n "${installed_versions}" ]]; then
-          echo "The following versions will be removed:"
-          echo "${installed_versions}"
-          echo
+          print "The following versions will be removed:"
+          print "${installed_versions}"
+          print
           read -r "confirm?Proceed? (y/N) "
           if [[ "${confirm}" =~ ^[Yy]$ ]]; then
-            echo "${installed_versions}" | while read -r version; do
+            print "${installed_versions}" | while read -r version; do
               if [[ -n "${version}" ]]; then
                 printf "Removing %s...\n" "${version}"
                 fnm uninstall "${version}" || {
-                  echo "Failed to remove Node ${version}."
+                  print "Failed to remove Node ${version}."
                   return 1
                 }
               fi
             done
-            echo
-            echo "Cleanup complete!"
+            print
+            print "Cleanup complete!"
           fi
         else
-          echo "No old versions to clean up."
+          print "No old versions to clean up."
         fi
       fi
     fi
   else
-    echo "Already up to date."
+    print "Already up to date."
   fi
 
   date +%s > "${timestamp_dir}/fnm_last_update"
-  echo "fnm update timestamp updated, next reminder in 30 days."
+  print "fnm update timestamp updated, next reminder in 30 days."
 }
 
 ftup() (
@@ -262,14 +263,14 @@ ftup() (
 
   if [[ ! -d "${fzf_tab_dir}" ]]; then
     mkdir -p "${HOME}/.zsh"
-    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab_dir" || { echo "fzf-tab installation failed."; exit 1; }
+    git clone https://github.com/Aloxaf/fzf-tab "$fzf_tab_dir" || { print "fzf-tab installation failed."; exit 1; }
 
     date +%s > "${timestamp_dir}/fzf_tab_last_update"
-    echo "fzf-tab installed, restart shell to use it."
+    print "fzf-tab installed, restart shell to use it."
   else
-    (cd "${fzf_tab_dir}" && git pull) || { echo "fzf-tab update failed."; exit 1; }
+    (cd "${fzf_tab_dir}" && git pull) || { print "fzf-tab update failed."; exit 1; }
 
     date +%s > "${timestamp_dir}/fzf_tab_last_update"
-    echo "fzf-tab update timestamp updated, next reminder in 30 days."
+    print "fzf-tab update timestamp updated, next reminder in 30 days."
   fi
 )
