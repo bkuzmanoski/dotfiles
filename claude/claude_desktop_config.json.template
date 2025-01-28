@@ -1,0 +1,44 @@
+{
+  "globalShortcut": "",
+  "mcpServers": {
+    "brave-search": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
+      "env": {
+        "BRAVE_API_KEY": ""
+      }
+    },
+    "filesystem": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/bkuzmanoski/Developer",
+        "/Users/bkuzmanoski/.dotfiles"
+      ]
+    },
+    "github": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      }
+    },
+    "mcp-server-commands": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "mcp-server-commands"]
+    },
+    "package-version": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "mcp-package-version"]
+    },
+    "puppeteer": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"]
+    },
+    "sequential-thinking": {
+      "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    }
+  }
+}

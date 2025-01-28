@@ -14,7 +14,7 @@ LOG_FILE="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$(dirname "${LOG_FILE}")"
 touch "${LOG_FILE}"
 
-_log() { echo "$(date '+%H:%M:%S'): $1" | tee -a "${LOG_FILE}" ${2:+"$2"} }
+_log() { print "$(date '+%H:%M:%S'): $1" | tee -a "${LOG_FILE}" ${2:+"$2"} }
 log() { _log "$1" "" }
 log_error() { _log "[Error] $1" "/dev/stderr" }
 
@@ -109,7 +109,7 @@ if which -s brew; then
   log "Homebrew is already installed."
 else
   log "Installing Homebrew..."
-  echo "Install Command Line Tools when prompted."
+  print "Install Command Line Tools when prompted."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
@@ -141,8 +141,9 @@ typeset -A config_links=(
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
   ["micro"]="${HOME}/.config/micro"
-  [".zprofile"]="${HOME}/.zprofile"
+  [".zshenv"]="${HOME}/.zshenv"
   [".zshrc"]="${HOME}/.zshrc"
+  ["claude/claude_desktop_config.json"]="${HOME}/Library/Application Support/Claude/claude_desktop_config.json"
 )
 
 run_config_tasks() {
@@ -150,6 +151,13 @@ run_config_tasks() {
   case "${config_name}" in
     "bat")
       which -s bat > /dev/null && bat cache --build # Rebuild bat cache so custom themes are available
+      ;;
+    "claude/claude_desktop_config.json")
+      if [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]]; then
+        chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh"
+      else
+        log_error "/claude/npx_launcher.sh not found in ${SCRIPT_DIR}"
+      fi
       ;;
   esac
 }
@@ -171,7 +179,7 @@ for config_name in "${(k)config_links[@]}"; do
 
     # Link configuration files
     mkdir -p "$(dirname "${target_path}")"
-    ln -sf "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}"
+    ln -sfh "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}"
 
     run_config_tasks "${config_name}"
   else
@@ -187,7 +195,7 @@ osascript -e "tell application \"System Settings\" to quit"
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
   log "Enabling Touch ID for sudo."
-  echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
+  print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 else
   log "Warning: sudo_local already exists, skipping Touch ID for sudo configuration."
 fi
@@ -247,7 +255,7 @@ wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
-  escaped_path="$(echo "${wallpaper_image}" | sed 's/"/\\"/g')"
+  escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
   log_error "Wallpaper file not found."
@@ -329,6 +337,6 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New
 # Raycast
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
 
-echo
+print
 log "Setup completed."
-echo "Restart your computer for all changes to take effect."
+print "Restart your computer for all changes to take effect."
