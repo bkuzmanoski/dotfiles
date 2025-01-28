@@ -1,4 +1,6 @@
-**/*.log
+claude/claude_desktop_config.json
 micro/*/
 !micro/colorschemes/
+**/*.log
+**/*.sock
 .DS_Store
