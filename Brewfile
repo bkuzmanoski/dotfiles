@@ -21,7 +21,6 @@ cask "imageoptim"
 cask "nucleo"
 cask "raycast"
 cask "sf-symbols"
-cask "utm"
 cask "visual-studio-code"
 
 cask "font-commit-mono"
