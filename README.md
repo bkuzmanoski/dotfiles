@@ -7,7 +7,7 @@ This repository contains scripts and configuration files to automate the setup o
 - **/assets**: Reference screenshots
 - **/bat**: bat theme
 - **/btop**: btop configuration
-- **/claude**: Claude and MCP Servers configuration (note: copy `claude_desktop_config.json.template` -> `claude_desktop_config.json` and add keys)
+- **/claude**: Claude and MCP Servers configuration (NB: copy `claude_desktop_config.json.template` → `claude_desktop_config.json` and add keys before running setup)
 - **/colima**: colima configuration
 - **/eza**: eza theme
 - **/ghostty**: Ghostty configuration

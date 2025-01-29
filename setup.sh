@@ -179,11 +179,11 @@ for config_name in "${(k)config_links[@]}"; do
 
     # Link configuration files
     mkdir -p "$(dirname "${target_path}")"
-    ln -sfh "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}"
+    ln -sfh "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}."
 
     run_config_tasks "${config_name}"
   else
-    log_error "${config_name} not found in ${SCRIPT_DIR}"
+    log_error "${config_name} not found in ${SCRIPT_DIR}, skipping."
   fi
 done
 
@@ -254,7 +254,7 @@ defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool t
 wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
-  log "Setting wallpaper to ${wallpaper_image}"
+  log "Setting wallpaper to ${wallpaper_image}."
   escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
