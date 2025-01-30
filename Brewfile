@@ -8,6 +8,8 @@ brew "ffmpeg"
 brew "fnm"
 brew "fzf"
 brew "micro"
+brew "python"
+brew "uv"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
 

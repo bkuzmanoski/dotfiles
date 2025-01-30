@@ -8,6 +8,10 @@
         "BRAVE_API_KEY": ""
       }
     },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch", "--ignore-robots-txt"]
+    },
     "filesystem": {
       "command": "/Users/bkuzmanoski/.dotfiles/claude/npx_launcher.sh",
       "args": [
