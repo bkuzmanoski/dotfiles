@@ -141,7 +141,7 @@ typeset -A config_links=(
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
   ["micro"]="${HOME}/.config/micro"
-  [".zshenv"]="${HOME}/.zshenv"
+  [".zprofile"]="${HOME}/.zprofile"
   [".zshrc"]="${HOME}/.zshrc"
   ["claude/claude_desktop_config.json"]="${HOME}/Library/Application Support/Claude/claude_desktop_config.json"
 )

@@ -14,7 +14,7 @@ This repository contains scripts and configuration files to automate the setup o
 - **/micro**: micro configuration
 - **/raycast**: Raycast script commands
 - **/wallpapers**: Desktop wallpapers (`raycast.heic` automatically adapts to light/dark mode)
-- `.zshenv` and `.zshrc`: Zsh configuration
+- `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew
 - `setup.sh`: Setup script that installs apps and configures settings
 
