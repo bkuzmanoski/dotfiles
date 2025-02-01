@@ -308,6 +308,10 @@ defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text 
 defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
 defaults_write com.apple.TextEdit RichText -bool false # Use plain text by default
 
+# Alcove
+defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
+defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at login
+
 # CleanShot X
 defaults_write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
 defaults_write pl.maketheweb.cleanshotx afterScreenshotActions -array 1 # Copy to clipboard after taking a screenshot
