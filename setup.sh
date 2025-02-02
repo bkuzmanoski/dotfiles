@@ -311,7 +311,8 @@ defaults_write com.apple.TextEdit RichText -bool false # Use plain text by defau
 # Alcove
 defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at login
-defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display
+defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Always show on built-in display
+defaults_write com.henrikruscon.Alcove warnOnLowBattery -bool false # Disable low battery warning
 
 # CleanShot X
 defaults_write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
