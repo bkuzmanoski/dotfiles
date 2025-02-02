@@ -15,7 +15,7 @@ setopt HIST_IGNORE_SPACE # Ignore commands starting with a space in history
 
 # Tools configuration
 export EDITOR="micro"
-export MANPAGER="sh -c 'col -bx | bat -l man -p'" # Use bat for man pages
+export MANPAGER="col -bx | bat --language=man --style=plain" # Use bat for man pages
 
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 
