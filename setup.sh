@@ -332,6 +332,10 @@ defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystro
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide Menu Bar icon
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
 
+# ImageOptim
+defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
+defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (not available on arm64)
+
 log "Configuring CleanShot X login item."
 osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"/Applications/CleanShot X.app\", hidden:true}" # Run CleanShot X on login
 
