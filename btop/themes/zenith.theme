@@ -11,23 +11,23 @@ theme[selected_bg]="#39576a"
 theme[selected_fg]="#b4bbc2"
 
 theme[meter_bg]="#637079"
-theme[graph_text]="#2f363b"
+theme[graph_text]="#839099"
 
 # CPU
 theme[cpu_box]="#637079"
 
 theme[cpu_start]="#64b280"
 theme[cpu_mid]="#d6b867"
-theme[cpu_end]="#e8838f"
+theme[cpu_end]="#de6e7c"
 
 theme[temp_start]="#cf86c1"
 theme[temp_mid]="#9d86ce"
-theme[temp_end]="#e8838f"
+theme[temp_end]="#de6e7c"
 
 # mem/disks
 theme[mem_box]="#637079"
 
-theme[used_start]="#e8838f"
+theme[used_start]="#de6e7c"
 theme[used_mid]=""
 theme[used_end]=""
 
@@ -60,4 +60,4 @@ theme[proc_misc]="#61abda"
 
 theme[process_start]="#b4bbc2"
 theme[process_mid]="#d6b867"
-theme[process_end]="#e8838f"
+theme[process_end]="#de6e7c"
