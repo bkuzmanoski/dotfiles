@@ -1,4 +1,4 @@
-theme = zenith
+theme = light:meridian,dark:zenith
 
 window-padding-x = 12
 window-padding-y = 6

@@ -1,0 +1,25 @@
+adjust-cell-height = 5%
+adjust-cell-width = -5%
+
+background = #eceef0
+foreground = #2e363c
+
+selection-background = #b2c9d8
+selection-foreground = #2e363c
+
+palette = 0=#2e363c
+palette = 1=#b03645
+palette = 2=#446f53
+palette = 3=#9f5a38
+palette = 4=#3378a3
+palette = 5=#9f5090
+palette = 6=#417b81
+palette = 7=#b4bbc2
+palette = 8=#637079
+palette = 9=#de6e7c
+palette = 10=#68ae7f
+palette = 11=#d68c67
+palette = 12=#61abda
+palette = 13=#cf86c1
+palette = 14=#65b8c1
+palette = 15=#839099

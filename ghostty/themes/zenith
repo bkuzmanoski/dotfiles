@@ -1,6 +1,5 @@
 adjust-cell-height = 5%
 adjust-cell-width = -5%
-font-thicken = true
 
 background = #2f363b
 foreground = #b4bbc2
@@ -9,7 +8,7 @@ selection-background = #39576a
 selection-foreground = #b4bbc2
 
 palette = 0=#161a1d
-palette = 1=#e8838f
+palette = 1=#de6e7c
 palette = 2=#64b280
 palette = 3=#d68c67
 palette = 4=#61abda
