@@ -16,13 +16,13 @@
 DESKTOP_DIR="${HOME}/Desktop"
 
 if [[ ! -d "${DESKTOP_DIR}" ]]; then
-  echo "Desktop directory not found."
+  print "Desktop directory not found."
   exit 1
 fi
 
 # Check if there are any files/folders to move
 if [[ -z "$(ls "${DESKTOP_DIR}")" ]]; then
-  echo "Desktop folder is already empty."
+  print "Desktop folder is already empty."
   exit 0
 fi
 
@@ -35,8 +35,8 @@ osascript << EOD
 EOD
 
 if (( ! $? )); then
-  echo "Successfully moved items to trash."
+  print "Successfully moved items to trash."
 else
-  echo "Error moving items to trash."
+  print "Error moving items to trash."
   exit 1
 fi

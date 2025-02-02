@@ -16,13 +16,13 @@
 DOWNLOADS_DIR="${HOME}/Downloads"
 
 if [[ ! -d "${DOWNLOADS_DIR}" ]]; then
-  echo "Downloads directory not found."
+  print "Downloads directory not found."
   exit 1
 fi
 
 # Check if there are any files/folders to move
 if [[ -z "$(ls "${DOWNLOADS_DIR}")" ]]; then
-  echo "Downloads folder is already empty."
+  print "Downloads folder is already empty."
   exit 0
 fi
 
@@ -35,8 +35,8 @@ osascript << EOD
 EOD
 
 if (( ! $? )); then
-  echo "Successfully moved items to trash."
+  print "Successfully moved items to trash."
 else
-  echo "Error moving items to trash."
+  print "Error moving items to trash."
   exit 1
 fi
