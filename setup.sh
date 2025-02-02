@@ -153,11 +153,7 @@ run_config_tasks() {
       which -s bat > /dev/null && bat cache --build # Rebuild bat cache so custom themes are available
       ;;
     "claude/claude_desktop_config.json")
-      if [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]]; then
-        chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh"
-      else
-        log_error "/claude/npx_launcher.sh not found in ${SCRIPT_DIR}"
-      fi
+      [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]] && chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh" # Make npx_launcher.sh executable
       ;;
   esac
 }
