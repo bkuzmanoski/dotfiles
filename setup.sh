@@ -152,6 +152,9 @@ run_config_tasks() {
     "bat")
       which -s bat > /dev/null && bat cache --build # Rebuild bat cache so custom themes are available
       ;;
+    "btop")
+      [[ -f "${SCRIPT_DIR}/btop/btop.sh" ]] && chmod +x "${SCRIPT_DIR}/btop/btop.sh" # Make btop.sh executable
+      ;;
     "claude/claude_desktop_config.json")
       [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]] && chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh" # Make npx_launcher.sh executable
       ;;

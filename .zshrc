@@ -21,6 +21,17 @@ export EZA_CONFIG_DIR="${HOME}/.config/eza"
 
 eval "$(fzf --zsh)"
 fzf_walker_skip_opts=".git,Containers,Daemon\ Containers,Group\ Containers,Mobile\ Documents,Movies,Music,Pictures,System"
+fzf () {
+  update_theme
+
+  if [[ ${THEME} == "zenith" ]]; then
+    theme_colors="bg+:#395263,border:#637079,scrollbar:#637079"
+  else
+    theme_colors="bg+:#b2c9d8,border:#839099,scrollbar:#839099"
+  fi
+
+  command fzf "--color=${theme_colors}" "$@"
+}
 export FZF_DEFAULT_OPTS=(
   "--height=100%"
   "--color=gutter:-1"
@@ -35,30 +46,27 @@ export FZF_DEFAULT_OPTS=(
   "--wrap-sign='  '"
   "--preview-window hidden"
   "--bind 'ctrl-p:toggle-preview'"
-  "--color=fg:#b4bbc2,hl:#61abda"
-  "--color=fg+:#b4bbc2,bg+:#395263,hl+:#61abda"
-  "--color=spinner:#839099,info:#cf86c1,marker:#61abda"
-  "--color=scrollbar:#637079,border:#637079"
+  "--color=fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,info:5,marker:5"
 )
 export FZF_COMPLETION_DIR_OPTS=(
   "--walker=dir,hidden"
   "--walker-skip=${fzf_walker_skip_opts}"
-  "--preview='eza --all --group-directories-first --oneline --color=always {}'"
+  "--preview='eza --all --color=always --group-directories-first --oneline {}'"
 )
 export FZF_COMPLETION_PATH_OPTS=(
   "--walker=file,hidden"
   "--walker-skip=${fzf_walker_skip_opts},node_modules"
-  "--preview='bat --style=numbers --color=always {}'"
+  "--preview='bat --color=always --italic-text=always --style=plain {}'"
 )
 export FZF_CTRL_T_OPTS=(
   "--walker=file,hidden"
   "--walker-skip=${fzf_walker_skip_opts},node_modules"
-  "--preview='bat --style=numbers --color=always {}'"
+  "--preview='bat --color=always --italic-text=always --style=plain {}'"
 )
 export FZF_ALT_C_OPTS=(
   "--walker=dir,hidden"
   "--walker-skip=${fzf_walker_skip_opts}"
-  "--preview='eza --all --group-directories-first --oneline --color=always {}'"
+  "--preview='eza --all --color=always --group-directories-first --oneline {}'"
 )
 export FZF_CTRL_R_OPTS=(
   "--scheme=history"
@@ -94,7 +102,6 @@ fi
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-# Syntax highlighting to match Zenith theme
 ZSH_HIGHLIGHT_STYLES[alias]="fg=4,bold"
 ZSH_HIGHLIGHT_STYLES[arg0]="fg=4,bold"
 ZSH_HIGHLIGHT_STYLES[autodirectory]="fg=7,underline"
@@ -119,19 +126,36 @@ ZSH_HIGHLIGHT_STYLES[suffix-alias]="fg=7,underline"
 ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 
 # Aliases
-alias -g -- --help="--help 2>&1 | bat --language=help --style=plain" # Global alias: pipe any --help output through bat with help syntax highlighting
-alias ...="cd ../.."
+alias -g -- -h="-h 2>&1 | bat --language=help --style=plain"
+alias -g -- --help="--help 2>&1 | bat --language=help --style=plain"
 alias ..="cd .."
-alias cat="bat"
-alias cp="cp -iv" # Prompt before overwriting (-i) and show what's being copied (-v)
-alias ll="eza --all --group-directories-first --long --header --no-permissions --no-user"
-alias llt="eza --all --group-directories-first --long --header --no-permissions --no-user --tree --level=3"
+alias ...="cd ../.."
+alias cat="update_theme && bat --italic-text=always"
+alias btop="update_theme && ${HOME}/.config/btop/btop.sh"
+alias cp="cp -iv"
+alias ll="eza --all --group-directories-first --header --long --no-permissions --no-user"
+alias llt="eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level=3"
 alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level=3"
-alias mkdir="mkdir -pv" # Create parent directories as needed (-p) and show what's being created (-v)
-alias mv="mv -iv" # Prompt before overwriting (-i) and show what's being moved (-v)
-alias ow="~/.open-webui/ow.sh"
-alias rm="rm -iv" # Confirm deletion of files (-i) and show what's being deleted (-v)
+alias man="update_theme && man"
+alias micro="update_theme && micro --colorscheme=\${THEME}"
+alias mkdir="mkdir -pv"
+alias mv="mv -iv"
+alias rm="rm -iv"
+
+# Helper function to update theme variables
+update_theme() {
+  macos_theme=$(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null)
+
+  # Set theme environment variable based on macOS setting
+  if [[ ${macos_theme} == "Dark" ]]; then
+    export THEME="zenith"
+  else
+    export THEME="meridian"
+  fi
+
+  export BAT_THEME="${THEME}"
+}
 
 # Update reminders
 timestamp_dir="${HOME}/.update_timestamps"

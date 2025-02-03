@@ -5,7 +5,7 @@ This repository contains scripts and configuration files to automate the setup o
 ## What's included
 
 - **/assets**: Reference screenshots
-- **/bat**: bat theme
+- **/bat**: bat themes
 - **/btop**: btop configuration
 - **/claude**: Claude and MCP Servers configuration (NB: copy `claude_desktop_config.json.template` → `claude_desktop_config.json` and add keys before running setup)
 - **/colima**: colima configuration
