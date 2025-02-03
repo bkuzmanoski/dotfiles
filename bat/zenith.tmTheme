@@ -332,6 +332,53 @@
           <string>#cf86c1</string>
         </dict>
       </dict>
+      <dict>
+        <key>scope</key>
+        <string>constant.section-heading.cmd-help, constant.section-heading.inline-usage.cmd-help, markup.heading.cmd-help, markup.heading.commands.man, markup.heading.env.man, markup.heading.inline-usage.cmd-help, markup.heading.other.man, markup.heading.synopsis.man, markup.heading.title.man, meta.constructor.argument.css.section-heading.cmd-help, meta.constructor.argument.css.section-heading.inline-usage.cmd-help, meta.preprocessor.man, string.section-heading.cmd-help, string.section-heading.inline-usage.cmd-help</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#b4bbc2</string>
+          <key>fontStyle</key>
+          <string>bold</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>scope</key>
+        <string>entity.name.function.option.cmd-help, keyword.other.argument.cmd-help, keyword.other.variable.cmd-help, source.man, text.cmd-help, variable.parameter.man</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#b4bbc2</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>scope</key>
+        <string>constant.other.keyword.cmd-help, entity.name.command-line-option.man, entity.name.command.man</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#61abda</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>scope</key>
+        <string>entity.name.command-line-option, entity.name.function.option.cmd-help, entity.name.function.option.plus.cmd-help</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#d68c67</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>scope</key>
+        <string>punctuation.definition.generic.begin.man, punctuation.definition.generic.end.man, punctuation.section.brackets.begin.man, punctuation.section.brackets.end.man, punctuation.separator.man</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#839099</string>
+        </dict>
+      </dict>
     </array>
   </dict>
 </plist>
