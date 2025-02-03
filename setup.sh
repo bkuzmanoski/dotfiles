@@ -278,6 +278,7 @@ add_dock_app "/System/Applications/Mail.app"
 add_dock_app "/Applications/Google Chrome.app"
 add_dock_app "/Applications/Figma.app"
 add_dock_app "/Applications/Visual Studio Code.app"
+add_dock_app "/Applications/Ghostty.app"
 
 # Finder
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
