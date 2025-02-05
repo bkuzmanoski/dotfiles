@@ -323,6 +323,9 @@ defaults_write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all me
 defaults_write com.apple.mail SendFormat -string "Plain" # Set default message format to plain text
 defaults_write com.apple.mail SwipeAction -int 1 # Set default action to "Archive" instead of "Delete"
 
+# Notes
+defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
+
 # TextEdit
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
@@ -357,7 +360,7 @@ defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording F
 
 # ImageOptim
 defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
-defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (not available on arm64)
+defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (doesn't work on arm64)
 
 # CleanShot X
 log "Configuring CleanShot X login item."
