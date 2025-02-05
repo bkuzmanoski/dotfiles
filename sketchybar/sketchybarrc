@@ -1,48 +1,57 @@
 #!/bin/zsh
 
+source "${CONFIG_DIR}/colors.sh"
+
 bar=(
-  color=0x00000000
   display=1 # Only on internal display (if "main" sketchybar will flash on external display when closing laptop screen)
   notch_display_height=37
+  position=top
   padding_left=15
   padding_right=15
-  position=top
+  color=0x00000000
 )
 
 defaults=(
   icon.font="SF Pro:Medium:13"
   label.font="SF Pro:Medium:13"
-  padding_right=15
 )
 
 current_app_icon=(
-  background.drawing=on
   padding_right=3
+  background.drawing=on
   script="${CONFIG_DIR}/plugins/current_app.sh"
 )
 
 current_app_name=(
-  label.font="SF Pro:Bold:13"
   padding_left=1
+  label.font="SF Pro:Bold:13"
   script="${CONFIG_DIR}/plugins/current_app.sh"
 )
 
 next_meeting=(
-  padding_right=16
+  drawing=off
+  padding_right=7
   script="${CONFIG_DIR}/plugins/next_meeting.sh"
-  scroll_texts=true
   update_freq=10
 )
 
 battery_status=(
-  icon="􁝲"
+  padding_left=5
+  padding_right=4
+  background.corner_radius=9
+  background.height=25
+  icon="􀛩"
+  icon.padding_left=6
+  icon.color="${DEFAULT_DARK}"
   label.padding_left=6
+  label.padding_right=8
+  label.color="${DEFAULT_DARK}"
   script="${CONFIG_DIR}/plugins/battery_status.sh"
   update_freq=60
 )
 
 date=(
-  padding_right=0
+  padding_left=6
   script="${CONFIG_DIR}/plugins/datetime.sh"
 )
 
@@ -70,10 +79,10 @@ sketchybar \
   --add item date right \
   --set date "${date[@]}" \
   --subscribe date appearance_changed date_changed \
-  --add item next_meeting right \
-  --set next_meeting "${next_meeting[@]}" \
-  --subscribe next_meeting appearance_changed \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
   --subscribe battery_status appearance_changed system_woke power_source_change \
+  --add item next_meeting right \
+  --set next_meeting "${next_meeting[@]}" \
+  --subscribe next_meeting appearance_changed \
   --update

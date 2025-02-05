@@ -112,7 +112,7 @@ func handleCalendarAccess(granted: Bool) {
     let title = nextEvent.title.trimmingCharacters(in: .whitespacesAndNewlines)
     let displayTitle = title.isEmpty ? "Next meeting" : title
     let timeStatus = calculateEventStatus(event: nextEvent, now: now).display
-    print("\(displayTitle) ∙ \(timeStatus)")
+    print("\(displayTitle) ∙ \(timeStatus)")
   }
 
   semaphore.signal()

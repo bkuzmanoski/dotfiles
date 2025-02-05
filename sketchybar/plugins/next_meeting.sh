@@ -14,6 +14,11 @@ case "${SENDER}" in
     ;;
   *)
     next_meeting="$("${CONFIG_DIR}/helpers/GetNextMeeting.swift")"
-    sketchybar --set "${NAME}" label="${next_meeting}" label.color="${color}"
+
+    if [[ -z "${next_meeting}" ]]; then
+      sketchybar --set "${NAME}" drawing=off
+    else
+      sketchybar --set "${NAME}" drawing=on label.color="${color}" label="${next_meeting}"
+    fi
     ;;
 esac

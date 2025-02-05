@@ -14,9 +14,9 @@ case "${SENDER}" in
     ;;
   *)
     case "${NAME}" in
-      "date") sketchybar --set "${NAME}" label="$(date '+%a %-d %b')" label.color="${color}"
+      "date") sketchybar --set "${NAME}" label.color="${color}" label="$(date '+%a %-d %b')"
       ;;
-      "time") sketchybar --set "${NAME}" label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')" label.color="${color}"
+      "time") sketchybar --set "${NAME}" label.color="${color}" label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')"
       ;;
     esac
     ;;

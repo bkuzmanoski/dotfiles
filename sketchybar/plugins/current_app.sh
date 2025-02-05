@@ -36,7 +36,7 @@ case "${NAME}" in
 
     case "${SENDER}" in
       "appearance_changed") sketchybar --set "${NAME}" label.color="${color}" ;;
-      "front_app_switched") sketchybar --set "${NAME}" label="${INFO}" label.color="${color}" ;;
+      "front_app_switched") sketchybar --set "${NAME}" label.color="${color}" label="${INFO}" ;;
     esac
   ;;
 esac
