@@ -245,6 +245,7 @@ set_hotkey() {
 
 # Default params included below so hotkeys can be toggled on/off in System Settings without needing to re-set the keybinding
 set_hotkey 64 "false" 32 49 1048576 # Show Spotlight search
+set_hotkey 65 "false" 32 49 1572864 # Show Finder search window
 set_hotkey 28 "false" 51 20 1179648 # Save picture of screen as a file
 set_hotkey 29 "false" 51 20 1441792 # Copy picture of screen to the clipboard
 set_hotkey 30 "false" 52 21 1179648 # Save picture of selected area as a file
