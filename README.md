@@ -4,7 +4,6 @@ This repository contains scripts and configuration files to automate the setup o
 
 ## What's included
 
-- **/assets**: Reference screenshots
 - **/bat**: bat themes
 - **/btop**: btop configuration
 - **/claude**: Claude and MCP Servers configuration (NB: copy `claude_desktop_config.json.template` → `claude_desktop_config.json` and add keys before running setup)
@@ -13,6 +12,7 @@ This repository contains scripts and configuration files to automate the setup o
 - **/ghostty**: Ghostty configuration
 - **/micro**: micro configuration
 - **/raycast**: Raycast script commands
+- **/reference**: Reference screenshots for things I couldn't automate
 - **/sketchybar**: Sketchybar configuration
 - **/wallpapers**: Desktop wallpapers (`raycast.heic` automatically adapts to light/dark mode)
 - `.zprofile` and `.zshrc`: Zsh configuration
@@ -38,7 +38,7 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-The setup script can be safely re-run if there are any errors.
+The setup script can be re-run if there are any errors.
 
 #### Backups
 
@@ -54,7 +54,6 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
 - Log in to iCloud
 - Set Apple Intelligence & Siri keyboard shortcut to FnS
-- Never automatically hide and show the Menu Bar
 - Disable automatically adjust brightness
 - In Spotlight preferences, add `~/Pictures` to search privacy exclusions
 - "Adopt" apps in App Store → Account
@@ -71,11 +70,7 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
    - Configure sidebar favorites
 
-3. **Notes**
-
-   - Disable group notes by date
-
-4. **1Password**
+3. **1Password**
 
    - Add personal vault
    - Show Quick Access on icon click
@@ -89,11 +84,11 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Enable Universal Clipboard
    - Grant Accessibility permission
 
-5. **Alcove**
+4. **Alcove**
 
    - Activate licence and grant permissions when prompted
 
-6. **CleanShot X**
+5. **CleanShot X**
 
    - Log in, enter activation key, and set as default screenshot app
    - Set up keyboard shortcuts:
@@ -104,7 +99,7 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
      - Record Screen / Stop Recording: ⇧⌘5
    - Grant Screen & System Audio Recording permission
 
-7. **Figma**
+6. **Figma**
 
    - Disable rename duplicated layers
    - Disable flip objects while resizing
@@ -112,11 +107,11 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Set big nudge to 8px
    - Disable Menu Bar icon
 
-8. **Ghostty**
+7. **Ghostty**
 
    - Grant Accessibility and Full Disk Access permissions
 
-9. **Google Chrome**
+8. **Google Chrome**
 
    - Set as default browser and decline sending usage and crash statistics
    - Log in and sync profile
@@ -124,22 +119,22 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Log in to Raindrop
    - Grant Screen & System Audio Recording permission
 
-10. **Menuwhere**
+9. **Menuwhere**
 
-    - Activate licence
-    - Grant accessibility permission
+   - Activate licence
+   - Grant Accessibility permission
 
-11. **NextDNS**
+10. **NextDNS**
 
     - Start at login
     - Set Configuration ID
 
-12. **Raycast**
+11. **Raycast**
 
     - Accept defaults on launch and grant permissions, but don't install any extensions
     - Grant Calendar permission
     - Log in and enable Cloud Sync
 
-13. **VSCode**
+12. **VSCode**
 
     - Log in and enable settings sync
