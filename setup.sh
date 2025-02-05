@@ -368,9 +368,10 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New
 
 # Menuwhere
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
+defaults_write com.manytricks.Menuwhere "Skip Disabled Menu Items" -bool true # Hide disabled menu items
+defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
 defaults_write com.manytricks.Menuwhere Blacklist -string "Menuwhere" # Disable Menuwhere menu item
 defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
-defaults_write com.manytricks.Menuwhere "Skip Disabled Menu Items" -bool true # Hide disabled menu items
 
 log "Configuring Menuwhere login item."
 osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" # Run Menuwhere on login
