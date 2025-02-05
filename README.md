@@ -74,13 +74,14 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
    - Add personal vault
    - Show Quick Access on icon click
-   - Set Quick Access shortcut to ⌃⇧Space
+   - Clear Quick Access shortcut
    - Clear Autofill shortcut
    - Set compact density
    - Set security settings:
      - Never require password
      - Never auto-lock
      - Disable lock on sleep, screensaver, or switching users
+   - Enable Integrate with 1Password CLI
    - Enable Universal Clipboard
    - Grant Accessibility permission
 
