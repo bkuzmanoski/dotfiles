@@ -93,11 +93,12 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
    - Log in, enter activation key, and set as default screenshot app
    - Set up keyboard shortcuts:
-     - Clear All-In-One shortcut
-     - Capture Fullscreen: ⇧⌘1
+     - All-In-One: ⌘⇧5
+     - Open Capture History: ♦︎H
      - Capture Area: ⇧⌘2
+     - Capture Fullscreen: ⇧⌘1
+     - Capture Text: ⇧⌘4
      - Annotate Last Screenshot: ⇧⌘3
-     - Record Screen / Stop Recording: ⇧⌘5
    - Grant Screen & System Audio Recording permission
 
 6. **Figma**
