@@ -235,7 +235,7 @@ defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 
 # System hotkeys
-set_hotkey() {
+set_system_hotkey() {
   local key="$1"
   local enabled="$2"
   local p1="$3" p2="$4" p3="$5"
@@ -244,13 +244,23 @@ set_hotkey() {
 }
 
 # Default params included below so hotkeys can be toggled on/off in System Settings without needing to re-set the keybinding
-set_hotkey 64 "false" 32 49 1048576 # Show Spotlight search
-set_hotkey 65 "false" 32 49 1572864 # Show Finder search window
-set_hotkey 28 "false" 51 20 1179648 # Save picture of screen as a file
-set_hotkey 29 "false" 51 20 1441792 # Copy picture of screen to the clipboard
-set_hotkey 30 "false" 52 21 1179648 # Save picture of selected area as a file
-set_hotkey 31 "false" 52 21 1441792 # Copy picture of selected area to the clipboard
-set_hotkey 184 "false" 53 23 1179648 # Screenshot and recording options
+set_system_hotkey 64 "false" 32 49 1048576 # Show Spotlight search
+set_system_hotkey 65 "false" 32 49 1572864 # Show Finder search window
+set_system_hotkey 28 "false" 51 20 1179648 # Save picture of screen as a file
+set_system_hotkey 29 "false" 51 20 1441792 # Copy picture of screen to the clipboard
+set_system_hotkey 30 "false" 52 21 1179648 # Save picture of selected area as a file
+set_system_hotkey 31 "false" 52 21 1441792 # Copy picture of selected area to the clipboard
+set_system_hotkey 184 "false" 53 23 1179648 # Screenshot and recording options
+
+# Services hotkeys
+set_services_hotkey() {
+  local key="$1"
+  local value="$2"
+
+  defaults_write pbs NSServicesStatus -dict "${key}" "${value}"
+}
+
+set_services_hotkey "com.apple.ChineseTextConverterService - Convert Text from Traditional to Simplified Chinese - convertTextToSimplifiedChinese" "{\"enabled_context_menu\" = 0; \"enabled_services_menu\" = 0; \"presentation_modes\" = {\"ContextMenu\" = 0; \"ServicesMenu\" = 0 ;} ;}" # Convert to Simplified Chinese
 
 # Window Manager
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false # Disable click to show desktop
