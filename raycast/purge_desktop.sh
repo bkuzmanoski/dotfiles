@@ -2,7 +2,7 @@
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title Purge Downloads
+# @raycast.title Purge Desktop
 # @raycast.mode silent
 
 # Optional parameters:
@@ -12,25 +12,25 @@
 # @raycast.author Britown
 # @raycast.authorURL https://github.com/bkuzmanoski
 
-# Get the Downloads folder path and ensure it exists
-DOWNLOADS_DIR="${HOME}/Downloads"
+# Get the Desktop folder path and ensure it exists
+desktop_dir="${HOME}/Desktop"
 
-if [[ ! -d "${DOWNLOADS_DIR}" ]]; then
-  print "Downloads directory not found."
+if [[ ! -d "${desktop_dir}" ]]; then
+  print "Desktop directory not found."
   exit 1
 fi
 
 # Check if there are any files/folders to move
-if [[ -z "$(ls "${DOWNLOADS_DIR}")" ]]; then
-  print "Downloads folder is already empty."
+if [[ -z "$(ls "${desktop_dir}")" ]]; then
+  print "Desktop folder is already empty."
   exit 0
 fi
 
 # Move items to trash
 osascript << EOD
   tell application "Finder"
-    set downloadsFolder to POSIX file "${DOWNLOADS_DIR}" as alias
-    delete (every item of folder downloadsFolder)
+    set desktopFolder to POSIX file "${desktop_dir}" as alias
+    delete (every item of folder desktopFolder)
   end tell
 EOD
 

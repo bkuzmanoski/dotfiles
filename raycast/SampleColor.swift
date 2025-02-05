@@ -19,9 +19,9 @@ import AppKit
 
 extension NSColor {
   var hexAlphaString: String {
-    let r: Int = lroundf(Float(redComponent) * 0xFF)
-    let g: Int = lroundf(Float(greenComponent) * 0xFF)
-    let b: Int = lroundf(Float(blueComponent) * 0xFF)
+    let r = lroundf(Float(redComponent) * 0xFF)
+    let g = lroundf(Float(greenComponent) * 0xFF)
+    let b = lroundf(Float(blueComponent) * 0xFF)
     return String(format: "#%02lx%02lx%02lx", r, g, b)
   }
 }
@@ -31,11 +31,11 @@ func copyToPasteboard(_ color: String) {
   NSPasteboard.general.writeObjects([color as NSPasteboardWriting])
 }
 
-let sampler: NSColorSampler = NSColorSampler()
+let sampler = NSColorSampler()
 
 sampler.show { selectedColor in
-  if let selectedColor: NSColor = selectedColor {
-    let hexTuple: String = selectedColor.hexAlphaString
+  if let selectedColor = selectedColor {
+    let hexTuple = selectedColor.hexAlphaString
     copyToPasteboard(hexTuple)
     print("Sampled color: \(hexTuple)")
     exit(0)

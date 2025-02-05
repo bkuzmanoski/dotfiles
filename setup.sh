@@ -141,6 +141,7 @@ typeset -A config_links=(
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
   ["micro"]="${HOME}/.config/micro"
+  ["sketchybar"]="${HOME}/.config/sketchybar"
   [".zprofile"]="${HOME}/.zprofile"
   [".zshrc"]="${HOME}/.zshrc"
   ["claude/claude_desktop_config.json"]="${HOME}/Library/Application Support/Claude/claude_desktop_config.json"
@@ -157,6 +158,22 @@ run_config_tasks() {
       ;;
     "claude/claude_desktop_config.json")
       [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]] && chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh" # Make npx_launcher.sh executable
+      ;;
+    "sketchybar")
+      # Make sketchybar scripts executable
+      scripts=(
+        # "file" path or "dir/*" path
+        "${SCRIPT_DIR}/sketchybar/helpers/*"
+        "${SCRIPT_DIR}/sketchybar/plugins/*"
+        "${SCRIPT_DIR}/sketchybar/sketchybarrc"
+      )
+
+      for path in ${scripts}; do
+          base_path=${path%/*\*}
+          [[ -e ${base_path} ]] && chmod +x ${path}
+      done
+
+      brew services start sketchybar # Start sketchybar service
       ;;
   esac
 }
@@ -178,9 +195,11 @@ for config_name in "${(k)config_links[@]}"; do
 
     # Link configuration files
     mkdir -p "$(dirname "${target_path}")"
-    ln -sfh "${source_path}" "${target_path}" || log_error "Failed to link ${config_name}."
-
-    run_config_tasks "${config_name}"
+    if ln -sfh "${source_path}" "${target_path}"; then
+      run_config_tasks "${config_name}"
+    else
+      log_error "Failed to link ${config_name}. Skipping config tasks."
+    fi
   else
     log_error "${config_name} not found in ${SCRIPT_DIR}, skipping."
   fi
@@ -200,9 +219,11 @@ else
 fi
 
 # System and global settings
+defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Automatically hide menu bar
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
+defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true # Always show menu bar in fullscreen
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 defaults_write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
@@ -338,11 +359,21 @@ defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording F
 defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
 defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (not available on arm64)
 
+# CleanShot X
 log "Configuring CleanShot X login item."
-osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"/Applications/CleanShot X.app\", hidden:true}" # Run CleanShot X on login
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/CleanShot X.app\", hidden:true }" # Run CleanShot X on login
 
 # Google Chrome
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
+
+# Menuwhere
+defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
+defaults_write com.manytricks.Menuwhere Blacklist -string "Menuwhere" # Disable Menuwhere menu item
+defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
+defaults_write com.manytricks.Menuwhere "Skip Disabled Menu Items" -bool true # Hide disabled menu items
+
+log "Configuring Menuwhere login item."
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" # Run Menuwhere on login
 
 # Raycast
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon

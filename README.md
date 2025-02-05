@@ -13,6 +13,7 @@ This repository contains scripts and configuration files to automate the setup o
 - **/ghostty**: Ghostty configuration
 - **/micro**: micro configuration
 - **/raycast**: Raycast script commands
+- **/sketchybar**: Sketchybar configuration
 - **/wallpapers**: Desktop wallpapers (`raycast.heic` automatically adapts to light/dark mode)
 - `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew
@@ -90,7 +91,7 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
 5. **Alcove**
 
-   - Activate licence and grant permissions
+   - Activate licence and grant permissions when prompted
 
 6. **CleanShot X**
 
@@ -123,17 +124,22 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Log in to Raindrop
    - Grant Screen & System Audio Recording permission
 
-10. **NextDNS**
+10. **Menuwhere**
+
+    - Activate licence
+    - Grant accessibility permission
+
+11. **NextDNS**
 
     - Start at login
     - Set Configuration ID
 
-11. **Raycast**
+12. **Raycast**
 
     - Accept defaults on launch and grant permissions, but don't install any extensions
     - Grant Calendar permission
     - Log in and enable Cloud Sync
 
-12. **VSCode**
+13. **VSCode**
 
     - Log in and enable settings sync
