@@ -12,6 +12,7 @@ setopt AUTO_CD # Automatically cd into a directory if the command is a directory
 setopt GLOB_DOTS # Include hidden files in globbing
 setopt HIST_IGNORE_DUPS # Ignore duplicate commands in history
 setopt HIST_IGNORE_SPACE # Ignore commands starting with a space in history
+setopt SHARE_HISTORY # Share history across all sessions
 
 # Tools configuration
 export EDITOR="micro"
