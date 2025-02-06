@@ -80,7 +80,7 @@ func getEventURL(event: EKEvent) -> URL? {
   if let url = event.url {
     return url
   }
-  return nil
+  return URL(string: "raycast://extensions/raycast/calendar/my-schedule")
 }
 
 func handleCalendarAccess(granted: Bool) {
@@ -126,11 +126,6 @@ func handleCalendarAccess(granted: Bool) {
     if arguments.contains("--open-url") {
       if let eventURL = getEventURL(event: nextEvent) {
         NSWorkspace.shared.open(eventURL)
-      } else {
-        // Open schedule in Raycast as a fallback
-        if let raycastURL = URL(string: "raycast://extensions/raycast/calendar/my-schedule") {
-          NSWorkspace.shared.open(raycastURL)
-        }
       }
     } else {
       let title = nextEvent.title.trimmingCharacters(in: .whitespacesAndNewlines)
