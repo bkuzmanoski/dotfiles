@@ -29,7 +29,7 @@ current_app_name=(
 )
 
 next_meeting=(
-  click_script="open raycast://extensions/raycast/calendar/my-schedule"
+  click_script="${CONFIG_DIR}/helpers/getNextMeeting.swift --open-url"
   script="${CONFIG_DIR}/plugins/next_meeting.sh"
   update_freq=10
   drawing=off

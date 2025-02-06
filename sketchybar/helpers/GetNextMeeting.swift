@@ -1,5 +1,6 @@
 #!/usr/bin/swift
 
+import AppKit
 import EventKit
 import Foundation
 
@@ -70,8 +71,21 @@ func calculateEventStatus(event: EKEvent, now: Date) -> EventStatus {
   return EventStatus(display: "ended", priority: .ended, sortDate: event.startDate)
 }
 
+func getEventURL(event: EKEvent) -> URL? {
+  if let location = event.location {
+    if let url = URL(string: location) {
+      return url
+    }
+  }
+  if let url = event.url {
+    return url
+  }
+  return nil
+}
+
 func handleCalendarAccess(granted: Bool) {
   guard granted else {
+    print("Calendar access not granted")
     semaphore.signal()
     return
   }
@@ -108,10 +122,22 @@ func handleCalendarAccess(granted: Bool) {
     }
 
   if let nextEvent = relevantEvents.first {
-    let title = nextEvent.title.trimmingCharacters(in: .whitespacesAndNewlines)
-    let displayTitle = title.isEmpty ? "Next meeting" : title
-    let timeStatus = calculateEventStatus(event: nextEvent, now: now).display
-    print("\(displayTitle) ∙ \(timeStatus)")
+    let arguments = CommandLine.arguments
+    if arguments.contains("--open-url") {
+      if let eventURL = getEventURL(event: nextEvent) {
+        NSWorkspace.shared.open(eventURL)
+      } else {
+        // Open schedule in Raycast as a fallback
+        if let raycastURL = URL(string: "raycast://extensions/raycast/calendar/my-schedule") {
+          NSWorkspace.shared.open(raycastURL)
+        }
+      }
+    } else {
+      let title = nextEvent.title.trimmingCharacters(in: .whitespacesAndNewlines)
+      let displayTitle = title.isEmpty ? "Next meeting" : title
+      let timeStatus = calculateEventStatus(event: nextEvent, now: now).display
+      print("\(displayTitle) ∙ \(timeStatus)")
+    }
   }
 
   semaphore.signal()
