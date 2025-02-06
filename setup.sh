@@ -168,9 +168,9 @@ run_config_tasks() {
         "${SCRIPT_DIR}/sketchybar/sketchybarrc"
       )
 
-      for path in ${scripts}; do
-          base_path=${path%/*\*}
-          [[ -e ${base_path} ]] && chmod +x ${path}
+      for script_path in ${scripts}; do
+          base_path=${script_path%/*\*}
+          [[ -e ${base_path} ]] && chmod +x ${script_path}
       done
 
       brew services start sketchybar # Start sketchybar service
