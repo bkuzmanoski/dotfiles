@@ -374,8 +374,8 @@ defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Cr
 defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (doesn't work on arm64)
 
 # CleanShot X
-log "Configuring CleanShot X login item."
-osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/CleanShot X.app\", hidden:true }" # Run CleanShot X on login
+log "Configuring CleanShot X login item." # Run CleanShot X on login
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/CleanShot X.app\", hidden:true }" || log_error "Failed to configure CleanShot X login item."
 
 # Google Chrome
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
@@ -387,8 +387,8 @@ defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show s
 defaults_write com.manytricks.Menuwhere Blacklist -string "Menuwhere" # Disable Menuwhere menu item
 defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
 
-log "Configuring Menuwhere login item."
-osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" # Run Menuwhere on login
+log "Configuring Menuwhere login item." # Run Menuwhere on login
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" || log_error "Failed to configure Menuwhere login item."
 
 # Raycast
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
