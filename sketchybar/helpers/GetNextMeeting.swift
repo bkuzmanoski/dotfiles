@@ -81,7 +81,6 @@ func handleCalendarAccess(granted: Bool) {
   let startOfDay = calendar.startOfDay(for: now)
 
   guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now) else {
-    // Error calculating day boundaries
     semaphore.signal()
     return
   }

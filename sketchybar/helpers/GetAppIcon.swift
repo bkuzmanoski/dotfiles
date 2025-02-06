@@ -11,7 +11,6 @@ guard CommandLine.arguments.count > 1 else {
 
 let appName = CommandLine.arguments[1]
 
-// Ensure cache directory exists
 let fileManager = FileManager.default
 let cacheDir = NSString(string: "~/.cache/sketchybar/app-icons").expandingTildeInPath
 if !fileManager.fileExists(atPath: cacheDir) {
@@ -52,10 +51,7 @@ func workspaceIconForApp(_ app: String) -> NSImage? {
 }
 
 if let icon = workspaceIconForApp(appName) {
-  // Resize the icon
   let resizedIcon = resizeImage(icon, to: NSSize(width: 22, height: 22))
-
-  // Save the resized icon
   let outputPath = (cacheDir as NSString).appendingPathComponent("\(appName).png")
 
   if let pngData = resizedIcon.tiffRepresentation,
