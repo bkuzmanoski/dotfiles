@@ -71,7 +71,14 @@ func calculateEventStatus(event: EKEvent, now: Date) -> EventStatus {
   return EventStatus(display: "ended", priority: .ended, sortDate: event.startDate)
 }
 
-func getEventURL(event: EKEvent) -> URL? {
+func getEventURL(event: EKEvent, now: Date) -> URL? {
+  let minutesUntilStart = Int(ceil(event.startDate.timeIntervalSince(now) / 60))
+  let fallbackURL = URL(string: "raycast://extensions/raycast/calendar/my-schedule")
+
+  if minutesUntilStart > 5 {
+    return fallbackURL
+  }
+
   if let location = event.location {
     if let url = URL(string: location) {
       return url
@@ -80,7 +87,7 @@ func getEventURL(event: EKEvent) -> URL? {
   if let url = event.url {
     return url
   }
-  return URL(string: "raycast://extensions/raycast/calendar/my-schedule")
+  return fallbackURL
 }
 
 func handleCalendarAccess(granted: Bool) {
@@ -124,7 +131,7 @@ func handleCalendarAccess(granted: Bool) {
   if let nextEvent = relevantEvents.first {
     let arguments = CommandLine.arguments
     if arguments.contains("--open-url") {
-      if let eventURL = getEventURL(event: nextEvent) {
+      if let eventURL = getEventURL(event: nextEvent, now: now) {
         NSWorkspace.shared.open(eventURL)
       }
     } else {
