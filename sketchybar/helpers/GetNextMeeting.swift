@@ -72,9 +72,10 @@ func calculateEventStatus(event: EKEvent, now: Date) -> EventStatus {
 }
 
 func getEventURL(event: EKEvent, now: Date) -> URL? {
-  let minutesUntilStart = Int(ceil(event.startDate.timeIntervalSince(now) / 60))
-  let fallbackURL = URL(string: "raycast://extensions/raycast/calendar/my-schedule")
+  let fallbackURL = URL(
+    string: "ical://ekevent/\(event.calendarItemIdentifier)?method=show&options=more")
 
+  let minutesUntilStart = Int(ceil(event.startDate.timeIntervalSince(now) / 60))
   if minutesUntilStart > 5 {
     return fallbackURL
   }
