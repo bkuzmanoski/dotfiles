@@ -349,6 +349,18 @@ defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at logi
 defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Always show on built-in display
 defaults_write com.henrikruscon.Alcove warnOnLowBattery -bool false # Disable low battery warning
 
+# AltTab
+defaults_write com.lwouis.alt-tab-macos appearanceSize -int 1 # Set appearance size to "Medium"
+defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
+defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true # Hide space number labels
+defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true # Hide window status icons
+defaults_write com.lwouis.alt-tab-macos holdShortcut -string "\\U2318" # Set hold key for shortcut 1 to "Command"
+defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "\\U2318" # Set hold key for shortcut 2 to "Command"
+defaults_write com.lwouis.alt-tab-macos menubarIconShown -bool false # Hide menu bar icon
+defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mouse hover
+defaults_write com.lwouis.alt-tab-macos previewFocusedWindow -bool true # Show preview of focused window
+defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
+
 # CleanShot X
 defaults_write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
 defaults_write pl.maketheweb.cleanshotx afterScreenshotActions -array 1 # Copy to clipboard after taking a screenshot

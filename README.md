@@ -89,7 +89,11 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
    - Activate licence and grant permissions when prompted
 
-5. **CleanShot X**
+5. **AltTab**
+
+   - Grant permissions when prompted on first launch
+
+6. **CleanShot X**
 
    - Log in, enter activation key, and set as default screenshot app
    - Set up keyboard shortcuts:
@@ -101,7 +105,7 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
      - Annotate Last Screenshot: ⇧⌘3
    - Grant Screen & System Audio Recording permission
 
-6. **Figma**
+7. **Figma**
 
    - Disable rename duplicated layers
    - Disable flip objects while resizing
@@ -109,11 +113,11 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Set big nudge to 8px
    - Disable Menu Bar icon
 
-7. **Ghostty**
+8. **Ghostty**
 
    - Grant Accessibility and Full Disk Access permissions
 
-8. **Google Chrome**
+9. **Google Chrome**
 
    - Set as default browser and decline sending usage and crash statistics
    - Log in and sync profile
@@ -121,22 +125,22 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Log in to Raindrop
    - Grant Screen & System Audio Recording permission
 
-9. **Menuwhere**
+10. **Menuwhere**
 
-   - Activate licence
-   - Grant Accessibility permission
+    - Activate licence
+    - Grant Accessibility permission
 
-10. **NextDNS**
+11. **NextDNS**
 
     - Start at login
     - Set Configuration ID
 
-11. **Raycast**
+12. **Raycast**
 
     - Accept defaults on launch and grant permissions, but don't install any extensions
     - Grant Calendar permission
     - Log in and enable Cloud Sync
 
-12. **VSCode**
+13. **VSCode**
 
     - Log in and enable settings sync
