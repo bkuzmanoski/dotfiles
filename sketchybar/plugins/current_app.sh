@@ -13,7 +13,7 @@ case "${NAME}" in
 
       if [[ ! -f "${cache_path}" ]]; then
           # Replace built-in Sketchybar "app.<name>" functionality for higher quality scaling
-          "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${INFO}"
+          "${CONFIG_DIR}/helpers/getAppIcon.swift" "${INFO}"
 
           if (( $? != 0 )); then
               # Fallback to Sketchybar to get app icon on error
@@ -29,14 +29,14 @@ case "${NAME}" in
     source "${CONFIG_DIR}/colors.sh"
 
     if [[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null) == "Dark" ]]; then
-      color="${DEFAULT_DARK}"
+      label_color="${LABEL_DARK}"
     else
-      color="${DEFAULT_LIGHT}"
+      label_color="${LABEL_LIGHT}"
     fi
 
     case "${SENDER}" in
-      "appearance_changed") sketchybar --set "${NAME}" label.color="${color}" ;;
-      "front_app_switched") sketchybar --set "${NAME}" label.color="${color}" label="${INFO}" ;;
+      "appearance_changed") sketchybar --set "${NAME}" label.color="${label_color}" ;;
+      "front_app_switched") sketchybar --set "${NAME}" label="${INFO}" label.color="${label_color}" ;;
     esac
   ;;
 esac

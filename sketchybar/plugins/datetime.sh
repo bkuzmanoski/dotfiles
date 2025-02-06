@@ -3,20 +3,20 @@
 source "${CONFIG_DIR}/colors.sh"
 
 if [[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null) == "Dark" ]]; then
-  color="${DEFAULT_DARK}"
+  label_color="${LABEL_DARK}"
 else
-  color="${DEFAULT_LIGHT}"
+  label_color="${LABEL_LIGHT}"
 fi
 
 case "${SENDER}" in
   "appearance_changed")
-    sketchybar --set "${NAME}" label.color="${color}"
+    sketchybar --set "${NAME}" label.color="${label_color}"
     ;;
   *)
     case "${NAME}" in
-      "date") sketchybar --set "${NAME}" label.color="${color}" label="$(date '+%a %-d %b')"
+      "date") sketchybar --set "${NAME}" label="$(date '+%a %-d %b')" label.color="${label_color}"
       ;;
-      "time") sketchybar --set "${NAME}" label.color="${color}" label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')"
+      "time") sketchybar --set "${NAME}" label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')" label.color="${label_color}"
       ;;
     esac
     ;;

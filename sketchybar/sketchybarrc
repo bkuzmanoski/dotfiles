@@ -6,60 +6,64 @@ bar=(
   display=1 # Only on internal display (if "main" sketchybar will flash on external display when closing laptop screen)
   notch_display_height=37
   position=top
+  color=0x00000000
   padding_left=15
   padding_right=15
-  color=0x00000000
 )
 
 defaults=(
-  icon.font="SF Pro:Medium:13"
   label.font="SF Pro:Medium:13"
+  padding_right=15
 )
 
 current_app_icon=(
-  padding_right=3
-  background.drawing=on
   script="${CONFIG_DIR}/plugins/current_app.sh"
+  background.drawing=on
+  padding_right=3
 )
 
 current_app_name=(
-  padding_left=1
-  label.font="SF Pro:Bold:13"
   script="${CONFIG_DIR}/plugins/current_app.sh"
+  label.font="SF Pro:Bold:13"
+  padding_left=1
 )
 
 next_meeting=(
-  drawing=off
-  padding_right=7
+  click_script="open raycast://extensions/raycast/calendar/my-schedule"
   script="${CONFIG_DIR}/plugins/next_meeting.sh"
   update_freq=10
+  drawing=off
+  icon="􂕝"
+  icon.font="SF Pro:Regular:13"
+  icon.color="${FOREGROUND_SECONDARY_LIGHT}"
+  icon.padding_left=9
+  icon.padding_right=8
+  label.padding_right=9
+  background.height=27
+  background.corner_radius=8
+  background.border_width=1
 )
 
 battery_status=(
-  padding_left=5
-  padding_right=4
-  background.corner_radius=9
-  background.height=25
-  icon="􀛩"
-  icon.padding_left=6
-  icon.color="${DEFAULT_DARK}"
-  label.padding_left=6
-  label.padding_right=8
-  label.color="${DEFAULT_DARK}"
   script="${CONFIG_DIR}/plugins/battery_status.sh"
   update_freq=60
+  icon="􀛩"
+  icon.font="SF Pro:Medium:15"
+  icon.padding_left=2
+  icon.padding_right=8
+  label.font="SF Pro:Semibold:13"
 )
 
 date=(
-  padding_left=6
   script="${CONFIG_DIR}/plugins/datetime.sh"
+  padding_right=0
 )
 
 time=(
-  padding_left=6
-  padding_right=2
   script="${CONFIG_DIR}/plugins/datetime.sh"
   update_freq=10
+  padding_left=6
+  padding_right=2
 )
 
 sketchybar \
@@ -84,5 +88,5 @@ sketchybar \
   --subscribe battery_status appearance_changed system_woke power_source_change \
   --add item next_meeting right \
   --set next_meeting "${next_meeting[@]}" \
-  --subscribe next_meeting appearance_changed \
+  --subscribe next_meeting appearance_changed mouse.entered	mouse.clicked mouse.exited \
   --update

@@ -3,7 +3,9 @@
 import AppKit
 
 guard CommandLine.arguments.count > 1 else {
-  print("Usage: \(CommandLine.arguments[0]) \"Application Name\"")
+  let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
+
+  print("Usage: \(scriptName) \"Application Name\"")
   exit(1)
 }
 

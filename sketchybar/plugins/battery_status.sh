@@ -3,14 +3,16 @@
 source "${CONFIG_DIR}/colors.sh"
 
 if [[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null) == "Dark" ]]; then
-  background_color="${WARNING_DARK}"
+  icon_color="${WARNING_ICON_DARK}"
+  label_color="${WARNING_LABEL_DARK}"
 else
-  background_color="${WARNING_LIGHT}"
+  icon_color="${WARNING_ICON_LIGHT}"
+  label_color="${WARNING_LABEL_LIGHT}"
 fi
 
 case "${SENDER}" in
   "appearance_changed")
-    sketchybar --set "${NAME}" background.color="${background_color}"
+    sketchybar --set "${NAME}" icon.color="${icon_color}" label.color="${label_color}"
     ;;
   *)
     battery_info="$(pmset -g batt)"
@@ -28,17 +30,17 @@ case "${SENDER}" in
         if ((total_minutes >= 60)); then
           display_hours=$((total_minutes / 60))
           display_minutes=$((total_minutes % 60))
-          message="${display_hours}h ${display_minutes}m left"
+          message="Low battery (${display_hours}h ${display_minutes}m left)"
         else
-          message="${total_minutes}m left"
+          message="Low battery (${total_minutes}m left)"
         fi
       else
-        message="Low battery"
+        message="Low battery!"
       fi
 
-      sketchybar --set "${NAME}" drawing=on background.color="${background_color}" label="${message}"
+      sketchybar --set "${NAME}" drawing=on label="${message}" icon.color="${icon_color}" label.color="${label_color}"
     else
-     sketchybar --set "${NAME}" drawing=off
+      sketchybar --set "${NAME}" drawing=off
     fi
     ;;
 esac
