@@ -1,0 +1,17 @@
+/*
+  For use with: https://github.com/denis-sokolov/chrome-custom-css
+  Replace "dark" with "light" depending on which color scheme you want to invert.
+*/
+
+@media (prefers-color-scheme: dark) {
+  html {
+    filter: contrast(90%) invert(90%) hue-rotate(180deg);
+  }
+
+  img,
+  video,
+  canvas,
+  figure svg {
+    filter: invert(100%) hue-rotate(-180deg);
+  }
+}
