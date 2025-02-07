@@ -223,7 +223,6 @@ defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Automatically hide men
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
-defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true # Always show menu bar in fullscreen
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 defaults_write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
