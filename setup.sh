@@ -219,7 +219,7 @@ else
 fi
 
 # System and global settings
-defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Automatically hide menu bar
+defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Hide menu bar
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
