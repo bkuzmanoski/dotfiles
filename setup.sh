@@ -363,7 +363,6 @@ defaults_write com.lwouis.alt-tab-macos holdShortcut -string "\\U2318" # Set hol
 defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "\\U2318" # Set hold key for shortcut 2 to "Command"
 defaults_write com.lwouis.alt-tab-macos menubarIconShown -bool false # Hide menu bar icon
 defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mouse hover
-defaults_write com.lwouis.alt-tab-macos previewFocusedWindow -bool true # Show preview of focused window
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 
 # CleanShot X
