@@ -47,7 +47,7 @@ export FZF_DEFAULT_OPTS=(
   "--wrap-sign='  '"
   "--preview-window hidden"
   "--bind 'ctrl-p:toggle-preview'"
-  "--color=fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,info:5,marker:5"
+  "--color=fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,info:5,marker:4"
 )
 export FZF_COMPLETION_DIR_OPTS=(
   "--walker=dir,hidden"
