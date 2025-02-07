@@ -221,7 +221,7 @@ fi
 # System and global settings
 defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Automatically hide menu bar
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
-defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe navigation in browsers
+defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
 defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true # Always show menu bar in fullscreen
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
@@ -261,6 +261,10 @@ set_services_hotkey() {
 }
 
 set_services_hotkey "com.apple.ChineseTextConverterService - Convert Text from Traditional to Simplified Chinese - convertTextToSimplifiedChinese" "{\"enabled_context_menu\" = 0; \"enabled_services_menu\" = 0; \"presentation_modes\" = {\"ContextMenu\" = 0; \"ServicesMenu\" = 0 ;} ;}" # Convert to Simplified Chinese
+
+# Trackpad
+defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
+defaults_write com.apple.AppleMultitouchTrackpad SecondClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
 
 # Window Manager
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false # Disable click to show desktop
@@ -344,6 +348,7 @@ defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile
 defaults_write com.apple.TextEdit RichText -bool false # Use plain text by default
 
 # Alcove
+defaults_write com.henrikruscon.Alcove enableHaptics -bool false # Disable haptic feedback
 defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at login
 defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Always show on built-in display
