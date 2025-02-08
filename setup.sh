@@ -343,7 +343,7 @@ defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -boo
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true # Sort folders first
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
-defaults_write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
+defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to column view
 defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
 defaults_write com.apple.finder ShowPathbar -bool true # Show path bar
 defaults_write com.apple.finder ShowRecentTags -bool false # Hide recent tags
