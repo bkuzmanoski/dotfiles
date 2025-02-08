@@ -32,7 +32,7 @@ This repository contains scripts and configuration files to automate the setup o
    pbcopy < ~/.ssh/id_ed25519.pub
    ```
 
-   Paste the SSH key on your clipboard in [Github Settings](https://github.com/settings/keys).
+   Associate the SSH key on your clipboard with your Github account in [Github Settings](https://github.com/settings/keys).
 
 2. **Clone this repository**
 
