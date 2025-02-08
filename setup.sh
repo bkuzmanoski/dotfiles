@@ -9,26 +9,20 @@ set -u
 # Get directory where script is located (not necessarily the current working directory)
 SCRIPT_DIR="${0:A:h}"
 
-# Setup log directory and helper functions
+# Setup log directory and logging functions
 LOG_FILE="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S).log"
+LOG_TIMESTAMP_FORMAT="%H:%M:%S"
+
 mkdir -p "$(dirname "${LOG_FILE}")"
 touch "${LOG_FILE}"
 
-_log() { print "$(date '+%H:%M:%S'): $1" | tee -a "${LOG_FILE}" ${2:+"$2"} }
-log() { _log "$1" "" }
-log_error() { _log "[Error] $1" "/dev/stderr" }
+_log() { print "$(date +"${LOG_TIMESTAMP_FORMAT}"): $1" | tee -a "${LOG_FILE}" }
+log() { _log "[INFO]    $1"; }
+log_warning() { _log "[WARNING] $1"; }
+log_error() { print "$1" >&2 } # Send error messages to stderr
 
-# Get sudo privileges
-if ! sudo -v; then
-  log_error "Failed to obtain sudo privileges."
-  exit 1
-fi
-
-# Maintain sudo session in background process
-while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2> /dev/null &
-
-# Terminate background process on script exit
-trap "kill $!" EXIT
+log_stderr() { _log "[ERROR]   $1" >&2 } # Log error to file and keep on stderr
+exec 2> >(while read -r line; do log_stderr "${line}"; done)
 
 # Set up backup directory and helper functions
 BACKUP_DIR="${HOME}/.dotfiles_setup/$(date +%Y%m%d_%H%M%S)_backups"
@@ -37,51 +31,45 @@ mkdir -p "${BACKUP_DIR}"
 typeset -A BACKED_UP_DOMAINS
 
 backup_plist() {
+  local cmd=(defaults export)
+  local use_sudo=false
+
+  if [[ "$1" == "--sudo" ]]; then
+    cmd=(sudo defaults export)
+    use_sudo=true
+    shift
+  fi
+
   local domain="$1"
-  local use_sudo="${2:-false}"
+  local fq_domain="$1${use_sudo:+".sudo"}"
 
-  local domain_key="${domain}${use_sudo:+".sudo"}"
+  if [[ -z "${BACKED_UP_DOMAINS[${fq_domain}]:-}" ]]; then
+    local backup_path="${BACKUP_DIR}/${fq_domain//\//_}.plist"
 
-  if [[ -z "${BACKED_UP_DOMAINS[${domain_key}]:-}" ]]; then
-    local sudo_cmd=""
+    log "Executing: $(printf "%q " "${cmd[@]}")$*"
+    ${cmd[@]} "$@" "${backup_path}"
 
-    if [[ "${use_sudo}" == "true" ]]; then
-      sudo_cmd="sudo"
-    fi
-
-    local backup_path="${BACKUP_DIR}/${domain_key//\//_}.plist"
-
-    log "Backing up ${domain}${sudo_cmd:+" (sudo)"} defaults."
-    if ! ${sudo_cmd} defaults export "${domain}" "${backup_path}"; then
-      log_error "Failed to backup ${domain}${sudo_cmd:+" (sudo)"} defaults, exiting."
-      exit 1
-    fi
-
-    BACKED_UP_DOMAINS[${domain_key}]=1
+    BACKED_UP_DOMAINS[${fq_domain}]=1
   fi
 }
 
 defaults_write() {
-  local cmd="defaults"
+  local cmd=(defaults write)
   local use_sudo=false
 
   if [[ "$1" == "--sudo" ]]; then
-    cmd="sudo defaults"
+    cmd=(sudo defaults write)
     use_sudo=true
     shift
   fi
 
   # Backup domain
   local domain="$1"
-  backup_plist "${domain}" "${use_sudo}"
+  backup_plist --sudo "${domain}"
 
   # Run defaults command
-  local output=$(${cmd} write "$@" 2>&1)
-  if [[ $? -eq 0 ]]; then
-    log "Executing: ${cmd} write $*"
-  else
-    log_error "${cmd} write $* failed: ${output}"
-  fi
+  log "Executing: $(printf "%q " "${cmd[@]}")$*"
+  ${cmd[@]} "$@"
 }
 
 defaults_delete() {
@@ -92,12 +80,8 @@ defaults_delete() {
     backup_plist "${domain}"
 
     # Run defaults command
-    local output=$(defaults delete "$@" 2>&1)
-    if [[ $? -eq 0 ]]; then
-      log "Executing: defaults delete $*"
-    else
-      log_error "defaults delete $* failed: ${output}"
-    fi
+    log "Executing: defaults delete $*"
+    defaults delete "$@"
   fi
 }
 
@@ -105,11 +89,11 @@ defaults_delete() {
 
 # Install Homebrew (if not already installed)
 log "Checking Homebrew installation."
-if which -s brew; then
+if which -s brew > /dev/null; then
   log "Homebrew is already installed."
 else
   log "Installing Homebrew..."
-  print "Install Command Line Tools when prompted."
+  print "Install Command Line Tools if prompted."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
@@ -151,7 +135,7 @@ run_config_tasks() {
   local config_name="$1"
   case "${config_name}" in
     "bat")
-      which -s bat > /dev/null && bat cache --build # Rebuild bat cache so custom themes are available
+      which -s bat > /dev/null && bat cache --build > /dev/null # Rebuild bat cache so custom themes are available
       ;;
     "btop")
       [[ -f "${SCRIPT_DIR}/btop/btop.sh" ]] && chmod +x "${SCRIPT_DIR}/btop/btop.sh" # Make btop.sh executable
@@ -168,12 +152,13 @@ run_config_tasks() {
         "${SCRIPT_DIR}/sketchybar/sketchybarrc"
       )
 
-      for script_path in ${scripts}; do
-          base_path=${script_path%/*\*}
-          [[ -e ${base_path} ]] && chmod +x ${script_path}
+      for script_path in "${scripts[@]}"; do
+        for file in "${script_path}"*(N); do
+          chmod +x "${file}"
+        done
       done
 
-      brew services start sketchybar # Start sketchybar service
+      brew services start sketchybar > /dev/null # Start sketchybar service
       ;;
   esac
 }
@@ -208,14 +193,13 @@ done
 touch "${HOME}/.hushlogin" # Suppress shell login message
 
 log "Setting defaults..."
-osascript -e "tell application \"System Settings\" to quit"
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
   log "Enabling Touch ID for sudo."
   print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 else
-  log "Warning: sudo_local already exists, skipping Touch ID for sudo configuration."
+  log_warning "sudo_local already exists, skipping Touch ID for sudo configuration."
 fi
 
 # System and global settings
@@ -235,10 +219,10 @@ defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Po
 
 # Disable "Automatically adjust brightness" in Displays settings
 corebrightness_plist_content=$(sudo defaults read com.apple.CoreBrightness.plist)
-display_key=$(print "${corebrightness_plist_content}" | jq -r ".DisplayPreferences | to_entries[] | select(.value | has(\"AutoBrightnessEnable\")) | .key")
+display_key=$(print "${corebrightness_plist_content}" | jq -r ".DisplayPreferences | to_entries[] | select(.value | has(\"AutoBrightnessEnable\")) | .key" 2> /dev/null)
 
 if [[ -z "${display_key}" ]]; then
-  log_error "No key containing AutoBrightnessEnable found in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
+  log_warning "No key containing AutoBrightnessEnable found in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
 else
   existing_display_values=$(print "${corebrightness_plist_content}" | jq -r --arg key "${display_key}" '.DisplayPreferences."\( $key )"')
 
@@ -246,7 +230,7 @@ else
     updated_display_values=$(print "${existing_display_values}" | jq ".AutoBrightnessEnable = 0")
     defaults_write --sudo com.apple.CoreBrightness.plist DisplayPreferences -dict "${display_key}" "${updated_display_values}"
   else
-    log_error "Could not retrieve values for key \"${display_key}\" in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
+    log_warning "Could not retrieve values for key \"${display_key}\" in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
   fi
 fi
 
@@ -267,22 +251,6 @@ set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to t
 set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
-set_system_hotkey 118 "true" 65535 18 262144 # Enable Switch to Desktop 1
-set_system_hotkey 119 "true" 65535 19 262144 # Enable Switch to Desktop 2
-set_system_hotkey 120 "true" 65535 20 262144 # Enable Switch to Desktop 3
-set_system_hotkey 121 "true" 65535 21 262144 # Enable Switch to Desktop 4
-set_system_hotkey 122 "true" 65535 23 262144 # Enable Switch to Desktop 5 (note: second parameter is correct!)
-set_system_hotkey 123 "true" 65535 22 262144 # Enable Switch to Desktop 6 (note: second parameter is correct!)
-
-# Services hotkeys
-set_services_hotkey() {
-  local key="$1"
-  local value="$2"
-
-  defaults_write pbs NSServicesStatus -dict "${key}" "${value}"
-}
-
-set_services_hotkey "com.apple.ChineseTextConverterService - Convert Text from Traditional to Simplified Chinese - convertTextToSimplifiedChinese" "{\"enabled_context_menu\" = 0; \"enabled_services_menu\" = 0; \"presentation_modes\" = {\"ContextMenu\" = 0; \"ServicesMenu\" = 0 ;} ;}" # Convert to Simplified Chinese
 
 # Trackpad
 defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
@@ -311,7 +279,7 @@ defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool t
 wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
-  log "Setting wallpaper to ${wallpaper_image}."
+  log "Setting wallpaper to ${wallpaper_image}"
   escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
@@ -407,13 +375,12 @@ defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystro
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide Menu Bar icon
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
 
+log "Configuring CleanShot X login item." # Run CleanShot X on login
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/CleanShot X.app\", hidden:true }" > /dev/null || log_error "Failed to configure CleanShot X login item."
+
 # ImageOptim
 defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
 defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (doesn't work on arm64)
-
-# CleanShot X
-log "Configuring CleanShot X login item." # Run CleanShot X on login
-osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/CleanShot X.app\", hidden:true }" || log_error "Failed to configure CleanShot X login item."
 
 # Google Chrome
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
@@ -426,12 +393,12 @@ defaults_write com.manytricks.Menuwhere Blacklist -string "Menuwhere" # Disable 
 defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
 
 log "Configuring Menuwhere login item." # Run Menuwhere on login
-osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" || log_error "Failed to configure Menuwhere login item."
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Menuwhere.app\", hidden:true }" > /dev/null || log_error "Failed to configure Menuwhere login item."
 
 # Raycast
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
 defaults_write com.raycast.macos raycast_hyperKey_state -dict allowShortCapsLockPresses 0 enabled 1 keyCode 57 # Set Hyper Key to Caps Lock
 
-print
 log "Setup completed."
+print
 print "Restart your computer for all changes to take effect."

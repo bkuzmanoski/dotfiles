@@ -6,7 +6,7 @@ This repository contains scripts and configuration files to automate the setup o
 
 - **/bat**: bat themes
 - **/btop**: btop configuration
-- **/claude**: Claude and MCP Servers configuration (NB: copy `claude_desktop_config.json.template` → `claude_desktop_config.json` and add keys before running setup)
+- **/claude**: Claude and MCP Servers configuration
 - **/colima**: colima configuration
 - **/eza**: eza theme
 - **/ghostty**: Ghostty configuration
@@ -21,40 +21,62 @@ This repository contains scripts and configuration files to automate the setup o
 
 ## Installation
 
-### 1. Clone this repository
+1. **Set up git**
 
-```zsh
-git clone git@github.com:bkuzmanoski/dotfiles.git ~/.dotfiles
-cd ~/.dotfiles
-```
+   ```zsh
+   # Generate a new SSH key and add it to ssh-agent
+   ssh-keygen -t ed25519 -C "<email address>"
+   ssh-add ~/.ssh/id_ed25519
 
-### 2. Run the setup script
+   # Copy the key to the clipboard
+   pbcopy < ~/.ssh/id_ed25519.pub
+   ```
 
-```zsh
-# Make the script executable
-chmod +x setup.sh
+   Paste the SSH key on your clipboard in [Github Settings](https://github.com/settings/keys).
 
-# Run the script
-./setup.sh
-```
+2. **Clone this repository**
 
-The setup script can be re-run if there are any errors.
+   ```zsh
+   git clone git@github.com:bkuzmanoski/dotfiles.git ~/.dotfiles
+   cd ~/.dotfiles
+   ```
 
-#### Backups
+   You will be prompted to install Xcode Command Line Tools when you first run `git`.
 
-The setup script creates a backup of macOS and app defaults before making any changes. Backups for each run are stored in `~/.dotfiles_setup/[timestamp]_backups`.
+3. **Grant Terminal.app Full Disk Access permission**
 
-#### Logs
+4. **Create Claude MCP config file**
 
-A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
+   ```zsh
+   cp ~/.dotfiles/claude/claude_desktop_config.json.template ~/.dotfiles/claude/claude_desktop_config.json
+   ```
 
-### 3. Manual configuration steps
+   Add your keys to this file prior to running Claude.app.
+
+5. **Run the setup script**
+
+   ```zsh
+   # Make the script executable
+   xattr -c setup.sh && chmod +x setup.sh
+
+   # Run the script
+   ./setup.sh
+   ```
+
+   A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
+
+   The setup script also creates a backup of macOS and app defaults before making any changes. Backups for each run are stored in `~/.dotfiles_setup/[timestamp]_backups`.
+
+   The setup script can be re-run if there are any errors. The log and backups can be deleted after a successful installation.
+
+## Manual configuration steps
 
 - **System**:
 
   - "Adopt" apps in App Store → Account
   - Set Apple Intelligence & Siri keyboard shortcut to FnS
-  - In Spotlight preferences, add `~/Pictures` to search privacy exclusions
+  - In Spotlight settings, add `~/Pictures` to search privacy exclusions
+  - In Keyboard settings, disable the "Convert Text to Simplified Chinese" keyboard shortcut under Services
   - Configure Menu Bar layout (see reference screenshot)
   - Configure Notification Centre layout (see reference screenshot)
   - Configure Finder sidebar favorites (see reference screenshot)
