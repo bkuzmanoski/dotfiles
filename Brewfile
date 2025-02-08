@@ -1,5 +1,3 @@
-tap "FelixKratz/formulae"
-
 brew "bat"
 brew "btop"
 brew "colima"
@@ -12,7 +10,6 @@ brew "fnm"
 brew "fzf"
 brew "micro"
 brew "python"
-brew "FelixKratz/formulae/sketchybar"
 brew "uv"
 brew "zsh-autosuggestions"
 brew "zsh-syntax-highlighting"
@@ -31,7 +28,6 @@ cask "menuwhere"
 cask "nucleo"
 cask "raycast"
 cask "sf-symbols"
-cask "utm"
 cask "visual-studio-code"
 
 cask "font-commit-mono"
@@ -42,6 +38,9 @@ cask "font-jetbrains-mono"
 cask "font-sf-compact"
 cask "font-sf-mono"
 cask "font-sf-pro"
+
+tap "FelixKratz/formulae"
+brew "FelixKratz/formulae/sketchybar"
 
 mas "Keynote", id: 409183694
 mas "NextDNS", id: 1464122853
