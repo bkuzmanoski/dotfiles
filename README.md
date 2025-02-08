@@ -50,32 +50,21 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
 ### 3. Manual configuration steps
 
-#### System
+- **System**:
 
-- Log in to iCloud
-- Set Apple Intelligence & Siri keyboard shortcut to FnS
-- Disable automatically adjust brightness
-- In Spotlight preferences, add `~/Pictures` to search privacy exclusions
-- "Adopt" apps in App Store → Account
-
-#### Applications
-
-1. **Finder and desktop**
-
-   - Configure Menu Bar layout
-   - Configure Notification Centre layout
-   - Configure Finder sidebar favorites
-
-2. **Mail**
-
-   - Configure sidebar favorites
+  - "Adopt" apps in App Store → Account
+  - Set Apple Intelligence & Siri keyboard shortcut to FnS
+  - In Spotlight preferences, add `~/Pictures` to search privacy exclusions
+  - Configure Menu Bar layout (see reference screenshot)
+  - Configure Notification Centre layout (see reference screenshot)
+  - Configure Finder sidebar favorites (see reference screenshot)
+  - Configure Mail sidebar favorites (see reference screenshot)
 
 3. **1Password**
 
    - Add personal vault
    - Show Quick Access on icon click
-   - Clear Quick Access shortcut
-   - Clear Autofill shortcut
+   - Clear Quick Access and Autofill shortcuts
    - Set compact density
    - Set security settings:
      - Never require password
@@ -87,25 +76,15 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
 
 4. **Alcove**
 
-   - Activate licence and grant permissions when prompted
+   - Activate licence
 
-5. **AltTab**
-
-   - Grant permissions when prompted on first launch
-
-6. **CleanShot X**
+5. **CleanShot X**
 
    - Log in, enter activation key, and set as default screenshot app
-   - Set up keyboard shortcuts:
-     - All-In-One: ⌘⇧5
-     - Open Capture History: ♦︎H
-     - Capture Area: ⇧⌘2
-     - Capture Fullscreen: ⇧⌘1
-     - Capture Text: ⇧⌘4
-     - Annotate Last Screenshot: ⇧⌘3
-   - Grant Screen & System Audio Recording permission
+   - Clear All-In-One, Capture Area, and Capture Fullscreen shortcuts
+   - Set Annotate Last Screenshot shortcut to ♦︎3
 
-7. **Figma**
+6. **Figma**
 
    - Disable rename duplicated layers
    - Disable flip objects while resizing
@@ -113,11 +92,11 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Set big nudge to 8px
    - Disable Menu Bar icon
 
-8. **Ghostty**
+7. **Ghostty**
 
    - Grant Accessibility and Full Disk Access permissions
 
-9. **Google Chrome**
+8. **Google Chrome**
 
    - Set as default browser and decline sending usage and crash statistics
    - Log in and sync profile
@@ -125,22 +104,20 @@ A log for each run is saved to `~/.dotfiles_setup/[timestamp].log`.
    - Log in to Raindrop
    - Grant Screen & System Audio Recording permission
 
-10. **Menuwhere**
+9. **Menuwhere**
 
-    - Activate licence
-    - Grant Accessibility permission
+   - Activate licence and grant Accessibility permission
 
-11. **NextDNS**
+10. **NextDNS**
 
     - Start at login
     - Set Configuration ID
 
-12. **Raycast**
+11. **Raycast**
 
     - Accept defaults on launch and grant permissions, but don't install any extensions
-    - Grant Calendar permission
     - Log in and enable Cloud Sync
 
-13. **VSCode**
+12. **VSCode**
 
     - Log in and enable settings sync

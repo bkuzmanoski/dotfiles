@@ -233,6 +233,23 @@ defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before k
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 
+# Disable "Automatically adjust brightness" in Displays settings
+corebrightness_plist_content=$(sudo defaults read com.apple.CoreBrightness.plist)
+display_key=$(print "${corebrightness_plist_content}" | jq -r ".DisplayPreferences | to_entries[] | select(.value | has(\"AutoBrightnessEnable\")) | .key")
+
+if [[ -z "${display_key}" ]]; then
+  log_error "No key containing AutoBrightnessEnable found in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
+else
+  existing_display_values=$(print "${corebrightness_plist_content}" | jq -r --arg key "${display_key}" '.DisplayPreferences."\( $key )"')
+
+  if [[ -n "${existing_display_values}" ]]; then
+    updated_display_values=$(print "${existing_display_values}" | jq ".AutoBrightnessEnable = 0")
+    defaults_write --sudo com.apple.CoreBrightness.plist DisplayPreferences -dict "${display_key}" "${updated_display_values}"
+  else
+    log_error "Could not retrieve values for key \"${display_key}\" in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
+  fi
+fi
+
 # System hotkeys
 set_system_hotkey() {
   local key="$1"
@@ -243,13 +260,19 @@ set_system_hotkey() {
 }
 
 # Default params included below so hotkeys can be toggled on/off in System Settings without needing to re-set the keybinding
-set_system_hotkey 64 "false" 32 49 1048576 # Show Spotlight search
-set_system_hotkey 65 "false" 32 49 1572864 # Show Finder search window
-set_system_hotkey 28 "false" 51 20 1179648 # Save picture of screen as a file
-set_system_hotkey 29 "false" 51 20 1441792 # Copy picture of screen to the clipboard
-set_system_hotkey 30 "false" 52 21 1179648 # Save picture of selected area as a file
-set_system_hotkey 31 "false" 52 21 1441792 # Copy picture of selected area to the clipboard
-set_system_hotkey 184 "false" 53 23 1179648 # Screenshot and recording options
+set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
+set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
+set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
+set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to the clipboard
+set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
+set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
+set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
+set_system_hotkey 118 "true" 65535 18 262144 # Enable Switch to Desktop 1
+set_system_hotkey 119 "true" 65535 19 262144 # Enable Switch to Desktop 2
+set_system_hotkey 120 "true" 65535 20 262144 # Enable Switch to Desktop 3
+set_system_hotkey 121 "true" 65535 21 262144 # Enable Switch to Desktop 4
+set_system_hotkey 122 "true" 65535 23 262144 # Enable Switch to Desktop 5 (note: second parameter is correct!)
+set_system_hotkey 123 "true" 65535 22 262144 # Enable Switch to Desktop 6 (note: second parameter is correct!)
 
 # Services hotkeys
 set_services_hotkey() {
@@ -407,6 +430,7 @@ osascript -e "tell application \"System Events\" to make login item at end with 
 
 # Raycast
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
+defaults_write com.raycast.macos raycast_hyperKey_state -dict allowShortCapsLockPresses 0 enabled 1 keyCode 57 # Set Hyper Key to Caps Lock
 
 print
 log "Setup completed."
