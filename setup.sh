@@ -93,7 +93,6 @@ if which -s brew > /dev/null; then
   log "Homebrew is already installed."
 else
   log "Installing Homebrew..."
-  print "Install Command Line Tools if prompted."
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
