@@ -84,6 +84,7 @@ This repository contains scripts and configuration files to automate the setup o
 
 3. **1Password**
 
+   - Grant Accessibility permission
    - Add personal vault
    - Show Quick Access on icon click
    - Clear Quick Access and Autofill shortcuts
@@ -94,7 +95,6 @@ This repository contains scripts and configuration files to automate the setup o
      - Disable lock on sleep, screensaver, or switching users
    - Enable Integrate with 1Password CLI
    - Enable Universal Clipboard
-   - Grant Accessibility permission
 
 4. **Alcove**
 
@@ -120,11 +120,12 @@ This repository contains scripts and configuration files to automate the setup o
 
 8. **Google Chrome**
 
-   - Set as default browser and decline sending usage and crash statistics
-   - Log in and sync profile
-   - Disable ads privacy settings (ad topics, site-suggested ads, and ads measurement)
-   - Log in to Raindrop
    - Grant Screen & System Audio Recording permission
+   - Set as default browser and decline sending usage and crash statistics
+   - Disable ads privacy settings (ad topics, site-suggested ads, and ads measurement)
+   - Disable "Make searches and browsing better"
+   - Log in and sync profile
+   - Log in to Raindrop
 
 9. **Menuwhere**
 
