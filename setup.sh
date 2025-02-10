@@ -118,7 +118,7 @@ fi
 # Setup dotfiles
 typeset -A config_links=(
   # Source = Target
-  ["bat"]="${HOME}/.config/bat/themes"
+  ["bat"]="${HOME}/.config/bat"
   ["colima"]="${HOME}/.colima/default"
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
