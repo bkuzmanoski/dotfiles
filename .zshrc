@@ -26,9 +26,9 @@ fzf () {
   update_theme
 
   if [[ ${THEME} == "zenith" ]]; then
-    theme_colors="bg+:#395263,border:#637079,scrollbar:#637079"
+    local theme_colors="bg+:#395263,border:8,scrollbar:8"
   else
-    theme_colors="bg+:#b2c9d8,border:#839099,scrollbar:#839099"
+    local theme_colors="bg+:#b2c9d8,border:15,scrollbar:15"
   fi
 
   command fzf "--color=${theme_colors}" "$@"
