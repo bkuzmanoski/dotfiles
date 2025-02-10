@@ -1,0 +1,25 @@
+[flags]
+default_time_value = "30s"
+default_widget_type = "proc"
+hide_table_gap = true
+process_memory_as_value = true
+rate = "2s"
+
+[processes]
+columns = ["PID", "Name", "CPU%", "Mem%", "R/s", "W/s", "User", "State"]
+
+[[row]]
+[[row.child]]
+ratio = 1
+[[row.child.child]]
+type = "cpu"
+[[row.child.child]]
+type = "mem"
+[[row.child.child]]
+type = "net"
+[[row.child]]
+ratio = 3
+type = "proc"
+
+[styles]
+theme = "default-light"

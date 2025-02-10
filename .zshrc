@@ -18,6 +18,29 @@ setopt SHARE_HISTORY # Share history across all sessions
 export EDITOR="micro"
 export MANPAGER="col -bx | bat --language=man --style=plain" # Use bat for man pages
 
+btm() {
+  update_theme
+
+  local config_path="${HOME}/.config/bottom"
+
+  local base_config="${config_path}/base_config.toml"
+  local theme_config="${config_path}/${THEME}.toml"
+
+  if [[ ! -f "${base_config}" ]]; then
+    print "${base_config} does not exist."
+    return 1
+  fi
+
+  if [[ ! -f "${theme_config}" ]]; then
+    print "${theme_config} does not exist."
+    return 1
+  fi
+
+  cat "${base_config}" <(print) "${theme_config}" > "${config_path}/bottom.toml"
+
+  command btm "$@"
+}
+
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 
 eval "$(fzf --zsh)"

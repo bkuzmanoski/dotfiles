@@ -1,0 +1,13 @@
+[styles.tables]
+headers = { color = "Black", bold = true }
+
+[styles.graphs]
+graph_color = "White"
+
+[styles.widgets]
+border_color = "#eceef0"
+disabled_text = { color = "White" }
+selected_border_color = "Black"
+selected_text = { color = "Black", bg_color = "#b2c9d8" }
+text = { color = "DarkGray" }
+widget_title = { color = "Black" }
