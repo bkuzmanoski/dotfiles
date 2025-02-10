@@ -158,6 +158,8 @@ update_theme() {
   export BAT_THEME="${THEME}"
 }
 
+update_theme
+
 # Update reminders
 timestamp_dir="${HOME}/.update_timestamps"
 update_checks=(
