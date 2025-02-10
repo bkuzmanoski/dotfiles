@@ -5,7 +5,6 @@ This repository contains scripts and configuration files to automate the setup o
 ## What's included
 
 - **/bat**: bat themes
-- **/btop**: btop configuration
 - **/claude**: Claude and MCP Servers configuration
 - **/colima**: colima configuration
 - **/eza**: eza theme

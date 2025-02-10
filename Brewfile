@@ -1,5 +1,4 @@
 brew "bat"
-brew "btop"
 brew "colima"
 brew "docker"
 brew "docker-compose"

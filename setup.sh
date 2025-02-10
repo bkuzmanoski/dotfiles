@@ -119,7 +119,6 @@ fi
 typeset -A config_links=(
   # Source = Target
   ["bat"]="${HOME}/.config/bat/themes"
-  ["btop"]="${HOME}/.config/btop"
   ["colima"]="${HOME}/.colima/default"
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
@@ -135,9 +134,6 @@ run_config_tasks() {
   case "${config_name}" in
     "bat")
       which -s bat > /dev/null && bat cache --build > /dev/null # Rebuild bat cache so custom themes are available
-      ;;
-    "btop")
-      [[ -f "${SCRIPT_DIR}/btop/btop.sh" ]] && chmod +x "${SCRIPT_DIR}/btop/btop.sh" # Make btop.sh executable
       ;;
     "claude/claude_desktop_config.json")
       [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]] && chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh" # Make npx_launcher.sh executable
