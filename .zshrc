@@ -127,8 +127,6 @@ ZSH_HIGHLIGHT_STYLES[suffix-alias]="fg=7,underline"
 ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 
 # Aliases
-alias -g -- -h="-h 2>&1 | bat --language=help --style=plain"
-alias -g -- --help="--help 2>&1 | bat --language=help --style=plain"
 alias ..="cd .."
 alias ...="cd ../.."
 alias cat="update_theme && bat --italic-text=always"
