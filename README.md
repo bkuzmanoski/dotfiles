@@ -56,7 +56,7 @@ This repository contains scripts and configuration files to automate the setup o
 
    ```zsh
    # Make the script executable
-   xattr -c setup.sh && chmod +x setup.sh
+   chmod +x setup.sh
 
    # Run the script
    ./setup.sh
