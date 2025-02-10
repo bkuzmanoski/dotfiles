@@ -1,6 +1,7 @@
 [flags]
 default_time_value = "30s"
 default_widget_type = "proc"
+hide_avg_cpu = true
 hide_table_gap = true
 process_memory_as_value = true
 rate = "2s"

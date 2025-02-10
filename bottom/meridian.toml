@@ -5,7 +5,7 @@ headers = { color = "Black", bold = true }
 graph_color = "White"
 
 [styles.widgets]
-border_color = "#eceef0"
+border_color = "White"
 disabled_text = { color = "White" }
 selected_border_color = "Black"
 selected_text = { color = "Black", bg_color = "#b2c9d8" }
