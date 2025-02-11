@@ -28,9 +28,9 @@ current_app_name=(
   padding_left=1
 )
 
-next_meeting=(
-  click_script="${CONFIG_DIR}/helpers/getNextMeeting.swift --open-url"
-  script="${CONFIG_DIR}/plugins/next_meeting.sh"
+next_event=(
+  click_script="${CONFIG_DIR}/helpers/getNextEvent.swift --open-url"
+  script="${CONFIG_DIR}/plugins/next_event.sh"
   update_freq=10
   drawing=off
   icon="􂕝"
@@ -85,7 +85,7 @@ sketchybar \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
   --subscribe battery_status appearance_changed system_woke power_source_change \
-  --add item next_meeting right \
-  --set next_meeting "${next_meeting[@]}" \
-  --subscribe next_meeting appearance_changed mouse.entered	mouse.clicked mouse.exited \
+  --add item next_event right \
+  --set next_event "${next_event[@]}" \
+  --subscribe next_event appearance_changed mouse.entered	mouse.clicked mouse.exited \
   --update

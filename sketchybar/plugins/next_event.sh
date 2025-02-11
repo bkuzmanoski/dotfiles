@@ -34,12 +34,12 @@ case "${SENDER}" in
     sketchybar --set "${NAME}" background.color="${background_hover_color}"
     ;;
   *)
-    next_meeting="$("${CONFIG_DIR}/helpers/getNextMeeting.swift")"
+    next_event="$("${CONFIG_DIR}/helpers/getNextEvent.swift")"
 
-    if [[ -z "${next_meeting}" ]]; then
+    if [[ -z "${next_event}" ]]; then
       sketchybar --set "${NAME}" drawing=off
     else
-      sketchybar --set "${NAME}" drawing=on label="${next_meeting}" icon.color="${icon_color}" label.color="${label_color}" background.color="${background_color}" background.border_color="${border_color}"
+      sketchybar --set "${NAME}" drawing=on label="${next_event}" icon.color="${icon_color}" label.color="${label_color}" background.color="${background_color}" background.border_color="${border_color}"
     fi
     ;;
 esac
