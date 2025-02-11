@@ -1,10 +1,15 @@
 [flags]
+average_cpu_row = true
+default_cpu_entry = "avg"
 default_time_value = "30s"
 default_widget_type = "proc"
-hide_avg_cpu = true
 hide_table_gap = true
 process_memory_as_value = true
 rate = "2s"
+show_table_scroll_position = true
+
+[cpu]
+default = "average"
 
 [processes]
 columns = ["PID", "Name", "CPU%", "Mem%", "R/s", "W/s", "User", "State"]
