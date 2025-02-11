@@ -203,7 +203,6 @@ check_update_timestamps
 brewup() (
   cd ~/.dotfiles || { print ".dotfiles directory not found."; exit 1; }
 
-  brew update || { print "brew update failed."; exit 1; }
   brew upgrade || { print "brew upgrade failed."; exit 1; }
   brew bundle || { print "brew bundle failed."; exit 1; }
   brew autoremove || { print "brew autoremove failed."; exit 1; }
