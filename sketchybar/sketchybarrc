@@ -70,7 +70,6 @@ sketchybar \
   --bar "${bar[@]}" \
   --default "${defaults[@]}" \
   --add event appearance_changed "AppleInterfaceThemeChangedNotification" \
-  --add event date_changed "NSCalendarDayChangedNotification" \
   --add item current_app_icon left \
   --set current_app_icon "${current_app_icon[@]}" \
   --subscribe current_app_icon front_app_switched \
