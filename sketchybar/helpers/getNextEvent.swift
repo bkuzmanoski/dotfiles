@@ -93,8 +93,8 @@ func openURL(for event: EKEvent) {
   NSWorkspace.shared.open(fallbackURL)
 }
 
-let eventStore = EKEventStore()
 let semaphore = DispatchSemaphore(value: 0)
+let eventStore = EKEventStore()
 
 eventStore.requestFullAccessToEvents { granted, _ in handleCalendarAccess(granted: granted) }
 
@@ -129,10 +129,10 @@ func handleCalendarAccess(granted: Bool) {
     if arguments.contains("--open-url") {
       openURL(for: nextEvent.0)
     } else {
-      let title = nextEvent.0.title.trimmingCharacters(in: .whitespacesAndNewlines)
-      let timeLabelTitle = title.isEmpty ? "Next meeting" : title
-      let timeStatus = nextEvent.1.timeLabel
-      print("\(timeLabelTitle) ∙ \(timeStatus)")
+      let eventTitle = nextEvent.0.title.trimmingCharacters(in: .whitespacesAndNewlines)
+      let eventLabel = eventTitle.isEmpty ? "Next event" : eventTitle
+      let timeLabel = nextEvent.1.timeLabel
+      print("\(eventLabel) ∙ \(timeLabel)")
     }
   }
 
