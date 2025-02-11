@@ -78,7 +78,7 @@ sketchybar \
   --subscribe current_app_name appearance_changed front_app_switched \
   --add item time right \
   --set time "${time[@]}" \
-  --subscribe time appearance_changed \
+  --subscribe time appearance_changed system_woke \
   --add item date right \
   --set date "${date[@]}" \
   --add item battery_status right \
