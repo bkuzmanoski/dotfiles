@@ -82,7 +82,6 @@ sketchybar \
   --subscribe time appearance_changed \
   --add item date right \
   --set date "${date[@]}" \
-  --subscribe date appearance_changed date_changed \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
   --subscribe battery_status appearance_changed system_woke power_source_change \

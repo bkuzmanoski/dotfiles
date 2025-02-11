@@ -8,16 +8,5 @@ else
   label_color="${LABEL_LIGHT}"
 fi
 
-case "${SENDER}" in
-  "appearance_changed")
-    sketchybar --set "${NAME}" label.color="${label_color}"
-    ;;
-  *)
-    case "${NAME}" in
-      "date") sketchybar --set "${NAME}" label="$(date '+%a %-d %b')" label.color="${label_color}"
-      ;;
-      "time") sketchybar --set "${NAME}" label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')" label.color="${label_color}"
-      ;;
-    esac
-    ;;
-esac
+sketchybar --set date label="$(date '+%a %-d %b')" label.color="${label_color}"
+sketchybar --set time label="$(date '+%-I:%M %p' | tr '[:upper:]' '[:lower:]')" label.color="${label_color}"
