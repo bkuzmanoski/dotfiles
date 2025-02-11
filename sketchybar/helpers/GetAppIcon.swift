@@ -2,19 +2,16 @@
 
 import AppKit
 
-guard CommandLine.arguments.count > 1 else {
-  let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
-
-  print("Usage: \(scriptName) \"Application Name\"")
-  exit(1)
+enum GetAppIconError: Error {
+  case conversionError
+  case savingError(Error)
 }
 
-let appName = CommandLine.arguments[1]
-
-let fileManager = FileManager.default
-let cacheDir = NSString(string: "~/.cache/sketchybar/app-icons").expandingTildeInPath
-if !fileManager.fileExists(atPath: cacheDir) {
-  try? fileManager.createDirectory(atPath: cacheDir, withIntermediateDirectories: true)
+func ensureCacheDirectory(at path: String) throws {
+  let fileManager = FileManager.default
+  if !fileManager.fileExists(atPath: path) {
+    try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
+  }
 }
 
 func resizeImage(_ image: NSImage, to size: NSSize) -> NSImage {
@@ -29,48 +26,85 @@ func resizeImage(_ image: NSImage, to size: NSSize) -> NSImage {
   return newImage
 }
 
-func workspaceIconForApp(_ app: String) -> NSImage? {
+func getIcon(forApp name: String) -> NSImage? {
   let workspace = NSWorkspace.shared
   let runningApps = workspace.runningApplications
-
-  // First try to find the app by name
-  if let url = workspace.urlForApplication(withBundleIdentifier: app) {
-    return workspace.icon(forFile: url.path)
-  }
-
-  // Fallback to searching through running applications
-  if let runningApp = runningApps.first(where: { $0.localizedName == app }),
+  if let runningApp = runningApps.first(where: { $0.localizedName == name }),
     let bundleId = runningApp.bundleIdentifier,
     let url = workspace.urlForApplication(withBundleIdentifier: bundleId)
   {
     return workspace.icon(forFile: url.path)
   }
-
-  // Fallback to generic app icon
-  return NSImage(named: NSImage.applicationIconName)
+  // Fallback to generic executable icon
+  let genericIconPath = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ExecutableBinaryIcon.icns"
+  return NSImage(contentsOfFile: genericIconPath)
 }
 
-if let icon = workspaceIconForApp(appName) {
-  let resizedIcon = resizeImage(icon, to: NSSize(width: 22, height: 22))
-  let outputPath = (cacheDir as NSString).appendingPathComponent("\(appName).png")
+func writePNGData(from image: NSImage, to outputPath: String) throws {
+  let resizedIcon = resizeImage(image, to: NSSize(width: 22, height: 22))
+  guard let tiffData = resizedIcon.tiffRepresentation,
+    let bitmapRep = NSBitmapImageRep(data: tiffData),
+    let pngData = bitmapRep.representation(using: .png, properties: [:])
+  else {
+    throw GetAppIconError.conversionError
+  }
 
-  if let pngData = resizedIcon.tiffRepresentation,
-    let bitmap = NSBitmapImageRep(data: pngData),
-    let pngOutput = bitmap.representation(using: .png, properties: [:])
-  {
-    do {
-      try pngOutput.write(to: URL(fileURLWithPath: outputPath))
-      print(outputPath)
-      exit(0)
-    } catch {
-      print("Error saving icon: \(error)")
-      exit(1)
-    }
-  } else {
-    print("Error converting icon to PNG")
+  do {
+    try pngData.write(to: URL(fileURLWithPath: outputPath))
+  } catch {
+    throw GetAppIconError.savingError(error)
+  }
+}
+
+func main() {
+  guard CommandLine.arguments.count == 2 else {
+    let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
+    print("Usage: \(scriptName) \"Application Name\"")
     exit(1)
   }
-} else {
-  print("Failed to find icon for \(appName)")
-  exit(1)
+
+  let appName = CommandLine.arguments[1]
+  let fileManager = FileManager.default
+  let cachePath = NSString(string: "~/.cache/sketchybar/app-icons").expandingTildeInPath
+
+  // Ensure the cache directory exists
+  do {
+    try ensureCacheDirectory(at: cachePath)
+  } catch {
+    print("Error creating cache directory at \(cachePath): \(error)")
+    exit(1)
+  }
+
+  let outputPath = (cachePath as NSString).appendingPathComponent("\(appName).png")
+
+  // If cached file exists, use it
+  if fileManager.fileExists(atPath: outputPath) {
+    print(outputPath)
+    exit(0)
+  }
+
+  // Generate the icon
+  guard let icon = getIcon(forApp: appName) else {
+    print("Failed to find icon for \(appName)")
+    exit(1)
+  }
+
+  // Write icon PNG data to cache
+  do {
+    try writePNGData(from: icon, to: outputPath)
+  } catch GetAppIconError.conversionError {
+    print("Error converting icon to PNG")
+    exit(1)
+  } catch GetAppIconError.savingError(let savingError) {
+    print("Error saving icon: \(savingError)")
+    exit(1)
+  } catch {
+    print("Unexpected error: \(error)")
+    exit(1)
+  }
+
+  print(outputPath)
+  exit(0)
 }
+
+main()

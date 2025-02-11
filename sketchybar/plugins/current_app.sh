@@ -7,13 +7,13 @@ case "${NAME}" in
       # This hides the app icon until the next application focus event so we can use the app name to get an icon
       sketchybar --set "${NAME}" drawing=off
     else
-      cache_path="${HOME}/.cache/sketchybar/app-icons/${INFO}.png"
-      icon_path="${cache_path}"
+      icon_path="${HOME}/.cache/sketchybar/app-icons/${INFO}.png"
       scale=0.5
 
-      if [[ ! -f "${cache_path}" ]]; then
+      # Check if app icon is already cached
+      if [[ ! -f "${icon_path}" ]]; then
           # Replace built-in Sketchybar "app.<name>" functionality for higher quality scaling
-          "${CONFIG_DIR}/helpers/getAppIcon.swift" "${INFO}"
+          "${CONFIG_DIR}/helpers/getAppIcon.swift" "${INFO}" > /dev/null
 
           if (( $? != 0 )); then
               # Fallback to Sketchybar to get app icon on error
