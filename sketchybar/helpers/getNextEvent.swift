@@ -19,10 +19,17 @@ struct EventStatus {
 }
 
 private func formatTimeLabel(prefix: String = "", _ minutes: Int, suffix: String = "") -> String {
+  let timeString: String
   if minutes >= 60 {
-    return "\(prefix) \(minutes / 60)h \(minutes % 60)m \(suffix)"
+    let hours = minutes / 60
+    let remainder = minutes % 60
+    timeString = remainder == 0 ? "\(hours)h" : "\(hours)h \(remainder)m"
+  } else {
+    timeString = "\(minutes)m"
   }
-  return "\(prefix) \(minutes)m \(suffix)"
+  return [prefix, timeString, suffix]
+    .filter { !$0.isEmpty }
+    .joined(separator: " ")
 }
 
 func generateEventStatus(event: EKEvent, now: Date) -> EventStatus {
