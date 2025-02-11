@@ -81,65 +81,65 @@ This repository contains scripts and configuration files to automate the setup o
   - Configure Finder sidebar favorites (see reference screenshot)
   - Configure Mail sidebar favorites (see reference screenshot)
 
-3. **1Password**
+- **1Password**
 
-   - Grant Accessibility permission
-   - Add personal vault
-   - Show Quick Access on icon click
-   - Clear Quick Access and Autofill shortcuts
-   - Set compact density
-   - Set security settings:
-     - Never require password
-     - Never auto-lock
-     - Disable lock on sleep, screensaver, or switching users
-   - Enable Integrate with 1Password CLI
-   - Enable Universal Clipboard
+  - Grant Accessibility permission
+  - Add personal vault
+  - Show Quick Access on icon click
+  - Clear Quick Access and Autofill shortcuts
+  - Set compact density
+  - Set security settings:
+    - Never require password
+    - Never auto-lock
+    - Disable lock on sleep, screensaver, or switching users
+  - Enable Integrate with 1Password CLI
+  - Enable Universal Clipboard
 
-4. **Alcove**
+- **Alcove**
 
-   - Activate licence
+  - Activate license
 
-5. **CleanShot X**
+- **CleanShot X**
 
-   - Log in, enter activation key, and set as default screenshot app
-   - Clear All-In-One, Capture Area, and Capture Fullscreen shortcuts
-   - Set Annotate Last Screenshot shortcut to ♦︎3
+  - Log in, enter activation key, and set as default screenshot app
+  - Clear All-In-One, Capture Area, and Capture Fullscreen shortcuts
+  - Set Annotate Last Screenshot shortcut to ♦︎3
 
-6. **Figma**
+- **Figma**
 
-   - Disable rename duplicated layers
-   - Disable flip objects while resizing
-   - Enable invert zoom direction
-   - Set big nudge to 8px
-   - Disable Menu Bar icon
+  - Disable rename duplicated layers
+  - Disable flip objects while resizing
+  - Enable invert zoom direction
+  - Set big nudge to 8px
+  - Disable Menu Bar icon
 
-7. **Ghostty**
+- **Ghostty**
 
-   - Grant Accessibility and Full Disk Access permissions
+  - Grant Accessibility and Full Disk Access permissions
 
-8. **Google Chrome**
+- **Google Chrome**
 
-   - Grant Screen & System Audio Recording permission
-   - Set as default browser and decline sending usage and crash statistics
-   - Disable ads privacy settings (ad topics, site-suggested ads, and ads measurement)
-   - Disable "Make searches and browsing better"
-   - Log in and sync profile
-   - Log in to Raindrop
+  - Grant Screen & System Audio Recording permission
+  - Set as default browser and decline sending usage and crash statistics
+  - Disable ads privacy settings (ad topics, site-suggested ads, and ads measurement)
+  - Disable "Make searches and browsing better"
+  - Log in and sync profile
+  - Log in to Raindrop
 
-9. **Menuwhere**
+- **Menuwhere**
 
-   - Activate licence and grant Accessibility permission
+  - Activate license and grant Accessibility permission
 
-10. **NextDNS**
+- **NextDNS**
 
-    - Start at login
-    - Set Configuration ID
+  - Start at login
+  - Set Configuration ID
 
-11. **Raycast**
+- **Raycast**
 
-    - Accept defaults on launch and grant permissions, but don't install any extensions
-    - Log in and enable Cloud Sync
+  - Accept defaults on launch and grant permissions, but don't install any extensions
+  - Log in and enable Cloud Sync
 
-12. **VSCode**
+- **VSCode**
 
-    - Log in and enable settings sync
+  - Log in and enable settings sync
