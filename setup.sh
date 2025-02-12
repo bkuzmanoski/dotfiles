@@ -381,7 +381,9 @@ defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Cr
 defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (doesn't work on arm64)
 
 # Google Chrome
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New Tab to the Right" "@t" # Re-map Command + T to open new tab to the right of active tab, and Option + Command + T to default open new tab behavior
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "@~t" # Re-map New Tab to Control + Command + T
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Re-map New Tab to the Right to Command + T
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark This Tab…" "@\$d" # Re-map Bookmark This Tab… to Shift + Command + D
 
 # Menuwhere
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
