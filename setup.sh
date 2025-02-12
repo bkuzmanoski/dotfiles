@@ -246,8 +246,8 @@ set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to t
 set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
-set_system_hotkey 7 "true" 109 46 1966080 # Set move focus to the menu bar to Hyper + M
-set_system_hotkey 8 "true" 100 2 1966080 # Set move focus to the Dock to Hyper + D
+set_system_hotkey 7 "true" 109 46 1966080 # Set Move focus to the menu bar to Hyper + M
+set_system_hotkey 8 "true" 100 2 1966080 # Set Move focus to the Dock to Hyper + D
 
 # Trackpad
 defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
