@@ -383,7 +383,6 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict "New Tab" "@~t" "New
 
 # Menuwhere
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
-defaults_write com.manytricks.Menuwhere "Skip Disabled Menu Items" -bool true # Hide disabled menu items
 defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
 defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Disable menu items for Apple and Menuwhere
 defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
