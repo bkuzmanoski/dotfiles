@@ -140,6 +140,7 @@ alias micro="update_theme && micro --colorscheme=\${THEME}"
 alias mkdir="mkdir -pv"
 alias mv="mv -iv"
 alias rm="rm -iv"
+alias top="top -s 5 -S -stats pid,command,cpu,th,mem,purg,user,state"
 
 # Helper function to update theme variables
 update_theme() {
