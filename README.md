@@ -103,7 +103,7 @@ This repository contains scripts and configuration files to automate the setup o
 
   - Log in, enter activation key, and set as default screenshot app
   - Clear All-In-One, Capture Area, and Capture Fullscreen shortcuts
-  - Set Annotate Last Screenshot shortcut to ♦︎3
+  - Set Annotate Last Screenshot shortcut to ⇧⌘3
 
 - **Figma**
 
