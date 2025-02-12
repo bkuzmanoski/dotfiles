@@ -238,7 +238,7 @@ set_system_hotkey() {
   defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>${p1}</integer><integer>${p2}</integer><integer>${p3}</integer></array></dict></dict>"
 }
 
-# Default params included below so hotkeys can be toggled on/off in System Settings without needing to re-set the keybinding
+# Default params for disabled hotkeys included below so they can be toggled on/off in System Settings without needing to re-set the keybinding
 set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
 set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
@@ -246,6 +246,8 @@ set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to t
 set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
+set_system_hotkey 7 "true" 109 46 1966080 # Set move focus to the menu bar to Hyper + M
+set_system_hotkey 8 "true" 100 2 1966080 # Set move focus to the Dock to Hyper + D
 
 # Trackpad
 defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
