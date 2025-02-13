@@ -136,6 +136,7 @@ run_config_tasks() {
       which -s bat > /dev/null && bat cache --build > /dev/null # Rebuild bat cache so custom themes are available
       ;;
     "claude/claude_desktop_config.json")
+      [[ -f "${SCRIPT_DIR}/claude/claude_desktop_config.json" ]] && sed -i '' "s|{{HOME}}|${HOME}|g" "${SCRIPT_DIR}/claude/claude_desktop_config.json"
       [[ -f "${SCRIPT_DIR}/claude/npx_launcher.sh" ]] && chmod +x "${SCRIPT_DIR}/claude/npx_launcher.sh" # Make npx_launcher.sh executable
       ;;
     "sketchybar")
