@@ -30,9 +30,9 @@ case "${SENDER}" in
         if ((total_minutes >= 60)); then
           display_hours=$((total_minutes / 60))
           display_minutes=$((total_minutes % 60))
-          message="Low battery (${display_hours}h ${display_minutes}m left)"
+          message="${display_hours}h ${display_minutes}m left"
         else
-          message="Low battery (${total_minutes}m left)"
+          message="${total_minutes}m left"
         fi
       else
         message="Low battery!"
