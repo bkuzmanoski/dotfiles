@@ -230,6 +230,12 @@ else
   fi
 fi
 
+# Disable "True Tone" in Displays settings
+current_user=$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')
+user_id=$(dscl . -read "/Users/${current_user}/" GeneratedUID | awk -F': ' '{print $2}')
+
+defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-${user_id}" -dict-add CBColorAdaptationEnabled -bool false
+
 # System hotkeys
 set_system_hotkey() {
   local key="$1"
