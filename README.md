@@ -102,7 +102,11 @@ This repository contains scripts and configuration files to automate the setup o
 - **CleanShot X**
 
   - Log in, enter activation key, and set as default screenshot app
-  - Clear All-In-One, Capture Area, and Capture Fullscreen shortcuts
+  - Set All-In-One shortcut to ⇧⌘5
+  - Set Open Capture History shortcut to ⇧⌘6
+  - Set Capture Area shortcut to ⇧⌘2
+  - Set Capture Fullscreen shortcut to ⇧⌘1
+  - Set Capture Text shortcut to ⇧⌘4
   - Set Annotate Last Screenshot shortcut to ⇧⌘3
 
 - **Figma**
