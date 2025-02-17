@@ -29,7 +29,7 @@ current_app_name=(
 )
 
 next_event=(
-  click_script="${CONFIG_DIR}/helpers/getNextEvent.swift --open-url"
+  click_script="${CONFIG_DIR}/helpers/GetNextEvent.swift --open-url"
   script="${CONFIG_DIR}/plugins/next_event.sh"
   update_freq=10
   drawing=off

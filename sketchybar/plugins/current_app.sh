@@ -13,7 +13,7 @@ case "${NAME}" in
       # Check if app icon is already cached
       if [[ ! -f "${icon_path}" ]]; then
           # Replace built-in Sketchybar "app.<name>" functionality for higher quality scaling
-          "${CONFIG_DIR}/helpers/getAppIcon.swift" "${INFO}" > /dev/null
+          "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${INFO}" > /dev/null
 
           if (( $? != 0 )); then
               # Fallback to Sketchybar to get app icon on error
