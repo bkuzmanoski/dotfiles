@@ -86,7 +86,8 @@ This repository contains scripts and configuration files to automate the setup o
   - Grant Accessibility permission
   - Add personal vault
   - Show Quick Access on icon click
-  - Clear Quick Access and Autofill shortcuts
+  - Set Show Quick Access shortcut to ⌃⇧␣
+  - Clear Autofill shortcut
   - Set compact density
   - Set security settings:
     - Never require password
