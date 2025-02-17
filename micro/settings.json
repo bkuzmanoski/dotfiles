@@ -1,6 +1,6 @@
 {
   "autoclose": false, // Disable auto closing brackets
-  "colorscheme": "zenith", // Default if not specified in arguments
+  "colorscheme": "zenith-neutral", // Default if not specified in arguments
   "diffgutter": true, // Show git diff markers in gutter
   "divchars": "│─", // Split window divider characters
   "divreverse": false, // Don't invert the color of window dividers

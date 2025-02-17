@@ -19,5 +19,5 @@ size:
   number_kilo: { is_bold: false }
 
 punctuation: { is_bold: false }
-date: { foreground: "#839099" }
+date: { foreground: "#8e8e8e" } # Default (blue-tinted) color: "#839099"
 header: { is_bold: true, is_underline: false }
