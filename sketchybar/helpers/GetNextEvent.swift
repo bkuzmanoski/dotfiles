@@ -137,7 +137,9 @@ func handleCalendarAccess(granted: Bool) {
       openURL(for: nextEvent.0)
     } else {
       let eventTitle = nextEvent.0.title.trimmingCharacters(in: .whitespacesAndNewlines)
-      let eventLabel = eventTitle.isEmpty ? "Next event" : eventTitle
+      let truncatedEventTitle =
+        eventTitle.prefix(20).trimmingCharacters(in: .whitespaces) + (eventTitle.count > 20 ? "…" : "")
+      let eventLabel = truncatedEventTitle.isEmpty ? "Next event" : truncatedEventTitle
       let timeLabel = nextEvent.1.timeLabel
       print("\(eventLabel) ∙ \(timeLabel)")
     }
