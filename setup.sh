@@ -266,6 +266,7 @@ defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Dis
 # Menu Bar icons
 defaults_write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0 # Hide Now Playing icon in Menu Bar
 defaults_write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0 # Hide Wi-Fi icon in Menu Bar
+defaults_write com.apple.controlcenter "NSStatusItem Visible Display" -int 0 # Hide Display icon in Menu Bar
 defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
 defaults_delete com.apple.Spotlight "NSStatusItem Visible Item-0" # Hide Spotlight icon in Menu Bar
 
@@ -351,7 +352,7 @@ defaults_write com.lwouis.alt-tab-macos holdShortcut -string "\\U2318" # Set hol
 defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "\\U2318" # Set hold key for shortcut 2 to "Command"
 defaults_write com.lwouis.alt-tab-macos menubarIconShown -bool false # Hide menu bar icon
 defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mouse hover
-defaults_write com.lwouis.alt-tab-macos showOnScreen -int 0 # Show on active screen
+defaults_write com.lwouis.alt-tab-macos showOnScreen -string "builtInDisplay" # Show on built in display only
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 
 # CleanShot X
