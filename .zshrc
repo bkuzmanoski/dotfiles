@@ -25,7 +25,7 @@ fzf_walker_skip_opts=".git,Containers,Daemon\ Containers,Group\ Containers,Mobil
 fzf () {
   update_theme
 
-  if [[ ${THEME} == "zenith" ]]; then
+  if [[ ${THEME} = "zenith"* ]]; then
     local theme_colors="bg+:#395263,border:8,scrollbar:8"
   else
     local theme_colors="bg+:#b2c9d8,border:15,scrollbar:15"
@@ -148,9 +148,9 @@ update_theme() {
 
   # Set theme environment variable based on macOS setting
   if [[ ${macos_theme} == "Dark" ]]; then
-    export THEME="zenith"
+    export THEME="zenith-neutral"
   else
-    export THEME="meridian"
+    export THEME="meridian-neutral"
   fi
 
   export BAT_THEME="${THEME}"
