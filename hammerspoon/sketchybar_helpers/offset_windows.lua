@@ -35,12 +35,6 @@ local function handleWindowMove(window)
 end
 
 function module.init()
-  -- Disable window adjustment animations due to buggy height adjustments when enabled
-  --
-  -- Note: If animation is enabled in the future, remember to store recentWindowIds and skip handling
-  -- of windowMoved events that are caused by the window frame adjustment caused by this script
-  hs.window.animationDuration = 0.0
-
   -- Subscribe to window move events
   windowFilter = hs.window.filter.new()
   windowFilter:subscribe(hs.window.filter.windowMoved, handleWindowMove)
