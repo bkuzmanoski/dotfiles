@@ -15,7 +15,7 @@ hs.window.animationDuration = 0.0
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
 --sketchybar.notchDisplayName = "Built-in Retina Display"
---sketchybar.statusbarOffset = 31
+--sketchybar.statusbarOffset = 30
 --sketchybar.bottomPadding = 8
 sketchybar.init()
 
