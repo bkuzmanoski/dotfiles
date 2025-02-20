@@ -8,6 +8,10 @@ if spacesCount < 5 then
   end
 end
 
+-- Disable window adjustment animations due to buggy height adjustments when enabled
+-- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
+hs.window.animationDuration = 0.0
+
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
 --sketchybar.notchDisplayName = "Built-in Retina Display"

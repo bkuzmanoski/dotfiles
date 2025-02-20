@@ -83,9 +83,6 @@ local function tileWindows(direction)
 end
 
 function module.init()
-  -- Disable window adjustment animations due to buggy height adjustments when enabled
-  hs.window.animationDuration = 0.0
-
   -- Bind hotkeys to tile windows
   module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
     tileWindows("left")
