@@ -9,6 +9,8 @@ This repository contains scripts and configuration files to automate the setup o
 - **/colima**: colima configuration
 - **/eza**: eza theme
 - **/ghostty**: Ghostty configuration
+- **/hammerspoon**: Hammerspoon configuration
+- **/karabiner**: Karabiner-Elements configuration
 - **/micro**: micro configuration
 - **/raycast**: Raycast script commands
 - **/reference**: Reference screenshots for things I couldn't automate
@@ -73,13 +75,12 @@ This repository contains scripts and configuration files to automate the setup o
 - **System**:
 
   - "Adopt" apps in App Store → Account
-  - Set Apple Intelligence & Siri keyboard shortcut to FnS
-  - In Spotlight settings, add `~/Pictures` to search privacy exclusions
-  - In Keyboard settings, disable the "Convert Text to Simplified Chinese" keyboard shortcut under Services
-  - Configure Menu Bar layout (see reference screenshot)
-  - Configure Notification Centre layout (see reference screenshot)
   - Configure Finder sidebar favorites (see reference screenshot)
   - Configure Mail sidebar favorites (see reference screenshot)
+  - Configure Menu Bar layout (see reference screenshot)
+  - Configure Notification Centre layout (see reference screenshot)
+  - In System Settings → Spotlight → Search Privacy, exclude `~/Pictures`
+  - Set Apple Intelligence & Siri keyboard shortcut to FnS
 
 - **1Password**
 
@@ -130,6 +131,14 @@ This repository contains scripts and configuration files to automate the setup o
   - Disable "Make searches and browsing better"
   - Log in and sync profile
   - Log in to Raindrop
+
+- **Hammerspoon**
+
+  - Grant Accessibility permission
+
+- **Karabiner-Elements**
+
+  - Launch, enable the Driver Extension, and grant Input Monitoring permission
 
 - **Menuwhere**
 
