@@ -85,7 +85,7 @@ defaults_delete() {
   fi
 }
 
-# --- Main script ---
+# --- Software Installation ---
 
 # Install Homebrew (if not already installed)
 log "Checking Homebrew installation."
@@ -115,14 +115,18 @@ else
   exit 1
 fi
 
-# Setup dotfiles
+# --- Settings ---
+
+# Link dotfiles
 typeset -A config_links=(
   # Source = Target
   ["bat"]="${HOME}/.config/bat"
   ["colima"]="${HOME}/.colima/default"
   ["eza"]="${HOME}/.config/eza"
   ["ghostty"]="${HOME}/.config/ghostty"
+  ["hammerspoon"]="${HOME}/.hammerspoon"
   ["micro"]="${HOME}/.config/micro"
+  ["karabiner"]="${HOME}/.config/karabiner"
   ["sketchybar"]="${HOME}/.config/sketchybar"
   [".zprofile"]="${HOME}/.zprofile"
   [".zshrc"]="${HOME}/.zshrc"
@@ -186,9 +190,8 @@ for config_name in "${(k)config_links[@]}"; do
   fi
 done
 
-touch "${HOME}/.hushlogin" # Suppress shell login message
-
-log "Setting defaults..."
+# Suppress shell login message
+touch "${HOME}/.hushlogin"
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
@@ -198,6 +201,19 @@ else
   log_warning "sudo_local already exists, skipping Touch ID for sudo configuration."
 fi
 
+# Set wallpaper
+wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
+
+if [[ -f "${wallpaper_image}" ]]; then
+  log "Setting wallpaper to ${wallpaper_image}"
+  escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
+else
+  log_error "Wallpaper file not found."
+fi
+
+log "Setting defaults..."
+
 # System and global settings
 defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Hide menu bar
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
@@ -205,13 +221,14 @@ defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # 
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
-defaults_write NSGlobalDomain AppleWindowTabbingMode -string "always" # Always use tabs when opening documents
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
 defaults_write NSGlobalDomain NSWindowShouldDragOnGesture -bool true # Click anywhere in window to move it with Control + Command
 defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
+defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
+defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 
 # Disable "Automatically adjust brightness" in Displays settings
 corebrightness_plist_content=$(sudo defaults read com.apple.CoreBrightness.plist)
@@ -236,7 +253,7 @@ user_id=$(dscl . -read "/Users/${current_user}/" GeneratedUID | awk -F': ' '{pri
 
 defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-${user_id}" -dict-add CBColorAdaptationEnabled -bool false
 
-# System hotkeys
+# Set system hotkeys
 set_system_hotkey() {
   local key="$1"
   local enabled="$2"
@@ -253,8 +270,10 @@ set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to t
 set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
-set_system_hotkey 7 "true" 109 46 1966080 # Set Move focus to the menu bar to Hyper + M
-set_system_hotkey 8 "true" 100 2 1966080 # Set Move focus to the Dock to Hyper + D
+
+# Universal Access
+defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
+defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
 
 # Trackpad
 defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
@@ -265,31 +284,12 @@ defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool fa
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
 
-# Universal Access
-defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
-defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
-
 # Menu Bar icons
 defaults_write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0 # Hide Now Playing icon in Menu Bar
 defaults_write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0 # Hide Wi-Fi icon in Menu Bar
 defaults_write com.apple.controlcenter "NSStatusItem Visible Display" -int 0 # Hide Display icon in Menu Bar
 defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
 defaults_delete com.apple.Spotlight "NSStatusItem Visible Item-0" # Hide Spotlight icon in Menu Bar
-
-# Software Updates
-defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
-defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
-
-# Set wallpaper
-wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
-
-if [[ -f "${wallpaper_image}" ]]; then
-  log "Setting wallpaper to ${wallpaper_image}"
-  escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
-else
-  log_error "Wallpaper file not found."
-fi
 
 # Dock
 defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
@@ -393,6 +393,15 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the 
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "~\$@t" # Re-map New Tab to ⌥⇧⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark This Tab…" "\$@d" # Re-map Bookmark This Tab… to ⇧⌘D
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark All Tabs…" "~\$@d" # Re-map Bookmark All Tabs… to ⌥⇧⌘D
+
+# Hammerspoon
+defaults write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
+defaults write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
+defaults write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
+defaults write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
+
+log "Configuring Hammerspoon login item." # Run Hammerspoon on login
+osascript -e "tell application \"System Events\" to make login item at end with properties { path:\"/Applications/Hammerspoon.app\", hidden:true }" > /dev/null || log_error "Failed to configure Hammerspoon login item."
 
 # Menuwhere
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode

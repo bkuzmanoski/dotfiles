@@ -1,5 +1,6 @@
-bottom/bottom.toml
 claude/claude_desktop_config.json
+hammerspoon/Spoons/
+karabiner/automatic_backups/
 micro/*/
 !micro/colorschemes/
 **/*.sock
