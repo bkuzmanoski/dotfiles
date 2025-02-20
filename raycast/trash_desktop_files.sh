@@ -2,7 +2,7 @@
 
 # Required parameters:
 # @raycast.schemaVersion 1
-# @raycast.title Purge Desktop
+# @raycast.title Trash Desktop Files
 # @raycast.mode silent
 
 # Optional parameters:
@@ -16,27 +16,28 @@
 desktop_dir="${HOME}/Desktop"
 
 if [[ ! -d "${desktop_dir}" ]]; then
-  print "Desktop directory not found."
+  print "Desktop folder not found"
   exit 1
 fi
 
 # Check if there are any files/folders to move
 if [[ -z "$(ls "${desktop_dir}")" ]]; then
-  print "Desktop folder is already empty."
+  print "Desktop folder is already empty"
   exit 0
 fi
 
 # Move items to trash
-osascript << EOD
+output=$(osascript << EOD
   tell application "Finder"
     set desktopFolder to POSIX file "${desktop_dir}" as alias
     delete (every item of folder desktopFolder)
   end tell
 EOD
+)
 
-if (( ! $? )); then
-  print "Successfully moved items to trash."
-else
-  print "Error moving items to trash."
+if (( $? )); then
+  print "Error moving items to trash: ${output}"
   exit 1
+else
+  print "Successfully moved items to trash"
 fi
