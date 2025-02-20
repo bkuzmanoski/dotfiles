@@ -3,12 +3,13 @@
 source "${CONFIG_DIR}/colors.sh"
 
 bar=(
-  display=1 # Only on internal display (if "main" sketchybar will flash on external display when closing laptop screen)
-  notch_display_height=37
-  position=top
   color=0x00000000
+  display="all"
+  height=30
+  notch_display_height=39
   padding_left=15
   padding_right=15
+  position=top
 )
 
 defaults=(
@@ -19,7 +20,7 @@ defaults=(
 current_app_icon=(
   script="${CONFIG_DIR}/plugins/current_app.sh"
   background.drawing=on
-  padding_right=3
+  padding_right=5
 )
 
 current_app_name=(
@@ -36,10 +37,10 @@ next_event=(
   icon="􂕝"
   icon.font="SF Pro:Regular:13"
   icon.color="${FOREGROUND_SECONDARY_LIGHT}"
-  icon.padding_left=9
-  icon.padding_right=7
-  label.padding_right=10
-  background.height=27
+  icon.padding_left=8
+  icon.padding_right=6
+  label.padding_right=8
+  background.height=26
   background.corner_radius=8
   background.border_width=1
 )
@@ -67,6 +68,7 @@ time=(
 )
 
 sketchybar \
+  --hotload true \
   --bar "${bar[@]}" \
   --default "${defaults[@]}" \
   --add event appearance_changed "AppleInterfaceThemeChangedNotification" \
