@@ -13,7 +13,7 @@ local function focusFrontmostWindow(screen)
   if screen then
     local windows = hs.window.orderedWindows()
     for _, window in ipairs(windows) do
-      if window:screen():id() == screen:id() and window.isVisible() then
+      if window:screen():id() == screen:id() and window:isVisible() then
         window:focus()
         break
       end
