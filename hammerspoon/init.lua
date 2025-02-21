@@ -19,7 +19,7 @@ local sketchybar = require("sketchybar_helpers")
 --sketchybar.bottomPadding = 8
 --sketchybar.appIgnoreWindowTitles = { "Activity Monitor" }
 --sketchybar.windowTitleMaxLength = 50
---sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$" }
+--sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$", " – Camera recording$", " – Microphone recording$", " – Camera and microphone recording$" }
 sketchybar.init()
 
 local windowManagement = require("window_management")
