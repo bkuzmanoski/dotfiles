@@ -6,7 +6,10 @@ module.ignoreWindowTitles = {
 module.titleMaxLength = 50
 module.titlePatternsToRemove = {
   " – Audio playing$",
-  " - High memory usage - .*$"
+  " - High memory usage - .*$",
+  " – Camera recording$",
+  " – Microphone recording$",
+  " – Camera and microphone recording$",
 }
 
 local appWatcher = nil
@@ -15,6 +18,11 @@ local currentTitle = nil
 
 local function getWindowDetails()
   local app = hs.application.frontmostApplication()
+
+  if not app then
+    return nil, nil
+  end
+
   local bundleId = app:bundleID()
   local appName = app:name()
   local mainWindow = app:mainWindow()
@@ -33,7 +41,6 @@ local function getWindowDetails()
 
   -- Remove app name from end of title
   title = title:gsub("%s*[-–—]%s*" .. appName .. "$", "")
-
 
   -- Remove additional patterns
   for _, pattern in ipairs(module.titlePatternsToRemove) do
@@ -67,7 +74,7 @@ end
 local function handleWindowChange()
   local bundleId, newTitle = getWindowDetails()
 
-  if newTitle ~= currentTitle then
+  if newTitle and newTitle ~= currentTitle then
     currentTitle = newTitle
     local escapedTitle = newTitle:gsub('"', '\\"')
     hs.execute(
