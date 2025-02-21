@@ -23,11 +23,11 @@
             ]
           },
           {
-            "description": "Arrow Keys: Right Command + o/l/k/; → Up/Down/Left/Right",
+            "description": "Arrow Keys: Right Command + p/;/l/' → Up/Down/Left/Right",
             "manipulators": [
               {
                 "from": {
-                  "key_code": "o",
+                  "key_code": "p",
                   "modifiers": {
                     "mandatory": ["right_command"],
                     "optional": ["any"]
@@ -38,7 +38,7 @@
               },
               {
                 "from": {
-                  "key_code": "l",
+                  "key_code": "semicolon",
                   "modifiers": {
                     "mandatory": ["right_command"],
                     "optional": ["any"]
@@ -49,7 +49,7 @@
               },
               {
                 "from": {
-                  "key_code": "k",
+                  "key_code": "l",
                   "modifiers": {
                     "mandatory": ["right_command"],
                     "optional": ["any"]
@@ -60,7 +60,7 @@
               },
               {
                 "from": {
-                  "key_code": "semicolon",
+                  "key_code": "quote",
                   "modifiers": {
                     "mandatory": ["right_command"],
                     "optional": ["any"]

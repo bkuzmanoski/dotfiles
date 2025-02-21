@@ -25,15 +25,15 @@ sketchybar.init()
 local windowManagement = require("window_management")
 -- windowManagement.focusLeftRightHotkeys.left = { modifiers = { "option", "command" }, key = "[" }
 -- windowManagement.focusLeftRightHotkeys.right = { modifiers = { "option", "command" }, key = "]" }
--- windowManagement.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "o" }
--- windowManagement.moveHotkeys.down = { modifiers = { "shift", "option", "command" }, key = "l" }
--- windowManagement.moveHotkeys.left = { modifiers = { "shift", "option", "command" }, key = "k" }
--- windowManagement.moveHotkeys.right = { modifiers = { "shift", "option", "command" }, key = ";" }
--- windowManagement.resizeHotkeys.up = { modifiers = { "control", "option", "command" }, key = "o" }
--- windowManagement.resizeHotkeys.down = { modifiers = { "control", "option", "command" }, key = "l" }
--- windowManagement.resizeHotkeys.left = { modifiers = { "control", "option", "command" }, key = "k" }
--- windowManagement.resizeHotkeys.right = { modifiers = { "control", "option", "command" }, key = ";" }
+-- windowManagement.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "p" }
+-- windowManagement.moveHotkeys.down = { modifiers = { "shift", "option", "command" }, key = ";" }
+-- windowManagement.moveHotkeys.left = { modifiers = { "shift", "option", "command" }, key = "l" }
+-- windowManagement.moveHotkeys.right = { modifiers = { "shift", "option", "command" }, key = "'" }
+-- windowManagement.resizeHotkeys.up = { modifiers = { "control", "option", "command" }, key = "p" }
+-- windowManagement.resizeHotkeys.down = { modifiers = { "control", "option", "command" }, key = ";" }
+-- windowManagement.resizeHotkeys.left = { modifiers = { "control", "option", "command" }, key = "l" }
+-- windowManagement.resizeHotkeys.right = { modifiers = { "control", "option", "command" }, key = "'" }
 -- windowManagement.tileGap = 8
--- windowManagement.tileHotkeys.left = { modifiers = { "option", "command" }, key = "k" }
--- windowManagement.tileHotkeys.right = { modifiers = { "option", "command" }, key = ";" }
+-- windowManagement.tileHotkeys.left = { modifiers = { "option", "command" }, key = "l" }
+-- windowManagement.tileHotkeys.right = { modifiers = { "option", "command" }, key = "'" }
 windowManagement.init()
