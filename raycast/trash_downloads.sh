@@ -35,9 +35,9 @@ output=$(osascript << EOD
 EOD
 )
 
-if (( $? )); then
+if [[ $? -eq 0 ]]; then
+  print "Successfully moved items to trash"
+else
   print "Error moving items to trash: ${output}"
   exit 1
-else
-  print "Successfully moved items to trash"
 fi
