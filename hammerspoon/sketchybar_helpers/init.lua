@@ -5,6 +5,7 @@ require("hs.ipc")
 
 -- Signal window change events to Sketchybar
 local windowChange = require("sketchybar_helpers.window_change")
+module.appIgnoreWindowTitles = windowChange.ignoreWindowTitles
 module.windowTitleMaxLength = windowChange.titleMaxLength
 module.windowTitlePatternsToRemove = windowChange.titlePatternsToRemove
 
