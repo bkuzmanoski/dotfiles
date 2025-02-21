@@ -2,16 +2,16 @@ local module = {}
 
 module.amount = 8
 module.moveHotkeys = {
-  up = { modifiers = { "shift", "option", "command" }, key = "o" },
-  down = { modifiers = { "shift", "option", "command" }, key = "l" },
-  left = { modifiers = { "shift", "option", "command" }, key = "k" },
-  right = { modifiers = { "shift", "option", "command" }, key = ";" }
+  up = { modifiers = { "shift", "option", "command" }, key = "p" },
+  down = { modifiers = { "shift", "option", "command" }, key = ";" },
+  left = { modifiers = { "shift", "option", "command" }, key = "l" },
+  right = { modifiers = { "shift", "option", "command" }, key = "'" }
 }
 module.resizeHotkeys = {
-  up = { modifiers = { "control", "option", "command" }, key = "o" },
-  down = { modifiers = { "control", "option", "command" }, key = "l" },
-  left = { modifiers = { "control", "option", "command" }, key = "k" },
-  right = { modifiers = { "control", "option", "command" }, key = ";" }
+  up = { modifiers = { "control", "option", "command" }, key = "p" },
+  down = { modifiers = { "control", "option", "command" }, key = ";" },
+  left = { modifiers = { "control", "option", "command" }, key = "l" },
+  right = { modifiers = { "control", "option", "command" }, key = "'" }
 }
 
 local bindings = {}

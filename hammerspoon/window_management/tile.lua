@@ -2,8 +2,8 @@ local module = {}
 
 module.gap = 8
 module.hotkeys = {
-  left = { modifiers = { "option", "command" }, key = "k" },
-  right = { modifiers = { "option", "command" }, key = ";" }
+  left = { modifiers = { "option", "command" }, key = "l" },
+  right = { modifiers = { "option", "command" }, key = "'" }
 }
 
 local hotkeyTileLeft, hotkeyTileRight
