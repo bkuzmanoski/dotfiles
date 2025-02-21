@@ -19,7 +19,7 @@ else
 fi
 
 case "${SENDER}" in
-  "appearance_changed")
+  "appearance_change")
     sketchybar --set "${NAME}" icon.color="${icon_color}" label.color="${label_color}" background.color="${background_color}" background.border_color="${border_color}"
     ;;
   "mouse.entered")

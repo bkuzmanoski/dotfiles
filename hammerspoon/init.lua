@@ -17,6 +17,8 @@ local sketchybar = require("sketchybar_helpers")
 --sketchybar.notchDisplayName = "Built-in Retina Display"
 --sketchybar.statusbarOffset = 30
 --sketchybar.bottomPadding = 8
+--sketchybar.windowTitleMaxLength = 50
+--sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$" }
 sketchybar.init()
 
 local windowManagement = require("window_management")

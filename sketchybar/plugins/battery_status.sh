@@ -11,7 +11,7 @@ else
 fi
 
 case "${SENDER}" in
-  "appearance_changed")
+  "appearance_change")
     sketchybar --set "${NAME}" icon.color="${icon_color}" label.color="${label_color}"
     ;;
   *)

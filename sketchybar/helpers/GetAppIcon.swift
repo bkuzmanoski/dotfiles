@@ -26,15 +26,12 @@ func resizeImage(_ image: NSImage, to size: NSSize) -> NSImage {
   return newImage
 }
 
-func getIcon(forApp name: String) -> NSImage? {
+func getIcon(for bundleId: String) -> NSImage? {
   let workspace = NSWorkspace.shared
-  let runningApps = workspace.runningApplications
-  if let runningApp = runningApps.first(where: { $0.localizedName == name }),
-    let bundleId = runningApp.bundleIdentifier,
-    let url = workspace.urlForApplication(withBundleIdentifier: bundleId)
-  {
+  if let url = workspace.urlForApplication(withBundleIdentifier: bundleId) {
     return workspace.icon(forFile: url.path)
   }
+
   // Fallback to generic executable icon
   let genericIconPath = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ExecutableBinaryIcon.icns"
   return NSImage(contentsOfFile: genericIconPath)
@@ -59,11 +56,11 @@ func writePNGData(from image: NSImage, to outputPath: String) throws {
 func main() {
   guard CommandLine.arguments.count == 2 else {
     let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
-    print("Usage: \(scriptName) \"Application Name\"")
+    print("Usage: \(scriptName) bundleId")
     exit(1)
   }
 
-  let appName = CommandLine.arguments[1]
+  let bundleId = CommandLine.arguments[1]
   let fileManager = FileManager.default
   let cachePath = NSString(string: "~/.cache/sketchybar/app-icons").expandingTildeInPath
 
@@ -75,7 +72,7 @@ func main() {
     exit(1)
   }
 
-  let outputPath = (cachePath as NSString).appendingPathComponent("\(appName).png")
+  let outputPath = (cachePath as NSString).appendingPathComponent("\(bundleId).png")
 
   // If cached file exists, use it
   if fileManager.fileExists(atPath: outputPath) {
@@ -84,8 +81,8 @@ func main() {
   }
 
   // Generate the icon
-  guard let icon = getIcon(forApp: appName) else {
-    print("Failed to find icon for \(appName)")
+  guard let icon = getIcon(for: bundleId) else {
+    print("Failed to find icon for \(bundleId)")
     exit(1)
   }
 
