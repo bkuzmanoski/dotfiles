@@ -41,8 +41,9 @@ next_event=(
   icon.padding_right=6
   label.padding_right=8
   background.height=26
-  background.corner_radius=8
+  background.corner_radius=6
   background.border_width=1
+  blur_radius=50
 )
 
 battery_status=(
