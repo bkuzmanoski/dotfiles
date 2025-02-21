@@ -1,5 +1,8 @@
 local module = {}
 
+module.ignoreWindowTitles = {
+  "Activity Monitor",
+}
 module.titleMaxLength = 50
 module.titlePatternsToRemove = {
   " – Audio playing$",
@@ -20,10 +23,16 @@ local function getWindowDetails()
     return bundleId, appName
   end
 
+  for _, ignoredApp in ipairs(module.ignoreWindowTitles) do
+    if appName == ignoredApp then
+      return bundleId, appName
+    end
+  end
+
   local title = app:mainWindow():title()
 
   -- Remove app name from end of title
-  title = title:gsub("%s*[-–—]?%s*" .. appName .. "$", "")
+  title = title:gsub("%s*[-–—]%s*" .. appName .. "$", "")
 
 
   -- Remove additional patterns
