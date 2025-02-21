@@ -93,9 +93,9 @@ output=$(osascript << EOD
 EOD
 )
 
-if (( $? )); then
+if [[ $? -eq 0 ]]; then
+  print "Notifications cleared"
+else
   print "Error clearing notifications: ${output}"
   exit 1
-else
-  print "Notifications cleared"
 fi
