@@ -69,25 +69,25 @@ time=(
 )
 
 sketchybar \
-  --hotload true \
   --bar "${bar[@]}" \
   --default "${defaults[@]}" \
-  --add event appearance_changed "AppleInterfaceThemeChangedNotification" \
+  --add event appearance_change "AppleInterfaceThemeChangedNotification" \
+  --add event window_change \
   --add item current_app_icon left \
   --set current_app_icon "${current_app_icon[@]}" \
-  --subscribe current_app_icon front_app_switched \
+  --subscribe current_app_icon window_change \
   --add item current_app_name left \
   --set current_app_name "${current_app_name[@]}" \
-  --subscribe current_app_name appearance_changed front_app_switched \
+  --subscribe current_app_name appearance_change window_change \
   --add item time right \
   --set time "${time[@]}" \
-  --subscribe time appearance_changed system_woke \
+  --subscribe time appearance_change system_woke \
   --add item date right \
   --set date "${date[@]}" \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
-  --subscribe battery_status appearance_changed system_woke power_source_change \
+  --subscribe battery_status appearance_change system_woke power_source_change \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event appearance_changed mouse.entered	mouse.clicked mouse.exited \
+  --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
   --update
