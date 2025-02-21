@@ -14,12 +14,12 @@ hs.window.animationDuration = 0.0
 
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
---sketchybar.notchDisplayName = "Built-in Retina Display"
---sketchybar.statusbarOffset = 30
---sketchybar.bottomPadding = 8
 --sketchybar.appIgnoreWindowTitles = { "Activity Monitor" }
 --sketchybar.windowTitleMaxLength = 50
 --sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$", " – Camera recording$", " – Microphone recording$", " – Camera and microphone recording$" }
+--sketchybar.notchDisplayName = "Built-in Retina Display"
+--sketchybar.statusbarOffset = 30
+--sketchybar.bottomPadding = 8
 sketchybar.init()
 
 local windowManagement = require("window_management")
