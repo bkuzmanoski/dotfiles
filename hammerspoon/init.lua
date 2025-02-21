@@ -34,11 +34,3 @@ local windowManagement = require("window_management")
 -- windowManagement.tileHotkeys.left = { modifiers = { "option", "command" }, key = "k" }
 -- windowManagement.tileHotkeys.right = { modifiers = { "option", "command" }, key = ";" }
 windowManagement.init()
-
--- Reload configuration when configuration files change
-local pathWatcher = hs.pathwatcher.new(hs.configdir, function()
-  sketchybar.cleanup()
-  windowManagement.cleanup()
-  hs.reload()
-end)
-pathWatcher:start()
