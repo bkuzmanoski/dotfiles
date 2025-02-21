@@ -30,7 +30,12 @@ local function focusWindowOnScreen()
 end
 
 function module.init()
-  local windowFilter = hs.window.filter.new():setOverrideFilter { allowRoles = "AXStandardWindow", focused = true, currentSpace = true }
+  local windowFilter = hs.window.filter.new():setOverrideFilter {
+    allowRoles = "AXStandardWindow",
+    currentSpace = true,
+    focused = true,
+    visible = true
+  }
   windowFilter:subscribe(hs.window.filter.windowDestroyed, focusWindowOnScreen)
   windowWatcher = windowFilter
 end
