@@ -1,7 +1,9 @@
 theme = light:meridian-neutral,dark:zenith-neutral
 
-window-padding-x = 12
-window-padding-y = 6
+macos-titlebar-style = native
+window-padding-x = 8
+window-padding-y = 8
+window-padding-balance = true
 window-padding-color = extend
 resize-overlay = never
 unfocused-split-opacity = 1
