@@ -15,7 +15,7 @@ This repository contains scripts and configuration files to automate the setup o
 - **/raycast**: Raycast script commands
 - **/reference**: Reference screenshots for things I couldn't automate
 - **/sketchybar**: Sketchybar configuration
-- **/wallpapers**: Desktop wallpapers (`raycast.heic` automatically adapts to light/dark mode)
+- **/wallpapers**: Desktop wallpapers (`*-dynamic.heic` wallpapers adapt to light/dark mode)
 - `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew
 - `setup.sh`: Setup script that installs apps and configures settings
