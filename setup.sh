@@ -345,11 +345,12 @@ defaults_write com.apple.TextEdit RichText -bool false # Use plain text by defau
 
 # Alcove
 defaults_write com.henrikruscon.Alcove enableHaptics -bool false # Disable haptic feedback
+defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at login
+defaults_write com.henrikruscon.Alcove lowBatteryThreshold -int 10 # Set low battery threshold to 10%
 defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Always show on built-in display
 defaults_write com.henrikruscon.Alcove warnOnLowBattery -bool false # Disable low battery warning
-defaults_write com.henrikruscon.Alcove lowBatteryThreshold -int 10 # Set low battery threshold to 10%
 
 # AltTab
 defaults_write com.lwouis.alt-tab-macos appearanceSize -int 1 # Set appearance size to "Medium"
