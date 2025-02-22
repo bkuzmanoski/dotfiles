@@ -219,16 +219,17 @@ defaults_write NSGlobalDomain _HIHideMenuBar -bool true # Hide menu bar
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
+defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true # Disable wallpaper tinting in windows
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
+defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
+defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
 defaults_write NSGlobalDomain NSWindowShouldDragOnGesture -bool true # Click anywhere in window to move it with Control + Command
-defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
-defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
+defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
-defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 
 # Disable "Automatically adjust brightness" in Displays settings
 corebrightness_plist_content=$(sudo defaults read com.apple.CoreBrightness.plist)
