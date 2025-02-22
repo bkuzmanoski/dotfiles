@@ -1,17 +1,3 @@
--- Initialise spaces
-local primaryScreen = hs.screen.primaryScreen()
-local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
-
-if spacesCount < 5 then
-  for _ = spacesCount + 1, 5 do
-    hs.spaces.addSpaceToScreen(primaryScreen)
-  end
-end
-
--- Disable window adjustment animations due to buggy height adjustments when enabled
--- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
-hs.window.animationDuration = 0.0
-
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
 --sketchybar.appIgnoreWindowTitles = { "Activity Monitor" }
@@ -20,7 +6,6 @@ local sketchybar = require("sketchybar_helpers")
 --sketchybar.notchDisplayName = "Built-in Retina Display"
 --sketchybar.statusbarOffset = 30
 --sketchybar.bottomPadding = 8
-sketchybar.init()
 
 local windowManagement = require("window_management")
 -- windowManagement.focusLeftRightHotkeys.left = { modifiers = { "option", "command" }, key = "[" }
@@ -36,4 +21,26 @@ local windowManagement = require("window_management")
 -- windowManagement.tileGap = 8
 -- windowManagement.tileHotkeys.left = { modifiers = { "option", "command" }, key = "l" }
 -- windowManagement.tileHotkeys.right = { modifiers = { "option", "command" }, key = "'" }
+
+sketchybar.init()
 windowManagement.init()
+
+-- Setup hotkeys
+-- Focus or open a Finder window
+hs.hotkey.bind({ "control", "option", "shift", "command" }, "f", function()
+  hs.application.launchOrFocus("Finder")
+end)
+
+-- Initialise spaces
+local primaryScreen = hs.screen.primaryScreen()
+local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
+
+if spacesCount < 5 then
+  for _ = spacesCount + 1, 5 do
+    hs.spaces.addSpaceToScreen(primaryScreen)
+  end
+end
+
+-- Disable window adjustment animations due to buggy height adjustments when enabled
+-- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
+hs.window.animationDuration = 0.0
