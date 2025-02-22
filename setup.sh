@@ -349,6 +349,7 @@ defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu ba
 defaults_write com.henrikruscon.Alcove launchAtLogin -bool true # Launch at login
 defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Always show on built-in display
 defaults_write com.henrikruscon.Alcove warnOnLowBattery -bool false # Disable low battery warning
+defaults_write com.henrikruscon.Alcove lowBatteryThreshold -int 10 # Set low battery threshold to 10%
 
 # AltTab
 defaults_write com.lwouis.alt-tab-macos appearanceSize -int 1 # Set appearance size to "Medium"
