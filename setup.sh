@@ -202,7 +202,7 @@ else
 fi
 
 # Set wallpaper
-wallpaper_image="${SCRIPT_DIR}/wallpapers/raycast.heic"
+wallpaper_image="${SCRIPT_DIR}/wallpapers/titanium-gradient.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
