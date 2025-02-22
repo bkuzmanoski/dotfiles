@@ -6,7 +6,7 @@ DEFAULT_THEME="DARK"      # "LIGHT" or "DARK"
 # Determine theme
 THEME="${DEFAULT_THEME}"
 if [[ "${ADAPTIVE}" -eq 1 ]]; then
-  THEME=$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && echo "DARK" || echo "LIGHT")
+  THEME=$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && print "DARK" || print "LIGHT")
 fi
 
 # Define palettes
