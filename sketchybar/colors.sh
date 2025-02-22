@@ -1,5 +1,5 @@
 # Options
-ADAPTIVE=0                # 0: use DEFAULT_THEME, 1: use system settings
+ADAPTIVE=1                # 0: use DEFAULT_THEME, 1: use system settings
 PALETTE="NEUTRAL"         # "NEUTRAL" or "BLUE"
 DEFAULT_THEME="DARK"      # "LIGHT" or "DARK"
 
