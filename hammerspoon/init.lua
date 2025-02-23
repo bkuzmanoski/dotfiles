@@ -1,6 +1,6 @@
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
---sketchybar.appIgnoreWindowTitles = { "Activity Monitor" }
+--sketchybar.appIgnoreWindowTitles = { "Activity Monitor", "Font Book", "Equinox" }
 --sketchybar.windowTitleMaxLength = 50
 --sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$", " – Camera recording$", " – Microphone recording$", " – Camera and microphone recording$" }
 --sketchybar.notchDisplayName = "Built-in Retina Display"

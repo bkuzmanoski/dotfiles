@@ -2,6 +2,8 @@ local module = {}
 
 module.ignoreWindowTitles = {
   "Activity Monitor",
+  "Font Book",
+  "Equinox"
 }
 module.titleMaxLength = 50
 module.titlePatternsToRemove = {
