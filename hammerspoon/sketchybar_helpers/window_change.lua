@@ -1,6 +1,6 @@
 local module = {}
 
-module.ignoreWindowTitles = {
+module.ignoreApps = {
   "Activity Monitor",
   "Font Book",
   "Equinox"
@@ -33,7 +33,7 @@ local function getWindowDetails()
     return bundleId, appName
   end
 
-  for _, ignoredApp in ipairs(module.ignoreWindowTitles) do
+  for _, ignoredApp in ipairs(module.ignoreApps) do
     if appName == ignoredApp then
       return bundleId, appName
     end
@@ -100,8 +100,6 @@ function module.init()
     end
   end)
   appWatcher:start()
-
-  handleWindowChange()
 end
 
 function module.cleanup()
