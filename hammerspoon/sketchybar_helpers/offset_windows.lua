@@ -1,7 +1,7 @@
 local module = {}
 
 module.notchDisplayName = "Built-in Retina Display"
-module.statusbarOffset = 30
+module.statusbarOffset = 40
 module.bottomPadding = 8
 
 local windowFilter = nil

@@ -1,36 +1,33 @@
 #!/bin/zsh
 
-case "${NAME}" in
-  "current_app_icon")
-    [[ ! "${BUNDLE_ID}" ]] && exit 0
+source "${CONFIG_DIR}/colors.sh"
 
-    icon_path="${HOME}/.cache/sketchybar/app-icons/${BUNDLE_ID}.png"
-    scale=0.5
+case "${SENDER}" in
+  "appearance_change")
+    sketchybar --set current_app_name label.color="${FOREGROUND_COLOR}"
+    ;;
+  "window_change")
+    arguments=()
 
-    # Check if app icon is already cached
-    if [[ ! -f "${icon_path}" ]]; then
-        # Replace built-in Sketchybar "app.<name>" functionality for higher quality scaling
+    if [[ "${BUNDLE_ID}" ]]; then
+      icon_path="${HOME}/.cache/sketchybar/app-icons/${BUNDLE_ID}.png"
+      scale=0.5 # 2x retina resolution
+      return_value=0
+
+      if [[ ! -f "${icon_path}" ]]; then
         "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${BUNDLE_ID}" > /dev/null
+        return_value=$?
+      fi
 
-        if [[ $? -ne 0 ]]; then
-            # Fallback to Sketchybar to get app icon on error
-            icon_path="app.${INFO}"
-            scale=0.6923076923 # ~18x18px
-        fi
+      if [[ return_value -eq 0 ]]; then
+        arguments+=(--set current_app_icon drawing=on background.image="${icon_path}" background.image.scale=${scale})
+      else
+        arguments+=(--set current_app_icon drawing=off)
+      fi
     fi
 
-    sketchybar --set "${NAME}" drawing=on background.image="${icon_path}" background.image.scale=${scale}
-    ;;
-  "current_app_name")
-    source "${CONFIG_DIR}/colors.sh"
+    arguments+=(--set current_app_name label="${TITLE}" label.color="${FOREGROUND_COLOR}")
 
-    case "${SENDER}" in
-      "appearance_change")
-        sketchybar --set "${NAME}" label.color="${LABEL_COLOR}"
-        ;;
-      "window_change")
-        sketchybar --set "${NAME}" label="${TITLE}" label.color="${LABEL_COLOR}"
-        ;;
-    esac
+    sketchybar "${arguments[@]}"
     ;;
 esac
