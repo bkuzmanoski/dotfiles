@@ -1,9 +1,12 @@
+tap "FelixKratz/formulae"
+
 brew "bat"
 brew "colima"
-brew "docker"
 brew "docker-compose"
+brew "docker"
 brew "eza"
 brew "fastfetch"
+brew "FelixKratz/formulae/sketchybar"
 brew "ffmpeg"
 brew "fnm"
 brew "fzf"
@@ -42,9 +45,7 @@ cask "font-sf-compact"
 cask "font-sf-mono"
 cask "font-sf-pro"
 
-tap "FelixKratz/formulae"
-brew "FelixKratz/formulae/sketchybar"
-
+mas "Equinox", id: 1591510203
 mas "Keynote", id: 409183694
 mas "NextDNS", id: 1464122853
 mas "Numbers", id: 409203825
