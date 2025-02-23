@@ -89,6 +89,7 @@ defaults_delete() {
 
 # Install Homebrew (if not already installed)
 log "Checking Homebrew installation."
+
 if which -s brew > /dev/null; then
   log "Homebrew is already installed."
 else
@@ -105,6 +106,7 @@ done
 
 # Install apps
 log "Installing Brewfile bundle."
+
 if [[ -f "${SCRIPT_DIR}/Brewfile" ]]; then
   if ! brew bundle --file="${SCRIPT_DIR}/Brewfile"; then
     log_error "brew bundle failed, exiting."
@@ -168,6 +170,7 @@ for config_name in "${(k)config_links[@]}"; do
   target_path="${config_links[${config_name}]}"
 
   log "Linking ${config_name}"
+
   if [[ -e "${source_path}" ]]; then
     # Backup existing file or directory if it exists and is not a symlink
     if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
@@ -175,6 +178,7 @@ for config_name in "${(k)config_links[@]}"; do
       backup_path="${BACKUP_DIR}/${relative_path}"
       mkdir -p "$(dirname "${backup_path}")"
       mv "${target_path}" "${backup_path}"
+
       log "Backed up existing ${target_path} to ${backup_path}"
     fi
 
@@ -202,10 +206,11 @@ else
 fi
 
 # Set wallpaper
-wallpaper_image="${SCRIPT_DIR}/wallpapers/titanium-gradient.heic"
+wallpaper_image="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
+
   escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
