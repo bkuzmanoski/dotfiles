@@ -55,19 +55,19 @@ local function tileWindows(direction)
 
   -- Offset the screen frame to account for the gap
   local ratio = splitRatios[currentSplitRatioIndex]
-  local fullFrame = hs.geometry.copy(screen:frame())
-  fullFrame.x = fullFrame.x + module.gap
-  fullFrame.y = fullFrame.y + module.gap
-  fullFrame.w = fullFrame.w - 3 * module.gap
-  fullFrame.h = fullFrame.h - 2 * module.gap
+  local screenFrame = screen:frame():copy()
+  screenFrame.x = screenFrame.x + module.gap
+  screenFrame.y = screenFrame.y + module.gap
+  screenFrame.w = screenFrame.w - 3 * module.gap
+  screenFrame.h = screenFrame.h - 2 * module.gap
 
   -- Determine the frames for the left and right windows based on the split ratio
-  local leftFrame = hs.geometry.copy(fullFrame)
-  leftFrame.w = math.floor(fullFrame.w * (direction == "left" and ratio or (1 - ratio)))
+  local leftFrame = screenFrame:copy()
+  leftFrame.w = math.floor(screenFrame.w * (direction == "left" and ratio or (1 - ratio)))
 
-  local rightFrame = hs.geometry.copy(fullFrame)
-  rightFrame.x = fullFrame.x + leftFrame.w + module.gap
-  rightFrame.w = fullFrame.w - leftFrame.w
+  local rightFrame = screenFrame:copy()
+  rightFrame.x = screenFrame.x + leftFrame.w + module.gap
+  rightFrame.w = screenFrame.w - leftFrame.w
 
   -- Set the window frames to tile the windows
   if direction == "left" then
