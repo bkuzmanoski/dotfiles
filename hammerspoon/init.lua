@@ -3,6 +3,7 @@ local sketchybar = require("sketchybar_helpers")
 sketchybar.windowTitle.ignoreApps = {
   "Activity Monitor",
   "Equinox",
+  "Finder",
   "Font Book",
   "Mail"
 }

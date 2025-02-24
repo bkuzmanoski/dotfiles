@@ -8,8 +8,12 @@ module.padding = 0
 local windowFilter
 
 local function handleWindowEvent(window)
-  local appName = window:application():name()
+  local app = window:application()
+  if not app then
+    return
+  end
 
+  local appName = app:name()
   for _, ignoredApp in ipairs(module.ignoreApps) do
     if appName == ignoredApp then
       return
