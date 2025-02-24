@@ -3,7 +3,8 @@ local sketchybar = require("sketchybar_helpers")
 sketchybar.windowTitle.ignoreApps = {
   "Activity Monitor",
   "Equinox",
-  "Font Book"
+  "Font Book",
+  "Mail"
 }
 sketchybar.windowTitle.maxLength = 50
 sketchybar.windowTitle.patternsToRemove = {
