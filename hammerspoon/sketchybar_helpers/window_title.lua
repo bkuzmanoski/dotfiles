@@ -5,8 +5,8 @@ module.maxLength = 0
 module.patternsToRemove = {}
 
 local appWatcher, windowFilter, currentTitle
-
 local utils = require("utils")
+
 
 local function getWindowDetails()
   local app = hs.application.frontmostApplication()
