@@ -2,8 +2,8 @@ local module = {}
 
 module.ignoreApps = {
   "Activity Monitor",
-  "Font Book",
-  "Equinox"
+  "Equinox",
+  "Font Book"
 }
 module.titleMaxLength = 50
 module.titlePatternsToRemove = {

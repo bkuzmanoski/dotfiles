@@ -1,10 +1,10 @@
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
---sketchybar.windowTitleIgnoreApps = { "Activity Monitor", "Font Book", "Equinox" }
+--sketchybar.windowTitleIgnoreApps = { "Activity Monitor", "Equinox", "Font Book" }
 --sketchybar.windowTitleMaxLength = 50
 --sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$", " – Camera recording$", " – Microphone recording$", " – Camera and microphone recording$" }
 --sketchybar.windowOffsetIgnoreDisplay = "" -- Use "Built-in Retina Display" to limit to external displays only
---sketchybar.windowOffsetIgnoreApps = { "Alcove" }
+--sketchybar.windowOffsetIgnoreApps = { "Alcove", "CleanShot X", "Notification Centre" }
 --sketchybar.windowOffsetStatusbarOffset = 32
 --sketchybar.windowOffsetPadding = 8
 
