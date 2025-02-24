@@ -35,6 +35,7 @@ current_app_name=(
 next_event=(
   script="${CONFIG_DIR}/plugins/next_event.sh"
   click_script="${CONFIG_DIR}/helpers/GetNextEvent.swift --open-url"
+  drawing=off
   label.drawing=on
   label.padding_left=7
   label.padding_right=8
