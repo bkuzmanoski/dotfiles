@@ -19,6 +19,9 @@ module.moveAndResize = require("window_management.move_and_resize")
 -- Tile windows
 module.tile = require("window_management.tile")
 
+-- Move windows to space 1~5
+module.moveToSpace = require("window_management.move_to_space")
+
 function module.init()
   module.focusAfterClose.init()
   module.focusLeftRight.init()
@@ -26,6 +29,7 @@ function module.init()
   module.position.init()
   module.moveAndResize.init()
   module.tile.init()
+  module.moveToSpace.init()
 end
 
 function module.cleanup()
@@ -35,6 +39,7 @@ function module.cleanup()
   module.position.cleanup()
   module.moveAndResize.cleanup()
   module.tile.cleanup()
+  module.moveToSpace.cleanup()
 end
 
 return module

@@ -16,6 +16,8 @@ sketchybar.windowTitle.patternsToRemove = {
 sketchybar.init()
 
 local windowManagement = require("window_management")
+local primaryDisplay = "Built-in Retina Display"
+local numberOfSpaces = 5
 local windowPadding = 8
 windowManagement.focusLeftRight.hotkeys.left = { modifiers = { "option", "command" }, key = "[" }
 windowManagement.focusLeftRight.hotkeys.right = { modifiers = { "option", "command" }, key = "]" }
@@ -24,7 +26,7 @@ windowManagement.position.ignoreApps = {
   "CleanShot X",
   "Notification Centre"
 }
-windowManagement.position.topOffsetIgnoreDisplay = "Built-in Retina Display"
+windowManagement.position.topOffsetIgnoreDisplay = primaryDisplay
 windowManagement.position.topOffset = 32
 windowManagement.position.padding = windowPadding
 windowManagement.moveAndResize.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "p" }
@@ -39,6 +41,14 @@ windowManagement.moveAndResize.amount = windowPadding
 windowManagement.tile.hotkeys.left = { modifiers = { "option", "command" }, key = "l" }
 windowManagement.tile.hotkeys.right = { modifiers = { "option", "command" }, key = "'" }
 windowManagement.tile.padding = windowPadding
+windowManagement.moveToSpace.display = primaryDisplay
+windowManagement.moveToSpace.numberOfSpaces = numberOfSpaces
+windowManagement.moveToSpace.hotkeys = {
+  modifiers = { "option", "command" },
+  previousSpaceKey = "right",
+  nextSpaceKey = "left"
+}
+windowManagement.moveToSpace.navigationHotkeyModifiers = { "ctrl" } -- Note abbreviated key label is necessary
 windowManagement.init()
 
 -- Setup hotkey: focus or open a Finder window
@@ -50,8 +60,8 @@ end)
 local primaryScreen = hs.screen.primaryScreen()
 local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
 
-if spacesCount < 5 then
-  for _ = spacesCount + 1, 5 do
+if spacesCount < numberOfSpaces then
+  for _ = spacesCount + 1, numberOfSpaces do
     hs.spaces.addSpaceToScreen(primaryScreen)
   end
 end
