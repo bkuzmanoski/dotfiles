@@ -1,23 +1,17 @@
 local module = {}
 
-module.gap = 8
 module.hotkeys = {
-  left = { modifiers = { "option", "command" }, key = "l" },
-  right = { modifiers = { "option", "command" }, key = "'" }
+  left = {},
+  right = {}
 }
+module.padding = 0
 
 local hotkeyTileLeft, hotkeyTileRight
 local splitRatios = { 0.5, 0.33, 0.67 } -- 2 significant figures for thirds matches Raycast's behavior
 local currentSplitRatioIndex = 1
-local lastDirection = nil
-local lastWindow = nil
-local alertSound = hs.sound.getByFile("/System/Library/Sounds/Tink.aiff")
+local lastDirection, lastWindow
 
-local function playAlert()
-  if alertSound then
-    alertSound:play()
-  end
-end
+local utils = require("utils")
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
@@ -42,7 +36,7 @@ local function tileWindows(direction)
 
   -- Play alert sound if there is no window to tile or the window cannot be resized
   if not screen or not firstWindow then
-    playAlert()
+    utils.playAlert()
     return
   end
 
@@ -53,23 +47,21 @@ local function tileWindows(direction)
     lastWindow = firstWindow
   end
 
-  -- Offset the screen frame to account for the gap
+  -- Tile windows
   local ratio = splitRatios[currentSplitRatioIndex]
   local screenFrame = screen:frame():copy()
-  screenFrame.x = screenFrame.x + module.gap
-  screenFrame.y = screenFrame.y + module.gap
-  screenFrame.w = screenFrame.w - 3 * module.gap
-  screenFrame.h = screenFrame.h - 2 * module.gap
+  screenFrame.x = screenFrame.x + module.padding
+  screenFrame.y = screenFrame.y + module.padding
+  screenFrame.w = screenFrame.w - 3 * module.padding
+  screenFrame.h = screenFrame.h - 2 * module.padding
 
-  -- Determine the frames for the left and right windows based on the split ratio
   local leftFrame = screenFrame:copy()
   leftFrame.w = math.floor(screenFrame.w * (direction == "left" and ratio or (1 - ratio)))
 
   local rightFrame = screenFrame:copy()
-  rightFrame.x = screenFrame.x + leftFrame.w + module.gap
+  rightFrame.x = screenFrame.x + leftFrame.w + module.padding
   rightFrame.w = screenFrame.w - leftFrame.w
 
-  -- Set the window frames to tile the windows
   if direction == "left" then
     firstWindow:setFrame(leftFrame)
     if secondWindow then secondWindow:setFrame(rightFrame) end
@@ -83,14 +75,19 @@ local function tileWindows(direction)
 end
 
 function module.init()
-  -- Bind hotkeys to tile windows
-  module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
-    tileWindows("left")
-  end)
+  if next(module.hotkeys) then
+    module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key,
+      function()
+        tileWindows("left")
+      end
+    )
 
-  module.hotkeyTileRight = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key, function()
-    tileWindows("right")
-  end)
+    module.hotkeyTileRight = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key,
+      function()
+        tileWindows("right")
+      end
+    )
+  end
 end
 
 function module.cleanup()

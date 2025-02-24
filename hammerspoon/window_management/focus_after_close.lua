@@ -14,7 +14,7 @@ local function focusWindowOnScreen()
     end
 
     local windows = hs.window.orderedWindows()
-    local candidate = nil
+    local candidate
 
     for _, window in ipairs(windows) do
       if window:isVisible() and window:screen() == targetScreen then

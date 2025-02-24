@@ -1,33 +1,47 @@
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
---sketchybar.windowTitleIgnoreApps = { "Activity Monitor", "Equinox", "Font Book" }
---sketchybar.windowTitleMaxLength = 50
---sketchybar.windowTitlePatternsToRemove = { " – Audio playing$", " - High memory usage - .*$", " – Camera recording$", " – Microphone recording$", " – Camera and microphone recording$" }
---sketchybar.windowOffsetIgnoreDisplay = "" -- Use "Built-in Retina Display" to limit to external displays only
---sketchybar.windowOffsetIgnoreApps = { "Alcove", "CleanShot X", "Notification Centre" }
---sketchybar.windowOffsetStatusbarOffset = 32
---sketchybar.windowOffsetPadding = 8
+sketchybar.windowTitle.ignoreApps = {
+  "Activity Monitor",
+  "Equinox",
+  "Font Book"
+}
+sketchybar.windowTitle.maxLength = 50
+sketchybar.windowTitle.patternsToRemove = {
+  " – Audio playing$",
+  " - High memory usage - .*$",
+  " – Camera recording$",
+  " – Microphone recording$",
+  " – Camera and microphone recording$"
+}
+sketchybar.init()
 
 local windowManagement = require("window_management")
--- windowManagement.focusLeftRightHotkeys.left = { modifiers = { "option", "command" }, key = "[" }
--- windowManagement.focusLeftRightHotkeys.right = { modifiers = { "option", "command" }, key = "]" }
--- windowManagement.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "p" }
--- windowManagement.moveHotkeys.down = { modifiers = { "shift", "option", "command" }, key = ";" }
--- windowManagement.moveHotkeys.left = { modifiers = { "shift", "option", "command" }, key = "l" }
--- windowManagement.moveHotkeys.right = { modifiers = { "shift", "option", "command" }, key = "'" }
--- windowManagement.resizeHotkeys.up = { modifiers = { "control", "option", "command" }, key = "p" }
--- windowManagement.resizeHotkeys.down = { modifiers = { "control", "option", "command" }, key = ";" }
--- windowManagement.resizeHotkeys.left = { modifiers = { "control", "option", "command" }, key = "l" }
--- windowManagement.resizeHotkeys.right = { modifiers = { "control", "option", "command" }, key = "'" }
--- windowManagement.tileGap = 8
--- windowManagement.tileHotkeys.left = { modifiers = { "option", "command" }, key = "l" }
--- windowManagement.tileHotkeys.right = { modifiers = { "option", "command" }, key = "'" }
-
-sketchybar.init()
+local windowPadding = 8
+windowManagement.focusLeftRight.hotkeys.left = { modifiers = { "option", "command" }, key = "[" }
+windowManagement.focusLeftRight.hotkeys.right = { modifiers = { "option", "command" }, key = "]" }
+windowManagement.position.ignoreApps = {
+  "Alcove",
+  "CleanShot X",
+  "Notification Centre"
+}
+windowManagement.position.topOffsetIgnoreDisplay = "Built-in Retina Display"
+windowManagement.position.topOffset = 32
+windowManagement.position.padding = windowPadding
+windowManagement.moveAndResize.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "p" }
+windowManagement.moveAndResize.moveHotkeys.down = { modifiers = { "shift", "option", "command" }, key = ";" }
+windowManagement.moveAndResize.moveHotkeys.left = { modifiers = { "shift", "option", "command" }, key = "l" }
+windowManagement.moveAndResize.moveHotkeys.right = { modifiers = { "shift", "option", "command" }, key = "'" }
+windowManagement.moveAndResize.resizeHotkeys.up = { modifiers = { "control", "option", "command" }, key = "p" }
+windowManagement.moveAndResize.resizeHotkeys.down = { modifiers = { "control", "option", "command" }, key = ";" }
+windowManagement.moveAndResize.resizeHotkeys.left = { modifiers = { "control", "option", "command" }, key = "l" }
+windowManagement.moveAndResize.resizeHotkeys.right = { modifiers = { "control", "option", "command" }, key = "'" }
+windowManagement.moveAndResize.amount = windowPadding
+windowManagement.tile.hotkeys.left = { modifiers = { "option", "command" }, key = "l" }
+windowManagement.tile.hotkeys.right = { modifiers = { "option", "command" }, key = "'" }
+windowManagement.tile.padding = windowPadding
 windowManagement.init()
 
--- Setup hotkeys
--- Focus or open a Finder window
+-- Setup hotkey: focus or open a Finder window
 hs.hotkey.bind({ "control", "option", "shift", "command" }, "f", function()
   hs.application.launchOrFocus("Finder")
 end)
