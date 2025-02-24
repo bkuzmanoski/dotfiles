@@ -19,12 +19,7 @@ local function applyXOffset(screenFrame, windowFrame)
   end
 end
 
-local function applyYOffset(screenName, screenFrame, windowFrame)
-  local topOffset = module.topOffset
-  if screenName == module.topOffsetIgnoreDisplay then
-    topOffset = 0
-  end
-
+local function applyYOffset(screenFrame, windowFrame, topOffset)
   local distanceFromTop = windowFrame.y - screenFrame.y
   if distanceFromTop < (topOffset + module.padding) then
     windowFrame.y = screenFrame.y + topOffset + module.padding
@@ -49,14 +44,18 @@ local function handleWindowEvent(window, eventType)
   local screenFrame = screen:frame()
   local windowFrame = window:frame()
   local originalWindowFrame = windowFrame:copy()
+  local topOffset = module.topOffset
+  if screen:name() == module.topOffsetIgnoreDisplay then
+    topOffset = 0
+  end
 
   if eventType == "windowCreated" then
     applyXOffset(screenFrame, windowFrame)
-    applyYOffset(screen:name(), screenFrame, windowFrame)
+    applyYOffset(screenFrame, windowFrame, topOffset)
   end
 
   if eventType == "windowMoved" then
-    applyYOffset(screen:name(), screenFrame, windowFrame)
+    applyYOffset(screenFrame, windowFrame, topOffset)
   end
 
   if windowFrame.x ~= originalWindowFrame.x or
