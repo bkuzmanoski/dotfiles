@@ -76,17 +76,12 @@ end
 
 function module.init()
   if next(module.hotkeys) then
-    module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key,
-      function()
-        tileWindows("left")
-      end
-    )
-
-    module.hotkeyTileRight = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key,
-      function()
-        tileWindows("right")
-      end
-    )
+    module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
+      tileWindows("left")
+    end)
+    module.hotkeyTileRight = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key, function()
+      tileWindows("right")
+    end)
   end
 end
 
