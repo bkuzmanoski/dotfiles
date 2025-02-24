@@ -49,7 +49,7 @@ local function getCurrentSpaceNumber(screen)
   return nil
 end
 
-local function moveToSpace(window, spaceNumber)
+local function moveWindowToSpace(window, spaceNumber)
   local originalMousePosition = hs.mouse.getAbsolutePosition()
   local frame = window:frame()
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
@@ -59,7 +59,7 @@ local function moveToSpace(window, spaceNumber)
   hs.mouse.setAbsolutePosition(originalMousePosition)
 end
 
-local function moveToPreviousSpace()
+local function moveWindowToPreviousSpace()
   local window, screen = getFocusedWindowAndScreen()
   if not screen then
     return
@@ -67,11 +67,11 @@ local function moveToPreviousSpace()
 
   local currentSpaceNumber = getCurrentSpaceNumber(screen)
   if currentSpaceNumber then
-    moveToSpace(window, (currentSpaceNumber % module.numberOfSpaces) + 1)
+    moveWindowToSpace(window, (currentSpaceNumber % module.numberOfSpaces) + 1)
   end
 end
 
-local function moveToNextSpace()
+local function moveWindowToNextSpace()
   local window, screen = getFocusedWindowAndScreen()
   if not screen then
     return
@@ -79,7 +79,7 @@ local function moveToNextSpace()
 
   local currentSpaceNumber = getCurrentSpaceNumber(screen)
   if currentSpaceNumber then
-    moveToSpace(window, ((currentSpaceNumber - 2 + module.numberOfSpaces) % module.numberOfSpaces) + 1)
+    moveWindowToSpace(window, ((currentSpaceNumber - 2 + module.numberOfSpaces) % module.numberOfSpaces) + 1)
   end
 end
 
@@ -91,15 +91,23 @@ function module.init()
       bindings[i] = hs.hotkey.bind(module.hotkeys.modifiers, tostring(i), function()
         local focusedWindow = getFocusedWindowAndScreen()
         if focusedWindow then
-          moveToSpace(focusedWindow, i)
+          moveWindowToSpace(focusedWindow, i)
         end
       end)
     end
 
     if module.hotkeys.previousSpaceKey and module.hotkeys.previousSpaceKey ~= "" and
         module.hotkeys.nextSpaceKey and module.hotkeys.nextSpaceKey ~= "" then
-      bindings.previous = hs.hotkey.bind(module.hotkeys.modifiers, module.hotkeys.previousSpaceKey, moveToPreviousSpace)
-      bindings.next = hs.hotkey.bind(module.hotkeys.modifiers, module.hotkeys.nextSpaceKey, moveToNextSpace)
+      bindings.previous = hs.hotkey.bind(
+        module.hotkeys.modifiers,
+        module.hotkeys.previousSpaceKey,
+        moveWindowToPreviousSpace
+      )
+      bindings.next = hs.hotkey.bind(
+        module.hotkeys.modifiers,
+        module.hotkeys.nextSpaceKey,
+        moveWindowToNextSpace
+      )
     end
   end
 end
