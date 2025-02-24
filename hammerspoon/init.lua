@@ -42,14 +42,15 @@ windowManagement.moveAndResize.amount = windowPadding
 windowManagement.tile.hotkeys.left = { modifiers = { "option", "command" }, key = "l" }
 windowManagement.tile.hotkeys.right = { modifiers = { "option", "command" }, key = "'" }
 windowManagement.tile.padding = windowPadding
+windowManagement.moveToScreen.hotkeys.up = { modifiers = { "option", "command" }, key = "up" }
+windowManagement.moveToScreen.hotkeys.down = { modifiers = { "option", "command" }, key = "down" }
+windowManagement.moveToScreen.padding = windowPadding
 windowManagement.moveToSpace.display = primaryDisplay
 windowManagement.moveToSpace.numberOfSpaces = numberOfSpaces
-windowManagement.moveToSpace.hotkeys = {
-  modifiers = { "option", "command" },
-  previousSpaceKey = "right",
-  nextSpaceKey = "left"
-}
-windowManagement.moveToSpace.navigationHotkeyModifiers = { "ctrl" } -- Note abbreviated key label is necessary
+windowManagement.moveToSpace.hotkeys.modifiers = { "option", "command" }
+windowManagement.moveToSpace.hotkeys.previousSpaceKey = "right"
+windowManagement.moveToSpace.hotkeys.nextSpaceKey = "left"
+windowManagement.moveToSpace.navigationHotkeyModifiers = { "ctrl" } -- Note: abbreviated key label is necessary
 windowManagement.init()
 
 -- Setup hotkey: focus or open a Finder window

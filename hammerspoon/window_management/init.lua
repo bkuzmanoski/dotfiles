@@ -13,13 +13,16 @@ module.focusScreen = require("window_management.focus_screen")
 -- Apply window padding and maintain an offset from the top of the screen
 module.position = require("window_management.position")
 
--- Move and resize windows
+-- Move and resize window
 module.moveAndResize = require("window_management.move_and_resize")
 
 -- Tile windows
 module.tile = require("window_management.tile")
 
--- Move windows to space 1~5
+-- Move window to screen up/down/left/right
+module.moveToScreen = require("window_management.move_to_screen")
+
+-- Move window to space 1~5
 module.moveToSpace = require("window_management.move_to_space")
 
 function module.init()
@@ -29,6 +32,7 @@ function module.init()
   module.position.init()
   module.moveAndResize.init()
   module.tile.init()
+  module.moveToScreen.init()
   module.moveToSpace.init()
 end
 
@@ -39,6 +43,7 @@ function module.cleanup()
   module.position.cleanup()
   module.moveAndResize.cleanup()
   module.tile.cleanup()
+  module.moveToScreen.cleanup()
   module.moveToSpace.cleanup()
 end
 
