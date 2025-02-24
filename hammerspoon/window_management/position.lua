@@ -7,31 +7,7 @@ module.padding = 0
 
 local windowFilter
 
-local function applyXOffset(screenFrame, windowFrame)
-  local distanceFromLeft = windowFrame.x - screenFrame.x
-  if distanceFromLeft < (module.padding) then
-    windowFrame.x = screenFrame.x + module.padding
-
-    local distanceFromRight = (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w)
-    if distanceFromRight < module.padding then
-      windowFrame.w = screenFrame.w - (module.padding * 2)
-    end
-  end
-end
-
-local function applyYOffset(screenFrame, windowFrame, topOffset)
-  local distanceFromTop = windowFrame.y - screenFrame.y
-  if distanceFromTop < (topOffset + module.padding) then
-    windowFrame.y = screenFrame.y + topOffset + module.padding
-
-    local distanceFromBottom = (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h)
-    if distanceFromBottom < module.padding then
-      windowFrame.h = screenFrame.h - topOffset - (module.padding * 2)
-    end
-  end
-end
-
-local function handleWindowEvent(window, eventType)
+local function handleWindowEvent(window)
   local appName = window:application():name()
 
   for _, ignoredApp in ipairs(module.ignoreApps) do
@@ -41,7 +17,7 @@ local function handleWindowEvent(window, eventType)
   end
 
   local screen = window:screen()
-  local screenFrame = screen:frame()
+  local screenFrame = screen:fullFrame()
   local windowFrame = window:frame()
   local originalWindowFrame = windowFrame:copy()
   local topOffset = module.topOffset
@@ -49,13 +25,24 @@ local function handleWindowEvent(window, eventType)
     topOffset = 0
   end
 
-  if eventType == "windowCreated" then
-    applyXOffset(screenFrame, windowFrame)
-    applyYOffset(screenFrame, windowFrame, topOffset)
+  local distanceFromLeft = windowFrame.x - screenFrame.x
+  if distanceFromLeft < (module.padding) then
+    windowFrame.x = screenFrame.x + module.padding
+
+    local distanceFromRight = (screenFrame.x + screenFrame.w) - (windowFrame.x + windowFrame.w)
+    if distanceFromRight < module.padding then
+      windowFrame.w = screenFrame.w - (module.padding * 2)
+    end
   end
 
-  if eventType == "windowMoved" then
-    applyYOffset(screenFrame, windowFrame, topOffset)
+  local distanceFromTop = windowFrame.y - screenFrame.y
+  if distanceFromTop < (topOffset + module.padding) then
+    windowFrame.y = screenFrame.y + topOffset + module.padding
+
+    local distanceFromBottom = (screenFrame.y + screenFrame.h) - (windowFrame.y + windowFrame.h)
+    if distanceFromBottom < module.padding then
+      windowFrame.h = screenFrame.h - topOffset - (module.padding * 2)
+    end
   end
 
   if windowFrame.x ~= originalWindowFrame.x or
@@ -67,12 +54,8 @@ end
 function module.init()
   -- Subscribe to window move events
   windowFilter = hs.window.filter.new()
-  windowFilter:subscribe(hs.window.filter.windowCreated, function(window)
-    handleWindowEvent(window, "windowCreated")
-  end)
-  windowFilter:subscribe(hs.window.filter.windowMoved, function(window)
-    handleWindowEvent(window, "windowMoved")
-  end)
+  windowFilter:subscribe(hs.window.filter.windowCreated, handleWindowEvent)
+  windowFilter:subscribe(hs.window.filter.windowMoved, handleWindowEvent)
 end
 
 function module.cleanup()

@@ -27,7 +27,7 @@ windowManagement.position.ignoreApps = {
   "CleanShot X",
   "Notification Centre"
 }
-windowManagement.position.topOffsetIgnoreDisplay = primaryDisplay
+-- windowManagement.position.topOffsetIgnoreDisplay = ""
 windowManagement.position.topOffset = 32
 windowManagement.position.padding = windowPadding
 windowManagement.moveAndResize.moveHotkeys.up = { modifiers = { "shift", "option", "command" }, key = "p" }
