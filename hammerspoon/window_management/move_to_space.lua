@@ -50,13 +50,13 @@ local function getCurrentSpaceNumber(screen)
 end
 
 local function moveWindowToSpace(window, spaceNumber)
-  local originalMousePosition = hs.mouse.getAbsolutePosition()
   local frame = window:frame()
+  local mousePosition = hs.mouse.absolutePosition()
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.eventtap.keyStroke(module.navigationHotkeyModifiers, tostring(spaceNumber))
   hs.timer.usleep(100000) -- Avoid flicker resulting from "dropping" the window before the space animation completes
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
-  hs.mouse.setAbsolutePosition(originalMousePosition)
+  hs.mouse.absolutePosition(mousePosition)
 end
 
 local function moveWindowToPreviousSpace()
