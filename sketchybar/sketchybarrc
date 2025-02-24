@@ -18,18 +18,17 @@ defaults=(
 )
 
 current_app_icon=(
+  script="${CONFIG_DIR}/plugins/current_app.sh"
   update_freq=0
-  drawing=off
   background.drawing=on
   padding_right=6
-  script="${CONFIG_DIR}/plugins/current_app.sh"
 )
 
 current_app_name=(
+  script="${CONFIG_DIR}/plugins/current_app.sh"
   update_freq=0
   label.drawing=on
   label.font="SF Pro:Bold:13"
-  script="${CONFIG_DIR}/plugins/current_app.sh"
 )
 
 next_event=(
@@ -89,4 +88,4 @@ sketchybar \
   --set next_event "${next_event[@]}" \
   --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
   --update \
-  --trigger window_change BUNDLE_ID="" TITLE="👋  Greetings"
+  --trigger window_change BUNDLE_ID="com.apple.Finder" TITLE="Finder" # Initial state prior to any window change event
