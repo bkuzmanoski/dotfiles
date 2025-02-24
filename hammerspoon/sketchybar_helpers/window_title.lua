@@ -10,7 +10,6 @@ local utils = require("utils")
 
 local function getWindowDetails()
   local app = hs.application.frontmostApplication()
-
   if not app then
     return nil, nil
   end
@@ -18,7 +17,6 @@ local function getWindowDetails()
   local bundleId = app:bundleID()
   local appName = app:name()
   local mainWindow = app:mainWindow()
-
   if not mainWindow then
     return bundleId, appName
   end
@@ -30,7 +28,10 @@ local function getWindowDetails()
     end
   end
 
-  local title = app:mainWindow():title()
+  local title = mainWindow:title()
+  if not title then
+    return bundleId, appName
+  end
 
   -- Remove app name from end of title
   title = title:gsub("%s*[-–—]%s*" .. utils.escapeString(appName) .. "$", "")
