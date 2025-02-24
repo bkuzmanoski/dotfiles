@@ -12,6 +12,6 @@ else
   if [[ -n "${is_discharging}" && "${percentage}" =~ ^[0-9]+$ && "${percentage}" -le 10 ]]; then
     sketchybar --set "${NAME}" drawing=on icon.color="${FOREGROUND_WARNING_COLOR}" label="${percentage}%" label.color="${FOREGROUND_WARNING_COLOR}"
   else
-   sketchybar --set "${NAME}" drawing=off
+    sketchybar --set "${NAME}" drawing=off
   fi
 fi
