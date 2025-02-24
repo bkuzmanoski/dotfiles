@@ -4,14 +4,14 @@
 // @raycast.schemaVersion 1
 // @raycast.title Sample Color
 // @raycast.mode silent
-
+//
 // Optional parameters:
 // @raycast.packageName System
-
+//
 // Documentation:
 // @raycast.author Brian Kuzmanoski
 // @raycast.authorURL https://github.com/bkuzmanoski
-
+//
 // Tweaked version of the original script by Jesse Claven (https://github.com/jesse-c)
 // https://github.com/raycast/script-commands/blob/master/commands/system/sample-color.swift
 
