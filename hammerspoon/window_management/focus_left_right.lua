@@ -1,22 +1,20 @@
 local module = {}
 
 module.hotkeys = {
-  left = { modifiers = { "option", "command" }, key = "[" },
-  right = { modifiers = { "option", "command" }, key = "]" },
+  left = {},
+  right = {}
 }
 
-local leftHotkey, rightHotkey
+local bindings = {}
 
-function module.focusWindow(direction)
+local function focusWindow(direction)
   local focusedWindow = hs.window.focusedWindow()
   if not focusedWindow then return end
 
   local screen = focusedWindow:screen()
   local screenFrame = focusedWindow:frame()
   local screenCenter = screenFrame.x + screenFrame.w / 2
-
-  local candidate = nil
-  local candidateCenter = nil
+  local candidate, candidateCenter
 
   local windows = hs.window.orderedWindows()
   for _, window in ipairs(windows) do
@@ -43,23 +41,24 @@ function module.focusWindow(direction)
 end
 
 function module.init()
-  leftHotkey = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
-    module.focusWindow("left")
-  end)
-  rightHotkey = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key, function()
-    module.focusWindow("right")
-  end)
+  if next(module.hotkeys.left) then
+    bindings.left = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
+      focusWindow("left")
+    end)
+  end
+  if next(module.hotkeys.right) then
+    bindings.right = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key,
+      function()
+        focusWindow("right")
+      end)
+  end
 end
 
 function module.cleanup()
-  if leftHotkey then
-    leftHotkey:delete()
-    leftHotkey = nil
+  for _, binding in pairs(bindings) do
+    binding:delete()
   end
-  if rightHotkey then
-    rightHotkey:delete()
-    rightHotkey = nil
-  end
+  bindings = {}
 end
 
 return module

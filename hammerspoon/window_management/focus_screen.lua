@@ -1,8 +1,6 @@
 local module = {}
 
-local mouseWatcher = nil
-local displayWatcher = nil
-local lastScreen = nil
+local mouseWatcher, displayWatcher, lastScreen
 
 local function focusFrontmostWindow(screen)
   -- Return early if there is only one screen
@@ -49,7 +47,7 @@ local function stopMouseWatcher()
   end
 end
 
--- Start/stop mouseWatcher based on number of screens
+-- Run mouseWatcher based on number of screens
 local function updateMouseWatcher()
   if #hs.screen.allScreens() > 1 then
     if not mouseWatcher then

@@ -1,41 +1,40 @@
 local module = {}
 
--- Focus the topmost window on the screen when the mouse enters it
-local screenFocus = require("window_management.screen_focus")
-
--- Focus the frontmost remaining window on the screen when the focused window is closed
--- (e.g. prevent the focus from moving to another space or the Desktop)
-local focusAfterClose = require("window_management.focus_after_close")
+-- Focus the frontmost remaining window on the screen when the focused window is
+-- closed (e.g. prevent the focus from moving to another space or the Desktop)
+module.focusAfterClose = require("window_management.focus_after_close")
 
 -- Move focus to the window to the left or right of the focused window
-local focusLeftRight = require("window_management.focus_left_right")
-module.focusLeftRightHotkeys = focusLeftRight.hotkeys
+module.focusLeftRight = require("window_management.focus_left_right")
+
+-- Focus the topmost window on the screen when the mouse enters it
+module.focusScreen = require("window_management.focus_screen")
+
+-- Apply window padding and maintain an offset from the top of the screen
+module.position = require("window_management.position")
 
 -- Move and resize windows
-local moveAndResize = require("window_management.move_and_resize")
-module.amount = moveAndResize.amount
-module.moveHotkeys = moveAndResize.moveHotkeys
-module.resizeHotkeys = moveAndResize.resizeHotkeys
+module.moveAndResize = require("window_management.move_and_resize")
 
 -- Tile windows
-local tile = require("window_management.tile")
-module.tileGap = tile.gap
-module.tileHotkeys = tile.hotkeys
+module.tile = require("window_management.tile")
 
 function module.init()
-  screenFocus.init()
-  focusAfterClose.init()
-  focusLeftRight.init()
-  moveAndResize.init()
-  tile.init()
+  module.focusAfterClose.init()
+  module.focusLeftRight.init()
+  module.focusScreen.init()
+  module.position.init()
+  module.moveAndResize.init()
+  module.tile.init()
 end
 
 function module.cleanup()
-  screenFocus.cleanup()
-  focusAfterClose.cleanup()
-  focusLeftRight.cleanup()
-  moveAndResize.cleanup()
-  tile.cleanup()
+  module.focusAfterClose.cleanup()
+  module.focusLeftRight.cleanup()
+  module.focusScreen.cleanup()
+  module.position.cleanup()
+  module.moveAndResize.cleanup()
+  module.tile.cleanup()
 end
 
 return module
