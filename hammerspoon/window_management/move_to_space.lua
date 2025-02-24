@@ -96,13 +96,14 @@ function module.init()
       end)
     end
 
-    if module.hotkeys.previousSpaceKey and module.hotkeys.previousSpaceKey ~= "" and
-        module.hotkeys.nextSpaceKey and module.hotkeys.nextSpaceKey ~= "" then
+    if module.hotkeys.previousSpaceKey and module.hotkeys.previousSpaceKey ~= "" then
       bindings.previous = hs.hotkey.bind(
         module.hotkeys.modifiers,
         module.hotkeys.previousSpaceKey,
         moveWindowToPreviousSpace
       )
+    end
+    if module.hotkeys.nextSpaceKey and module.hotkeys.nextSpaceKey ~= "" then
       bindings.next = hs.hotkey.bind(
         module.hotkeys.modifiers,
         module.hotkeys.nextSpaceKey,

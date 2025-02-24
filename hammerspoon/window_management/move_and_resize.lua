@@ -46,7 +46,7 @@ end
 
 function module.init()
   -- Move key bindings
-  if next(module.moveHotkeys) then
+  if next(module.moveHotkeys.up) then
     bindings.up = hs.hotkey.bind(
       module.moveHotkeys.up.modifiers,
       module.moveHotkeys.up.key,
@@ -54,6 +54,8 @@ function module.init()
       nil,
       function() moveWindow(0, -module.amount) end
     )
+  end
+  if next(module.moveHotkeys.down) then
     bindings.down = hs.hotkey.bind(
       module.moveHotkeys.down.modifiers,
       module.moveHotkeys.down.key,
@@ -61,6 +63,8 @@ function module.init()
       nil,
       function() moveWindow(0, module.amount) end
     )
+  end
+  if next(module.moveHotkeys.left) then
     bindings.left = hs.hotkey.bind(
       module.moveHotkeys.left.modifiers,
       module.moveHotkeys.left.key,
@@ -68,6 +72,8 @@ function module.init()
       nil,
       function() moveWindow(-module.amount, 0) end
     )
+  end
+  if next(module.moveHotkeys.right) then
     bindings.right = hs.hotkey.bind(
       module.moveHotkeys.right.modifiers,
       module.moveHotkeys.right.key,
@@ -78,7 +84,7 @@ function module.init()
   end
 
   -- Resize key bindings
-  if next(module.resizeHotkeys) then
+  if next(module.resizeHotkeys.up) then
     bindings.resizeUp = hs.hotkey.bind(
       module.resizeHotkeys.up.modifiers,
       module.resizeHotkeys.up.key,
@@ -86,6 +92,8 @@ function module.init()
       nil,
       function() resizeWindow(0, -module.amount) end
     )
+  end
+  if next(module.resizeHotkeys.down) then
     bindings.resizeDown = hs.hotkey.bind(
       module.resizeHotkeys.down.modifiers,
       module.resizeHotkeys.down.key,
@@ -93,6 +101,8 @@ function module.init()
       nil,
       function() resizeWindow(0, module.amount) end
     )
+  end
+  if next(module.resizeHotkeys.left) then
     bindings.resizeLeft = hs.hotkey.bind(
       module.resizeHotkeys.left.modifiers,
       module.resizeHotkeys.left.key,
@@ -100,6 +110,8 @@ function module.init()
       nil,
       function() resizeWindow(-module.amount, 0) end
     )
+  end
+  if next(module.resizeHotkeys.right) then
     bindings.resizeRight = hs.hotkey.bind(
       module.resizeHotkeys.right.modifiers,
       module.resizeHotkeys.right.key,

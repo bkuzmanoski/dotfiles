@@ -75,10 +75,12 @@ local function tileWindows(direction)
 end
 
 function module.init()
-  if next(module.hotkeys) then
+  if next(module.hotkeys.left) then
     module.hotkeyTileLeft = hs.hotkey.bind(module.hotkeys.left.modifiers, module.hotkeys.left.key, function()
       tileWindows("left")
     end)
+  end
+  if next(module.hotkeys.right) then
     module.hotkeyTileRight = hs.hotkey.bind(module.hotkeys.right.modifiers, module.hotkeys.right.key, function()
       tileWindows("right")
     end)
