@@ -10,7 +10,6 @@ local hotkeyTileLeft, hotkeyTileRight
 local splitRatios = { 0.5, 0.33, 0.67 } -- 2 significant figures for thirds matches Raycast's behavior
 local currentSplitRatioIndex = 1
 local lastDirection, lastWindow
-
 local utils = require("utils")
 
 local function getWindows()

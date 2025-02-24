@@ -15,7 +15,6 @@ module.resizeHotkeys = {
 module.amount = 0
 
 local bindings = {}
-
 local utils = require("utils")
 
 local function moveWindow(x, y)
