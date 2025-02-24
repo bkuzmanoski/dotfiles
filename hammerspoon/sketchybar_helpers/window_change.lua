@@ -18,6 +18,11 @@ local appWatcher = nil
 local windowFilter = nil
 local currentTitle = nil
 
+local function escape(string)
+  local escapedString = string:gsub('([%^%$%(%)%%%.%[%]%*%+%-%?])', '%%%1')
+  return escapedString
+end
+
 local function getWindowDetails()
   local app = hs.application.frontmostApplication()
 
@@ -42,7 +47,7 @@ local function getWindowDetails()
   local title = app:mainWindow():title()
 
   -- Remove app name from end of title
-  title = title:gsub("%s*[-–—]%s*" .. appName .. "$", "")
+  title = title:gsub("%s*[-–—]%s*" .. escape(appName) .. "$", "")
 
   -- Remove additional patterns
   for _, pattern in ipairs(module.titlePatternsToRemove) do
@@ -50,18 +55,16 @@ local function getWindowDetails()
   end
 
   -- Truncate to max length
-  local truncated = false
-
-  if #title > module.titleMaxLength then
-    title = string.sub(title, 1, module.titleMaxLength)
-    truncated = true
+  local truncationOffset = utf8.offset(title, module.titleMaxLength)
+  if truncationOffset then
+    title = string.sub(title, 1, truncationOffset)
   end
 
   -- Remove trailing whitespaces
   title = title:gsub("%s+$", "")
 
   -- Add ellipsis if truncated
-  if truncated then
+  if truncationOffset then
     title = title .. "…"
   end
 
