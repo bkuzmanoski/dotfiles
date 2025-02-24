@@ -2,7 +2,9 @@ local module = {}
 
 module.ignoreDisplay = ""
 module.ignoreApps = {
-  "Alcove"
+  "Alcove",
+  "CleanShot X",
+  "Notification Centre"
 }
 module.statusbarOffset = 32
 module.padding = 8
