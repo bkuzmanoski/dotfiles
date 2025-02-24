@@ -1,17 +1,17 @@
 #!/bin/zsh
-
+#
 # Required parameters:
 # @raycast.schemaVersion 1
 # @raycast.title Clear Notifications
 # @raycast.mode silent
-
+#
 # Optional parameters:
 # @raycast.packageName System
-
+#
 # Documentation:
 # @raycast.author Britown
 # @raycast.authorURL https://github.com/bkuzmanoski
-
+#
 # Tweaked version of the original script by Bartosz Petryński (https://github.com/bpetrynski)
 # https://github.com/bpetrynski/alfred-notification-dismisser
 

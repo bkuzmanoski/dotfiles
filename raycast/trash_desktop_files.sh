@@ -4,10 +4,10 @@
 # @raycast.schemaVersion 1
 # @raycast.title Trash Desktop Files
 # @raycast.mode silent
-
+#
 # Optional parameters:
 # @raycast.packageName System
-
+#
 # Documentation:
 # @raycast.author Britown
 # @raycast.authorURL https://github.com/bkuzmanoski
