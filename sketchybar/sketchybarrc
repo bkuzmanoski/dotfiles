@@ -4,14 +4,17 @@ bar=(
   display="all"
   height=39
   color=0x00000000
-  padding_left=17
-  padding_right=17
+  padding_left=16
+  padding_right=16
 )
 
 defaults=(
+  icon.drawing=off # Sketchybar bug: there is 1px of reserved space even if you don't set an icon
+  label.drawing=off # Same...
   label.font="SF Pro:Medium:13"
+  label.padding_right=1 # Sketchybar bug: some labels get cut off too early
   update_freq=10
-  padding_right=15
+  padding_right=12
 )
 
 current_app_icon=(
@@ -24,6 +27,7 @@ current_app_icon=(
 
 current_app_name=(
   update_freq=0
+  label.drawing=on
   label.font="SF Pro:Bold:13"
   script="${CONFIG_DIR}/plugins/current_app.sh"
 )
@@ -31,29 +35,34 @@ current_app_name=(
 next_event=(
   script="${CONFIG_DIR}/plugins/next_event.sh"
   click_script="${CONFIG_DIR}/helpers/GetNextEvent.swift --open-url"
-  label.padding_left=8
+  label.drawing=on
+  label.padding_left=7
   label.padding_right=8
   background.height=23
-  background.corner_radius=8
+  background.corner_radius=7
   blur_radius=30
 )
 
 battery_status=(
   script="${CONFIG_DIR}/plugins/battery_status.sh"
   icon="􀛩"
+  icon.drawing=on
   icon.font="SF Pro:Light:15"
-  icon.padding_left=2
+  icon.padding_left=3
   icon.padding_right=6
+  label.drawing=on
 )
 
 date=(
   script="${CONFIG_DIR}/plugins/datetime.sh"
   update_freq=0
+  label.drawing=on
   padding_right=6
 )
 
 time=(
   script="${CONFIG_DIR}/plugins/datetime.sh"
+  label.drawing=on
   padding_right=0
 )
 
