@@ -78,4 +78,5 @@ sketchybar \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
   --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
-  --update
+  --update \
+  --trigger window_change BUNDLE_ID="" TITLE="👋  Greetings"
