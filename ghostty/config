@@ -1,6 +1,8 @@
 theme = light:meridian-neutral,dark:zenith-neutral
 
 macos-titlebar-proxy-icon = hidden
+window-position-x = 80
+window-position-y = 80
 window-padding-x = 8
 window-padding-y = 4
 window-padding-balance = true
