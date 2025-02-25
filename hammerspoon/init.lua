@@ -59,16 +59,13 @@ hs.hotkey.bind({ "control", "option", "shift", "command" }, "f", function()
   hs.application.launchOrFocus("Finder")
 end)
 
--- Initialise spaces
-local primaryScreen = hs.screen.primaryScreen()
-local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
-
-if spacesCount < numberOfSpaces then
-  for _ = spacesCount + 1, numberOfSpaces do
-    hs.spaces.addSpaceToScreen(primaryScreen)
+-- Setup hotkey: show all spaces
+hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
+  if hs.screen.mainScreen() == hs.screen.primaryScreen() then
+    local mousePosition = hs.mouse.absolutePosition()
+    hs.mouse.absolutePosition({ x = 10, y = 10 })
+    hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
+    hs.timer.usleep(100000)
+    hs.mouse.absolutePosition(mousePosition)
   end
-end
-
--- Disable window adjustment animations due to buggy height adjustments when enabled
--- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
-hs.window.animationDuration = 0.0
+end)
