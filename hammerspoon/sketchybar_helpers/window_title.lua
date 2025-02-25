@@ -65,7 +65,6 @@ end
 
 local function handleWindowChange()
   local bundleId, newTitle = getWindowDetails()
-
   if newTitle and newTitle ~= currentTitle then
     currentTitle = newTitle
     local escapedTitle = newTitle:gsub('"', '\\"')

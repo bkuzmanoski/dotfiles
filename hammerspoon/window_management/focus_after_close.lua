@@ -1,6 +1,6 @@
 local module = {}
 
-local windowWatcher
+local windowFilter
 
 local function focusWindowOnScreen()
   hs.timer.doAfter(0.1, function()
@@ -28,15 +28,14 @@ local function focusWindowOnScreen()
 end
 
 function module.init()
-  local windowFilter = hs.window.filter.new()
+  windowFilter = hs.window.filter.new()
   windowFilter:subscribe(hs.window.filter.windowDestroyed, focusWindowOnScreen)
-  windowWatcher = windowFilter
 end
 
 function module.cleanup()
-  if windowWatcher then
-    windowWatcher:unsubscribeAll()
-    windowWatcher = nil
+  if windowFilter then
+    windowFilter:unsubscribeAll()
+    windowFilter = nil
   end
 end
 
