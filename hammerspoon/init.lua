@@ -2,6 +2,8 @@ local primaryDisplay = "Built-in Retina Display"
 local numberOfSpaces = 5
 local windowPadding = 8
 
+require("hs.ipc")
+
 -- Disable window adjustment animations due to buggy height adjustments when enabled
 -- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
 hs.window.animationDuration = 0.0
@@ -16,12 +18,13 @@ if spacesCount < numberOfSpaces then
   end
 end
 
--- Initialise plugins
+-- Initialise modules
 local sketchybar = require("sketchybar_helpers")
 sketchybar.windowTitle.ignoreApps = {
   "Activity Monitor",
   "Equinox",
   "Finder",
+  "Ghostty",
   "Font Book",
   "Mail"
 }
@@ -72,11 +75,9 @@ end)
 
 -- Setup hotkey: show all spaces
 hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
-  if hs.screen.mainScreen() == hs.screen.primaryScreen() then
-    local mousePosition = hs.mouse.absolutePosition()
-    hs.mouse.absolutePosition({ x = 10, y = 10 })
-    hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
-    hs.timer.usleep(100000)
-    hs.mouse.absolutePosition(mousePosition)
-  end
+  local mousePosition = hs.mouse.absolutePosition()
+  hs.mouse.absolutePosition({ x = 10, y = 10 })
+  hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
+  hs.timer.usleep(100000)
+  hs.mouse.absolutePosition(mousePosition)
 end)
