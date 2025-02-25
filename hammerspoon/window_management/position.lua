@@ -13,13 +13,6 @@ local function handleWindowEvent(window)
     return
   end
 
-  local appName = app:name()
-  for _, ignoredApp in ipairs(module.ignoreApps) do
-    if appName == ignoredApp then
-      return
-    end
-  end
-
   local screen = window:screen()
   local screenFrame = screen:fullFrame()
   local windowFrame = window:frame()
@@ -58,6 +51,12 @@ end
 function module.init()
   -- Subscribe to window move events
   windowFilter = hs.window.filter.new()
+  windowFilter:setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false })
+
+  for _, appName in ipairs(module.ignoreApps) do
+    windowFilter:rejectApp(appName)
+  end
+
   windowFilter:subscribe(hs.window.filter.windowCreated, handleWindowEvent)
   windowFilter:subscribe(hs.window.filter.windowMoved, handleWindowEvent)
 end

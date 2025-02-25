@@ -2,15 +2,6 @@ local primaryDisplay = "Built-in Retina Display"
 local numberOfSpaces = 5
 local windowPadding = 8
 
--- Set default window filter
-hs.window.filter.default:setOverrideFilter({
-  allowRoles = { "AXStandardWindow" },
-  currentSpace = true,
-  fullscreen = false,
-  focused = true,
-  visible = true
-})
-
 -- Disable window adjustment animations due to buggy height adjustments when enabled
 -- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
 hs.window.animationDuration = 0.0
@@ -47,11 +38,7 @@ sketchybar.init()
 local windowManagement = require("window_management")
 windowManagement.focusLeftRight.hotkeys.left = { modifiers = { "option", "command" }, key = "[" }
 windowManagement.focusLeftRight.hotkeys.right = { modifiers = { "option", "command" }, key = "]" }
-windowManagement.position.ignoreApps = {
-  "Alcove",
-  "CleanShot X",
-  "Notification Centre"
-}
+-- windowManagement.position.ignoreApps = {}
 -- windowManagement.position.topOffsetIgnoreDisplay = ""
 windowManagement.position.topOffset = 32
 windowManagement.position.padding = windowPadding
