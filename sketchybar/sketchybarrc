@@ -46,6 +46,7 @@ next_event=(
 battery_status=(
   script="${CONFIG_DIR}/plugins/battery_status.sh"
   icon="􀛩"
+  drawing=off
   icon.drawing=on
   icon.font="SF Pro:Light:15"
   icon.padding_left=3
