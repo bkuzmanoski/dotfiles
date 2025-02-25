@@ -18,9 +18,6 @@ cursor-style-blink = true
 adjust-cursor-thickness = 1
 
 macos-option-as-alt = true
-keybind = option+shift+backspace=text:\x15
-keybind = command+t=new_split:right
-keybind = shift+command+t=new_split:down
 keybind = command+up=jump_to_prompt:-1
 keybind = command+down=jump_to_prompt:1
 keybind = command+p=resize_split:up,8
