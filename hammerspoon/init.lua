@@ -28,7 +28,7 @@ sketchybar.windowTitle.ignoreApps = {
   "Font Book",
   "Mail"
 }
-sketchybar.windowTitle.maxLength = 50
+-- sketchybar.windowTitle.maxLength = 0
 sketchybar.windowTitle.patternsToRemove = {
   " – Audio playing$",
   " - High memory usage - .*$",

@@ -42,16 +42,19 @@ local function getWindowDetails()
   end
 
   -- Truncate to max length
-  local truncationOffset = utf8.offset(title, module.maxLength)
-  if module.maxLength > 0 and truncationOffset then
-    title = string.sub(title, 1, truncationOffset)
+  local truncationOffset
+  if module.maxLength > 0 then
+    truncationOffset = utf8.offset(title, module.maxLength)
+    if truncationOffset then
+      title = string.sub(title, 1, truncationOffset)
+    end
   end
 
   -- Remove trailing whitespaces
   title = title:gsub("%s+$", "")
 
   -- Add ellipsis if truncated
-  if module.maxLength > 0 and truncationOffset then
+  if truncationOffset then
     title = title .. "…"
   end
 
