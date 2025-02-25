@@ -1,3 +1,30 @@
+local primaryDisplay = "Built-in Retina Display"
+local numberOfSpaces = 5
+local windowPadding = 8
+
+-- Set default window filter
+hs.window.filter.default:setOverrideFilter({
+  allowRoles = { "AXStandardWindow" },
+  currentSpace = true,
+  fullscreen = false,
+  focused = true,
+  visible = true
+})
+
+-- Disable window adjustment animations due to buggy height adjustments when enabled
+-- Note: If re-enabling animations, ensure sketchybar_helpers.offset_windows.handleWindowMove is debounced
+hs.window.animationDuration = 0.0
+
+-- Initialise spaces
+local primaryScreen = hs.screen.primaryScreen()
+local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
+
+if spacesCount < numberOfSpaces then
+  for _ = spacesCount + 1, numberOfSpaces do
+    hs.spaces.addSpaceToScreen(primaryScreen)
+  end
+end
+
 -- Initialise plugins
 local sketchybar = require("sketchybar_helpers")
 sketchybar.windowTitle.ignoreApps = {
@@ -18,9 +45,6 @@ sketchybar.windowTitle.patternsToRemove = {
 sketchybar.init()
 
 local windowManagement = require("window_management")
-local primaryDisplay = "Built-in Retina Display"
-local numberOfSpaces = 5
-local windowPadding = 8
 windowManagement.focusLeftRight.hotkeys.left = { modifiers = { "option", "command" }, key = "[" }
 windowManagement.focusLeftRight.hotkeys.right = { modifiers = { "option", "command" }, key = "]" }
 windowManagement.position.ignoreApps = {
