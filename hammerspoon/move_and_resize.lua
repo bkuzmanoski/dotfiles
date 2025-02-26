@@ -1,4 +1,6 @@
+local utils = require("utils")
 local module = {}
+local bindings = {}
 
 module.moveHotkeys = {
   up = {},
@@ -14,11 +16,9 @@ module.resizeHotkeys = {
 }
 module.amount = 0
 
-local bindings = {}
-
 local function moveWindow(x, y)
   local window = hs.window.focusedWindow()
-  if window then
+  if window and window:isVisible() and window:isStandard() then
     local frame = window:frame()
     frame.x = frame.x + x
     frame.y = frame.y + y
@@ -28,16 +28,14 @@ end
 
 local function resizeWindow(x, y)
   local window = hs.window.focusedWindow()
-  if window then
-    if not window:isMaximizable() then
-      return
-    end
-
-    local frame = window:frame()
-    frame.w = frame.w + x
-    frame.h = frame.h + y
-    window:setFrame(frame)
+  if not window or not window:isVisible() or not window:isMaximizable() then
+    utils.playAlert()
   end
+
+  local frame = window:frame()
+  frame.w = frame.w + x
+  frame.h = frame.h + y
+  window:setFrame(frame)
 end
 
 function module.init()
@@ -77,7 +75,6 @@ function module.init()
       function() moveWindow(module.amount, 0) end
     )
   end
-
   if next(module.resizeHotkeys.up) then
     bindings.resizeUp = hs.hotkey.bind(
       module.resizeHotkeys.up.modifiers,

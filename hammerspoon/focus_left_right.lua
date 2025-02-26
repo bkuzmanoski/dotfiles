@@ -1,11 +1,11 @@
+local utils = require("utils")
 local module = {}
+local bindings = {}
 
 module.hotkeys = {
   left = {},
   right = {}
 }
-
-local bindings = {}
 
 local function focusWindow(direction)
   local focusedWindow = hs.window.focusedWindow()
@@ -35,9 +35,12 @@ local function focusWindow(direction)
     end
   end
 
-  if candidate then
-    candidate:focus()
+  if not candidate then
+    utils.playAlert()
+    return
   end
+
+  candidate:focus()
 end
 
 function module.init()

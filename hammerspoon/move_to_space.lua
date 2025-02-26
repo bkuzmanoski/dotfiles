@@ -1,6 +1,8 @@
-module = {}
+local utils = require("utils")
+local module = {}
+local bindings = {}
 
-module.display = ""
+module.allowDisplay = ""
 module.numberOfSpaces = 0
 module.hotkeys = {
   modifiers = {},
@@ -9,13 +11,14 @@ module.hotkeys = {
 }
 module.navigationHotkeyModifiers = {}
 
-local bindings = {}
-
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
   local screen = focusedWindow:screen()
-  if not focusedWindow or screen:name() ~= module.display then
-    return
+  if not screen:name() == module.allowDisplay or
+      not (focusedWindow and focusedWindow:isStandard()) or
+      focusedWindow:isFullScreen() then
+    utils.playAlert()
+    return nil, nil
   end
 
   return focusedWindow, screen
@@ -95,7 +98,6 @@ function module.init()
         end
       end)
     end
-
     if module.hotkeys.previousSpaceKey and module.hotkeys.previousSpaceKey ~= "" then
       bindings.previous = hs.hotkey.bind(
         module.hotkeys.modifiers,
