@@ -5,8 +5,11 @@ module.maxLength = 0
 module.patternsToRemove = {}
 
 local appWatcher, windowFilter, currentTitle
-local utils = require("utils")
 
+local function escapeString(string)
+  local escapedString = string:gsub('([%^%$%(%)%%%.%[%]%*%+%-%?])', '%%%1')
+  return escapedString
+end
 
 local function getWindowDetails()
   local app = hs.application.frontmostApplication()
@@ -34,7 +37,7 @@ local function getWindowDetails()
   end
 
   -- Remove app name from end of title
-  title = title:gsub("%s*[-–—]%s*" .. utils.escapeString(appName) .. "$", "")
+  title = title:gsub("%s*[-–—]%s*" .. escapeString(appName) .. "$", "")
 
   -- Remove additional patterns
   for _, pattern in ipairs(module.patternsToRemove) do

@@ -227,6 +227,7 @@ defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard 
 defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true # Disable wallpaper tinting in windows
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
+defaults_write NSGlobalDomain com.apple.sound.beep.volume -float 0 # Mute alert sounds
 defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization

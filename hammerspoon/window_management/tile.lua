@@ -10,7 +10,6 @@ local hotkeyTileLeft, hotkeyTileRight
 local splitRatios = { 0.5, 0.33, 0.67 } -- 2 significant figures for thirds matches Raycast's behavior
 local currentSplitRatioIndex = 1
 local lastDirection, lastWindow
-local utils = require("utils")
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
@@ -32,10 +31,7 @@ end
 
 local function tileWindows(direction)
   local screen, firstWindow, secondWindow = getWindows()
-
-  -- Play alert sound if there is no window to tile or the window cannot be resized
   if not screen or not firstWindow then
-    utils.playAlert()
     return
   end
 
