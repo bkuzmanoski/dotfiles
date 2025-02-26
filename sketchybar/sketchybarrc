@@ -36,10 +36,10 @@ next_event=(
   click_script="${CONFIG_DIR}/helpers/GetNextEvent.swift --open-url"
   drawing=off
   label.drawing=on
-  label.padding_left=7
+  label.padding_left=8
   label.padding_right=8
   background.height=23
-  background.corner_radius=7
+  background.corner_radius=8
   blur_radius=30
 )
 
