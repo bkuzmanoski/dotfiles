@@ -15,7 +15,6 @@ module.resizeHotkeys = {
 module.amount = 0
 
 local bindings = {}
-local utils = require("utils")
 
 local function moveWindow(x, y)
   local window = hs.window.focusedWindow()
@@ -30,9 +29,7 @@ end
 local function resizeWindow(x, y)
   local window = hs.window.focusedWindow()
   if window then
-    -- Check if the window is resizable
     if not window:isMaximizable() then
-      utils.playAlert()
       return
     end
 
@@ -44,7 +41,6 @@ local function resizeWindow(x, y)
 end
 
 function module.init()
-  -- Move key bindings
   if next(module.moveHotkeys.up) then
     bindings.up = hs.hotkey.bind(
       module.moveHotkeys.up.modifiers,
@@ -82,7 +78,6 @@ function module.init()
     )
   end
 
-  -- Resize key bindings
   if next(module.resizeHotkeys.up) then
     bindings.resizeUp = hs.hotkey.bind(
       module.resizeHotkeys.up.modifiers,
