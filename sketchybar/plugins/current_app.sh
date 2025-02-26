@@ -1,10 +1,12 @@
 #!/bin/zsh
 
-source "${CONFIG_DIR}/colors.sh"
+source "${CONFIG_DIR}/variables.sh"
 
 case "${SENDER}" in
   "appearance_change")
-    sketchybar --set current_app_name label.color="${FOREGROUND_COLOR}"
+    sketchybar \
+      --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
+      --set current_app_name label.color="${FOREGROUND_COLOR}"
     ;;
   "window_change")
     arguments=()
