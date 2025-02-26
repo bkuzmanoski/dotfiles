@@ -1,9 +1,11 @@
 #!/bin/zsh
 
-source "${CONFIG_DIR}/colors.sh"
+source "${CONFIG_DIR}/variables.sh"
 
 if [[ "${SENDER}" == "appearance_change" ]]; then
-  sketchybar --set "${NAME}" icon.color="${FOREGROUND_WARNING_COLOR}" label.color="${FOREGROUND_WARNING_COLOR}"
+  sketchybar \
+    --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
+    --set "${NAME}" icon.color="${FOREGROUND_WARNING_COLOR}" label.color="${FOREGROUND_WARNING_COLOR}"
 else
   battery_info="$(pmset -g batt)"
   is_discharging="$(print "${battery_info}" | grep "discharging")"

@@ -1,6 +1,8 @@
 # Options
 ADAPTIVE=1                # 0: use DEFAULT_THEME, 1: use system settings
 DEFAULT_THEME="dark"      # "light" or "dark"
+ANIMATION_CURVE="sin"     # linear, quadratic, tanh, sin, exp, or circ
+ANIMATION_DURATION=15     # n/60 seconds
 
 # Define themes
 typeset -A light=(

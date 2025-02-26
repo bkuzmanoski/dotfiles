@@ -1,10 +1,12 @@
 #!/bin/zsh
 
-source "${CONFIG_DIR}/colors.sh"
+source "${CONFIG_DIR}/variables.sh"
 
 case "${SENDER}" in
   "appearance_change")
-    sketchybar --set ${NAME} icon.color="${ICON_COLOR}" label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}"
+    sketchybar \
+      --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
+      --set ${NAME} label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}"
     ;;
   "mouse.entered")
     sketchybar --set ${NAME} background.color="${BACKGROUND_HOVER_COLOR}"
@@ -23,7 +25,7 @@ case "${SENDER}" in
     if [[ $? -ne 0 ]] || [[ -z "${next_event}" ]]; then
       sketchybar --set ${NAME} drawing=off
     else
-      sketchybar --set ${NAME} drawing=on label="${next_event}" icon.color="${ICON_COLOR}" label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}"
+      sketchybar --set ${NAME} drawing=on label="${next_event}" label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}"
     fi
     ;;
 esac
