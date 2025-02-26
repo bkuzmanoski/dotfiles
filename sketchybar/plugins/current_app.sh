@@ -8,27 +8,27 @@ case "${SENDER}" in
       --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
       --set current_app_name label.color="${FOREGROUND_COLOR}"
     ;;
-  "window_change")
+  "app_change")
+    # front_app_changed is not used here because:
+    # - It does not filter out system dialogs and non-standard windows
+    # - It does not provide a bundle ID
+
+    icon_path="${HOME}/.cache/sketchybar/icons/${BUNDLE_ID}.png"
     arguments=()
+    return_value=0
 
-    if [[ "${BUNDLE_ID}" ]]; then
-      icon_path="${HOME}/.cache/sketchybar/app-icons/${BUNDLE_ID}.png"
-      scale=0.5 # 2x retina resolution
-      return_value=0
-
-      if [[ ! -f "${icon_path}" ]]; then
-        "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${BUNDLE_ID}" > /dev/null
-        return_value=$?
-      fi
-
-      if [[ return_value -eq 0 ]]; then
-        arguments+=(--set current_app_icon drawing=on background.image="${icon_path}" background.image.scale=${scale})
-      else
-        arguments+=(--set current_app_icon drawing=off)
-      fi
+    if [[ ! -f "${icon_path}" ]]; then
+      "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${BUNDLE_ID}" > /dev/null
+      return_value=$?
     fi
 
-    arguments+=(--set current_app_name label="${TITLE}" label.color="${FOREGROUND_COLOR}")
+    if [[ return_value -eq 0 ]]; then
+      arguments+=(--set current_app_icon drawing=on background.image="${icon_path}")
+    else
+      arguments+=(--set current_app_icon drawing=off)
+    fi
+
+    arguments+=(--set current_app_name label="${APP_NAME}" label.color="${FOREGROUND_COLOR}")
 
     sketchybar "${arguments[@]}"
     ;;

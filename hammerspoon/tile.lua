@@ -1,4 +1,9 @@
+local utils = require("utils")
 local module = {}
+local hotkeyTileLeft, hotkeyTileRight
+local splitRatios = { 0.5, 0.33, 0.67 } -- 2 significant figures for thirds matches Raycast's behavior
+local currentSplitRatioIndex = 1
+local lastDirection, lastWindow
 
 module.hotkeys = {
   left = {},
@@ -6,10 +11,6 @@ module.hotkeys = {
 }
 module.padding = 0
 
-local hotkeyTileLeft, hotkeyTileRight
-local splitRatios = { 0.5, 0.33, 0.67 } -- 2 significant figures for thirds matches Raycast's behavior
-local currentSplitRatioIndex = 1
-local lastDirection, lastWindow
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
@@ -32,17 +33,16 @@ end
 local function tileWindows(direction)
   local screen, firstWindow, secondWindow = getWindows()
   if not screen or not firstWindow then
+    utils.playAlert()
     return
   end
 
-  -- Reset the current split ratio index if the frontmost window or tile direction has changed
   if firstWindow ~= lastWindow or lastDirection ~= direction then
     currentSplitRatioIndex = 1
     lastDirection = direction
     lastWindow = firstWindow
   end
 
-  -- Tile windows
   local ratio = splitRatios[currentSplitRatioIndex]
   local screenFrame = screen:frame():copy()
   screenFrame.x = screenFrame.x + module.padding
@@ -65,7 +65,6 @@ local function tileWindows(direction)
     if secondWindow then secondWindow:setFrame(leftFrame) end
   end
 
-  -- Cycle through the split ratios
   currentSplitRatioIndex = currentSplitRatioIndex % #splitRatios + 1
 end
 
@@ -87,7 +86,6 @@ function module.cleanup()
     hotkeyTileLeft:delete()
     hotkeyTileLeft = nil
   end
-
   if hotkeyTileRight then
     hotkeyTileRight:delete()
     hotkeyTileRight = nil

@@ -1,11 +1,10 @@
 local module = {}
+local windowFilter
 
 module.ignoreApps = {}
 module.topOffsetIgnoreDisplay = ""
 module.topOffset = 0
 module.padding = 0
-
-local windowFilter
 
 local function handleWindowEvent(window)
   local app = window:application()
@@ -49,14 +48,11 @@ local function handleWindowEvent(window)
 end
 
 function module.init()
-  -- Subscribe to window move events
   windowFilter = hs.window.filter.new()
   windowFilter:setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false })
-
   for _, appName in ipairs(module.ignoreApps) do
     windowFilter:rejectApp(appName)
   end
-
   windowFilter:subscribe(hs.window.filter.windowCreated, handleWindowEvent)
   windowFilter:subscribe(hs.window.filter.windowMoved, handleWindowEvent)
 end

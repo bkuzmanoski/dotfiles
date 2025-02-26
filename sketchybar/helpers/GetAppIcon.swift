@@ -92,7 +92,7 @@ func main() {
 
   let bundleId = CommandLine.arguments[1]
   let fileManager = FileManager.default
-  let cachePath = NSString(string: "~/.cache/sketchybar/app-icons").expandingTildeInPath
+  let cachePath = NSString(string: "~/.cache/sketchybar/icons").expandingTildeInPath
 
   // Ensure the cache directory exists
   do {

@@ -1,14 +1,12 @@
 local module = {}
-
 local mouseTap, displayWatcher, lastScreen
 
 local function focusFrontmostWindow(screen)
-  -- Return early if there is only one screen
-  if #hs.screen.allScreens() <= 1 then
-    return
-  end
-
   if screen then
+    if #hs.screen.allScreens() <= 1 then
+      return
+    end
+
     local windows = hs.window.orderedWindows()
     for _, window in ipairs(windows) do
       if window:screen():id() == screen:id() and window:isVisible() then
@@ -28,10 +26,6 @@ local function checkForScreenChange()
 end
 
 local function startMouseTap()
-  if mouseTap then
-    mouseTap:stop()
-  end
-
   lastScreen = hs.mouse.getCurrentScreen()
   mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, function()
     checkForScreenChange()
@@ -59,23 +53,21 @@ local function updateMouseTap()
 end
 
 function module.init()
-  if not displayWatcher then
-    displayWatcher = hs.screen.watcher.new(function()
-      updateMouseTap()
-    end)
-    displayWatcher:start()
-  end
-
   updateMouseTap()
+
+  displayWatcher = hs.screen.watcher.new(function()
+    updateMouseTap()
+  end)
+  displayWatcher:start()
 end
 
 function module.cleanup()
+  stopMouseTap()
+
   if displayWatcher then
     displayWatcher:stop()
     displayWatcher = nil
   end
-
-  stopMouseTap()
 end
 
 return module
