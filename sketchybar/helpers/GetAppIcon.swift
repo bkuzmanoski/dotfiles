@@ -14,18 +14,6 @@ func ensureCacheDirectory(at path: String) throws {
   }
 }
 
-func resizeImage(_ image: NSImage, to size: NSSize) -> NSImage {
-  let newImage = NSImage(size: size)
-  newImage.lockFocus()
-  image.draw(
-    in: NSRect(origin: .zero, size: size),
-    from: NSRect(origin: .zero, size: image.size),
-    operation: .sourceOver,
-    fraction: 1.0)
-  newImage.unlockFocus()
-  return newImage
-}
-
 func getIcon(for bundleId: String) -> NSImage? {
   let workspace = NSWorkspace.shared
   if let url = workspace.urlForApplication(withBundleIdentifier: bundleId) {
@@ -37,8 +25,50 @@ func getIcon(for bundleId: String) -> NSImage? {
   return NSImage(contentsOfFile: genericIconPath)
 }
 
+func addShadow(to image: NSImage) -> NSImage {
+  let resultImage = NSImage(size: image.size)
+  resultImage.lockFocus()
+  NSColor.clear.set()
+  NSRect(origin: .zero, size: image.size).fill()
+
+  if let context = NSGraphicsContext.current?.cgContext {
+    let blurRadius: CGFloat = 1.0
+    let offset = NSSize(width: 0, height: -1)
+    context.setShadow(
+      offset: CGSize(width: offset.width, height: offset.height),
+      blur: blurRadius,
+      color: NSColor.black.withAlphaComponent(0.25).cgColor
+    )
+
+    let insetAmount: CGFloat = 1.0
+    let drawRect = NSRect(
+      x: insetAmount,
+      y: insetAmount,
+      width: image.size.width,
+      height: image.size.height
+    )
+    image.draw(in: drawRect)
+  }
+
+  resultImage.unlockFocus()
+  return resultImage
+}
+
+func resize(_ image: NSImage, to size: NSSize) -> NSImage {
+  let resizedImage = NSImage(size: size)
+  resizedImage.lockFocus()
+  image.draw(
+    in: NSRect(origin: .zero, size: size),
+    from: NSRect(origin: .zero, size: image.size),
+    operation: .sourceOver,
+    fraction: 1.0)
+  resizedImage.unlockFocus()
+  return resizedImage
+}
+
 func writePNGData(from image: NSImage, to outputPath: String) throws {
-  let resizedIcon = resizeImage(image, to: NSSize(width: 22, height: 22))
+  let iconWithShadow = addShadow(to: image)
+  let resizedIcon = resize(iconWithShadow, to: NSSize(width: 22, height: 22))
   guard let tiffData = resizedIcon.tiffRepresentation,
     let bitmapRep = NSBitmapImageRep(data: tiffData),
     let pngData = bitmapRep.representation(using: .png, properties: [:])
