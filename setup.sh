@@ -369,6 +369,7 @@ defaults_write com.lwouis.alt-tab-macos menubarIconShown -bool false # Hide menu
 defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mouse hover
 defaults_write com.lwouis.alt-tab-macos showOnScreen -string "builtInDisplay" # Show on built in display only
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
+defaults_write com.lwouis.alt-tab-macos updatePolicy -int 2 # Install updates automatically
 
 # CleanShot X
 defaults_write pl.maketheweb.cleanshotx afterVideoActions -array 0 # Show Quick Access Overlay after recording
