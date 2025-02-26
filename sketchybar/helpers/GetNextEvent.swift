@@ -23,9 +23,9 @@ private func formatTimeLabel(prefix: String = "", _ minutes: Int, suffix: String
   if minutes >= 60 {
     let hours = minutes / 60
     let remainder = minutes % 60
-    timeString = remainder == 0 ? "\(hours)h" : "\(hours)h \(remainder)m"
+    timeString = remainder == 0 ? "\(hours) h" : "\(hours) h \(remainder) m"
   } else {
-    timeString = "\(minutes)m"
+    timeString = "\(minutes) m"
   }
   return [prefix, timeString, suffix]
     .filter { !$0.isEmpty }
@@ -49,10 +49,10 @@ func generateEventStatus(event: EKEvent, now: Date) -> EventStatus {
   }
   // Past/ongoing events
   if minutesSinceStart <= 4 {
-    return EventStatus(priority: .recent, timeLabel: formatTimeLabel(minutesSinceStart, suffix: " ago"))
+    return EventStatus(priority: .recent, timeLabel: formatTimeLabel(minutesSinceStart, suffix: "ago"))
   }
   if minutesUntilEnd > 0 {
-    return EventStatus(priority: .ongoing, timeLabel: formatTimeLabel(minutesUntilEnd, suffix: " left"))
+    return EventStatus(priority: .ongoing, timeLabel: formatTimeLabel(minutesUntilEnd, suffix: "left"))
   }
   // Fallback
   return EventStatus(priority: .ended, timeLabel: "ended")
