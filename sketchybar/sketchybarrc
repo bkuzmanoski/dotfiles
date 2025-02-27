@@ -91,4 +91,8 @@ sketchybar \
   --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
   --update
 
-${CONFIG_DIR}/events/AppChange.swift
+if pgrep -f "AppChange.swift" > /dev/null 2>&1; then
+  pkill -f "AppChange.swift"
+fi
+
+${CONFIG_DIR}/events/AppChange.swift &
