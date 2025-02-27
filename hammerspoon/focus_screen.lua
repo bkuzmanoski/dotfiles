@@ -55,9 +55,7 @@ end
 function module.init()
   updateMouseTap()
 
-  displayWatcher = hs.screen.watcher.new(function()
-    updateMouseTap()
-  end)
+  displayWatcher = hs.screen.watcher.new(updateMouseTap)
   displayWatcher:start()
 end
 
