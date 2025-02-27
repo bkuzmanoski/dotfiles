@@ -2,7 +2,7 @@ local primaryDisplay = "Built-in Retina Display"
 local numberOfSpaces = 5
 local windowPadding = 8
 
-require("hs.ipc")
+-- require("hs.ipc")
 
 -- Initialise spaces
 local primaryScreen = hs.screen.primaryScreen()
