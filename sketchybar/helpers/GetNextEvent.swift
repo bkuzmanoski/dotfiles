@@ -1,5 +1,3 @@
-#!/usr/bin/swift
-
 import AppKit
 import EventKit
 import Foundation

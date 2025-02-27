@@ -149,7 +149,6 @@ run_config_tasks() {
       # Make sketchybar scripts executable
       scripts=(
         # "file" path or "dir/*" path
-        "${SCRIPT_DIR}/sketchybar/helpers/*"
         "${SCRIPT_DIR}/sketchybar/plugins/*"
         "${SCRIPT_DIR}/sketchybar/sketchybarrc"
       )

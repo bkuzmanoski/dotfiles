@@ -1,5 +1,3 @@
-#!/usr/bin/swift
-
 import AppKit
 
 enum GetAppIconError: Error {

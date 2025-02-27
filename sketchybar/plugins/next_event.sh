@@ -20,7 +20,7 @@ case "${SENDER}" in
     sketchybar --set ${NAME} background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
   *)
-    next_event="$("${CONFIG_DIR}/helpers/GetNextEvent.swift")"
+    next_event="$("${CONFIG_DIR}/helpers/bin/GetNextEvent")"
 
     if [[ $? -ne 0 ]] || [[ -z "${next_event}" ]]; then
       sketchybar --set ${NAME} drawing=off

@@ -18,7 +18,7 @@ case "${SENDER}" in
     return_value=0
 
     if [[ ! -f "${icon_path}" ]]; then
-      "${CONFIG_DIR}/helpers/GetAppIcon.swift" "${BUNDLE_ID}" > /dev/null
+      "${CONFIG_DIR}/helpers/bin/GetAppIcon" "${BUNDLE_ID}" > /dev/null
       return_value=$?
     fi
 

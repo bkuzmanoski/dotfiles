@@ -1,5 +1,3 @@
-#!/usr/bin/swift
-
 import ApplicationServices
 import Cocoa
 import Foundation

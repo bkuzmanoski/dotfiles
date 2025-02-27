@@ -1,5 +1,13 @@
 #!/bin/zsh
 
+"${CONFIG_DIR}/build_binaries.sh"
+
+if pgrep -f "${CONFIG_DIR}/events/bin/AppChange" > /dev/null 2>&1; then
+  pkill -f "${CONFIG_DIR}/events/bin/AppChange"
+fi
+
+"${CONFIG_DIR}/events/bin/AppChange" &
+
 bar=(
   display="all"
   height=39
@@ -34,7 +42,7 @@ current_app_name=(
 
 next_event=(
   script="${CONFIG_DIR}/plugins/next_event.sh"
-  click_script="${CONFIG_DIR}/helpers/GetNextEvent.swift --open-url"
+  click_script="${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url"
   drawing=off
   label.drawing=on
   label.padding_left=8
@@ -90,9 +98,3 @@ sketchybar \
   --set next_event "${next_event[@]}" \
   --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
   --update
-
-if pgrep -f "AppChange.swift" > /dev/null 2>&1; then
-  pkill -f "AppChange.swift"
-fi
-
-${CONFIG_DIR}/events/AppChange.swift &
