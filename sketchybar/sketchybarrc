@@ -2,11 +2,9 @@
 
 "${CONFIG_DIR}/build_binaries.sh"
 
-if pgrep -f "${CONFIG_DIR}/events/bin/AppChange" > /dev/null 2>&1; then
-  pkill -f "${CONFIG_DIR}/events/bin/AppChange"
+if ! pgrep -f "${CONFIG_DIR}/events/bin/AppChange" > /dev/null 2>&1; then
+  "${CONFIG_DIR}/events/bin/AppChange" &
 fi
-
-"${CONFIG_DIR}/events/bin/AppChange" &
 
 bar=(
   display="all"
