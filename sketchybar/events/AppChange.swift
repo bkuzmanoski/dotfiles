@@ -4,15 +4,6 @@ import ApplicationServices
 import Cocoa
 import Foundation
 
-func setupSignalHandling() {
-  signal(SIGINT) { sig in
-    exit(0)
-  }
-  signal(SIGTERM) { sig in
-    exit(0)
-  }
-}
-
 func checkAccessibilityPermissions() -> Bool {
   let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
   let accessEnabled = AXIsProcessTrustedWithOptions(options as CFDictionary)
@@ -58,8 +49,6 @@ func getMenuBarAppInfo() -> (bundleID: String, name: String) {
   return ("", "")
 }
 
-setupSignalHandling()
-
 var lastBundleID = ""
 var lastAppName = ""
 
@@ -79,7 +68,7 @@ notificationCenter.addObserver(
 
 let hasAccessibilityPermission = checkAccessibilityPermissions()
 if !hasAccessibilityPermission {
-  print("Accessibility Permission not granted")
+  print("Accessibility permission not granted")
   exit(1)
 }
 
@@ -87,5 +76,12 @@ let (bundleID, appName) = getMenuBarAppInfo()
 lastBundleID = bundleID
 lastAppName = appName
 sendAppChangeEvent(bundleID: bundleID, appName: appName)
+
+signal(SIGINT) { sig in
+  exit(0)
+}
+signal(SIGTERM) { sig in
+  exit(0)
+}
 
 RunLoop.main.run()
