@@ -193,6 +193,16 @@ for config_name in "${(k)config_links[@]}"; do
   fi
 done
 
+# Make Raycast Script Command runner executable
+command_runner_path="${SCRIPT_DIR}/raycast/helpers/run_command.sh"
+
+if [[ -f "${command_runner_path}" ]]; then
+  log "Making Raycast Script Command runner executable."
+  chmod +x "${command_runner_path}"
+else
+  log_error "Raycast Script Command runner not found."
+fi
+
 # Suppress shell login message
 touch "${HOME}/.hushlogin"
 
@@ -209,7 +219,6 @@ wallpaper_image="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
 
 if [[ -f "${wallpaper_image}" ]]; then
   log "Setting wallpaper to ${wallpaper_image}"
-
   escaped_path="$(print "${wallpaper_image}" | sed 's/"/\\"/g')"
   osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\"" || log_error "Failed to set wallpaper."
 else
