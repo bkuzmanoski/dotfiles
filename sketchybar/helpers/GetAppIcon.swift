@@ -84,7 +84,7 @@ func writePNGData(from image: NSImage, to outputPath: String) throws {
 func main() {
   guard CommandLine.arguments.count == 2 else {
     let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
-    print("Usage: \(scriptName) bundleId")
+    print("Usage: \(scriptName) <bundleId>")
     exit(1)
   }
 
