@@ -342,6 +342,9 @@ defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false # Hide s
 defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false # Hide removable media on Desktop
 defaults_write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning when emptying Trash
 
+# Activity Monitor
+defaults_write com.apple.ActivityMonitor UpdatePeriod -int 1 # Set update frequency to 1 second
+
 # Mail
 defaults_write com.apple.mail AutoReplyFormat -int 1 # Set reply format to same as original message
 defaults_write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all messages as read when opening a conversation
