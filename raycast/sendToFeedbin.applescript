@@ -6,7 +6,7 @@
 # @raycast.mode silent
 #
 # Optional parameters:
-# @raycast.packageName System
+# @raycast.packageName Personal
 #
 # Documentation:
 # @raycast.author Britown
@@ -30,9 +30,9 @@ end tell
 
 -- Focus Chrome and copy URLs
 tell application "Google Chrome" to activate
-delay 0.1
+delay 0.5
 tell application "System Events" to keystroke "e" using {shift down, command down}
-delay 0.1
+delay 0.5
 
 -- Run the Raycast extension to email selected text
 do shell script "open \"raycast://extensions/peduarte/dash-off/email-form\""
