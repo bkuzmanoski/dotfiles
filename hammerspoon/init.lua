@@ -14,6 +14,12 @@ if spacesCount < numberOfSpaces then
   end
 end
 
+-- Show MenuWhere menu when the current app icon is clicked
+-- local appMenu = require("app_menu")
+-- appMenu.targetArea = { x = 16, y = 8, w = 23, h = 23 }
+-- appMenu.rightClickModifiers = { "cmd" }
+-- appMenu.init()
+
 -- Move focus to the window to the left or right of the focused window
 local focusLeftRight = require("focus_left_right")
 focusLeftRight.hotkeys.left = { modifiers = { "option", "command" }, key = "[" }
