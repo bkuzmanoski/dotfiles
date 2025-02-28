@@ -56,7 +56,7 @@ func resize(_ image: NSImage, to size: NSSize) -> NSImage {
   let resizedImage = NSImage(size: size)
   resizedImage.lockFocus()
   image.draw(
-    in: NSRect(origin: .zero, size: size),
+    in: NSRect(origin: NSPoint(x: 0, y: -0.5), size: size),  // Shift down by 0.5pt to center
     from: NSRect(origin: .zero, size: image.size),
     operation: .sourceOver,
     fraction: 1.0)
