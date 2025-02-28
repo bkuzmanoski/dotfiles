@@ -1,4 +1,4 @@
-fzf_opts=(
+FZF_OPTS=(
   --height=100%
   --no-separator
   --prompt=""
@@ -12,31 +12,50 @@ fzf_opts=(
 )
 
 fzf() {
-  update_theme && command fzf "${fzf_opts[@]}" --color="${FZF_THEME}" "$@"
+  update_theme && command fzf "${FZF_OPTS[@]}" --color="${FZF_THEME}" "$@"
 }
 
-copy_paths() {
-  local -a selections=("${(@f)$("$@" | fzf --scheme=path --multi)}")
-  local -a escaped_selections=("${(q)selections[@]}")
-  local delimited_selections="${(j: :)escaped_selections}"
-  print -rn -- "${delimited_selections}" | pbcopy
+select_paths() {
+  local file_type=$1
+  shift
+
+  local -a selected_paths=("${(@f)$(fd "${file_type}" --hidden | fzf --scheme=path --multi)}")
+  if [[ -z ${selected_paths[@]} ]]; then
+    print "No paths selected."
+    return 1
+  fi
+
+  local -a escaped_paths=("${(q)selected_paths[@]}")
+  local delimited_paths="${(j: :)escaped_paths}"
+
+  local -a prefix_command=("$@")
+  if (( ${#prefix_command[@]} )); then
+    print -z -- "${prefix_command[@]} ${selected_paths[*]}"
+  else
+    print -rn -- "${delimited_paths}" | pbcopy
+    print "Copied to clipboard."
+  fi
 }
 
 fdir() {
-  copy_paths fd --type d --hidden
+  select_paths --type=d "$@"
 }
 
-ffile() {
-  copy_paths fd --type f --hidden
+ff() {
+  select_paths --type=f "$@"
 }
 
-fhist() {
+fh() {
   local selected_command=$(fc -nl 1 | tail -r | fzf --scheme=history)
-  print -z "${selected_command}"
+  print -z -- "${selected_command}"
 }
 
-fproc() {
-  local selected_line=$(ps -eo pid,comm | sed -E "1d; s/^([[:space:]]*)([0-9]+)/\2\1/" | fzf)
-  local pid=$(print "${selected_line}" | awk '{print $1}')
-  printf "%s" "${pid}" | pbcopy
+fk() {
+  local selected_processes=$(ps -eo pid,comm | sed -E "1d; s/^([[:space:]]*)([0-9]+)/\2\1/" | fzf --multi)
+  if [[ -z ${selected_processes} ]]; then
+    return 1
+  fi
+
+  local pids=$(print "${selected_processes}" | awk '{print $1}' | xargs echo)
+  print -z "kill ${pids}"
 }
