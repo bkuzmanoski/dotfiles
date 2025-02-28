@@ -31,7 +31,7 @@ ffile() {
 }
 
 fhist() {
-  local selected_command=$(history 0 | tail -r | fzf --scheme=history)
+  local selected_command=$(history 1 | tail -r | fzf --scheme=history)
   print -z "${selected_command}"
 }
 
