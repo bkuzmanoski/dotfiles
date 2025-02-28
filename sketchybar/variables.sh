@@ -12,7 +12,6 @@ typeset -A light=(
   [BACKGROUND_HOVER_COLOR]=0xa0ffffff
   [BACKGROUND_ACTIVE_COLOR]=0x70ffffff
 )
-
 typeset -A dark=(
   [FOREGROUND_COLOR]=0xf2ffffff
   [FOREGROUND_WARNING_COLOR]=0xffff4f44
