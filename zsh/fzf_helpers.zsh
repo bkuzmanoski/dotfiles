@@ -15,7 +15,7 @@ fzf() {
   update_theme && command fzf "${fzf_opts[@]}" --color="${FZF_THEME}" "$@"
 }
 
-select_paths() {
+copy_paths() {
   local -a selections=("${(@f)$("$@" | fzf --scheme=path --multi)}")
   local -a escaped_selections=("${(q)selections[@]}")
   local delimited_selections="${(j: :)escaped_selections}"
@@ -23,16 +23,16 @@ select_paths() {
 }
 
 fdir() {
-  select_paths fd --type d --hidden
+  copy_paths fd --type d --hidden
 }
 
 ffile() {
-  select_paths fd --type f --hidden
+  copy_paths fd --type f --hidden
 }
 
 fhist() {
   local selected_command=$(fc -nl 1 | tail -r | fzf --scheme=history)
-  printf "%b" "${selected_command}" | pbcopy
+  print -z "${selected_command}"
 }
 
 fproc() {
