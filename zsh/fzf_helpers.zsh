@@ -21,7 +21,6 @@ select_paths() {
 
   local -a selected_paths=("${(@f)$(fd "${file_type}" --hidden | fzf --scheme=path --multi)}")
   if [[ -z ${selected_paths[@]} ]]; then
-    print "No paths selected."
     return 1
   fi
 
