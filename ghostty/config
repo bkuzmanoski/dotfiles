@@ -20,8 +20,6 @@ cursor-style-blink = true
 adjust-cursor-thickness = 1
 
 macos-option-as-alt = true
-keybind = command+up=jump_to_prompt:-1
-keybind = command+down=jump_to_prompt:1
 keybind = command+p=resize_split:up,8
 keybind = command+semicolon=resize_split:down,8
 keybind = command+l=resize_split:left,8
@@ -31,3 +29,10 @@ keybind = command+minus=ignore
 keybind = option+minus=decrease_font_size:1
 keybind = option+equal=increase_font_size:1
 keybind = option+zero=reset_font_size
+keybind = command+z=text:\x18\x15
+keybind = command+up=jump_to_prompt:-1
+keybind = command+down=jump_to_prompt:1
+keybind = shift+up=adjust_selection:up
+keybind = shift+down=adjust_selection:down
+keybind = shift+left=adjust_selection:left
+keybind = shift+right=adjust_selection:right
