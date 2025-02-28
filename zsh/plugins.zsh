@@ -4,14 +4,26 @@ UPDATE_CHECKS=(
   "🍺:brew:${UPDATE_TIMESTAMPS_DIR}/brew_last_update:brewup"
   "📦:fnm:${UPDATE_TIMESTAMPS_DIR}/fnm_last_update:fnmup"
   "🔍:fzf-tab:${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update:ftup"
+  "🤖:GitHub Copilot:${UPDATE_TIMESTAMPS_DIR}/gh_copilot_last_update:gh extension upgrade gh-copilot"
 )
 
 # Install plugins
 FZF_TAB_DIR="${HOME}/.zsh/fzf-tab"
 
 if [[ ! -d "${FZF_TAB_DIR}" ]]; then
-  git clone https://github.com/Aloxaf/fzf-tab "$FZF_TAB_DIR" || { print "fzf-tab installation failed."; exit 1; }
+  print "Installing fzf-tab..."
+  git clone https://github.com/Aloxaf/fzf-tab "$FZF_TAB_DIR" || { print "fzf-tab installation failed.\n"; exit 1; }
   date +%s > "${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update"
+  print
+fi
+
+gh_copilot=$(gh extension list | grep "copilot")
+if [[ -z "${gh_copilot}" ]]; then
+  print "Installing GitHub Copilot..."
+  gh extension install github/gh-copilot || { print "GitHub Copilot installation failed.\n"; exit 1; }
+  gh copilot alias -- zsh | sed -e 's/ghce()/ce()/g' -e 's/ghcs()/cs()/g' > ${HOME}/.zsh/gh_copilot.zsh
+  date +%s > "${UPDATE_TIMESTAMPS_DIR}/gh_copilot_last_update"
+  print
 fi
 
 # Update reminders

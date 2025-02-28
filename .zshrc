@@ -14,8 +14,8 @@ alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level=3"
 alias micro="update_theme && micro --colorscheme=\${THEME}"
 alias mkdir="mkdir -pv"
-alias mv="mv -iv"
-alias rm="rm -iv"
+alias mv="mv -i"
+alias rm="rm -i"
 alias top="top -s 5 -S -stats pid,command,cpu,th,mem,purg,user,state"
 
 setopt AUTO_CD           # Automatically cd into a directory if the command is a directory
@@ -34,6 +34,7 @@ source "${HOME}/.zsh/plugins.zsh"
 source "${HOME}/.zsh/theme.zsh"
 source "${HOME}/.zsh/fzf_helpers.zsh"
 source "${HOME}/.zsh/fzf-tab/fzf-tab.plugin.zsh"
+source "${HOME}/.zsh/gh_copilot.zsh"
 
 zstyle ":completion:*" matcher-list "m:{a-zA-Z}={A-Za-z}" # Case-insensitive completion
 zstyle ":completion:*" rehash true                        # Automatically find new executables in PATH
