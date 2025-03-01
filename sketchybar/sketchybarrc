@@ -2,8 +2,8 @@
 
 "${CONFIG_DIR}/build_binaries.sh"
 
-if ! pgrep -f "${CONFIG_DIR}/events/bin/AppChange" > /dev/null 2>&1; then
-  "${CONFIG_DIR}/events/bin/AppChange" &
+if ! pgrep -f "${CONFIG_DIR}/events/bin/SBEventProvider" > /dev/null 2>&1; then
+  "${CONFIG_DIR}/events/bin/SBEventProvider" &
 fi
 
 bar=(
@@ -19,13 +19,10 @@ defaults=(
   label.drawing=off # Same for labels...
   label.font="SF Pro:Medium:13"
   label.padding_right=1 # Some strings are clipped by 1 pixel
-  update_freq=10
   padding_right=12
 )
 
 current_app_icon=(
-  script="${CONFIG_DIR}/plugins/current_app.sh"
-  update_freq=0
   background.drawing=on
   background.image.scale=0.5
   padding_right=6
@@ -33,7 +30,6 @@ current_app_icon=(
 
 current_app_name=(
   script="${CONFIG_DIR}/plugins/current_app.sh"
-  update_freq=0
   label.drawing=on
   label.font="SF Pro:Bold:13"
 )
@@ -62,8 +58,6 @@ battery_status=(
 )
 
 date=(
-  script="${CONFIG_DIR}/plugins/datetime.sh"
-  update_freq=0
   label.drawing=on
   padding_right=6
 )
@@ -79,6 +73,7 @@ sketchybar \
   --default "${defaults[@]}" \
   --add event appearance_change "AppleInterfaceThemeChangedNotification" \
   --add event app_change \
+  --add event calendar_update \
   --add item current_app_icon left \
   --set current_app_icon "${current_app_icon[@]}" \
   --add item current_app_name left \
@@ -91,8 +86,8 @@ sketchybar \
   --set date "${date[@]}" \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
-  --subscribe battery_status appearance_change system_woke power_source_change \
+  --subscribe battery_status power_source_change \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event appearance_change mouse.entered	mouse.clicked mouse.exited \
+  --subscribe next_event calendar_update mouse.entered	mouse.clicked mouse.exited \
   --update

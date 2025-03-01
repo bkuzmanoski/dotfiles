@@ -4,7 +4,7 @@ SCRIPT_DIR="${0:A:h}"
 
 typeset -A scripts
 scripts=(
-  ["AppChange"]="${SCRIPT_DIR}/events/AppChange.swift"
+  ["SBEventProvider"]="${SCRIPT_DIR}/events/SBEventProvider.swift"
   ["GetNextEvent"]="${SCRIPT_DIR}/helpers/GetNextEvent.swift"
   ["GetAppIcon"]="${SCRIPT_DIR}/helpers/GetAppIcon.swift"
 )
