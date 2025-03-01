@@ -16,7 +16,7 @@ else
 fi
 
 # Update the next event and battery status
-if [[ "${SENDER}" != "appearance_change" ]]; then
+if [[ ! "${SENDER}" == "appearance_change" ]]; then
   export SENDER="time_change"
 fi
 
