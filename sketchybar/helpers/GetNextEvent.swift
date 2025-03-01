@@ -105,7 +105,7 @@ eventStore.requestFullAccessToEvents { granted, _ in handleCalendarAccess(grante
 
 func handleCalendarAccess(granted: Bool) {
   guard granted else {
-    print("Calendar access not granted")
+    print("Calendar access not granted.")
     semaphore.signal()
     return
   }

@@ -2,7 +2,7 @@ import AppKit
 
 enum GetAppIconError: Error {
   case conversionError
-  case savingError(Error)
+  case saveError(Error)
 }
 
 func ensureCacheDirectory(at path: String) throws {
@@ -77,7 +77,7 @@ func writePNGData(from image: NSImage, to outputPath: String) throws {
   do {
     try pngData.write(to: URL(fileURLWithPath: outputPath))
   } catch {
-    throw GetAppIconError.savingError(error)
+    throw GetAppIconError.saveError(error)
   }
 }
 
@@ -118,10 +118,10 @@ func main() {
   do {
     try writePNGData(from: icon, to: outputPath)
   } catch GetAppIconError.conversionError {
-    print("Error converting icon to PNG")
+    print("Error converting icon to PNG.")
     exit(1)
-  } catch GetAppIconError.savingError(let savingError) {
-    print("Error saving icon: \(savingError)")
+  } catch GetAppIconError.saveError(let saveError) {
+    print("Error saving icon: \(saveError)")
     exit(1)
   } catch {
     print("Unexpected error: \(error)")
