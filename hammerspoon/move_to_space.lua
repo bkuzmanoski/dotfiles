@@ -14,9 +14,10 @@ module.navigationHotkeyModifiers = {}
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
   local screen = focusedWindow:screen()
-  if not screen:name() == module.allowDisplay or
-      not (focusedWindow and focusedWindow:isStandard()) or
-      focusedWindow:isFullScreen() then
+  if screen:name() ~= module.allowDisplay or
+      not focusedWindow or
+      not focusedWindow:isStandard() or
+      focusedWindow:isFullscreen() then
     utils.playAlert()
     return nil, nil
   end
@@ -27,7 +28,7 @@ end
 local function getCurrentSpaceNumber(screen)
   local spacesData = hs.spaces.data_managedDisplaySpaces()
   if not spacesData then
-    return nil
+    return nil, nil
   end
 
   local targetScreen
@@ -39,17 +40,17 @@ local function getCurrentSpaceNumber(screen)
   end
 
   if not targetScreen then
-    return nil
+    return nil, nil
   end
 
   local currentSpaceId = targetScreen["Current Space"].ManagedSpaceID
   for i, space in ipairs(targetScreen.Spaces) do
     if space.ManagedSpaceID == currentSpaceId then
-      return i
+      return i, #targetScreen.Spaces
     end
   end
 
-  return nil
+  return nil, nil
 end
 
 local function moveWindowToSpace(window, spaceNumber)
@@ -68,8 +69,8 @@ local function moveWindowToPreviousSpace()
     return
   end
 
-  local currentSpaceNumber = getCurrentSpaceNumber(screen)
-  if currentSpaceNumber then
+  local currentSpaceNumber, numberOfSpaces = getCurrentSpaceNumber(screen)
+  if currentSpaceNumber and numberOfSpaces > 1 then
     moveWindowToSpace(window, (currentSpaceNumber % module.numberOfSpaces) + 1)
   end
 end
@@ -80,8 +81,8 @@ local function moveWindowToNextSpace()
     return
   end
 
-  local currentSpaceNumber = getCurrentSpaceNumber(screen)
-  if currentSpaceNumber then
+  local currentSpaceNumber, numberOfSpaces = getCurrentSpaceNumber(screen)
+  if currentSpaceNumber and numberOfSpaces > 1 then
     moveWindowToSpace(window, ((currentSpaceNumber - 2 + module.numberOfSpaces) % module.numberOfSpaces) + 1)
   end
 end

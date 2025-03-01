@@ -2,114 +2,99 @@ local utils = require("utils")
 local module = {}
 local bindings = {}
 
-module.moveHotkeys = {
-  up = {},
-  down = {},
-  left = {},
-  right = {}
+module.moveAmount = 0
+module.resizeAmount = 0
+module.hotkeys = {
+  moveUp = {},
+  moveDown = {},
+  moveLeft = {},
+  moveRight = {},
+  resizeUp = {},
+  resizeDown = {},
+  resizeLeft = {},
+  resizeRight = {},
+  grow = {},
+  shrink = {}
 }
-module.resizeHotkeys = {
-  up = {},
-  down = {},
-  left = {},
-  right = {}
-}
-module.amount = 0
 
-local function moveWindow(x, y)
+local function getWindow(resizeable)
   local window = hs.window.focusedWindow()
-  if window and window:isVisible() and window:isStandard() then
-    local frame = window:frame()
-    frame.x = frame.x + x
-    frame.y = frame.y + y
-    window:setFrame(frame)
+  if not window or
+      window:isFullscreen() or
+      (resizeable and not window:isMaximizable()) or
+      not window:isVisible() then
+    utils.playAlert()
+    return nil
   end
+
+  return window
 end
 
-local function resizeWindow(x, y)
-  local window = hs.window.focusedWindow()
-  if not window or not window:isVisible() or not window:isMaximizable() then
-    utils.playAlert()
+local function move(x, y)
+  local window = getWindow(false)
+  if not window then
+    return
+  end
+
+  local frame = window:frame()
+  frame.x = frame.x + x
+  frame.y = frame.y + y
+  window:setFrame(frame, 0)
+end
+
+local function resize(x, y)
+  local window = getWindow(true)
+  if not window then
+    return
   end
 
   local frame = window:frame()
   frame.w = frame.w + x
   frame.h = frame.h + y
-  window:setFrame(frame)
+  window:setFrame(frame, 0)
+end
+
+local function scale(amount)
+  local window = getWindow(true)
+  if not window then
+    return
+  end
+
+  local frame = window:frame()
+  frame.x = frame.x - math.floor(amount / 2)
+  frame.y = frame.y - math.floor(amount / 2)
+  frame.w = frame.w + amount
+  frame.h = frame.h + amount
+  window:setFrame(frame, 0)
 end
 
 function module.init()
-  if next(module.moveHotkeys.up) then
-    bindings.up = hs.hotkey.bind(
-      module.moveHotkeys.up.modifiers,
-      module.moveHotkeys.up.key,
-      function() moveWindow(0, -module.amount) end,
-      nil,
-      function() moveWindow(0, -module.amount) end
-    )
-  end
-  if next(module.moveHotkeys.down) then
-    bindings.down = hs.hotkey.bind(
-      module.moveHotkeys.down.modifiers,
-      module.moveHotkeys.down.key,
-      function() moveWindow(0, module.amount) end,
-      nil,
-      function() moveWindow(0, module.amount) end
-    )
-  end
-  if next(module.moveHotkeys.left) then
-    bindings.left = hs.hotkey.bind(
-      module.moveHotkeys.left.modifiers,
-      module.moveHotkeys.left.key,
-      function() moveWindow(-module.amount, 0) end,
-      nil,
-      function() moveWindow(-module.amount, 0) end
-    )
-  end
-  if next(module.moveHotkeys.right) then
-    bindings.right = hs.hotkey.bind(
-      module.moveHotkeys.right.modifiers,
-      module.moveHotkeys.right.key,
-      function() moveWindow(module.amount, 0) end,
-      nil,
-      function() moveWindow(module.amount, 0) end
-    )
-  end
-  if next(module.resizeHotkeys.up) then
-    bindings.resizeUp = hs.hotkey.bind(
-      module.resizeHotkeys.up.modifiers,
-      module.resizeHotkeys.up.key,
-      function() resizeWindow(0, -module.amount) end,
-      nil,
-      function() resizeWindow(0, -module.amount) end
-    )
-  end
-  if next(module.resizeHotkeys.down) then
-    bindings.resizeDown = hs.hotkey.bind(
-      module.resizeHotkeys.down.modifiers,
-      module.resizeHotkeys.down.key,
-      function() resizeWindow(0, module.amount) end,
-      nil,
-      function() resizeWindow(0, module.amount) end
-    )
-  end
-  if next(module.resizeHotkeys.left) then
-    bindings.resizeLeft = hs.hotkey.bind(
-      module.resizeHotkeys.left.modifiers,
-      module.resizeHotkeys.left.key,
-      function() resizeWindow(-module.amount, 0) end,
-      nil,
-      function() resizeWindow(-module.amount, 0) end
-    )
-  end
-  if next(module.resizeHotkeys.right) then
-    bindings.resizeRight = hs.hotkey.bind(
-      module.resizeHotkeys.right.modifiers,
-      module.resizeHotkeys.right.key,
-      function() resizeWindow(module.amount, 0) end,
-      nil,
-      function() resizeWindow(module.amount, 0) end
-    )
+  local handlers = {
+    -- Moving handlers
+    moveUp = function() move(0, -module.moveAmount) end,
+    moveDown = function() move(0, module.moveAmount) end,
+    moveLeft = function() move(-module.moveAmount, 0) end,
+    moveRight = function() move(module.moveAmount, 0) end,
+
+    -- Resizing handlers
+    resizeUp = function() resize(0, -module.resizeAmount) end,
+    resizeDown = function() resize(0, module.resizeAmount) end,
+    resizeLeft = function() resize(-module.resizeAmount, 0) end,
+    resizeRight = function() resize(module.resizeAmount, 0) end,
+    grow = function() scale(module.resizeAmount) end,
+    shrink = function() scale(-module.resizeAmount) end
+  }
+
+  for name, hotkey in pairs(module.hotkeys) do
+    if next(hotkey) and handlers[name] then
+      bindings[name] = hs.hotkey.bind(
+        hotkey.modifiers,
+        hotkey.key,
+        handlers[name],
+        nil,
+        handlers[name]
+      )
+    end
   end
 end
 

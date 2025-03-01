@@ -8,39 +8,65 @@ module.hotkeys = {
 }
 
 local function focusWindow(direction)
-  local focusedWindow = hs.window.focusedWindow()
-  if not focusedWindow then return end
+  local currentWindow = hs.window.focusedWindow()
+  if not currentWindow then
+    utils.playAlert()
+    return
+  end
 
-  local screen = focusedWindow:screen()
-  local screenFrame = focusedWindow:frame()
-  local screenCenter = screenFrame.x + screenFrame.w / 2
-  local candidate, candidateCenter
-
-  local windows = hs.window.orderedWindows()
+  local currentFrame = currentWindow:frame()
+  local windows = hs.window.filter.new():setOverrideFilter({
+    allowScreens = { currentWindow:screen():id() },
+    allowRoles = { "AXStandardWindow" },
+    currentSpace = true,
+    fullscreen = false,
+    visible = true
+  }):getWindows()
+  local candidateWindow = nil
+  local minXDiff = math.huge
   for _, window in ipairs(windows) do
-    if window:id() ~= focusedWindow:id() and window:screen() == screen and window:isVisible() then
-      local windowFrame = window:frame()
-      local windowCenter = windowFrame.x + windowFrame.w / 2
-      if direction == "left" and windowCenter < screenCenter then
-        if not candidate or windowCenter > candidateCenter then
-          candidate = window
-          candidateCenter = windowCenter
+    if window ~= currentWindow then
+      local frame = window:frame()
+      if direction == "left" and frame.x < currentFrame.x then
+        local diff = currentFrame.x - frame.x
+        if diff < minXDiff then
+          candidateWindow = window
+          minXDiff = diff
         end
-      elseif direction == "right" and windowCenter > screenCenter then
-        if not candidate or windowCenter < candidateCenter then
-          candidate = window
-          candidateCenter = windowCenter
+      elseif direction == "right" and frame.x > currentFrame.x then
+        local diff = frame.x - currentFrame.x
+        if diff < minXDiff then
+          candidateWindow = window
+          minXDiff = diff
         end
       end
     end
   end
 
-  if not candidate then
-    utils.playAlert()
-    return
+  if candidateWindow then
+    candidateWindow:focus()
+  else
+    local fallbackWindow = nil
+    local minX = math.huge
+    local maxX = -math.huge
+    for _, window in ipairs(windows) do
+      if window ~= currentWindow then
+        local frame = window:frame()
+        if direction == "left" and frame.x > maxX then
+          maxX = frame.x
+          fallbackWindow = window
+        elseif direction == "right" and frame.x < minX then
+          minX = frame.x
+          fallbackWindow = window
+        end
+      end
+    end
+    if fallbackWindow then
+      fallbackWindow:focus()
+    else
+      utils.playAlert()
+    end
   end
-
-  candidate:focus()
 end
 
 function module.init()

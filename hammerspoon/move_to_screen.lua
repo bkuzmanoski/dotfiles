@@ -2,15 +2,16 @@ local utils = require("utils")
 local module = {}
 local bindings = {}
 
+module.topOffset = 0
+module.padding = 0
 module.hotkeys = {
   up = {},
   down = {}
 }
-module.padding = 0
 
 local function moveToScreen(direction)
   local window = hs.window.focusedWindow()
-  if window:isFullScreen() then
+  if window:isFullscreen() then
     utils.playAlert()
     return
   end
@@ -44,6 +45,11 @@ local function moveToScreen(direction)
   }
   windowFrame.x = toCenter.x + offset.x - (windowFrame.w / 2)
   windowFrame.y = toCenter.y + offset.y - (windowFrame.h / 2)
+
+  if window:isMaximizable() then
+    windowFrame = utils.adjustWindowPosition(toFrame, windowFrame, module.topOffset, module.padding)
+  end
+
   window:setFrame(windowFrame)
 end
 
