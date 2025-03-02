@@ -1,6 +1,6 @@
 local primaryDisplay = "Built-in Retina Display"
 local numberOfSpaces = 5
-local windowTopOffset = 32
+local windowTopOffset = 33 -- 32px + 1px for the top border
 local windowPadding = 8
 
 -- Initialise spaces
