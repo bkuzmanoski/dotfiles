@@ -72,8 +72,7 @@ if !initBundleID.isEmpty {
     ])
 }
 
-let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
-let workspaceNotificationToken = workspaceNotificationCenter.addObserver(
+let appChangeNotificationToken = NSWorkspace.shared.notificationCenter.addObserver(
   forName: NSWorkspace.didActivateApplicationNotification,
   object: nil,
   queue: nil
@@ -100,7 +99,7 @@ let calendarNotificationToken = NotificationCenter.default.addObserver(
 }
 
 func cleanup() {
-  workspaceNotificationCenter.removeObserver(workspaceNotificationToken)
+  NSWorkspace.shared.notificationCenter.removeObserver(appChangeNotificationToken)
   NotificationCenter.default.removeObserver(calendarNotificationToken)
   exit(0)
 }
