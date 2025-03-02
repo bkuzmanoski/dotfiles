@@ -3,7 +3,7 @@
 SCRIPT_DIR="${0:A:h}"
 
 if (( $# != 1 )); then
-  print "Usage: $0 <command_or_source_file>"
+  print "Usage: ${0:t} <command_or_source_file>"
   exit 1
 fi
 

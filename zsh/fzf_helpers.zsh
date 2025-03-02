@@ -12,14 +12,14 @@ FZF_OPTS=(
 )
 
 fzf() {
-  update_theme && command fzf "${FZF_OPTS[@]}" --color="${FZF_THEME}" "$@"
+  update_theme && command fzf "${FZF_OPTS[@]}" --color "${FZF_THEME}" "$@"
 }
 
 select_paths() {
   local file_type=$1
   shift
 
-  local -a selected_paths=("${(@f)$(fd "${file_type}" --hidden | fzf --scheme=path --multi)}")
+  local -a selected_paths=("${(@f)$(fd --type "${file_type}" --hidden | fzf --scheme path --multi)}")
   if [[ -z ${selected_paths[@]} ]]; then
     return 1
   fi
@@ -37,15 +37,15 @@ select_paths() {
 }
 
 fdir() {
-  select_paths --type=d "$@"
+  select_paths d "$@"
 }
 
 ff() {
-  select_paths --type=f "$@"
+  select_paths f "$@"
 }
 
 fh() {
-  local selected_command=$(fc -nl 1 | tail -r | fzf --scheme=history)
+  local selected_command=$(fc -nl 1 | tail -r | fzf --scheme history)
   print -z -- "${selected_command}"
 }
 
