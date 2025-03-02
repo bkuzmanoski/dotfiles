@@ -96,7 +96,7 @@ hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
   hs.mouse.absolutePosition(mousePosition)
 end)
 
--- Trigger MenuWhere when the app icon is clicked
+-- Trigger MenuWhere when the app icon is clicked in Sketchybar
 require("hs.ipc")
 
 hs.sketchybar = {}
