@@ -108,7 +108,7 @@ done
 log "Installing Brewfile bundle."
 
 if [[ -f "${SCRIPT_DIR}/Brewfile" ]]; then
-  if ! brew bundle --file="${SCRIPT_DIR}/Brewfile"; then
+  if ! brew bundle --file "${SCRIPT_DIR}/Brewfile"; then
     log_error "brew bundle failed, exiting."
     exit 1
   fi

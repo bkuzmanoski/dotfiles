@@ -1,18 +1,18 @@
 export EDITOR="micro"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
-export MANPAGER="col -bx | bat --language=man --style=plain" # Use bat for man pages
+export MANPAGER="col -bx | bat --language man --style plain" # Use bat for man pages
 export MICRO_TRUECOLOR=1
 
 alias ..="cd .."
 alias ...="cd ../.."
 alias cat="bat"
 alias cp="cp -iv"
-alias fd="fd --hidden --color=never"
+alias fd="fd --hidden --color never"
 alias ll="eza --all --group-directories-first --header --long --no-permissions --no-user"
 alias llt="eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level=3"
 alias ls="eza --all --group-directories-first --oneline"
-alias lt="eza --all --group-directories-first --tree --level=3"
-alias micro="update_theme && micro --colorscheme=\${THEME}"
+alias lt="eza --all --group-directories-first --tree --level 3"
+alias micro="update_theme && micro --colorscheme \${THEME}"
 alias mkdir="mkdir -pv"
 alias mv="mv -i"
 alias rm="rm -i"
