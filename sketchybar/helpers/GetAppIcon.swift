@@ -5,6 +5,21 @@ enum GetAppIconError: Error {
   case saveError(Error)
 }
 
+func usage() {
+  let progName = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "GetAppIcon"
+  print("Usage: \(progName) <bundleId>")
+}
+
+func parseArguments() -> String {
+  // Drop the executable name and validate the remaining arguments.
+  let arguments = CommandLine.arguments.dropFirst()
+  guard arguments.count == 1, let bundleId = arguments.first, !bundleId.isEmpty else {
+    usage()
+    exit(1)
+  }
+  return bundleId
+}
+
 func ensureCacheDirectory(at path: String) throws {
   let fileManager = FileManager.default
   if !fileManager.fileExists(atPath: path) {
@@ -23,31 +38,13 @@ func getIcon(for bundleId: String) -> NSImage? {
   return NSImage(contentsOfFile: genericIconPath)
 }
 
-func addShadow(to image: NSImage) -> NSImage {
+func addShadow(to image: NSImage, offset: CGSize, blur: Double, color: CGColor) -> NSImage {
   let resultImage = NSImage(size: image.size)
   resultImage.lockFocus()
-  NSColor.clear.set()
-  NSRect(origin: .zero, size: image.size).fill()
-
   if let context = NSGraphicsContext.current?.cgContext {
-    let blurRadius: CGFloat = 1.0
-    let offset = NSSize(width: 0, height: -1)
-    context.setShadow(
-      offset: CGSize(width: offset.width, height: offset.height),
-      blur: blurRadius,
-      color: NSColor.black.withAlphaComponent(0.25).cgColor
-    )
-
-    let insetAmount: CGFloat = 1.0
-    let drawRect = NSRect(
-      x: insetAmount,
-      y: insetAmount,
-      width: image.size.width,
-      height: image.size.height
-    )
-    image.draw(in: drawRect)
+    context.setShadow(offset: offset, blur: blur, color: color)
   }
-
+  image.draw(in: NSRect(origin: .zero, size: image.size))
   resultImage.unlockFocus()
   return resultImage
 }
@@ -55,19 +52,34 @@ func addShadow(to image: NSImage) -> NSImage {
 func resize(_ image: NSImage, to size: NSSize) -> NSImage {
   let resizedImage = NSImage(size: size)
   resizedImage.lockFocus()
-  image.draw(
-    in: NSRect(origin: NSPoint(x: 0, y: -0.5), size: size),  // Shift down by 0.5pt to center
-    from: NSRect(origin: .zero, size: image.size),
-    operation: .sourceOver,
-    fraction: 1.0)
+  image.draw(in: NSRect(origin: .zero, size: size))
   resizedImage.unlockFocus()
   return resizedImage
 }
 
+func offset(_ image: NSImage, by offset: NSPoint) -> NSImage {
+  let offsetImage = NSImage(size: image.size)
+  offsetImage.lockFocus()
+  image.draw(
+    at: offset,
+    from: NSRect(origin: .zero, size: image.size),
+    operation: .copy,
+    fraction: 1.0
+  )
+  offsetImage.unlockFocus()
+  return offsetImage
+}
+
 func writePNGData(from image: NSImage, to outputPath: String) throws {
-  let iconWithShadow = addShadow(to: image)
-  let resizedIcon = resize(iconWithShadow, to: NSSize(width: 22, height: 22))
-  guard let tiffData = resizedIcon.tiffRepresentation,
+  let iconWithShadow = addShadow(
+    to: image,
+    offset: CGSize(width: 0.0, height: -1.0),
+    blur: 1.5,
+    color: NSColor.black.withAlphaComponent(0.25).cgColor
+  )
+  let resizedIcon = resize(iconWithShadow, to: NSSize(width: 23, height: 23))
+  let offsetIcon = offset(resizedIcon, by: NSPoint(x: -0.5, y: 0))
+  guard let tiffData = offsetIcon.tiffRepresentation,
     let bitmapRep = NSBitmapImageRep(data: tiffData),
     let pngData = bitmapRep.representation(using: .png, properties: [:])
   else {
@@ -82,13 +94,7 @@ func writePNGData(from image: NSImage, to outputPath: String) throws {
 }
 
 func main() {
-  guard CommandLine.arguments.count == 2 else {
-    let scriptName = (CommandLine.arguments[0] as NSString).lastPathComponent
-    print("Usage: \(scriptName) <bundleId>")
-    exit(1)
-  }
-
-  let bundleId = CommandLine.arguments[1]
+  let bundleId = parseArguments()
   let fileManager = FileManager.default
   let cachePath = NSString(string: "~/.cache/sketchybar/icons").expandingTildeInPath
 
