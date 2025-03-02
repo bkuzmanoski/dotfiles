@@ -95,3 +95,17 @@ hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
   hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
   hs.mouse.absolutePosition(mousePosition)
 end)
+
+-- Trigger MenuWhere when the app icon is clicked
+require("hs.ipc")
+
+hs.sketchybar = {}
+hs.sketchybar.triggerAppMenu = function(x, y, mouseReturnDelay)
+  local screen = hs.mouse.getCurrentScreen()
+  local clickPosition = { x = screen:fullFrame().x + x, y = screen:fullFrame().y + y }
+  local mousePosition = hs.mouse.absolutePosition()
+  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseDown, clickPosition, { "cmd" }):post()
+  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.rightMouseUp, clickPosition, { "cmd" }):post()
+  hs.timer.usleep(mouseReturnDelay * 1000)
+  hs.mouse.absolutePosition(mousePosition)
+end
