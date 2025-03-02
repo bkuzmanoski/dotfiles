@@ -6,7 +6,7 @@ case "${SENDER}" in
   "appearance_change")
     sketchybar \
       --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
-      --set current_app_name label.color="${FOREGROUND_COLOR}"
+      --set current_app_name label.color="${TEXT_DEFAULT_COLOR}"
     ;;
   "app_change")
     # front_app_changed is not used here because:
@@ -28,7 +28,7 @@ case "${SENDER}" in
       arguments+=(--set current_app_icon drawing=off)
     fi
 
-    arguments+=(--set current_app_name label="${APP_NAME}" label.color="${FOREGROUND_COLOR}")
+    arguments+=(--set current_app_name label="${APP_NAME}" label.color="${TEXT_DEFAULT_COLOR}")
 
     sketchybar "${arguments[@]}"
     ;;
