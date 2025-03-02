@@ -242,7 +242,7 @@ defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before k
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
-defaults_write NSGlobalDomain NSUserKeyEquivalents -dict-add "Show Writing Tools" "@~^\$w" # Map Show Writing Tools to ◆W
+defaults_write NSGlobalDomain NSUserKeyEquivalents -dict-add "Show Writing Tools" "@~^\$w" # Map Show Writing Tools to ✦W
 defaults_write NSGlobalDomain NSWindowShouldDragOnGesture -bool true # Click anywhere in window to move it with Control + Command
 defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery

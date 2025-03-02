@@ -5,7 +5,7 @@
       "complex_modifications": {
         "rules": [
           {
-            "description": "Hyper Key: Caps Lock → Left Control + Left Option + Left Shift + Left Command",
+            "description": "[Hyper key] ⇪ = ⌃⌥⇧⌘",
             "manipulators": [
               {
                 "from": { "key_code": "caps_lock" },
@@ -20,7 +20,7 @@
             ]
           },
           {
-            "description": "Arrow Keys: Right Command + p/;/l/' → Up/Down/Left/Right",
+            "description": "[Arrow Keys] ⌘ + p/;/l/' = ↑/↓/←/→",
             "manipulators": [
               {
                 "from": {
@@ -69,7 +69,7 @@
             ]
           },
           {
-            "description": "Finder: Hyper Key + d/m → Move focus to the Dock/menu bar; Control Center: Hyper Key + c → Fn + c; Notification Center: Hyper Key + n → Fn + n",
+            "description": "[Workspace] Focus the Dock: ✦d, Focus the menu bar: ✦m, Toggle Control Center: ✦c, Toggle Notification Center: ✦n",
             "manipulators": [
               {
                 "from": {
@@ -154,8 +154,48 @@
             ]
           },
           {
-            "description": "Mission Control: Hyper Key + Left/Right → Move left/right a space, Hyper Key + 1–5 → Move to space 1–5",
+            "description": "[Mission Control] Application windows: ✦↑, Show Desktop: ✦↓, Move space: ✦ + ←/→ and ✦ + 1–5",
             "manipulators": [
+              {
+                "from": {
+                  "key_code": "up_arrow",
+                  "modifiers": {
+                    "mandatory": [
+                      "left_control",
+                      "left_option",
+                      "left_shift",
+                      "left_command"
+                    ]
+                  }
+                },
+                "to": [
+                  {
+                    "key_code": "down_arrow",
+                    "modifiers": ["control"]
+                  }
+                ],
+                "type": "basic"
+              },
+              {
+                "from": {
+                  "key_code": "down_arrow",
+                  "modifiers": {
+                    "mandatory": [
+                      "left_control",
+                      "left_option",
+                      "left_shift",
+                      "left_command"
+                    ]
+                  }
+                },
+                "to": [
+                  {
+                    "key_code": "f11",
+                    "modifiers": ["fn"]
+                  }
+                ],
+                "type": "basic"
+              },
               {
                 "from": {
                   "key_code": "left_arrow",
