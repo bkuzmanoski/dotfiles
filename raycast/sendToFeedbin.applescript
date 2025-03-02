@@ -36,7 +36,7 @@ delay 0.5
 
 -- Run the Raycast extension to email selected text
 do shell script "open \"raycast://extensions/peduarte/dash-off/email-form\""
-delay 0.5
+delay 1
 tell application "System Events" to keystroke "v" using command down
 delay 0.1
 tell application "System Events" to keystroke return using command down
