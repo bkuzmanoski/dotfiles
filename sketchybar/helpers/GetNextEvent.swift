@@ -16,6 +16,33 @@ struct EventStatus {
   let timeLabel: String
 }
 
+var shouldOpenURL = false
+
+func usage() {
+  let progName = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "GetNextEvent"
+  print(
+    """
+    Usage: \(progName) [--open-url]
+
+      --open-url    Open the URL associated with the next event instead of printing its details.
+    """)
+}
+
+func parseArguments() {
+  let arguments = CommandLine.arguments.dropFirst()  // drop executable name
+  for arg in arguments {
+    switch arg {
+    case "--open-url":
+      shouldOpenURL = true
+    default:
+      usage()
+      exit(1)
+    }
+  }
+}
+
+parseArguments()
+
 private func formatTimeLabel(prefix: String = "", _ minutes: Int, suffix: String = "") -> String {
   let timeString: String
   if minutes >= 60 {
@@ -105,7 +132,7 @@ eventStore.requestFullAccessToEvents { granted, _ in handleCalendarAccess(grante
 
 func handleCalendarAccess(granted: Bool) {
   guard granted else {
-    print("Calendar access not granted.")
+    print("Calendar access not granted")
     semaphore.signal()
     return
   }
@@ -130,8 +157,7 @@ func handleCalendarAccess(granted: Bool) {
     }
 
   if let nextEvent = sortedEvents.first {
-    let arguments = CommandLine.arguments
-    if arguments.contains("--open-url") {
+    if shouldOpenURL {
       openURL(for: nextEvent.0)
     } else {
       let eventTitle = nextEvent.0.title.trimmingCharacters(in: .whitespacesAndNewlines)

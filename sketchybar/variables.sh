@@ -1,10 +1,11 @@
 # Options
-ADAPTIVE=1                # 0: use DEFAULT_THEME, 1: use system settings
-DEFAULT_THEME="dark"      # "light" or "dark"
-ANIMATION_CURVE="sin"     # linear, quadratic, tanh, sin, exp, or circ
-ANIMATION_DURATION=12     # n/60 seconds
+FOLLOW_SYSTEM_THEME=1                       # 0: use DEFAULT_THEME, 1: switch according to system appearance
+DEFAULT_THEME="dark"                        # "light" or "dark"
+ANIMATION_CURVE="sin"                       # linear, quadratic, tanh, sin, exp, or circ
+ANIMATION_DURATION=6                        # n/60 seconds
+UPDATE_FREQUENCY=$((60 - $(date '+%-S')))   # Update frequency in seconds for non-event-based items
 
-# Define themes
+# Themes
 typeset -A light=(
   [FOREGROUND_COLOR]=0xf2000000
   [FOREGROUND_WARNING_COLOR]=0xfff53126
@@ -20,13 +21,11 @@ typeset -A dark=(
   [BACKGROUND_ACTIVE_COLOR]=0x3affffff
 )
 
-# Determine theme
 theme="${DEFAULT_THEME}"
-if [[ "${ADAPTIVE}" -eq 1 ]]; then
+if [[ "${FOLLOW_SYSTEM_THEME}" -eq 1 ]]; then
   theme=$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && print "dark" || print "light")
 fi
 
-# Set color variables
 for key in ${(k)${(P)theme}}; do
   eval "${key}=${${(P)theme}[${key}]}"
 done

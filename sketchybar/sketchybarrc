@@ -1,11 +1,5 @@
 #!/bin/zsh
 
-"${CONFIG_DIR}/build_binaries.sh"
-
-if ! pgrep -f "${CONFIG_DIR}/events/bin/SBEventProvider" > /dev/null 2>&1; then
-  "${CONFIG_DIR}/events/bin/SBEventProvider" &
-fi
-
 bar=(
   display="all"
   height=40
@@ -83,9 +77,10 @@ sketchybar \
   --add event calendar_update \
   --add item current_app_icon left \
   --set current_app_icon "${current_app_icon[@]}" \
+  --subscribe current_app_icon mouse.entered mouse.clicked mouse.exited \
   --add item current_app_name left \
   --set current_app_name "${current_app_name[@]}" \
-  --subscribe current_app_name appearance_change app_change \
+  --subscribe current_app_name app_change appearance_change \
   --add item time right \
   --set time "${time[@]}" \
   --subscribe time appearance_change system_woke \
@@ -93,8 +88,17 @@ sketchybar \
   --set date "${date[@]}" \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
-  --subscribe battery_status power_source_change \
+  --subscribe battery_status appearance_change power_source_change system_woke \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event calendar_update mouse.entered	mouse.clicked mouse.exited \
-  --update
+  --subscribe next_event calendar_update appearance_change mouse.entered	mouse.clicked mouse.exited \
+
+"${CONFIG_DIR}/build_binaries.sh"
+
+sketchybar --update
+
+if pgrep -f "${CONFIG_DIR}/events/bin/SBEventProvider" > /dev/null 2>&1; then
+  pkill -f "${CONFIG_DIR}/events/bin/SBEventProvider"
+fi
+
+"${CONFIG_DIR}/events/bin/SBEventProvider" &
