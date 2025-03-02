@@ -83,19 +83,6 @@ positionAndTile.hotkeys.tileTopAndBottomRight = { modifiers = { "option", "comma
 positionAndTile.hotkeys.tileBottomAndTopRight = { modifiers = { "option", "shift", "command" }, key = "g" }
 positionAndTile.init()
 
--- Focus or open a Finder window
-hs.hotkey.bind({ "control", "option", "shift", "command" }, "f", function()
-  hs.application.launchOrFocus("Finder")
-end)
-
--- Show all spaces
-hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
-  local mousePosition = hs.mouse.absolutePosition()
-  hs.mouse.absolutePosition({ x = 10, y = 10 })
-  hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
-  hs.mouse.absolutePosition(mousePosition)
-end)
-
 -- Trigger MenuWhere when the app icon is clicked in Sketchybar
 require("hs.ipc")
 
@@ -109,3 +96,16 @@ hs.sketchybar.triggerAppMenu = function(x, y, mouseReturnDelay)
   hs.timer.usleep(mouseReturnDelay * 1000)
   hs.mouse.absolutePosition(mousePosition)
 end
+
+-- Show all spaces
+hs.hotkey.bind({ "control", "option", "shift", "command" }, "space", function()
+  local mousePosition = hs.mouse.absolutePosition()
+  hs.mouse.absolutePosition({ x = 10, y = 10 })
+  hs.eventtap.keyStroke({ "fn", "ctrl" }, 'up')
+  hs.mouse.absolutePosition(mousePosition)
+end)
+
+-- Focus or open a Finder window
+hs.hotkey.bind({ "control", "option", "shift", "command" }, "f", function()
+  hs.application.launchOrFocus("Finder")
+end)
