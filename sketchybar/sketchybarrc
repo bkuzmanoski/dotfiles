@@ -8,7 +8,7 @@ fi
 
 bar=(
   display="all"
-  height=39
+  height=40
   color=0x00000000
   padding_left=16
   padding_right=16
@@ -19,53 +19,60 @@ defaults=(
   label.drawing=off # Same for labels...
   label.font="SF Pro:Medium:13"
   label.padding_right=1 # Some strings are clipped by 1 pixel
-  padding_right=12
 )
 
 current_app_icon=(
   background.drawing=on
+  background.height=24
+  background.corner_radius=6
   background.image.scale=0.5
+  background.image.padding_left=1
   padding_right=6
+  script="${CONFIG_DIR}/plugins/app_menu.sh"
 )
 
 current_app_name=(
-  script="${CONFIG_DIR}/plugins/current_app.sh"
   label.drawing=on
   label.font="SF Pro:Bold:13"
+  padding_right=6
+  script="${CONFIG_DIR}/plugins/current_app.sh"
 )
 
 next_event=(
-  script="${CONFIG_DIR}/plugins/next_event.sh"
-  click_script="${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url"
   drawing=off
   label.drawing=on
-  label.padding_left=8
-  label.padding_right=8
-  background.height=23
-  background.corner_radius=8
+  label.padding_left=9
+  label.padding_right=10
+  background.corner_radius=6
+  background.height=24
   blur_radius=30
+  padding_right=12
+  script="${CONFIG_DIR}/plugins/next_event.sh"
+  click_script="${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url"
 )
 
 battery_status=(
-  script="${CONFIG_DIR}/plugins/battery_status.sh"
-  icon="􀛩"
   drawing=off
+  icon="􀛩"
   icon.drawing=on
   icon.font="SF Pro:Light:15"
   icon.padding_left=3
   icon.padding_right=6
   label.drawing=on
+  padding_right=8
+  script="${CONFIG_DIR}/plugins/battery_status.sh"
 )
 
 date=(
   label.drawing=on
+  padding_left=4
   padding_right=6
 )
 
 time=(
-  script="${CONFIG_DIR}/plugins/datetime.sh"
   label.drawing=on
-  padding_right=0
+  padding_right=2
+  script="${CONFIG_DIR}/plugins/datetime.sh"
 )
 
 sketchybar \
