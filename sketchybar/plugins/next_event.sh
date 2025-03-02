@@ -6,7 +6,7 @@ case "${SENDER}" in
   "appearance_change")
     sketchybar \
       --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
-      --set next_event label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}"
+      --set next_event label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
   "mouse.entered")
     sketchybar \
@@ -16,7 +16,7 @@ case "${SENDER}" in
   "mouse.exited")
     sketchybar \
       --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
-      --set next_event background.color="${BACKGROUND_COLOR}"
+      --set next_event background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
   "mouse.clicked")
     sketchybar --set next_event background.color="${BACKGROUND_ACTIVE_COLOR}"
@@ -29,7 +29,7 @@ case "${SENDER}" in
     if [[ $? -ne 0 ]] || [[ -z "${next_event}" ]]; then
       sketchybar --set next_event drawing=off
     else
-      sketchybar --set next_event drawing=on label="${next_event}" label.color="${FOREGROUND_COLOR}" background.color="${BACKGROUND_COLOR}" update_freq=${UPDATE_FREQUENCY}
+      sketchybar --set next_event drawing=on label="${next_event}" label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}" update_freq=${UPDATE_FREQUENCY}
     fi
     ;;
 esac
