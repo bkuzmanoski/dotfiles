@@ -8,54 +8,13 @@ struct SBEvent {
   static let calendarUpdate = "calendar_update"
 }
 
-var execPath = "/opt/homebrew/bin/sketchybar"
-var triggerDelay: Double = 0.0
-
-func usage() {
-  let progName = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "SBEventProvider"
-  print(
-    """
-    Usage: \(progName) [--sketchybar <path>] [--delay <seconds>]
-
-      --sketchybar    Path to the sketchybar executable. Default: /opt/homebrew/bin/sketchybar.
-      --delay         Delay (in seconds) before the initial \(SBEvent.appChange) event trigger. Default: 0.
-    """)
-}
-
-func parseArguments() {
-  var iterator = CommandLine.arguments.dropFirst().makeIterator()
-
-  while let arg = iterator.next() {
-    switch arg {
-    case "--sketchybar":
-      guard let value = iterator.next() else {
-        usage()
-        exit(1)
-      }
-      execPath = value
-
-    case "--delay":
-      guard let value = iterator.next(), let delay = Double(value) else {
-        usage()
-        exit(1)
-      }
-      triggerDelay = delay
-
-    default:
-      usage()
-      exit(1)
-    }
-  }
-}
-parseArguments()
-
 func triggerEvent(_ event: String, parameters: [String] = []) {
   let task = Process()
   let pipe = Pipe()
 
   task.standardOutput = pipe
   task.standardError = pipe
-  task.executableURL = URL(fileURLWithPath: execPath)
+  task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/sketchybar")
 
   var args = ["--trigger", event]
   args.append(contentsOf: parameters)
@@ -104,15 +63,13 @@ func getMenuBarAppInfo() -> (bundleID: String, name: String) {
 
 let (initBundleID, initAppName) = getMenuBarAppInfo()
 if !initBundleID.isEmpty {
-  DispatchQueue.main.asyncAfter(deadline: .now() + triggerDelay) {
-    lastBundleID = initBundleID
-    triggerEvent(
-      SBEvent.appChange,
-      parameters: [
-        "BUNDLE_ID=\(initBundleID)",
-        "APP_NAME=\(initAppName)",
-      ])
-  }
+  lastBundleID = initBundleID
+  triggerEvent(
+    SBEvent.appChange,
+    parameters: [
+      "BUNDLE_ID=\(initBundleID)",
+      "APP_NAME=\(initAppName)",
+    ])
 }
 
 let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
