@@ -23,7 +23,7 @@ current_app_icon=(
   background.image.padding_left=1
   padding_right=6
   script="${CONFIG_DIR}/plugins/app_menu.sh"
-  click_script="hs -c \"hs.sketchybar.triggerAppMenu(8, 45, 20)\""
+  click_script="hs -c \"hs.sketchybar.triggerAppMenu(8, 45, 50)\""
 )
 
 current_app_name=(
