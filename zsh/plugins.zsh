@@ -12,7 +12,7 @@ FZF_TAB_DIR="${HOME}/.zsh/fzf-tab"
 
 if [[ ! -d "${FZF_TAB_DIR}" ]]; then
   print "Installing fzf-tab..."
-  git clone https://github.com/Aloxaf/fzf-tab "$FZF_TAB_DIR" || { print "fzf-tab installation failed.\n"; exit 1; }
+  git clone https://github.com/Aloxaf/fzf-tab "${FZF_TAB_DIR}" || { print "fzf-tab installation failed.\n"; exit 1; }
   date +%s > "${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update"
   print
 fi
