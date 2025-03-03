@@ -89,4 +89,3 @@ let moveBack = CGEvent(
   mouseButton: .left
 )
 moveBack?.post(tap: .cghidEventTap)
-usleep(10000)
