@@ -7,6 +7,7 @@ scripts=(
   ["SBEventProvider"]="${SCRIPT_DIR}/events/SBEventProvider.swift"
   ["GetNextEvent"]="${SCRIPT_DIR}/helpers/GetNextEvent.swift"
   ["GetAppIcon"]="${SCRIPT_DIR}/helpers/GetAppIcon.swift"
+  ["TriggerAppMenu"]="${SCRIPT_DIR}/helpers/TriggerAppMenu.swift"
 )
 
 for binary in ${(k)scripts}; do
