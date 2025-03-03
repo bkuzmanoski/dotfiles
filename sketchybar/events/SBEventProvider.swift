@@ -9,16 +9,16 @@ struct SBEvent {
 }
 
 func triggerEvent(_ event: String, parameters: [String] = []) {
+  var args = ["--trigger", event]
+  args.append(contentsOf: parameters)
+
   let task = Process()
   let pipe = Pipe()
 
+  task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/sketchybar")
+  task.arguments = args
   task.standardOutput = pipe
   task.standardError = pipe
-  task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/sketchybar")
-
-  var args = ["--trigger", event]
-  args.append(contentsOf: parameters)
-  task.arguments = args
 
   do {
     try task.run()

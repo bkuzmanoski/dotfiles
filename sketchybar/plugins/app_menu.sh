@@ -14,8 +14,8 @@ case "${SENDER}" in
       --set current_app_icon background.color=0x00ffffff
     ;;
   "mouse.clicked")
-    sketchybar --set next_event background.color="${BACKGROUND_ACTIVE_COLOR}"
+    sketchybar --set current_app_icon background.color="${BACKGROUND_ACTIVE_COLOR}"
     sleep $(print "${ANIMATION_DURATION} / 100" | bc -l)
-    sketchybar --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
+    sketchybar --set current_app_icon background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
 esac
