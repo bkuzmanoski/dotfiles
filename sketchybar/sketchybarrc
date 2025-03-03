@@ -23,7 +23,7 @@ current_app_icon=(
   background.image.padding_left=1
   padding_right=6
   script="${CONFIG_DIR}/plugins/app_menu.sh"
-  click_script="hs -c \"hs.sketchybar.triggerAppMenu(8, 45, 50)\""
+  click_script="${CONFIG_DIR}/helpers/bin/TriggerAppMenu 8 45"
 )
 
 current_app_name=(
@@ -92,7 +92,7 @@ sketchybar \
   --subscribe battery_status appearance_change power_source_change system_woke \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event calendar_update appearance_change system_woke mouse.entered	mouse.clicked mouse.exited \
+  --subscribe next_event calendar_update appearance_change system_woke mouse.entered mouse.clicked mouse.exited \
 
 "${CONFIG_DIR}/build_binaries.sh"
 sketchybar --update
