@@ -13,8 +13,6 @@ module.hotkeys = {
   positionReasonableSize = {},
   positionAlmostMaximize = {},
   positionMaximize = {},
-  positionTopRight = {},
-  positionBottomCenter = {},
   tileLeft = {},
   tileLeftAndRight = {},
   tileRight = {},
@@ -64,13 +62,13 @@ local function position(location)
     return
   end
 
-  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
   local windowFrame = window:frame()
 
   if location == "center" or location == "reasonableSize" or location == "almostMaximize" then
     if location == "reasonableSize" then
-      windowFrame.w = 800
-      windowFrame.h = 600
+      windowFrame.w = math.floor(screenFrame.w * 0.7)
+      windowFrame.h = math.floor(screenFrame.h * 0.7)
     end
     if location == "almostMaximize" then
       windowFrame.w = math.floor(screenFrame.w * 0.9)
@@ -80,12 +78,6 @@ local function position(location)
     windowFrame.y = screenFrame.y + math.floor((screenFrame.h - windowFrame.h) / 2)
   elseif location == "maximize" then
     windowFrame = screenFrame
-  elseif location == "topRight" then
-    windowFrame.x = screenFrame.x + screenFrame.w - windowFrame.w
-    windowFrame.y = screenFrame.y
-  elseif location == "bottomCenter" then
-    windowFrame.x = screenFrame.x + math.floor((screenFrame.w - windowFrame.w) / 2)
-    windowFrame.y = screenFrame.y + screenFrame.h - windowFrame.h
   end
 
   window:setFrame(windowFrame)
@@ -105,7 +97,7 @@ local function tileLeftRight(direction)
   end
 
   local ratio = splitRatios[currentSplitRatioIndex]
-  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
   screenFrame.w = screenFrame.w - module.padding
 
   local leftFrame = screenFrame:copy()
@@ -143,7 +135,7 @@ local function tileTopBottom(direction)
   end
 
   local ratio = splitRatios[2] -- 1/3
-  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
   screenFrame.w = screenFrame.w - module.padding
   screenFrame.h = screenFrame.h - module.padding
 
@@ -175,21 +167,19 @@ end
 
 function module.init()
   local handlers = {
-    -- Positioning handlers
+    -- Positioning
     positionCenter = function() position("center") end,
     positionReasonableSize = function() position("reasonableSize") end,
     positionAlmostMaximize = function() position("almostMaximize") end,
     positionMaximize = function() position("maximize") end,
-    positionTopRight = function() position("topRight") end,
-    positionBottomCenter = function() position("bottomCenter") end,
 
-    -- Horizontal tiling handlers
+    -- Horizontal tiling
     tileLeft = function() tileLeftRight("left") end,
     tileRight = function() tileLeftRight("right") end,
     tileLeftAndRight = function() tileLeftRight("leftAndRight") end,
     tileRightAndLeft = function() tileLeftRight("rightAndLeft") end,
 
-    -- Vertical tiling handlers
+    -- Vertical tiling
     tileTopRight = function() tileTopBottom("topRight") end,
     tileBottomRight = function() tileTopBottom("bottomRight") end,
     tileTopAndBottomRight = function() tileTopBottom("topAndBottomRight") end,

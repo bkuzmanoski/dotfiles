@@ -10,7 +10,7 @@ local function handleWindowEvent(window)
     return
   end
 
-  local screenFrame = window:screen():fullFrame()
+  local screenFrame = window:screen():frame()
   local windowFrame = window:frame()
   local adjustedWindowFrame = utils.adjustWindowPosition(screenFrame, windowFrame, module.topOffset, module.padding)
   if windowFrame.x ~= adjustedWindowFrame.x or

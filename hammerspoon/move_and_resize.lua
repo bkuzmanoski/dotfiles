@@ -1,108 +1,96 @@
-local utils = require("utils")
 local module = {}
-local bindings = {}
+local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
+local _ = hs.application -- Required by hs.window.orderedWindows(), but not invoked by it
+local keyboardTap, mouseTap, activeWindow, activeOperation
 
-module.moveAmount = 0
-module.resizeAmount = 0
-module.hotkeys = {
-  moveUp = {},
-  moveDown = {},
-  moveLeft = {},
-  moveRight = {},
-  resizeUp = {},
-  resizeDown = {},
-  resizeLeft = {},
-  resizeRight = {},
-  grow = {},
-  shrink = {}
-}
+module.moveModifiers = {}
+module.resizeModifiers = {}
 
-local function getWindow(resizeable)
-  local window = hs.window.focusedWindow()
-  if not window or
-      window:isFullscreen() or
-      (resizeable and not window:isMaximizable()) or
-      not window:isVisible() then
-    utils.playAlert()
-    return nil
+local function exactModifiersMatch(requiredModifiers, flags)
+  local requiredLookup = {}
+  for _, modifier in ipairs(requiredModifiers) do
+    requiredLookup[modifier] = true
   end
-
-  return window
+  for _, modifier in ipairs(allModifiers) do
+    if (requiredLookup[modifier] and not flags[modifier]) or
+        (not requiredLookup[modifier] and flags[modifier]) then
+      return false
+    end
+  end
+  return true
 end
 
-local function move(x, y)
-  local window = getWindow(false)
-  if not window then
-    return
-  end
-
-  local frame = window:frame()
-  frame.x = frame.x + x
-  frame.y = frame.y + y
-  window:setFrame(frame, 0)
-end
-
-local function resize(x, y)
-  local window = getWindow(true)
-  if not window then
-    return
-  end
-
-  local frame = window:frame()
-  frame.w = frame.w + x
-  frame.h = frame.h + y
-  window:setFrame(frame, 0)
-end
-
-local function scale(amount)
-  local window = getWindow(true)
-  if not window then
-    return
-  end
-
-  local frame = window:frame()
-  frame.x = frame.x - math.floor(amount / 2)
-  frame.y = frame.y - math.floor(amount / 2)
-  frame.w = frame.w + amount
-  frame.h = frame.h + amount
-  window:setFrame(frame, 0)
-end
-
-function module.init()
-  local handlers = {
-    -- Moving handlers
-    moveUp = function() move(0, -module.moveAmount) end,
-    moveDown = function() move(0, module.moveAmount) end,
-    moveLeft = function() move(-module.moveAmount, 0) end,
-    moveRight = function() move(module.moveAmount, 0) end,
-
-    -- Resizing handlers
-    resizeUp = function() resize(0, -module.resizeAmount) end,
-    resizeDown = function() resize(0, module.resizeAmount) end,
-    resizeLeft = function() resize(-module.resizeAmount, 0) end,
-    resizeRight = function() resize(module.resizeAmount, 0) end,
-    grow = function() scale(module.resizeAmount) end,
-    shrink = function() scale(-module.resizeAmount) end
-  }
-
-  for name, hotkey in pairs(module.hotkeys) do
-    if next(hotkey) and handlers[name] then
-      bindings[name] = hs.hotkey.bind(
-        hotkey.modifiers,
-        hotkey.key,
-        handlers[name],
-        nil,
-        handlers[name]
-      )
+local function getWindowUnderMouse()
+  local mousePosition = hs.geometry.new(hs.mouse.absolutePosition())
+  local screen = hs.mouse.getCurrentScreen()
+  for _, window in ipairs(hs.window.orderedWindows()) do
+    if screen == window:screen() and mousePosition:inside(window:frame()) and
+        window:isStandard() and not window:isFullscreen() then
+      return window
     end
   end
 end
 
-function module.cleanup()
-  for _, binding in pairs(bindings) do
-    binding:delete()
+local function startOperation(operationType)
+  activeWindow = getWindowUnderMouse()
+  if not activeWindow or (operationType == "resize" and not activeWindow:isMaximizable()) then
+    return
   end
-  bindings = {}
+
+  activeOperation = operationType
+  mouseTap:start()
+end
+
+local function stopOperation()
+  activeWindow = nil
+  activeOperation = nil
+  if mouseTap then
+    mouseTap:stop()
+  end
+end
+
+local function handleFlagsChange(event)
+  stopOperation()
+  local flags = event:getFlags()
+  if exactModifiersMatch(module.moveModifiers, flags) then
+    startOperation("move")
+  elseif exactModifiersMatch(module.resizeModifiers, flags) then
+    startOperation("resize")
+  end
+end
+
+local function handleMouseMove(event)
+  if activeWindow then
+    local frame = activeWindow:frame()
+    if activeOperation == "move" then
+      frame.x = frame.x + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaX)
+      frame.y = frame.y + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaY)
+    elseif activeOperation == "resize" then
+      frame.w = frame.w + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaX)
+      frame.h = frame.h + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaY)
+    end
+    activeWindow:setFrame(frame, 0)
+  end
+end
+
+function module.init()
+  if next(module.moveModifiers) or next(module.resizeModifiers) then
+    keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange)
+    keyboardTap:start()
+  end
+  mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove)
+end
+
+function module.cleanup()
+  stopOperation()
+  if keyboardTap then
+    keyboardTap:stop()
+    keyboardTap = nil
+  end
+  if mouseTap then
+    mouseTap:stop()
+    mouseTap = nil
+  end
 end
 
 return module
