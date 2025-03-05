@@ -28,8 +28,8 @@ local function moveToScreen(direction)
     return
   end
 
-  local fromFrame = fromScreen:fullFrame()
-  local toFrame = toScreen:fullFrame()
+  local fromFrame = fromScreen:frame()
+  local toFrame = toScreen:frame()
   local windowFrame = window:frame()
   local fromCenter = {
     x = fromFrame.x + fromFrame.w / 2,

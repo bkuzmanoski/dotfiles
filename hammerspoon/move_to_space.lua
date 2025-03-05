@@ -2,7 +2,6 @@ local utils = require("utils")
 local module = {}
 local bindings = {}
 
-module.allowDisplay = ""
 module.numberOfSpaces = 0
 module.hotkeys = {
   modifiers = {},
@@ -14,14 +13,12 @@ module.navigationHotkeyModifiers = {}
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
   local screen = focusedWindow:screen()
-  if screen:name() ~= module.allowDisplay or
-      not focusedWindow or
+  if not focusedWindow or
       not focusedWindow:isStandard() or
       focusedWindow:isFullscreen() then
     utils.playAlert()
     return nil, nil
   end
-
   return focusedWindow, screen
 end
 
@@ -38,7 +35,6 @@ local function getCurrentSpaceNumber(screen)
       break
     end
   end
-
   if not targetScreen then
     return nil, nil
   end
@@ -57,8 +53,9 @@ local function moveWindowToSpace(window, spaceNumber)
   local frame = window:frame()
   local mousePosition = hs.mouse.absolutePosition()
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
+  hs.timer.usleep(100000)
   hs.eventtap.keyStroke(module.navigationHotkeyModifiers, tostring(spaceNumber))
-  hs.timer.usleep(100000) -- Avoid flicker resulting from "dropping" the window before the space animation completes
+  hs.timer.usleep(100000)
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.mouse.absolutePosition(mousePosition)
 end
