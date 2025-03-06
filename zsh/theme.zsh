@@ -27,16 +27,14 @@ ZSH_HIGHLIGHT_STYLES[single-quoted-argument]="fg=2"
 ZSH_HIGHLIGHT_STYLES[suffix-alias]="fg=7,underline"
 ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 
-# Update theme variables based on macOS light/dark mode
 update_theme() {
   local macos_mode=$(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null)
 
-  # Set theme environment variables based on macOS setting
   if [[ ${macos_mode} == "Dark" ]]; then
-    export THEME="zenith-neutral"
+    export THEME="dark"
     export FZF_THEME="${FZF_BASE_COLORS},${FZF_DARK_COLORS}"
   else
-    export THEME="meridian-neutral"
+    export THEME="light"
     export FZF_THEME="${FZF_BASE_COLORS},${FZF_LIGHT_COLORS}"
   fi
 }

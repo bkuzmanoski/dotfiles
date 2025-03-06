@@ -1,47 +1,49 @@
-UPDATE_TIMESTAMPS_DIR="${HOME}/.update_timestamps"
-UPDATE_CHECKS=(
+typeset -A PLUGINS=(
+  ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab"
+  ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions"
+  ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting"
+)
+UPDATE_TIMESTAMPS_DIR="${HOME}/.zsh/.update_timestamps"
+UPDATE_REMINDERS=(
   # Format: [emoji]:[description]:[timestamp_file]:[update_command]
   "🍺:brew:${UPDATE_TIMESTAMPS_DIR}/brew_last_update:brewup"
   "📦:fnm:${UPDATE_TIMESTAMPS_DIR}/fnm_last_update:fnmup"
-  "🔍:fzf-tab:${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update:ftup"
-  "🤖:GitHub Copilot:${UPDATE_TIMESTAMPS_DIR}/gh_copilot_last_update:gh extension upgrade gh-copilot"
+  "🧩:Zsh plugins:${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update:zshup"
 )
 
-# Install plugins
-FZF_TAB_DIR="${HOME}/.zsh/fzf-tab"
-
-if [[ ! -d "${FZF_TAB_DIR}" ]]; then
-  print "Installing fzf-tab..."
-  git clone https://github.com/Aloxaf/fzf-tab "${FZF_TAB_DIR}" || { print "fzf-tab installation failed.\n"; exit 1; }
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update"
-  print
+if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
+  mkdir -p "${UPDATE_TIMESTAMPS_DIR}" > /dev/null
+  date +%s > "${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update" # Assume first run, plugin installation to follow
 fi
 
-gh_copilot=$(gh extension list | grep "copilot")
-if [[ -z "${gh_copilot}" ]]; then
-  print "Installing GitHub Copilot..."
-  gh extension install github/gh-copilot || { print "GitHub Copilot installation failed.\n"; exit 1; }
-  gh copilot alias -- zsh | sed -e 's/ghce()/ce()/g' -e 's/ghcs()/cs()/g' > ${HOME}/.zsh/gh_copilot.zsh
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/gh_copilot_last_update"
-  print
-fi
+install_plugins() {
+  for plugin in "${(k)PLUGINS[@]}"; do
+    local target_path="${HOME}/.zsh/${plugin}"
+    local git_repository="${PLUGINS[${plugin}]}"
 
-# Update reminders
-check_update_timestamps() {
+    if [[ ! -d "${target_path}" ]]; then
+      print -P "Installing %B${plugin}%b..."
+      git clone "${git_repository}" "${target_path}" || { print "${plugin} installation failed.\n"; }
+      print
+    fi
+  done
+}
+
+install_plugins
+
+check_last_update() {
   local now="$(date +%s)"
   local thirty_days=$((30 * 86400)) # 30 days in seconds
   local updates_required=0
 
-  [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]] && mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >&/dev/null
-
-  for check in "${UPDATE_CHECKS[@]}"; do
-    local parts=("${(@s.:.)check}")
+  for reminder in "${UPDATE_REMINDERS[@]}"; do
+    local parts=("${(@s.:.)reminder}")
     local emoji="${parts[1]}"
     local description="${parts[2]}"
     local timestamp_file="${parts[3]}"
     local command="${parts[4]}"
-
     local last_update=0
+
     if [[ -f "${timestamp_file}" ]]; then
       last_update="$(<"${timestamp_file}")"
       [[ "${last_update}" =~ ^[0-9]+$ ]] || last_update=0
@@ -58,25 +60,21 @@ check_update_timestamps() {
   (( updates_required )) && print
 }
 
-check_update_timestamps
+check_last_update
 
-# Update functions
 brewup() (
   cd ~/.dotfiles || { print ".dotfiles directory not found."; exit 1; }
 
   brew upgrade || { print "brew upgrade failed."; exit 1; }
   brew bundle || { print "brew bundle failed."; exit 1; }
   brew autoremove || { print "brew autoremove failed."; exit 1; }
-  brew cleanup || { print "brew cleanup failed."; exit 1; }
+  brew cleanup --prune all || { print "brew cleanup failed."; exit 1; }
 
   date +%s > "${UPDATE_TIMESTAMPS_DIR}/brew_last_update"
   print "brew update timestamp updated, next reminder in 30 days."
 )
 
 fnmup() {
-  set -e
-  set -u
-
   local current_version="$(fnm current)"
   local latest_version="$(fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)" || {
     print "Failed to fetch latest Node version."
@@ -93,8 +91,8 @@ fnmup() {
     print "Latest version: ${latest_version}"
     print
     print "New version available!"
-
     read -r "response?Install latest version? (y/N) "
+
     if [[ "${response}" =~ ^[Yy]$ ]]; then
       fnm install "${latest_version}" || {
         print "Failed to install Node ${latest_version}."
@@ -150,9 +148,14 @@ fnmup() {
   print "fnm update timestamp updated, next reminder in 30 days."
 }
 
-ftup() (
-  (cd "${FZF_TAB_DIR}" && git pull) || { print "fzf-tab update failed."; exit 1; }
+zshup() (
+  for plugin in "${(k)PLUGINS[@]}"; do
+    local plugin_path="${HOME}/.zsh/${plugin}"
+    print -P "Updating %B${plugin}%b..."
+    cd "${plugin_path}" && git pull || { print "${plugin} update failed."; exit 1; }
+    print
+  done
 
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/fzf_tab_last_update"
-  print "fzf-tab update timestamp updated, next reminder in 30 days."
+  date +%s > "${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update"
+  print "Zsh plugins update timestamp updated, next reminder in 30 days."
 )
