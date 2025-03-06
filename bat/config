@@ -1,4 +1,4 @@
---theme-light meridian-neutral
---theme-dark zenith-neutral
+--theme-light light
+--theme-dark dark
 
 --italic-text always
