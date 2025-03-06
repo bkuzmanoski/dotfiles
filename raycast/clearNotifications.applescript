@@ -61,13 +61,9 @@ on run
         end if
         set notificationCenterWindow to window "Notification Center"
         repeat
-          try
-            if not my traverseAndClearNotifications(notificationCenterWindow) then
-              exit repeat
-            end if
-          on error errMsg
-            return "Error: " & errMsg
-          end try
+          if not my traverseAndClearNotifications(notificationCenterWindow) then
+            exit repeat
+          end if
         end repeat
       end tell
     end tell
