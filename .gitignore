@@ -1,9 +1,7 @@
 **/bin/
 hammerspoon/Spoons/
-karabiner/automatic_backups/
 micro/*/
 !micro/colorschemes/
-!zsh/fzf-tab/
+zsh/*/
 **/*.sock
 .DS_Store
-claude/claude_desktop_config.json
