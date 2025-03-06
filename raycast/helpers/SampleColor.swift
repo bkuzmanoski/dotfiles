@@ -1,6 +1,3 @@
-// Tweaked version of the original script by Jesse Claven (https://github.com/jesse-c)
-// https://github.com/raycast/script-commands/blob/master/commands/system/sample-color.swift
-
 import AppKit
 
 extension NSColor {
@@ -12,22 +9,11 @@ extension NSColor {
   }
 }
 
-func copyToPasteboard(_ color: String) {
-  NSPasteboard.general.clearContents()
-  NSPasteboard.general.writeObjects([color as NSPasteboardWriting])
-}
-
-let sampler = NSColorSampler()
-
-sampler.show { selectedColor in
-  if let selectedColor = selectedColor {
-    let hexTuple = selectedColor.hexAlphaString
-    copyToPasteboard(hexTuple)
-    print("Sampled color: \(hexTuple)")
-    exit(0)
-  } else {
-    print("Sampled color: none")
-    exit(0)
+NSColorSampler().show { sampledColor in
+  if let hexTuple = sampledColor?.hexAlphaString {
+    print(hexTuple)
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.writeObjects([hexTuple as NSPasteboardWriting])
   }
 }
 
