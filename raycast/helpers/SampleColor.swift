@@ -11,10 +11,11 @@ extension NSColor {
 
 NSColorSampler().show { sampledColor in
   if let hexTuple = sampledColor?.hexAlphaString {
-    print(hexTuple)
     NSPasteboard.general.clearContents()
     NSPasteboard.general.writeObjects([hexTuple as NSPasteboardWriting])
+    print("Sampled color: \(hexTuple)")
   }
+  exit(0)
 }
 
 RunLoop.main.run()
