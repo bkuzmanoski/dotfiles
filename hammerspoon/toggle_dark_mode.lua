@@ -4,10 +4,9 @@ local binding
 module.hotkey = {}
 
 local function toggleDarkMode()
-  hs.osascript.javascript([[
-    Application("System Events").appearancePreferences.darkMode.set(
-      !Application("System Events").appearancePreferences.darkMode.get()
-    )]])
+  hs.osascript.applescript([[
+    tell application "System Events" to tell appearance preferences to set dark mode to not dark mode
+    ]])
 end
 
 function module.init()

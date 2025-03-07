@@ -10,7 +10,7 @@ local function handleWindowEvent(window)
     return
   end
 
-  local screenFrame = window:screen():frame()
+  local screenFrame = window:screen():fullFrame()
   local windowFrame = window:frame()
   local adjustedWindowFrame = utils.adjustWindowPosition(screenFrame, windowFrame, module.topOffset, module.padding)
   if windowFrame.x ~= adjustedWindowFrame.x or
@@ -21,7 +21,7 @@ end
 
 function module.init()
   windowFilter = hs.window.filter.new()
-      :setOverrideFilter({ allowRoles = "AXStandardWindow", fullscreen = false, visible = true })
+      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
       :subscribe(hs.window.filter.windowCreated, handleWindowEvent)
 end
 

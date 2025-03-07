@@ -25,21 +25,21 @@ module.hotkeys = {
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
-  local screen = focusedWindow:screen()
-
   if not focusedWindow or
       focusedWindow:isFullscreen() or
       not focusedWindow:isMaximizable() then
     return nil, nil, nil
   end
 
-  local windows = hs.window.orderedWindows()
+  local screen = focusedWindow:screen()
+  local windows = hs.window.filter.new():setOverrideFilter({
+    allowRoles = { "AXStandardWindow" },
+    currentSpace = true,
+    fullscreen = false,
+    visible = true
+  })
   for _, window in ipairs(windows) do
-    if window ~= focusedWindow and
-        window:screen() == screen and
-        not window:isFullscreen() and
-        window:isMaximizable() and
-        window:isVisible() then
+    if window ~= focusedWindow and window:isMaximizable() then
       return screen, focusedWindow, window
     end
   end
@@ -62,7 +62,7 @@ local function position(location)
     return
   end
 
-  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
   local windowFrame = window:frame()
 
   if location == "center" or location == "reasonableSize" or location == "almostMaximize" then
@@ -97,7 +97,7 @@ local function tileLeftRight(direction)
   end
 
   local ratio = splitRatios[currentSplitRatioIndex]
-  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
   screenFrame.w = screenFrame.w - module.padding
 
   local leftFrame = screenFrame:copy()
@@ -135,7 +135,7 @@ local function tileTopBottom(direction)
   end
 
   local ratio = splitRatios[2] -- 1/3
-  local screenFrame = getAdjustedScreenFrame(screen:frame(), module.topOffset, module.padding)
+  local screenFrame = getAdjustedScreenFrame(screen:fullFrame(), module.topOffset, module.padding)
   screenFrame.w = screenFrame.w - module.padding
   screenFrame.h = screenFrame.h - module.padding
 
