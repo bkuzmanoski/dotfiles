@@ -1,5 +1,6 @@
 local utils = require("utils")
 local module = {}
+local navigationHotkeyModifiers = { "ctrl" }
 local bindings = {}
 
 module.numberOfSpaces = 0
@@ -8,7 +9,6 @@ module.hotkeys = {
   previousSpaceKey = "",
   nextSpaceKey = ""
 }
-module.navigationHotkeyModifiers = {}
 
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
@@ -54,7 +54,7 @@ local function moveWindowToSpace(window, spaceNumber)
   local mousePosition = hs.mouse.absolutePosition()
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.timer.usleep(100000)
-  hs.eventtap.keyStroke(module.navigationHotkeyModifiers, tostring(spaceNumber))
+  hs.eventtap.keyStroke(navigationHotkeyModifiers, tostring(spaceNumber))
   hs.timer.usleep(100000)
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.mouse.absolutePosition(mousePosition)
@@ -87,7 +87,7 @@ end
 function module.init()
   if module.numberOfSpaces > 1 and module.numberOfSpaces <= 9 and
       next(module.hotkeys.modifiers) and
-      next(module.navigationHotkeyModifiers) then
+      next(navigationHotkeyModifiers) then
     for i = 1, module.numberOfSpaces do
       bindings[i] = hs.hotkey.bind(module.hotkeys.modifiers, tostring(i), function()
         local focusedWindow = getFocusedWindowAndScreen()

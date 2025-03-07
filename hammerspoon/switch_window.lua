@@ -3,21 +3,37 @@ local module = {}
 local bindings = {}
 
 module.hotkeys = {
+  focusFrontmost = {},
+  hints = {},
   left = {},
-  right = {},
-  hints = {}
+  right = {}
 }
 
+local function setUpWindowHints()
+  hs.hints.fontName = "SFPro-Medium"
+  hs.hints.fontSize = 13
+  hs.hints.showTitleThresh = 0
+  hs.hints.style = "vimperator"
+end
+
 local function focusWindow(direction)
-  local currentWindow = hs.window.focusedWindow()
-  local referenceFrame = hs.window.focusedWindow():frame()
   local windows = hs.window.filter.new():setOverrideFilter({
-    allowScreens = { hs.screen.mainScreen():id() },
     allowRoles = { "AXStandardWindow" },
     currentSpace = true,
     fullscreen = false,
     visible = true
   }):getWindows()
+  if #windows == 0 then
+    utils.playAlert()
+    return
+  end
+
+  if direction == "frontmost" then
+    windows[1]:focus()
+  end
+
+  local currentWindow = hs.window.focusedWindow()
+  local referenceFrame = hs.window.focusedWindow():frame()
   local candidateWindow = nil
   local minXDiff = math.huge
   for _, window in ipairs(windows) do
@@ -65,18 +81,27 @@ local function focusWindow(direction)
   end
 end
 
-local function setUpWindowHints()
-  hs.hints.fontName = "SFPro-Medium"
-  hs.hints.fontSize = 13
-  hs.hints.showTitleThresh = 0
-  hs.hints.style = "vimperator"
-end
-
 function module.init()
+  if next(module.hotkeys.focusFrontmost) then
+    bindings.focusFrontmost = hs.hotkey.bind(
+      module.hotkeys.focusFrontmost.modifiers,
+      module.hotkeys.focusFrontmost.key,
+      function()
+        focusWindow("frontmost")
+      end)
+  end
+  if next(module.hotkeys.hints) then
+    setUpWindowHints()
+    bindings.hints = hs.hotkey.bind(
+      module.hotkeys.hints.modifiers,
+      module.hotkeys.hints.key,
+      hs.hints.windowHints)
+  end
   if next(module.hotkeys.left) then
     bindings.left = hs.hotkey.bind(
       module.hotkeys.left.modifiers,
-      module.hotkeys.left.key, function()
+      module.hotkeys.left.key,
+      function()
         focusWindow("left")
       end)
   end
@@ -87,13 +112,6 @@ function module.init()
       function()
         focusWindow("right")
       end)
-  end
-  if next(module.hotkeys.hints) then
-    setUpWindowHints()
-    bindings.right = hs.hotkey.bind(
-      module.hotkeys.hints.modifiers,
-      module.hotkeys.hints.key,
-      hs.hints.windowHints)
   end
 end
 

@@ -1,10 +1,11 @@
 local module = {}
 local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
-local _ = hs.application -- Required by hs.window.orderedWindows(), but not invoked by it
 local keyboardTap, mouseTap, activeWindow, activeOperation
 
-module.moveModifiers = {}
-module.resizeModifiers = {}
+module.modifiers = {
+  move = {},
+  resize = {}
+}
 
 local function exactModifiersMatch(requiredModifiers, flags)
   local requiredLookup = {}
@@ -22,10 +23,13 @@ end
 
 local function getWindowUnderMouse()
   local mousePosition = hs.geometry.new(hs.mouse.absolutePosition())
-  local screen = hs.mouse.getCurrentScreen()
-  for _, window in ipairs(hs.window.orderedWindows()) do
-    if screen == window:screen() and mousePosition:inside(window:frame()) and
-        window:isStandard() and not window:isFullscreen() then
+  local windows = hs.window.filter.new():setOverrideFilter({
+    allowRoles = { "AXStandardWindow" },
+    fullscreen = false,
+    visible = true
+  }):getWindows()
+  for _, window in ipairs(windows) do
+    if mousePosition:inside(window:frame()) then
       return window
     end
   end
@@ -52,9 +56,9 @@ end
 local function handleFlagsChange(event)
   stopOperation()
   local flags = event:getFlags()
-  if exactModifiersMatch(module.moveModifiers, flags) then
+  if exactModifiersMatch(module.modifiers.move, flags) then
     startOperation("move")
-  elseif exactModifiersMatch(module.resizeModifiers, flags) then
+  elseif exactModifiersMatch(module.modifiers.resize, flags) then
     startOperation("resize")
   end
 end
@@ -74,11 +78,11 @@ local function handleMouseMove(event)
 end
 
 function module.init()
-  if next(module.moveModifiers) or next(module.resizeModifiers) then
+  if #module.modifiers.move > 0 or #module.modifiers.resize > 0 then
     keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange)
     keyboardTap:start()
+    mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove)
   end
-  mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove)
 end
 
 function module.cleanup()

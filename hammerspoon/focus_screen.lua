@@ -7,7 +7,10 @@ local function focusFrontmostWindow(screen)
       return
     end
 
-    local windows = hs.window.orderedWindows()
+    local windows = hs.window.filter.new():setOverrideFilter({
+      allowRoles = { "AXStandardWindow" },
+      visible = true
+    }):getWindows()
     for _, window in ipairs(windows) do
       if window:screen():id() == screen:id() and window:isVisible() then
         window:focus()
