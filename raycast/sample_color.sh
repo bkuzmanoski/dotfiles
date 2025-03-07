@@ -4,8 +4,7 @@
 # @raycast.title Sample Color
 # @raycast.mode silent
 # @raycast.packageName System
-# @raycast.author Brian Kuzmanoski
-# @raycast.authorURL https://github.com/bkuzmanoski
+# @raycast.icon icons/sample-color.png
 
 SCRIPT_DIR="${0:A:h}"
 source "${SCRIPT_DIR}/helpers/run_command.zsh"
