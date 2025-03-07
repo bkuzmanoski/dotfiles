@@ -1,19 +1,16 @@
 import Cocoa
 import Foundation
 
-@_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> Int
-
-@_silgen_name("CGSSetConnectionProperty")
-func CGSSetConnectionProperty(_ cid: Int, _ ownerCid: Int, _ key: CFString, _ value: CFTypeRef) -> Int
-
 func isMenuOpen() -> Bool {
-  let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: "com.manytricks.Menuwhere")
+  let runningApps = NSRunningApplication.runningApplications(
+    withBundleIdentifier: "com.manytricks.Menuwhere")
   guard !runningApps.isEmpty else {
     print("Info: MenuWhere is not running.")
     exit(0)
   }
-  guard let windowListInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]]
+  guard
+    let windowListInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID)
+      as? [[String: Any]]
   else {
     print("Error: Unable to retrieve window list.")
     exit(1)
@@ -41,23 +38,10 @@ guard !isMenuOpen() else {
   exit(0)
 }
 
-// Hide cursor to hide visual jump
-let cid = CGSMainConnectionID()
-let hideKey = "SetsCursorInBackground" as CFString
-_ = CGSSetConnectionProperty(cid, cid, hideKey, kCFBooleanTrue)
-CGAssociateMouseAndMouseCursorPosition(0)
-CGDisplayHideCursor(CGMainDisplayID())  //------------------------------------
-
-defer {
-  CGDisplayShowCursor(CGMainDisplayID())
-  CGAssociateMouseAndMouseCursorPosition(1)
-  _ = CGSSetConnectionProperty(cid, cid, hideKey, kCFBooleanFalse)
-}
-
 // Trigger MenuWhere (command + right-click)
 let eventSource = CGEventSource(stateID: .combinedSessionState)
 let cursorPosition = CGEvent(source: nil)?.location ?? CGPoint.zero
-let clickTarget = CGPoint(x: x, y: y)  //------------------------------------
+let clickTarget = CGPoint(x: x, y: y)
 
 let mouseDown = CGEvent(
   mouseEventSource: eventSource,
@@ -67,7 +51,6 @@ let mouseDown = CGEvent(
 )
 mouseDown?.flags = .maskCommand
 mouseDown?.post(tap: .cghidEventTap)
-usleep(10000)
 
 let mouseUp = CGEvent(
   mouseEventSource: eventSource,
@@ -77,9 +60,8 @@ let mouseUp = CGEvent(
 )
 mouseUp?.flags = .maskCommand
 mouseUp?.post(tap: .cghidEventTap)
-usleep(10000)
+usleep(20000)
 
-// Restore cursor to its original position and behavior
 let moveBack = CGEvent(
   mouseEventSource: eventSource,
   mouseType: .mouseMoved,
