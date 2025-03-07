@@ -17,7 +17,7 @@ local function openURLs()
   end
 
   local urlCommands = ""
-  for url in string.gmatch(selectedText, "(https?://(([%w_.~!*:@&+$/?%%#-]-)(%w[-.%w]*%.)(%w%w%w?%w?)(:?)(%d*)(/?)([%w_.~!*:@&+$/?%%#=-]*)))") do -- Need a better pattern
+  for url in string.gmatch(selectedText, "(https?://[^%s]+)") do
     urlCommands = urlCommands .. string.format('make new tab with properties {URL:"%s"}\n', url)
   end
   if urlCommands == "" then
