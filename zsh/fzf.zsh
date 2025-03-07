@@ -46,3 +46,13 @@ fh() {
   local selected_command=$(fc -nl 1 | tail -r | fzf --scheme history)
   print -z -- "${selected_command}"
 }
+
+fk() {
+  local selected_processes=$(ps -eo pid,comm | sed -E "1d; s/^([[:space:]]*)([0-9]+)/\2\1/" | fzf --multi)
+  if [[ -z ${selected_processes} ]]; then
+    return 1
+  fi
+
+  local pids=$(print "${selected_processes}" | awk '{print $1}' | xargs echo)
+  print -z "kill ${pids}"
+}
