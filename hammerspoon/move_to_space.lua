@@ -13,9 +13,7 @@ module.hotkeys = {
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
   local screen = focusedWindow:screen()
-  if not focusedWindow or
-      not focusedWindow:isStandard() or
-      focusedWindow:isFullscreen() then
+  if not focusedWindow or not focusedWindow:isStandard() or focusedWindow:isFullscreen() then
     utils.playAlert()
     return nil, nil
   end

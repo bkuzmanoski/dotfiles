@@ -9,9 +9,7 @@ local function openURLs()
   hs.eventtap.keyStroke({ "cmd" }, "c")
   hs.timer.usleep(100000)
   local selectedText = hs.pasteboard.readString()
-  hs.timer.doAfter(0.1, function()
-    hs.pasteboard.writeAllData(originalData)
-  end)
+  hs.timer.doAfter(0.1, function() hs.pasteboard.writeAllData(originalData) end)
   if not selectedText then
     return
   end
@@ -20,9 +18,11 @@ local function openURLs()
   for url in string.gmatch(selectedText, "(https?://[^%s]+)") do
     urlCommands = urlCommands .. string.format('make new tab with properties {URL:"%s"}\n', url)
   end
+
   if urlCommands == "" then
     return
   end
+
   hs.osascript.applescript(string.format([[
     tell application "Google Chrome"
       set activeIndex to get active tab index of window 1

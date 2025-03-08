@@ -1,6 +1,6 @@
 local module = {}
 local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
-local keyboardTap, mouseTap, activeWindow, activeOperation
+local windowFilter, keyboardTap, mouseTap, activeWindow, activeOperation
 
 module.modifiers = {
   move = {},
@@ -12,27 +12,28 @@ local function exactModifiersMatch(requiredModifiers, flags)
   for _, modifier in ipairs(requiredModifiers) do
     requiredLookup[modifier] = true
   end
+
   for _, modifier in ipairs(allModifiers) do
     if (requiredLookup[modifier] and not flags[modifier]) or
         (not requiredLookup[modifier] and flags[modifier]) then
       return false
     end
   end
+
   return true
 end
 
 local function getWindowUnderMouse()
   local mousePosition = hs.geometry.new(hs.mouse.absolutePosition())
-  local windows = hs.window.filter.new():setOverrideFilter({
-    allowRoles = { "AXStandardWindow" },
-    fullscreen = false,
-    visible = true
-  }):getWindows()
+
+  local windows = windowFilter:getWindows()
   for _, window in ipairs(windows) do
     if mousePosition:inside(window:frame()) then
       return window
     end
   end
+
+  return nil
 end
 
 local function startOperation(operationType)
@@ -78,6 +79,12 @@ local function handleMouseMove(event)
 end
 
 function module.init()
+  windowFilter = hs.window.filter.new()
+      :setOverrideFilter({
+        allowRoles = { "AXStandardWindow" },
+        fullscreen = false,
+        visible = true
+      })
   if #module.modifiers.move > 0 or #module.modifiers.resize > 0 then
     keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange)
     keyboardTap:start()

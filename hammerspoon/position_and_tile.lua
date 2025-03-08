@@ -3,7 +3,7 @@ local module = {}
 local bindings = {}
 local splitRatios = { 0.5, 0.33, 0.67 }
 local currentSplitRatioIndex = 1
-local lastDirection, lastWindow
+local windowFilter, lastDirection, lastWindow
 
 module.topOffset = 0
 module.padding = 0
@@ -25,22 +25,15 @@ module.hotkeys = {
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
-  if not focusedWindow or
-      focusedWindow:isFullscreen() or
-      not focusedWindow:isMaximizable() then
+  if not focusedWindow or focusedWindow:isFullscreen() or not focusedWindow:isMaximizable() then
     return nil, nil, nil
   end
 
   local screen = focusedWindow:screen()
-  local windows = hs.window.filter.new():setOverrideFilter({
-    allowRoles = { "AXStandardWindow" },
-    currentSpace = true,
-    fullscreen = false,
-    visible = true
-  })
-  for _, window in ipairs(windows) do
-    if window ~= focusedWindow and window:isMaximizable() then
-      return screen, focusedWindow, window
+  local windows = windowFilter:getWindows()
+  for _, secondWindow in ipairs(windows) do
+    if secondWindow:screen() == screen and secondWindow ~= focusedWindow and secondWindow:isMaximizable() then
+      return screen, focusedWindow, secondWindow
     end
   end
 
@@ -186,6 +179,7 @@ function module.init()
     tileBottomAndTopRight = function() tileTopBottom("bottomAndTopRight") end,
   }
 
+  local didInit = false
   for name, hotkey in pairs(module.hotkeys) do
     if next(hotkey) and handlers[name] then
       bindings[name] = hs.hotkey.bind(
@@ -193,7 +187,17 @@ function module.init()
         hotkey.key,
         handlers[name]
       )
+      didInit = true
     end
+  end
+
+  if didInit then
+    windowFilter = hs.window.filter.new():setOverrideFilter({
+      allowRoles = { "AXStandardWindow" },
+      currentSpace = true,
+      fullscreen = false,
+      visible = true
+    })
   end
 end
 
