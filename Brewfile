@@ -19,10 +19,7 @@ cask "google-chrome"
 cask "hammerspoon"
 cask "imageoptim"
 cask "menuwhere"
-cask "nucleo"
 cask "raycast"
-cask "sf-symbols"
-cask "utm"
 cask "visual-studio-code"
 
 mas "NextDNS", id: 1464122853
