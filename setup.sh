@@ -1,8 +1,5 @@
 #!/bin/zsh
 
-### Set up script
-set -eu
-
 SCRIPT_DIR="${0:A:h}"
 TEMP_DIR="${HOME}/.dotfiles_setup"
 BACKUP_DIR="${TEMP_DIR}/$(date +%Y%m%d_%H%M%S)_backups"
@@ -341,6 +338,6 @@ add_login_item() {
 log --info "Setup completed."
 print
 print "If there were no errors, you can remove the temporary setup directory by running:"
-print "%Brm -rf ${TEMP_DIR}%b"
+print -P "%Brm -rf ${TEMP_DIR}%b"
 print
 print "Restart your computer for all changes to take effect."
