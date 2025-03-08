@@ -1,24 +1,25 @@
 # macOS dotfiles
 
-This repository contains scripts and configuration files to automate the setup of a new macOS system with my preferred settings and apps.
+This repository contains scripts to automate the setup of a new macOS installation with my preferred settings and apps.
 
 ## What's included
 
 - **/bat**: bat themes
-- **/claude**: Claude and MCP Servers configuration
-- **/colima**: colima configuration
 - **/eza**: eza theme
+- **/fd**: fd configuration
 - **/ghostty**: Ghostty configuration
 - **/hammerspoon**: Hammerspoon configuration
-- **/karabiner**: Karabiner-Elements configuration
 - **/micro**: micro configuration
-- **/raycast**: Raycast script commands
+- **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
 - **/sketchybar**: Sketchybar configuration
 - **/wallpapers**: Desktop wallpapers (`*-dynamic.heic` wallpapers adapt to light/dark mode)
+- **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of applications and tools to be installed via Homebrew
 - `setup.sh`: Setup script that installs apps and configures settings
+
+Not included: Google Chrome and VS Code configurations (synced via account).
 
 ## Installation
 
@@ -38,29 +39,17 @@ This repository contains scripts and configuration files to automate the setup o
 2. **Clone this repository**
 
    ```zsh
-   git clone git@github.com:bkuzmanoski/dotfiles.git ~/.dotfiles
-   cd ~/.dotfiles
+   git clone https://github.com/bkuzmanoski/dotfiles ~/.dotfiles
    ```
 
    You will be prompted to install Xcode Command Line Tools when you first run `git`.
 
-3. **Grant Terminal.app Full Disk Access permission**
+3. **Run the setup script**
 
-4. **Create Claude MCP config file**
-
-   ```zsh
-   cp ~/.dotfiles/claude/claude_desktop_config.json.template ~/.dotfiles/claude/claude_desktop_config.json
-   ```
-
-   Add your keys to this file prior to running Claude.app.
-
-5. **Run the setup script**
+   Grant Terminal.app Full Disk Access permission. This is necessary to write to some plist files.
 
    ```zsh
-   # Make the script executable
-   chmod +x setup.sh
-
-   # Run the script
+   cd ~/.dotfiles
    ./setup.sh
    ```
 
@@ -68,34 +57,33 @@ This repository contains scripts and configuration files to automate the setup o
 
    The setup script also creates a backup of macOS and app defaults before making any changes. Backups for each run are stored in `~/.dotfiles_setup/[timestamp]_backups`.
 
-   The setup script can be re-run if there are any errors. The log and backups can be deleted after a successful installation.
+   The setup script can be re-run if there are any errors. The log and backups can be deleted after successful setup.
 
 ## Manual configuration steps
 
-- **System**:
+- **macOS**:
 
-  - "Adopt" apps in App Store → Account
+  - Onboarding:
+    - Sign in to iCloud
+    - Enable Location Services
+    - Turn off "Share Mac Analytics with Apple"
+    - Turn off "Enable Ask Siri"
+    - Set system appearance to Auto
+  - Create five desktop spaces
   - Configure Finder sidebar favorites (see reference screenshot)
   - Configure Mail sidebar favorites (see reference screenshot)
   - Configure Menu Bar layout (see reference screenshot)
   - Configure Notification Centre layout (see reference screenshot)
-  - In System Settings → Spotlight → Search Privacy, exclude `~/Pictures`
-  - Set Apple Intelligence & Siri keyboard shortcut to FnS
 
 - **1Password**
 
-  - Grant Accessibility permission
-  - Add personal vault
-  - Show Quick Access on icon click
-  - Set Show Quick Access shortcut to ⌃⇧␣
-  - Clear Autofill shortcut
-  - Set compact density
-  - Set security settings:
-    - Never require password
-    - Never auto-lock
-    - Disable lock on sleep, screensaver, or switching users
-  - Enable Integrate with 1Password CLI
-  - Enable Universal Clipboard
+  - Sign in
+  - Set "Show Quick Access" shortcut to ⌥⇧␣
+  - Clear "Autofill" shortcut
+  - Security settings:
+    - Set "Confirm my account password" to never
+    - Set "Auto-lock" to never
+    - Turn off "Lock on sleep, screensaver, or switching users"
 
 - **Alcove**
 
@@ -103,32 +91,36 @@ This repository contains scripts and configuration files to automate the setup o
 
 - **CleanShot X**
 
-  - Log in, enter activation key, and set as default screenshot app
-  - Set All-In-One shortcut to ⇧⌘5
-  - Set Open Capture History shortcut to ⇧⌘6
-  - Set Capture Area shortcut to ⇧⌘2
-  - Set Capture Fullscreen shortcut to ⇧⌘1
-  - Set Capture Text shortcut to ⇧⌘4
-  - Set Annotate Last Screenshot shortcut to ⇧⌘3
+  - Onboarding:
+    - Log in
+    - Enter activation key
+    - Set as default screenshot tool
+    - Do not share usage statistics
+  - Set "All-In-One" shortcut to ⇧⌘5
+  - Set "Open Capture History" shortcut to ⇧⌘6
+  - Set "Capture Area" shortcut to ⇧⌘2
+  - Set "Capture Fullscreen" shortcut to ⇧⌘1
+  - Set "Capture Text" shortcut to ⇧⌘4
+  - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
 
 - **Figma**
 
-  - Disable rename duplicated layers
-  - Disable flip objects while resizing
-  - Enable invert zoom direction
-  - Set big nudge to 8px
-  - Disable Menu Bar icon
+  - Turn off "Show Figma in Menu Bar"
+  - Turn off "Rename duplicated layers"
+  - Turn off "Flip objects while resizing"
+  - Turn on "Invert zoom direction"
+  - Set "Big nudge" to 8px
 
 - **Ghostty**
 
-  - Grant Accessibility and Full Disk Access permissions
+  - Grant Full Disk Access permission
 
 - **Google Chrome**
 
   - Grant Screen & System Audio Recording permission
   - Set as default browser and decline sending usage and crash statistics
-  - Disable ads privacy settings (ad topics, site-suggested ads, and ads measurement)
-  - Disable "Make searches and browsing better"
+  - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
+  - Turn off "Make searches and browsing better"
   - Log in and sync profile
   - Log in to Raindrop
 
@@ -136,24 +128,23 @@ This repository contains scripts and configuration files to automate the setup o
 
   - Grant Accessibility permission
 
-- **Karabiner-Elements**
-
-  - Launch, enable the Driver Extension, and grant Input Monitoring permission
-
 - **Menuwhere**
 
   - Activate license and grant Accessibility permission
 
 - **NextDNS**
 
-  - Start at login
   - Set Configuration ID
 
 - **Raycast**
 
-  - Accept defaults on launch and grant permissions, but don't install any extensions
-  - Log in and enable Cloud Sync
+  - Don't install extensions during onboarding
+  - Import settings file
 
-- **VSCode**
+- **Scratchpad**
+
+  - Set Font to "JetBrains Mono Regular Light"
+
+- **VS Code**
 
   - Log in and enable settings sync

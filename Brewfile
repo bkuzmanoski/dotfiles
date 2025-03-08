@@ -1,19 +1,32 @@
 brew "bat"
 brew "eza"
 brew "fd"
+brew "ffmpeg"
 brew "fnm"
 brew "fzf"
 brew "micro"
 
+tap "FelixKratz/formulae"
+brew "FelixKratz/formulae/sketchybar"
+
 cask "1password"
+cask "alcove"
+cask "alt-tab"
 cask "cleanshot"
 cask "figma"
 cask "ghostty"
 cask "google-chrome"
 cask "hammerspoon"
+cask "imageoptim"
+cask "menuwhere"
+cask "nucleo"
 cask "raycast"
+cask "sf-symbols"
 cask "utm"
 cask "visual-studio-code"
+
+mas "NextDNS", id: 1464122853
+mas "Scratchpad", id: 6504040051
 
 cask "font-inter"
 cask "font-jetbrains-mono"
