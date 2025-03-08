@@ -177,6 +177,7 @@ defaults_write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning w
 defaults_write com.apple.mail AutoReplyFormat -int 1 # Set reply format to same as original message
 defaults_write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all messages as read when opening a conversation
 defaults_write com.apple.mail SendFormat -string "Plain" # Set default message format to plain text
+# defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
 defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
