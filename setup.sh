@@ -97,7 +97,12 @@ log --info "Rebuilding bat cache."
 bat cache --build > /dev/null || log --error "Failed to build bat cache"
 
 # Start sketchybar
-brew services start sketchybar > /dev/null
+if ! (
+  exec 2>&1
+  brew services start sketchybar > /dev/null
+); then
+  log --error "Failed to start sketchybar."
+fi
 
 ### Set defaults
 log --info "Setting defaults..."
@@ -151,7 +156,6 @@ defaults_delete() {
 }
 
 # macOS settings
-defaults_delete com.apple.Spotlight "NSStatusItem Visible Item-0" # Hide Spotlight icon in Menu Bar
 defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
@@ -160,9 +164,6 @@ defaults_write com.apple.ActivityMonitor UpdatePeriod -int 1 # Set update freque
 defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
 defaults_write com.apple.AppleMultitouchTrackpad SecondClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
-defaults_write com.apple.controlcenter "NSStatusItem Visible Display" -int 0 # Hide Display icon in Menu Bar
-defaults_write com.apple.controlcenter "NSStatusItem Visible NowPlaying" -int 0 # Hide Now Playing icon in Menu Bar
-defaults_write com.apple.controlcenter "NSStatusItem Visible WiFi" -int 0 # Hide Wi-Fi icon in Menu Bar
 defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
@@ -183,10 +184,6 @@ defaults_write com.apple.finder ShowRecentTags -bool false # Hide recent tags
 defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false # Hide removable media on Desktop
 defaults_write com.apple.finder ShowStatusBar -bool true # Show status bar
 defaults_write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning when emptying Trash
-defaults_write com.apple.mail AutoReplyFormat -int 1 # Set reply format to same as original message
-defaults_write com.apple.mail ConversationViewMarkAllAsRead -int 1 # Mark all messages as read when opening a conversation
-defaults_write com.apple.mail SendFormat -string "Plain" # Set default message format to plain text
-# defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri icon in Menu Bar
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
 defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
@@ -208,22 +205,6 @@ defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before k
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
-
-# Disable "Automatically adjust brightness" in Displays settings
-corebrightness_plist_content=$(sudo defaults read com.apple.CoreBrightness.plist)
-display_key=$(print "${corebrightness_plist_content}" | jq -r ".DisplayPreferences | to_entries[] | select(.value | has('AutoBrightnessEnable')) | .key" 2> /dev/null)
-
-if [[ -z "${display_key}" ]]; then
-  log --warning "No key containing AutoBrightnessEnable found in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
-else
-  existing_display_values=$(print "${corebrightness_plist_content}" | jq -r --arg key "${display_key}" '.DisplayPreferences."\( $key )"')
-  if [[ -n "${existing_display_values}" ]]; then
-    updated_display_values=$(print "${existing_display_values}" | jq ".AutoBrightnessEnable = 0")
-    defaults_write --sudo com.apple.CoreBrightness.plist DisplayPreferences -dict "${display_key}" "${updated_display_values}"
-  else
-    log --warning "Could not retrieve values for key ${display_key} in com.apple.CoreBrightness.plist. Please disable \"Automatically adjust brightness\" manually."
-  fi
-fi
 
 # Disable True Tone
 current_user=$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')
@@ -271,22 +252,11 @@ fi
 
 ### App settings
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right to ⌘T
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab
 defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable battery notifications
 defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
-defaults_write com.lwouis.alt-tab-macos appearanceSize -int 1 # Set appearance size to "Medium"
-defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
-defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true # Hide space number labels
-defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true # Hide window status icons
-defaults_write com.lwouis.alt-tab-macos holdShortcut -string "\\U2318" # Set hold key for shortcut 1 to "Command"
-defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "\\U2318" # Set hold key for shortcut 2 to "Command"
-defaults_write com.lwouis.alt-tab-macos menubarIconShown -bool false # Hide menu bar icon
-defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mouse hover
-defaults_write com.lwouis.alt-tab-macos showOnScreen -int 0 # Show on active display
-defaults_write com.lwouis.alt-tab-macos updatePolicy -int 2 # Install updates automatically
-defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
-defaults_write com.manytricks.Menuwhere "Menu Trigger" "{\"Identifier\" = \"Menu Trigger\"; \"Key Code\" = 46; \"Modifier Flags\" = 1835264; \"Visual Representation\" = \"\\U2303\\U2325\\U2318M\"; }" # Set menu trigger to ⌃⌘⌥m
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
 defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
 defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Disable menu items for Apple and Menuwhere
@@ -300,7 +270,7 @@ defaults_write com.sindresorhus.Scratchpad linkifyURLs -bool true # Make URLs cl
 defaults_write com.sindresorhus.Scratchpad showCloseButton -bool false # Hide close button
 defaults_write com.sindresorhus.Scratchpad showMenuBarIcon -bool false # Hide menu bar icon
 defaults_write com.sindresorhus.Scratchpad showOnAllSpaces -bool true # Show on all spaces
-defaults_write com.sindresorhus.Scratchpad SS_NSStatusItem_ensureVisibility_shouldNotShowAgain -bool true # Disable info dialog about visibility on all spaces
+defaults_write com.sindresorhus.Scratchpad SS_NSStatusItem_ensureVisibility_shouldNotShowAgain -bool true # Disable warning about menu bar item visibility
 defaults_write com.sindresorhus.Scratchpad SS_Tooltip_statusBarButtonWelcomePopover -bool true # Disable menu bar item welcome popover
 defaults_write com.sindresorhus.Scratchpad textSize -int 13 # Set font size to 13
 defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
@@ -317,22 +287,6 @@ defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen 
 defaults_write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do not remember last selection area for recordings
 defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
-
-# Add login items
-log --info "Setting up login items..."
-
-add_login_item() {
-  local app_path="${1}"
-  local hidden="${2:-false}"
-  osascript -e "tell application \"System Events\" to make login item at end with properties {path:\"${app_path}\", hidden:${hidden}}" > /dev/null || log_error "Failed to add login item for ${app_path}"
-}
-
-# add_login_item "/Applications/Alcove.app" true
-# add_login_item "/Applications/AltTab.app" true
-# add_login_item "/Applications/CleanShot X.app" true
-# add_login_item "/Applications/Hammerspoon.app" true
-# add_login_item "/Applications/MenuWhere.app" true
-# add_login_item "/Applications/Raycast.app" true
 
 ### Finish
 log --info "Setup completed."

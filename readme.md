@@ -64,16 +64,28 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 - **macOS**:
 
   - Onboarding:
+    - Don't transfer any information using Migration Assistant
+    - Don't set up Screen Time
     - Sign in to iCloud
     - Enable Location Services
     - Turn off "Share Mac Analytics with Apple"
-    - Turn off "Enable Ask Siri"
+    - Don't set up Siri
     - Set system appearance to Auto
-  - Create five desktop spaces
+  - System settings:
+    - Control Centre → Wi-Fi → Select "Don't Show in Menu Bar"
+    - Control Centre → Now Playing → Select "Don't Show in Menu Bar"
+    - Control Centre → Spotlight → Select "Don't Show in Menu Bar"
+    - Displays → Turn off "Automatically adjust brightness"
+    - Keyboard → Keyboard Shortcuts -> Mission Control -> Click on "Restore Defaults"
   - Configure Finder sidebar favorites (see reference screenshot)
-  - Configure Mail sidebar favorites (see reference screenshot)
+  - Mail:
+    - Configure Mail sidebar favorites (see reference screenshot)
+    - Settings → Viewing → Turn on "Mark all messages as read when opening a conversation"
+    - Settings → Composing → Set Message Format to "Plain Text"
+    - Settings → Composing → Turn on "Use the same message format as the original message"
   - Configure Menu Bar layout (see reference screenshot)
   - Configure Notification Centre layout (see reference screenshot)
+  - Turn off "Reopen windows when logging back in" when restarting
 
 - **1Password**
 
@@ -88,20 +100,28 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 - **Alcove**
 
   - Activate license
+  - Launch at login
+
+- **AltTab**
+
+  - Grant Accessibility and Screen & System Audio Recording permissions
 
 - **CleanShot X**
 
+  - Grant Screen & System Audio Recording permission
   - Onboarding:
     - Log in
     - Enter activation key
     - Set as default screenshot tool
     - Do not share usage statistics
-  - Set "All-In-One" shortcut to ⇧⌘5
-  - Set "Open Capture History" shortcut to ⇧⌘6
-  - Set "Capture Area" shortcut to ⇧⌘2
-  - Set "Capture Fullscreen" shortcut to ⇧⌘1
-  - Set "Capture Text" shortcut to ⇧⌘4
-  - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
+  - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
+  - General → After capture → Screenshot → Turn on "Copy file to clipboard"
+  - Shortcuts → Set "All-In-One" shortcut to ⇧⌘5
+  - Shortcuts → Set "Open Capture History" shortcut to ⇧⌘6
+  - Shortcuts → Set "Capture Area" shortcut to ⇧⌘2
+  - Shortcuts → Set "Capture Fullscreen" shortcut to ⇧⌘1
+  - Shortcuts → Set "Capture Text" shortcut to ⇧⌘4
+  - Shortcuts → Set "Annotate Last Screenshot" shortcut to ⇧⌘3
 
 - **Figma**
 
@@ -119,32 +139,46 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
   - Grant Screen & System Audio Recording permission
   - Set as default browser and decline sending usage and crash statistics
+  - Log in and sync profile
   - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
   - Turn off "Make searches and browsing better"
-  - Log in and sync profile
+  - Turn off "Show downloads when they're complete"
   - Log in to Raindrop
+  - Set uBlock Origin Lite filtering mode to "Optimal"
 
 - **Hammerspoon**
 
   - Grant Accessibility permission
+  - Launch Hammerspoon at login
 
 - **Menuwhere**
 
-  - Activate license and grant Accessibility permission
+  - Grant Accessibility permission
+  - Activate license
+  - Set "Pop up frontmost app menu with hot key" to ✦m
 
 - **NextDNS**
 
+  - Start at login
   - Set Configuration ID
+  - Enable
 
 - **Raycast**
 
   - Don't install extensions during onboarding
   - Import settings file
+  - Disable Raycast AI, Raycast Focus, and Raycast Notes extensions
 
 - **Scratchpad**
 
+  - Launch at login
   - Set Font to "JetBrains Mono Regular Light"
+
+- **Sketchybar**
+
+  - Grant Accessibility permission
 
 - **VS Code**
 
   - Log in and enable settings sync
+  - Re-set "chat.commandCenter.enabled" to `false`

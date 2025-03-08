@@ -81,7 +81,7 @@ let keyUp = CGEvent(keyboardEventSource: eventSource, virtualKey: CGKeyCode(46),
 keyUp?.flags = [.maskCommand, .maskControl, .maskAlternate]
 keyUp?.post(tap: .cghidEventTap)
 
-usleep(25000)
+usleep(10000)
 
 let moveBack = CGEvent(
   mouseEventSource: eventSource,
