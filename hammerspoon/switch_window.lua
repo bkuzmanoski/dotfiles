@@ -1,6 +1,7 @@
 local utils = require("utils")
 local module = {}
 local bindings = {}
+local windowFilter
 
 module.hotkeys = {
   focusFrontmost = {},
@@ -17,12 +18,7 @@ local function setUpWindowHints()
 end
 
 local function focusWindow(direction)
-  local windows = hs.window.filter.new():setOverrideFilter({
-    allowRoles = { "AXStandardWindow" },
-    currentSpace = true,
-    fullscreen = false,
-    visible = true
-  }):getWindows()
+  local windows = windowFilter:getWindows()
   if #windows == 0 then
     utils.playAlert()
     return
@@ -30,14 +26,16 @@ local function focusWindow(direction)
 
   if direction == "frontmost" then
     windows[1]:focus()
+    return
   end
 
   local currentWindow = hs.window.focusedWindow()
+  local screen = currentWindow:screen()
   local referenceFrame = hs.window.focusedWindow():frame()
   local candidateWindow = nil
   local minXDiff = math.huge
   for _, window in ipairs(windows) do
-    if window ~= currentWindow then
+    if window:screen() == screen and window ~= currentWindow then
       local frame = window:frame()
       if direction == "left" and frame.x < referenceFrame.x then
         local diff = referenceFrame.x - frame.x
@@ -62,7 +60,7 @@ local function focusWindow(direction)
     local minX = math.huge
     local maxX = -math.huge
     for _, window in ipairs(windows) do
-      if window ~= currentWindow then
+      if window:screen() == screen and window ~= currentWindow then
         local frame = window:frame()
         if direction == "left" and frame.x > maxX then
           maxX = frame.x
@@ -82,6 +80,7 @@ local function focusWindow(direction)
 end
 
 function module.init()
+  local didInit = false
   if next(module.hotkeys.focusFrontmost) then
     bindings.focusFrontmost = hs.hotkey.bind(
       module.hotkeys.focusFrontmost.modifiers,
@@ -89,6 +88,7 @@ function module.init()
       function()
         focusWindow("frontmost")
       end)
+    didInit = true
   end
   if next(module.hotkeys.hints) then
     setUpWindowHints()
@@ -96,6 +96,7 @@ function module.init()
       module.hotkeys.hints.modifiers,
       module.hotkeys.hints.key,
       hs.hints.windowHints)
+    didInit = true
   end
   if next(module.hotkeys.left) then
     bindings.left = hs.hotkey.bind(
@@ -104,6 +105,7 @@ function module.init()
       function()
         focusWindow("left")
       end)
+    didInit = true
   end
   if next(module.hotkeys.right) then
     bindings.right = hs.hotkey.bind(
@@ -112,6 +114,16 @@ function module.init()
       function()
         focusWindow("right")
       end)
+    didInit = true
+  end
+
+  if didInit then
+    windowFilter = hs.window.filter.new():setOverrideFilter({
+      allowRoles = { "AXStandardWindow" },
+      currentSpace = true,
+      fullscreen = false,
+      visible = true
+    })
   end
 end
 

@@ -1,6 +1,6 @@
 local module = {}
 
-local windowFilter
+local windowFilter, windowSubscription
 
 local function focusWindowOnScreen()
   local targetScreen = hs.mouse.getCurrentScreen()
@@ -9,11 +9,7 @@ local function focusWindowOnScreen()
     return
   end
 
-  local windows = hs.window.filter.new():setOverrideFilter({
-    allowRoles = { "AXStandardWindow" },
-    fullscreen = false,
-    visible = true
-  }):getWindows()
+  local windows = windowFilter:getWindows()
   for _, window in ipairs(windows) do
     if window:screen() == targetScreen and window:isStandard() then
       window:focus()
@@ -23,18 +19,27 @@ local function focusWindowOnScreen()
 end
 
 function module.init()
-  windowFilter = hs.window.filter.new():setOverrideFilter({
-    allowRoles = { "AXStandardWindow" },
-    currentSpace = true,
-    fullscreen = false,
-    visible = true
-  }):subscribe(hs.window.filter.windowDestroyed, focusWindowOnScreen)
+  windowFilter = hs.window.filter.new()
+      :setOverrideFilter({
+        allowRoles = { "AXStandardWindow" },
+        currentSpace = true,
+        fullscreen = false,
+        visible = true
+      })
+  windowSubscription = hs.window.filter.new()
+      :setOverrideFilter({
+        allowRoles = { "AXStandardWindow" },
+        currentSpace = true,
+        fullscreen = false,
+        visible = true
+      })
+      :subscribe(hs.window.filter.windowDestroyed, focusWindowOnScreen)
 end
 
 function module.cleanup()
-  if windowFilter then
-    windowFilter:unsubscribeAll()
-    windowFilter = nil
+  if windowSubscription then
+    windowSubscription:unsubscribeAll()
+    windowSubscription = nil
   end
 end
 

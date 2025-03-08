@@ -71,14 +71,14 @@ positionAndTile.hotkeys = {
   positionReasonableSize = { modifiers = { "option", "command" }, key = "u" },
   positionAlmostMaximize = { modifiers = { "option", "command" }, key = "i" },
   positionMaximize = { modifiers = { "option", "command" }, key = "o" },
-  tileLeft = { modifiers = { "option", "shift", "command" }, key = "l" },
-  tileRight = { modifiers = { "option", "shift", "command" }, key = "'" },
-  tileLeftAndRight = { modifiers = { "option", "command" }, key = "l" },
-  tileRightAndLeft = { modifiers = { "option", "command" }, key = "'" },
-  tileTopRight = { modifiers = { "option", "shift", "command" }, key = "p" },
-  tileBottomRight = { modifiers = { "option", "shift", "command" }, key = ";" },
-  tileTopAndBottomRight = { modifiers = { "option", "command" }, key = "p" },
-  tileBottomAndTopRight = { modifiers = { "option", "command" }, key = ";" }
+  tileLeft = { modifiers = { "option", "command" }, key = "l" },
+  tileRight = { modifiers = { "option", "command" }, key = "'" },
+  tileLeftAndRight = { modifiers = { "option", "shift", "command" }, key = "l" },
+  tileRightAndLeft = { modifiers = { "option", "shift", "command" }, key = "'" },
+  tileTopRight = { modifiers = { "option", "command" }, key = "p" },
+  tileBottomRight = { modifiers = { "option", "command" }, key = ";" },
+  tileTopAndBottomRight = { modifiers = { "option", "shift", "command" }, key = "p" },
+  tileBottomAndTopRight = { modifiers = { "option", "shift", "command" }, key = ";" }
 }
 positionAndTile.init()
 
@@ -116,8 +116,8 @@ switchWindow.hotkeys = {
 }
 switchWindow.init()
 
-local focusAfterClose = require("focus_after_close")
-focusAfterClose.init()
+-- local focusAfterClose = require("focus_after_close")
+-- focusAfterClose.init()
 
 local focusScreen = require("focus_screen")
 focusScreen.init()
@@ -134,6 +134,6 @@ hs.shutdownCallback = function()
   moveToSpace.cleanup()
   moveToScreen.cleanup()
   switchWindow.cleanup()
-  focusAfterClose.cleanup()
+  -- focusAfterClose.cleanup()
   focusScreen.cleanup()
 end

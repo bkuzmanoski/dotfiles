@@ -24,9 +24,12 @@ function module.init()
       if keyMap[action] then
         if action == "moveSpaceN" then
           for i = 1, 9 do
-            bindings[action .. i] = hs.hotkey.bind(hotkey.modifiers, tostring(i), function()
-              hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i))
-            end)
+            bindings[action .. i] = hs.hotkey.bind(
+              hotkey.modifiers,
+              tostring(i),
+              function()
+                hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i))
+              end)
           end
         else
           bindings[action] = hs.hotkey.bind(
