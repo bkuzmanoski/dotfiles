@@ -8,7 +8,8 @@
 
 tell application "System Events"
   if not (exists process "Google Chrome") then
-    return "Google Chrome is not running"
+    -- return "Google Chrome is not running"
+    return "" -- This is slow so just return silently
   end if
 end tell
 
