@@ -46,9 +46,9 @@ tell application "Google Chrome"
   set the clipboard to urlList
 end tell
 
-delay 0.5
-do shell script "open 'raycast://extensions/peduarte/dash-off/email-form'"
 delay 1
+do shell script "open 'raycast://extensions/peduarte/dash-off/email-form'"
+delay 1.5
 
 tell application "System Events"
   keystroke "v" using {command down}
