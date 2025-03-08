@@ -60,7 +60,7 @@ let mouseUp = CGEvent(
 )
 mouseUp?.flags = .maskCommand
 mouseUp?.post(tap: .cghidEventTap)
-usleep(20000)
+usleep(25000)
 
 let moveBack = CGEvent(
   mouseEventSource: eventSource,
