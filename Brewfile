@@ -11,7 +11,6 @@ brew "FelixKratz/formulae/sketchybar"
 
 cask "1password"
 cask "alcove"
-cask "alt-tab"
 cask "cleanshot"
 cask "figma"
 cask "ghostty"
