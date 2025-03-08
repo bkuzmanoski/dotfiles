@@ -276,6 +276,7 @@ defaults_write com.lwouis.alt-tab-macos mouseHoverEnabled -bool true # Enable mo
 defaults_write com.lwouis.alt-tab-macos showOnScreen -int 0 # Show on active display
 defaults_write com.lwouis.alt-tab-macos updatePolicy -int 2 # Install updates automatically
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
+defaults_write com.manytricks.Menuwhere "Menu Trigger" "{\"Identifier\" = \"Menu Trigger\"; \"Key Code\" = 46; \"Modifier Flags\" = 1835264; \"Visual Representation\" = \"\\U2303\\U2325\\U2318M\"; }" # Set menu trigger to ⌃⌘⌥m
 defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
 defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
 defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Disable menu items for Apple and Menuwhere
