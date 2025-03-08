@@ -60,8 +60,8 @@ local function position(location)
 
   if location == "center" or location == "reasonableSize" or location == "almostMaximize" then
     if location == "reasonableSize" then
-      windowFrame.w = math.floor(screenFrame.w * 0.7)
-      windowFrame.h = math.floor(screenFrame.h * 0.7)
+      windowFrame.h = math.floor(screenFrame.h * 0.6)
+      windowFrame.w = math.floor(windowFrame.h * 1.3)
     end
     if location == "almostMaximize" then
       windowFrame.w = math.floor(screenFrame.w * 0.9)
