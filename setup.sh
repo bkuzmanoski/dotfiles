@@ -30,15 +30,27 @@ exec 2> >(while read -r line; do log --error "${line}"; done) # Log stderr to lo
 ### Install Homebrew
 if ! which -s brew > /dev/null; then
   log --info "Installing Homebrew..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  (
+    exec 2>&1
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  )
+
+  if [[ ${?} -ne 0 ]]; then
+    log --error "Homebrew installation failed, exiting."
+    exit 1
+  fi
+
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
 ### Install apps and fonts
 log --info "Installing Brewfile bundle."
-if ! brew bundle --file "${SCRIPT_DIR}/Brewfile"; then
+if ! (
+  exec 2>&1
+  brew bundle --file "${SCRIPT_DIR}/Brewfile"
+); then
   log --error "brew bundle failed, exiting."
-  return 1
+  exit 1
 fi
 
 ### Link dotfiles
