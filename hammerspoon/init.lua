@@ -62,9 +62,10 @@ reorderList.hotkeys = {
 reorderList.allowApps = { "Scratchpad" }
 reorderList.init()
 
-local openURLs = require("open_urls")
-openURLs.hotkey = { modifiers = { "shift", "command" }, key = "o" }
-openURLs.init()
+local openTabsFromSelection = require("open_tabs_from_selection")
+openTabsFromSelection.hotkey.urls = { modifiers = { "option", "shift" }, key = "o" }
+openTabsFromSelection.hotkey.search = { modifiers = { "shift", "command" }, key = "o" }
+openTabsFromSelection.init()
 
 local adjustPosition = require("adjust_position")
 adjustPosition.topOffset = windowTopOffset
@@ -138,6 +139,7 @@ hs.shutdownCallback = function()
   toggleDarkMode.cleanup()
   pasteAsPlaintext.cleanup()
   reorderList.cleanup()
+  openTabsFromSelection.cleanup()
   adjustPosition.cleanup()
   positionAndTile.cleanup()
   moveAndResize.cleanup()
