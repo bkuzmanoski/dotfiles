@@ -180,12 +180,12 @@ function module.init()
   }
 
   local didInit = false
-  for name, hotkey in pairs(module.hotkeys) do
-    if next(hotkey) and handlers[name] then
-      bindings[name] = hs.hotkey.bind(
+  for action, hotkey in pairs(module.hotkeys) do
+    if next(hotkey) and handlers[action] then
+      bindings[action] = hs.hotkey.bind(
         hotkey.modifiers,
         hotkey.key,
-        handlers[name]
+        handlers[action]
       )
       didInit = true
     end
