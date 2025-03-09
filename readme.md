@@ -12,6 +12,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/micro**: micro configuration
 - **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
+- **/ripgrep**: ripgrep configuration
 - **/sketchybar**: SketchyBar configuration
 - **/wallpapers**: Desktop wallpapers (`*-dynamic.heic` wallpapers adapt to light/dark mode)
 - **/zsh**: Zsh plugins and scripts
