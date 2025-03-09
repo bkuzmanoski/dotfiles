@@ -4,6 +4,7 @@ local windowSubscription
 
 module.topOffset = 0
 module.padding = 0
+module.ignoreApps = {}
 
 local function handleWindowEvent(window)
   if not window then
@@ -21,7 +22,14 @@ end
 function module.init()
   windowSubscription = hs.window.filter.new()
       :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
-      :subscribe(hs.window.filter.windowCreated, handleWindowEvent)
+
+  if next(module.ignoreApps) then
+    for _, appName in ipairs(module.ignoreApps) do
+      windowSubscription:rejectApp(appName)
+    end
+  end
+
+  windowSubscription:subscribe(hs.window.filter.windowCreated, handleWindowEvent)
 end
 
 function module.cleanup()

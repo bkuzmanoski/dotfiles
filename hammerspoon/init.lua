@@ -61,6 +61,7 @@ openURLs.init()
 local adjustPosition = require("adjust_position")
 adjustPosition.topOffset = windowTopOffset
 adjustPosition.padding = windowPadding
+adjustPosition.ignoreApps = { "CleanShot X" }
 adjustPosition.init()
 
 local positionAndTile = require("position_and_tile")
