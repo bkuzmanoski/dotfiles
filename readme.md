@@ -184,4 +184,5 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 - **VS Code**
 
   - Log in and enable settings sync
-  - Re-set "chat.commandCenter.enabled" to `false`
+  - Position Command Center in center
+  - Set "chat.commandCenter.enabled" to `false`
