@@ -8,7 +8,7 @@ function module.init()
     binding = hs.hotkey.bind(module.hotkey.modifiers, module.hotkey.key, function()
       local mousePosition = hs.mouse.absolutePosition()
       hs.mouse.absolutePosition({ x = 10, y = 10 })
-      hs.eventtap.keyStroke({ "fn", "ctrl" }, "up")
+      hs.eventtap.keyStroke({ "fn", "ctrl" }, "up", 0)
       hs.mouse.absolutePosition(mousePosition)
     end)
   end

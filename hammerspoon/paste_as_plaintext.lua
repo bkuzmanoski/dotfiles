@@ -8,7 +8,7 @@ local function pasteAsPlaintext()
   local plaintext = hs.pasteboard.readString()
   hs.pasteboard.setContents(plaintext)
   hs.timer.usleep(100000)
-  hs.eventtap.keyStroke({ "cmd" }, "v")
+  hs.eventtap.keyStroke({ "cmd" }, "v", 0)
   hs.timer.usleep(100000)
   hs.pasteboard.writeAllData(originalData)
 end

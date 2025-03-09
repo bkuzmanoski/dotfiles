@@ -28,7 +28,7 @@ function module.init()
               hotkey.modifiers,
               tostring(i),
               function()
-                hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i))
+                hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0)
               end)
           end
         else
@@ -36,7 +36,7 @@ function module.init()
             hotkey.modifiers,
             hotkey.key,
             function()
-              hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key, 100000) -- Match system key repeat delay
+              hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key, 15000) -- Match system key repeat delay
             end,
             nil,
             function()
