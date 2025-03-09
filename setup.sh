@@ -96,12 +96,12 @@ fi
 log --info "Rebuilding bat cache."
 bat cache --build > /dev/null || log --error "Failed to build bat cache"
 
-# Start sketchybar
+# Start SketchyBar
 if ! (
   exec 2>&1
   brew services start sketchybar > /dev/null
 ); then
-  log --error "Failed to start sketchybar."
+  log --error "Failed to start SketchyBar."
 fi
 
 ### Set defaults
