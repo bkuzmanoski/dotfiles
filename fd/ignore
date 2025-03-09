@@ -1,6 +1,8 @@
 .git/
 CloudDocs/
-Mobile Documents/
+Library/Application Support/FileProvider/
+Library/*Containers*/**/*com.apple*/
+Library/Mobile Documents/
 Movies/
 Music/
 node_modules/

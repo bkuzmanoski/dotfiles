@@ -10,6 +10,7 @@ export EDITOR="micro"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export MANPAGER="col -bx | bat --language man --style plain"
 export MICRO_TRUECOLOR=1
+export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 
 setopt AUTO_CD
 setopt GLOB_DOTS
@@ -24,7 +25,7 @@ alias ...="cd ../.."
 alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level 3"
 alias ll="eza --all --group-directories-first --header --long --no-permissions --no-user"
-alias llt="eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level=3"
+alias llt="eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level 3"
 alias fd="fd --hidden --no-ignore-vcs --color never"
 alias mkdir="mkdir -pv"
 alias cp="cp -iv"

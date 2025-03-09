@@ -58,6 +58,7 @@ typeset -A configs=(
   ["ghostty"]="${HOME}/.config/ghostty"
   ["hammerspoon"]="${HOME}/.hammerspoon"
   ["micro"]="${HOME}/.config/micro"
+  ["ripgrep"]="${HOME}/.config/ripgrep"
   ["sketchybar"]="${HOME}/.config/sketchybar"
   ["zsh"]="${HOME}/.zsh"
   [".zprofile"]="${HOME}/.zprofile"

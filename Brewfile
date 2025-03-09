@@ -5,6 +5,7 @@ brew "ffmpeg"
 brew "fnm"
 brew "fzf"
 brew "micro"
+brew "ripgrep"
 
 tap "FelixKratz/formulae"
 brew "FelixKratz/formulae/sketchybar"
