@@ -103,7 +103,7 @@ let moveToPosition = CGEvent(
 )
 moveToPosition?.post(tap: .cghidEventTap)
 
-usleep(25000)
+usleep(30000)
 
 let keyDown = CGEvent(keyboardEventSource: eventSource, virtualKey: CGKeyCode(46), keyDown: true)
 keyDown?.flags = [.maskCommand, .maskControl, .maskAlternate]
@@ -113,7 +113,7 @@ let keyUp = CGEvent(keyboardEventSource: eventSource, virtualKey: CGKeyCode(46),
 keyUp?.flags = [.maskCommand, .maskControl, .maskAlternate]
 keyUp?.post(tap: .cghidEventTap)
 
-usleep(25000)
+usleep(30000)
 
 let moveBack = CGEvent(
   mouseEventSource: eventSource,
@@ -123,4 +123,4 @@ let moveBack = CGEvent(
 )
 moveBack?.post(tap: .cghidEventTap)
 
-usleep(25000)
+usleep(30000)
