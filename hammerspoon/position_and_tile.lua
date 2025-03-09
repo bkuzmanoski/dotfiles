@@ -181,7 +181,7 @@ function module.init()
 
   local didInit = false
   for action, hotkey in pairs(module.hotkeys) do
-    if next(hotkey) and handlers[action] then
+    if handlers[action] then
       bindings[action] = hs.hotkey.bind(
         hotkey.modifiers,
         hotkey.key,
