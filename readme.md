@@ -12,7 +12,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/micro**: micro configuration
 - **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
-- **/sketchybar**: Sketchybar configuration
+- **/sketchybar**: SketchyBar configuration
 - **/wallpapers**: Desktop wallpapers (`*-dynamic.heic` wallpapers adapt to light/dark mode)
 - **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration
@@ -177,7 +177,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Launch at login
   - Set Font to "JetBrains Mono Regular Light"
 
-- **Sketchybar**
+- **SketchyBar**
 
   - Grant Accessibility permission
 
