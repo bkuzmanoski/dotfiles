@@ -54,6 +54,14 @@ local pasteAsPlaintext = require("paste_as_plaintext")
 pasteAsPlaintext.hotkey = { modifiers = { "option" }, key = "v" }
 pasteAsPlaintext.init()
 
+local reorderList = require("reorder_list")
+reorderList.hotkeys = {
+  moveLineUp = { modifiers = { "option" }, key = "up" },
+  moveLineDown = { modifiers = { "option" }, key = "down" }
+}
+reorderList.allowApps = { "Scratchpad" }
+reorderList.init()
+
 local openURLs = require("open_urls")
 openURLs.hotkey = { modifiers = { "shift", "command" }, key = "o" }
 openURLs.init()
@@ -129,6 +137,7 @@ hs.shutdownCallback = function()
   showAllSpaces.cleanup()
   toggleDarkMode.cleanup()
   pasteAsPlaintext.cleanup()
+  reorderList.cleanup()
   adjustPosition.cleanup()
   positionAndTile.cleanup()
   moveAndResize.cleanup()
