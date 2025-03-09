@@ -72,19 +72,20 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Don't set up Siri
     - Set system appearance to Auto
   - System settings:
+    - Turn off Apple Intelligence
     - Control Centre → Wi-Fi → Select "Don't Show in Menu Bar"
     - Control Centre → Now Playing → Select "Don't Show in Menu Bar"
     - Control Centre → Spotlight → Select "Don't Show in Menu Bar"
     - Displays → Turn off "Automatically adjust brightness"
     - Keyboard → Keyboard Shortcuts -> Mission Control -> Click on "Restore Defaults"
-  - Configure Finder sidebar favorites (see reference screenshot)
+  - Set up Finder sidebar favorites (see reference screenshot)
   - Mail:
-    - Configure Mail sidebar favorites (see reference screenshot)
+    - Set up Mail sidebar favorites (see reference screenshot)
     - Settings → Viewing → Turn on "Mark all messages as read when opening a conversation"
     - Settings → Composing → Set Message Format to "Plain Text"
     - Settings → Composing → Turn on "Use the same message format as the original message"
-  - Configure Menu Bar layout (see reference screenshot)
-  - Configure Notification Centre layout (see reference screenshot)
+  - Set up Menu Bar layout (see reference screenshot)
+  - Set up Notification Centre layout (see reference screenshot)
   - Turn off "Reopen windows when logging back in" when restarting
 
 - **1Password**
@@ -143,6 +144,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
   - Turn off "Make searches and browsing better"
   - Turn off "Show downloads when they're complete"
+  - Select "Block sign-in prompts from identity services"
   - Log in to Raindrop
   - Set uBlock Origin Lite filtering mode to "Optimal"
 
