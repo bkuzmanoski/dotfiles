@@ -6,7 +6,7 @@ module.hotkey = {}
 local function openURLs()
   local originalData = hs.pasteboard.readAllData()
   hs.timer.usleep(100000)
-  hs.eventtap.keyStroke({ "cmd" }, "c")
+  hs.eventtap.keyStroke({ "cmd" }, "c", 0)
   hs.timer.usleep(100000)
   local selectedText = hs.pasteboard.readString()
   hs.timer.doAfter(0.1, function() hs.pasteboard.writeAllData(originalData) end)
