@@ -12,11 +12,13 @@ module.hotkeys = {
 
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
-  local screen = focusedWindow:screen()
   if not focusedWindow or not focusedWindow:isStandard() or focusedWindow:isFullscreen() then
     utils.playAlert()
     return nil, nil
   end
+
+  local screen = focusedWindow:screen()
+
   return focusedWindow, screen
 end
 
@@ -51,9 +53,9 @@ local function moveWindowToSpace(window, spaceNumber)
   local frame = window:frame()
   local mousePosition = hs.mouse.absolutePosition()
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
-  hs.timer.usleep(100000)
+  hs.timer.usleep(300000)
   hs.eventtap.keyStroke(navigationHotkeyModifiers, tostring(spaceNumber), 0)
-  hs.timer.usleep(100000)
+  hs.timer.usleep(300000)
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.mouse.absolutePosition(mousePosition)
 end
