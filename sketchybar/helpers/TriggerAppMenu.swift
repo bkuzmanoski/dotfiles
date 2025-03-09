@@ -8,9 +8,37 @@ func CGSMainConnectionID() -> Int
 func CGSSetConnectionProperty(_ cid: Int, _ ownerCid: Int, _ key: CFString, _ value: CFTypeRef)
   -> Int
 
+func getAbsoluteClickTarget(mouseLocation: CGPoint, relativeX: CGFloat, relativeY: CGFloat)
+  -> CGPoint
+{
+  var displayCount: UInt32 = 0
+  guard CGGetActiveDisplayList(0, nil, &displayCount) == .success, displayCount > 0 else {
+    return CGPoint(x: relativeX, y: relativeY)  // Fallback
+  }
+
+  var displays = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+  guard CGGetActiveDisplayList(displayCount, &displays, &displayCount) == .success else {
+    return CGPoint(x: relativeX, y: relativeY)  // Fallback
+  }
+
+  var currentDisplayBounds = CGDisplayBounds(CGMainDisplayID())  // Default to main display
+  for display in displays {
+    let displayBounds = CGDisplayBounds(display)
+    if displayBounds.contains(mouseLocation) {
+      currentDisplayBounds = displayBounds
+      break
+    }
+  }
+
+  let absoluteX = currentDisplayBounds.origin.x + relativeX
+  let absoluteY = currentDisplayBounds.origin.y + relativeY
+
+  return CGPoint(x: absoluteX, y: absoluteY)
+}
+
 guard CommandLine.arguments.count == 3,
-  let x = Double(CommandLine.arguments[1]),
-  let y = Double(CommandLine.arguments[2])
+  let targetX = Double(CommandLine.arguments[1]),
+  let targetY = Double(CommandLine.arguments[2])
 else {
   print("Usage: \(CommandLine.arguments[0]) x y")
   exit(1)
@@ -60,8 +88,12 @@ CGDisplayHideCursor(CGMainDisplayID())
 
 // Trigger MenuWhere
 let eventSource = CGEventSource(stateID: .combinedSessionState)
-let startingPosition = CGEvent(source: nil)?.location ?? CGPoint.zero
-let clickTarget = CGPoint(x: x, y: y)
+let mouseLocation = CGEvent(source: nil)?.location ?? CGPoint.zero
+let clickTarget = getAbsoluteClickTarget(
+  mouseLocation: mouseLocation,
+  relativeX: targetX,
+  relativeY: targetY
+)
 
 let moveToPosition = CGEvent(
   mouseEventSource: eventSource,
@@ -86,7 +118,7 @@ usleep(25000)
 let moveBack = CGEvent(
   mouseEventSource: eventSource,
   mouseType: .mouseMoved,
-  mouseCursorPosition: startingPosition,
+  mouseCursorPosition: mouseLocation,
   mouseButton: .left
 )
 moveBack?.post(tap: .cghidEventTap)
