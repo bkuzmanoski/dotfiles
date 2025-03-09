@@ -18,30 +18,30 @@ local function restoreClipboard()
 end
 
 local function cutLine()
-  hs.eventtap.keyStroke({ "command" }, "left", 5000)           -- Move cursor to beginning of line
-  hs.eventtap.keyStroke({ "command", "shift" }, "right", 5000) -- Select text
-  hs.eventtap.keyStroke({ "command" }, "x", 5000)              -- Cut text
-  hs.eventtap.keyStroke({}, "delete", 5000)                    -- Remove empty line
+  hs.eventtap.keyStroke({ "command" }, "left", 10000)           -- Move cursor to beginning of line
+  hs.eventtap.keyStroke({ "command", "shift" }, "right", 10000) -- Select text
+  hs.eventtap.keyStroke({ "command" }, "x", 10000)              -- Cut text
+  hs.eventtap.keyStroke({}, "delete", 10000)                    -- Remove empty line
 end
 
 local function moveLineUp()
   saveClipboard()
   cutLine()
-  hs.eventtap.keyStroke({ "command" }, "left", 5000) -- Move cursor to beginning of line
-  hs.eventtap.keyStroke({ "command" }, "v", 5000)    -- Paste text
-  hs.eventtap.keyStroke({}, "return", 5000)          -- Insert newline
-  hs.eventtap.keyStroke({}, "up", 5000)              -- Return cursor to the pasted line
+  hs.eventtap.keyStroke({ "command" }, "left", 10000) -- Move cursor to beginning of line
+  hs.eventtap.keyStroke({ "command" }, "v", 10000)    -- Paste text
+  hs.eventtap.keyStroke({}, "return", 10000)          -- Insert newline
+  hs.eventtap.keyStroke({}, "up", 10000)              -- Return cursor to the pasted line
   restoreClipboard()
 end
 
 local function moveLineDown()
   saveClipboard()
   cutLine()
-  hs.eventtap.keyStroke({}, "down", 5000)             -- Move cursor down
-  hs.eventtap.keyStroke({ "command" }, "right", 5000) -- Move cursor to end of line
-  hs.eventtap.keyStroke({}, "return", 5000)           -- Insert newline
-  hs.eventtap.keyStroke({ "command" }, "v", 5000)     -- Paste text
-  hs.eventtap.keyStroke({ "command" }, "left", 5000)  -- Move cursor to the start of line
+  hs.eventtap.keyStroke({}, "down", 10000)             -- Move cursor down
+  hs.eventtap.keyStroke({ "command" }, "right", 10000) -- Move cursor to end of line
+  hs.eventtap.keyStroke({}, "return", 10000)           -- Insert newline
+  hs.eventtap.keyStroke({ "command" }, "v", 10000)     -- Paste text
+  hs.eventtap.keyStroke({ "command" }, "left", 10000)  -- Move cursor to the start of line
   restoreClipboard()
 end
 
