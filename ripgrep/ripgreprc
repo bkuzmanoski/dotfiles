@@ -9,6 +9,7 @@
 --glob=!**/node_modules/
 --glob=!**/Pictures/
 --glob=!System/
+--glob=!Volumes/
 --hidden
 --max-columns-preview
 --max-columns=120
