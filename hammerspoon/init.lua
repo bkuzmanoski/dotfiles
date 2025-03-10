@@ -59,7 +59,7 @@ reorderList.hotkeys = {
   moveLineUp = { modifiers = { "option" }, key = "up" },
   moveLineDown = { modifiers = { "option" }, key = "down" }
 }
-reorderList.allowApps = { "Scratchpad" }
+reorderList.allowApps = { "Scratchpad", "TextEdit" }
 reorderList.init()
 
 local openTabsFromSelection = require("open_tabs_from_selection")
