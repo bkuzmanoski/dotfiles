@@ -137,6 +137,8 @@ local function moveLines(direction)
 
   -- Join lines, adding newlines except for last line if original didn't have one
   local reorderedFullText = table.concat(lines, "\n")
+
+  -- Update the text field
   focusedElement
       :setAttributeValue("AXValue", reorderedFullText)
       :setAttributeValue("AXSelectedTextRange", {
