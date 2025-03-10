@@ -1,10 +1,11 @@
-.git/
-CloudDocs/
-Library/Application Support/FileProvider/
-Library/*Containers*/**/*com.apple*/
-Library/Mobile Documents/
-Movies/
-Music/
-node_modules/
-Pictures/
+**/.git/
+**/.Trash/
+**/Library/**/Containers*/**/*com.apple*/
+**/Library/Application Support/CloudDocs/
+**/Library/Application Support/FileProvider/
+**/Library/Mobile Documents/
+**/Movies/
+**/Music/
+**/node_modules/
+**/Pictures/
 System/

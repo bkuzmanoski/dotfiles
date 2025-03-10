@@ -1,12 +1,13 @@
---glob=!.git/
---glob=!CloudDocs/
---glob=!Library/Application Support/FileProvider/
---glob=!Library/*Containers*/**/*com.apple*/
---glob=!Library/Mobile Documents/
---glob=!Movies/
---glob=!Music/
---glob=!node_modules/
---glob=!Pictures/
+--glob=!**/.git/
+--glob=!**/.Trash/
+--glob=!**/Library/*Containers*/**/*com.apple*/
+--glob=!**/Library/Application Support/CloudDocs/
+--glob=!**/Library/Application Support/FileProvider/
+--glob=!**/Library/Mobile Documents/
+--glob=!**/Movies/
+--glob=!**/Music/
+--glob=!**/node_modules/
+--glob=!**/Pictures/
 --glob=!System/
 --hidden
 --max-columns-preview
