@@ -18,8 +18,8 @@ case "${SENDER}" in
     return_value=0
 
     if [[ ! -f "${icon_path}" ]]; then
-      "${CONFIG_DIR}/helpers/bin/GetAppIcon" "${BUNDLE_ID}" > /dev/null
-      return_value=$?
+      "${CONFIG_DIR}/helpers/bin/GetAppIcon" "${BUNDLE_ID}" >/dev/null
+      return_value=${?}
     fi
 
     if [[ return_value -eq 0 ]]; then

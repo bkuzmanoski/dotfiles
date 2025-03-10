@@ -26,7 +26,7 @@ case "${SENDER}" in
   *)
     local  next_event="$("${CONFIG_DIR}/helpers/bin/GetNextEvent")"
 
-    if [[ $? -ne 0 ]] || [[ -z "${next_event}" ]]; then
+    if [[ ${?} -ne 0 ]] || [[ -z "${next_event}" ]]; then
       sketchybar --set next_event drawing=off
     else
       sketchybar --set next_event drawing=on label="${next_event}" label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}" update_freq=${UPDATE_FREQUENCY}
