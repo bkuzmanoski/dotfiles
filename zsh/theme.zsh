@@ -28,7 +28,7 @@ ZSH_HIGHLIGHT_STYLES[suffix-alias]="fg=7,underline"
 ZSH_HIGHLIGHT_STYLES[unknown-token]="fg=1,bold"
 
 update_theme() {
-  local macos_mode=$(defaults read NSGlobalDomain AppleInterfaceStyle 2> /dev/null)
+  local macos_mode=$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)
 
   if [[ ${macos_mode} == "Dark" ]]; then
     export THEME="dark"

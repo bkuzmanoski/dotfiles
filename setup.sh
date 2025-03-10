@@ -25,7 +25,7 @@ log() {
 exec 2> >(while read -r line; do log --error "${line}"; done) # Log stderr to log file
 
 ### Install Homebrew
-if ! which -s brew > /dev/null; then
+if ! which -s brew >/dev/null; then
   log --info "Installing Homebrew..."
   (
     exec 2>&1
@@ -90,17 +90,17 @@ touch "${HOME}/.hushlogin"
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
   log --info "Enabling Touch ID for sudo."
-  print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
+  print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local >/dev/null
 fi
 
 # Enable bat to use themes in config directory
 log --info "Rebuilding bat cache."
-bat cache --build > /dev/null || log --error "Failed to build bat cache"
+bat cache --build >/dev/null || log --error "Failed to build bat cache"
 
 # Start SketchyBar
 if ! (
   exec 2>&1
-  brew services start sketchybar > /dev/null
+  brew services start sketchybar >/dev/null
 ); then
   log --error "Failed to start SketchyBar."
 fi
@@ -125,8 +125,8 @@ backup_plist() {
 
   if [[ -z "${backed_up_domains[${fq_domain}]:-}" ]]; then
     local backup_path="${BACKUP_DIR}/${fq_domain//\//_}.plist"
-    log --info "Executing: $(printf "%q " "${cmd[@]}")$*"
-    ${cmd[@]} "$@" "${backup_path}"
+    log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
+    ${cmd[@]} "${@}" "${backup_path}"
     backed_up_domains[${fq_domain}]=1
   fi
 }
@@ -143,16 +143,16 @@ defaults_write() {
 
   local domain="${1}"
   backup_plist --sudo "${domain}"
-  log --info "Executing: $(printf "%q " "${cmd[@]}")$*"
-  ${cmd[@]} "$@"
+  log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
+  ${cmd[@]} "${@}"
 }
 
 defaults_delete() {
-  if defaults read "$@" &> /dev/null; then
+  if defaults read "${@}" &>/dev/null; then
     local domain="${1}"
     backup_plist "${domain}"
-    log --info "Executing: defaults delete $*"
-    defaults delete "$@"
+    log --info "Executing: defaults delete ${*}"
+    defaults delete "${@}"
   fi
 }
 

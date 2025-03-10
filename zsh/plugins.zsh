@@ -12,8 +12,8 @@ UPDATE_REMINDERS=(
 )
 
 if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
-  mkdir -p "${UPDATE_TIMESTAMPS_DIR}" > /dev/null
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update" # Assume first run, plugin installation to follow
+  mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
+  date +%s >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update" # Assume first run, plugin installation to follow
 fi
 
 install_plugins() {
@@ -70,7 +70,7 @@ brewup() (
   brew autoremove || { print "brew autoremove failed."; exit 1; }
   brew cleanup --prune all || { print "brew cleanup failed."; exit 1; }
 
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/brew_last_update"
+  date +%s >"${UPDATE_TIMESTAMPS_DIR}/brew_last_update"
   print "brew update timestamp updated, next reminder in 30 days."
 )
 
@@ -144,7 +144,7 @@ fnmup() {
     print "Already up to date."
   fi
 
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/fnm_last_update"
+  date +%s >"${UPDATE_TIMESTAMPS_DIR}/fnm_last_update"
   print "fnm update timestamp updated, next reminder in 30 days."
 }
 
@@ -156,6 +156,6 @@ zshup() (
     print
   done
 
-  date +%s > "${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update"
+  date +%s >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update"
   print "Zsh plugins update timestamp updated, next reminder in 30 days."
 )
