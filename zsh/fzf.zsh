@@ -49,7 +49,7 @@ fif() {
   local pattern="${1}"
   shift
 
-  select_paths "rg --files-with-matches \"${pattern}\"" "${@}"
+  select_paths "rg --files-with-matches --no-messages -- \"${pattern}\"" "${@}"
 }
 
 fh() {
