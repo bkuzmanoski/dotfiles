@@ -106,11 +106,11 @@ moveToPosition?.post(tap: .cghidEventTap)
 usleep(30000)
 
 let keyDown = CGEvent(keyboardEventSource: eventSource, virtualKey: CGKeyCode(46), keyDown: true)
-keyDown?.flags = [.maskCommand, .maskControl, .maskAlternate]
+keyDown?.flags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
 keyDown?.post(tap: .cghidEventTap)
 
 let keyUp = CGEvent(keyboardEventSource: eventSource, virtualKey: CGKeyCode(46), keyDown: false)
-keyUp?.flags = [.maskCommand, .maskControl, .maskAlternate]
+keyUp?.flags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
 keyUp?.post(tap: .cghidEventTap)
 
 usleep(30000)

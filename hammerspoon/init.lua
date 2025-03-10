@@ -27,9 +27,9 @@ appHotkeys.init()
 local systemHotkeys = require("system_hotkeys")
 systemHotkeys.hotkeys = {
   focusDock = { modifiers = hyperKey2, key = "d" },
-  focusMenuBar = { modifiers = hyperKey2, key = "m" },
+  focusMenuBar = { modifiers = hyperKey, key = "m" },
   toggleControlCenter = { modifiers = hyperKey2, key = "c" },
-  toggleNotificationCenter = { modifiers = hyperKey2, key = "n" },
+  toggleNotificationCenter = { modifiers = hyperKey, key = "n" },
   applicationWindows = { modifiers = hyperKey, key = "up" },
   showDesktop = { modifiers = hyperKey, key = "down" },
   moveSpaceLeft = { modifiers = hyperKey, key = "[" },
