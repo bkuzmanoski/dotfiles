@@ -4,13 +4,15 @@ local binding
 module.hotkey = {}
 
 local function pasteAsPlaintext()
-  local originalData = hs.pasteboard.readAllData()
+  local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+  if not focusedElement then
+    return
+  end
+
   local plaintext = hs.pasteboard.readString()
-  hs.pasteboard.setContents(plaintext)
-  hs.timer.usleep(100000)
-  hs.eventtap.keyStroke({ "cmd" }, "v", 0)
-  hs.timer.usleep(100000)
-  hs.pasteboard.writeAllData(originalData)
+  if plaintext then
+    focusedElement:setAttributeValue("AXSelectedText", plaintext)
+  end
 end
 
 function module.init()
