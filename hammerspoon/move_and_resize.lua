@@ -24,12 +24,21 @@ local function exactModifiersMatch(requiredModifiers, flags)
 end
 
 local function getWindowUnderMouse()
-  local mousePosition = hs.geometry.new(hs.mouse.absolutePosition())
+  local rawMousePosition = hs.mouse.absolutePosition()
+  local topmostElement = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
+  local window = topmostElement:attributeValue("AXWindow"):asHSWindow()
 
-  local windows = windowFilter:getWindows()
-  for _, window in ipairs(windows) do
-    if mousePosition:inside(window:frame()) then
-      return window
+  -- Get window of topmost element under mouse
+  if window and window:subrole() == "AXStandardWindow" then
+    return window
+  end
+
+  -- If no window was found (e.g. it is a system dialog, etc.), fall back to the frontmost window under the mouse
+  local orderedWindows = windowFilter:getWindows()
+  local mousePosition = hs.geometry.new(rawMousePosition)
+  for _, candidateWindow in ipairs(orderedWindows) do
+    if mousePosition:inside(candidateWindow:frame()) then
+      return candidateWindow
     end
   end
 
@@ -82,6 +91,7 @@ function module.init()
   windowFilter = hs.window.filter.new()
       :setOverrideFilter({
         allowRoles = { "AXStandardWindow" },
+        currentSpace = true,
         fullscreen = false,
         visible = true
       })
