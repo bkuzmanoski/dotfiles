@@ -6,9 +6,9 @@ module.keys = {}
 
 function module.init()
   if next(module.modifiers) then
-    for key, appName in pairs(module.keys) do
-      bindings[appName] = hs.hotkey.bind(module.modifiers, key, function()
-        hs.application.launchOrFocus(appName)
+    for key, bundleID in pairs(module.keys) do
+      bindings[bundleID] = hs.hotkey.bind(module.modifiers, key, function()
+        hs.application.launchOrFocusByBundleID(bundleID)
       end)
     end
   end

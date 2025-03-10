@@ -15,12 +15,12 @@ end
 local appHotkeys = require("app_hotkeys")
 appHotkeys.modifiers = hyper
 appHotkeys.keys = {
-  ["c"] = "Google Chrome",
-  ["d"] = "Figma",
-  ["f"] = "Finder",
-  ["s"] = "System Settings",
-  ["t"] = "Ghostty",
-  ["v"] = "Visual Studio Code",
+  ["c"] = "com.google.Chrome",
+  ["d"] = "com.figma.Desktop",
+  ["f"] = "com.apple.finder",
+  ["s"] = "com.apple.systempreferences",
+  ["t"] = "com.mitchellh.ghostty",
+  ["v"] = "com.microsoft.VSCode",
 }
 appHotkeys.init()
 
