@@ -68,26 +68,33 @@ func generateEventStatus(event: EKEvent, now: Date) -> EventStatus {
       return EventStatus(priority: .imminent, timeLabel: "now")
     }
     if minutesUntilStart <= 5 {
-      return EventStatus(priority: .upcoming, timeLabel: formatTimeLabel(prefix: "in", minutesUntilStart))
+      return EventStatus(
+        priority: .upcoming, timeLabel: formatTimeLabel(prefix: "in", minutesUntilStart))
     }
-    return EventStatus(priority: .future, timeLabel: formatTimeLabel(prefix: "in", minutesUntilStart))
+    return EventStatus(
+      priority: .future, timeLabel: formatTimeLabel(prefix: "in", minutesUntilStart))
   }
   // Past/ongoing events
   if minutesSinceStart <= 4 {
-    return EventStatus(priority: .recent, timeLabel: formatTimeLabel(minutesSinceStart, suffix: "ago"))
+    return EventStatus(
+      priority: .recent, timeLabel: formatTimeLabel(minutesSinceStart, suffix: "ago"))
   }
   if minutesUntilEnd > 0 {
-    return EventStatus(priority: .ongoing, timeLabel: formatTimeLabel(minutesUntilEnd, suffix: "left"))
+    return EventStatus(
+      priority: .ongoing, timeLabel: formatTimeLabel(minutesUntilEnd, suffix: "left"))
   }
   // Fallback
   return EventStatus(priority: .ended, timeLabel: "ended")
 }
 
 private func extractURL(from text: String) -> URL? {
-  guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+  guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+  else {
     return nil
   }
-  if let match = detector.firstMatch(in: text, options: [], range: NSRange(text.startIndex..., in: text)) {
+  if let match = detector.firstMatch(
+    in: text, options: [], range: NSRange(text.startIndex..., in: text))
+  {
     return match.url
   }
   return nil
@@ -140,7 +147,8 @@ func handleCalendarAccess(granted: Bool) {
   let now = Date()
   let today = Calendar.current.dateInterval(of: .day, for: now)!
   let calendars = eventStore.calendars(for: .event)
-  let predicate = eventStore.predicateForEvents(withStart: today.start, end: today.end, calendars: calendars)
+  let predicate = eventStore.predicateForEvents(
+    withStart: today.start, end: today.end, calendars: calendars)
   let sortedEvents = eventStore.events(matching: predicate)
     .filter { !$0.isAllDay && $0.endDate > now }
     .map { event in (event, generateEventStatus(event: event, now: now)) }
@@ -162,7 +170,8 @@ func handleCalendarAccess(granted: Bool) {
     } else {
       let eventTitle = nextEvent.0.title.trimmingCharacters(in: .whitespacesAndNewlines)
       let truncatedEventTitle =
-        eventTitle.prefix(30).trimmingCharacters(in: .whitespaces) + (eventTitle.count > 30 ? "…" : "")
+        eventTitle.prefix(30).trimmingCharacters(in: .whitespaces)
+        + (eventTitle.count > 30 ? "…" : "")
       let eventLabel = truncatedEventTitle.isEmpty ? "Next event" : truncatedEventTitle
       let timeLabel = nextEvent.1.timeLabel
       print("\(eventLabel) ∙ \(timeLabel)")

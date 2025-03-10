@@ -33,8 +33,9 @@ func getIcon(for bundleId: String) -> NSImage? {
     return workspace.icon(forFile: url.path)
   }
 
-  // Fallback to generic executable icon
-  let genericIconPath = "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ExecutableBinaryIcon.icns"
+  // Fall back to generic executable icon
+  let genericIconPath =
+    "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ExecutableBinaryIcon.icns"
   return NSImage(contentsOfFile: genericIconPath)
 }
 
