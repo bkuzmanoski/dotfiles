@@ -20,7 +20,7 @@ select_paths() {
   local find_command="${1}"
   shift
 
-  local selected_paths=("${(@f)$(${(@s: :)find_command} | fzf --scheme path --multi)}")
+  local selected_paths=("${(@f)$(eval "${find_command}" | fzf --multi)}")
 
   [[ -z ${selected_paths[@]} ]] && return
 
@@ -33,11 +33,11 @@ select_paths() {
 }
 
 fdir() {
-  select_paths "fd --type d --hidden" "${@}"
+  select_paths "fd --type d" "${@}"
 }
 
 ff() {
-  select_paths "fd --type f --hidden" "${@}"
+  select_paths "fd --type f" "${@}"
 }
 
 fif() {
