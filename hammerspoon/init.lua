@@ -54,13 +54,13 @@ local pasteAsPlaintext = require("paste_as_plaintext")
 pasteAsPlaintext.hotkey = { modifiers = { "option" }, key = "v" }
 pasteAsPlaintext.init()
 
-local reorderList = require("reorder_list")
-reorderList.hotkeys = {
-  moveLineUp = { modifiers = { "option" }, key = "up" },
-  moveLineDown = { modifiers = { "option" }, key = "down" }
+local reorderLines = require("reorder_lines")
+reorderLines.hotkeys = {
+  moveLinesUp = { modifiers = { "option" }, key = "up" },
+  moveLinesDown = { modifiers = { "option" }, key = "down" }
 }
-reorderList.allowApps = { "Scratchpad", "TextEdit" }
-reorderList.init()
+reorderLines.allowApps = { "Scratchpad", "TextEdit" }
+reorderLines.init()
 
 local openTabsFromSelection = require("open_tabs_from_selection")
 openTabsFromSelection.hotkey.urls = { modifiers = { "option", "shift" }, key = "o" }
@@ -138,7 +138,7 @@ hs.shutdownCallback = function()
   showAllSpaces.cleanup()
   toggleDarkMode.cleanup()
   pasteAsPlaintext.cleanup()
-  reorderList.cleanup()
+  reorderLines.cleanup()
   openTabsFromSelection.cleanup()
   adjustPosition.cleanup()
   positionAndTile.cleanup()

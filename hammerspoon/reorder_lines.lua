@@ -5,7 +5,7 @@ local windowSubscriptions = {}
 module.hotkeys = {}
 module.allowApps = {}
 
-local function moveLine(direction)
+local function moveLines(direction)
   if direction ~= "up" and direction ~= "down" then
     return
   end
@@ -159,8 +159,8 @@ end
 
 function module.init()
   local handlers = {
-    moveLineUp = function() moveLine("up") end,
-    moveLineDown = function() moveLine("down") end
+    moveLinesUp = function() moveLines("up") end,
+    moveLinesDown = function() moveLines("down") end
   }
 
   if module.allowApps and #module.allowApps > 0 and next(module.hotkeys) then
