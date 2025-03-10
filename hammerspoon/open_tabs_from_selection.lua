@@ -7,18 +7,12 @@ module.hotkey = {
 }
 
 local function getSelectedText()
-  local originalData = hs.pasteboard.readAllData()
-  hs.timer.usleep(100000)
-  hs.eventtap.keyStroke({ "cmd" }, "c", 0)
-  hs.timer.usleep(100000)
-  local selectedText = hs.pasteboard.readString()
-  hs.timer.doAfter(0.1, function() hs.pasteboard.writeAllData(originalData) end)
-
-  if not selectedText then
+  local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+  if not focusedElement then
     return
   end
 
-  return selectedText
+  return focusedElement:attributeValue("AXSelectedText")
 end
 
 local function openTabs(applescriptFragment)
@@ -42,7 +36,7 @@ end
 
 local function openURLs()
   local selectedText = getSelectedText()
-  if not selectedText then
+  if not selectedText or selectedText == "" then
     return
   end
 
