@@ -1,8 +1,8 @@
 local numberOfSpaces = 5
 local windowTopOffset = 33
 local windowPadding = 8
-local hyperKey = { "control", "option", "command" }
-local hyperKey2 = { "control", "option", "command", "shift" }
+local hyper = { "control", "option", "command" }
+local hyperShift = { "control", "option", "command", "shift" }
 
 local primaryScreen = hs.screen.primaryScreen()
 local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
@@ -13,7 +13,7 @@ if spacesCount < numberOfSpaces then
 end
 
 local appHotkeys = require("app_hotkeys")
-appHotkeys.modifiers = hyperKey
+appHotkeys.modifiers = hyper
 appHotkeys.keys = {
   ["c"] = "Google Chrome",
   ["d"] = "Figma",
@@ -26,28 +26,28 @@ appHotkeys.init()
 
 local systemHotkeys = require("system_hotkeys")
 systemHotkeys.hotkeys = {
-  focusDock = { modifiers = hyperKey2, key = "d" },
-  focusMenuBar = { modifiers = hyperKey, key = "m" },
-  toggleControlCenter = { modifiers = hyperKey2, key = "c" },
-  toggleNotificationCenter = { modifiers = hyperKey, key = "n" },
-  applicationWindows = { modifiers = hyperKey, key = "up" },
-  showDesktop = { modifiers = hyperKey, key = "down" },
-  moveSpaceLeft = { modifiers = hyperKey, key = "[" },
-  moveSpaceRight = { modifiers = hyperKey, key = "]" },
-  moveSpaceN = { modifiers = hyperKey, key = "N" }, -- N represents a mapping of number key to space number (handled in module)
-  upKeystroke = { modifiers = hyperKey, key = "p", keyRepeat = true },
-  downKeystroke = { modifiers = hyperKey, key = ";", keyRepeat = true },
-  leftKeystroke = { modifiers = hyperKey, key = "l", keyRepeat = true },
-  rightKeystroke = { modifiers = hyperKey, key = "'", keyRepeat = true }
+  focusDock = { modifiers = hyperShift, key = "d" },
+  focusMenuBar = { modifiers = hyper, key = "m" },
+  toggleControlCenter = { modifiers = hyperShift, key = "c" },
+  toggleNotificationCenter = { modifiers = hyper, key = "n" },
+  applicationWindows = { modifiers = hyper, key = "up" },
+  showDesktop = { modifiers = hyper, key = "down" },
+  moveSpaceLeft = { modifiers = hyper, key = "[" },
+  moveSpaceRight = { modifiers = hyper, key = "]" },
+  moveSpaceN = { modifiers = hyper, key = "N" }, -- N represents a mapping of number key to space number (handled in module)
+  upKeystroke = { modifiers = hyper, key = "p", keyRepeat = true },
+  downKeystroke = { modifiers = hyper, key = ";", keyRepeat = true },
+  leftKeystroke = { modifiers = hyper, key = "l", keyRepeat = true },
+  rightKeystroke = { modifiers = hyper, key = "'", keyRepeat = true }
 }
 systemHotkeys.init()
 
 local showAllSpaces = require("show_all_spaces")
-showAllSpaces.hotkey = { modifiers = hyperKey, key = "space" }
+showAllSpaces.hotkey = { modifiers = hyper, key = "space" }
 showAllSpaces.init()
 
 local toggleDarkMode = require("toggle_dark_mode")
-toggleDarkMode.hotkey = { modifiers = hyperKey, key = "a" }
+toggleDarkMode.hotkey = { modifiers = hyper, key = "a" }
 toggleDarkMode.init()
 
 local pasteAsPlaintext = require("paste_as_plaintext")
