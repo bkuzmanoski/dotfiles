@@ -33,7 +33,7 @@ install_plugins
 
 check_last_update() {
   local now="$(date +%s)"
-  local thirty_days=$((30 * 86400)) # 30 days in seconds
+  local thirty_days="$((30 * 86400))" # 30 days in seconds
   local updates_required=0
 
   for reminder in "${UPDATE_REMINDERS[@]}"; do
