@@ -24,8 +24,8 @@ typeset -A dark=(
 )
 
 theme="${DEFAULT_THEME}"
-if [[ "${FOLLOW_SYSTEM_THEME}" -eq 1 ]]; then
-  theme="$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && print "dark" || print "light")"
+if [[ ${FOLLOW_SYSTEM_THEME} -eq 1 ]]; then
+  theme="$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" == "Dark" ]] && print "dark" || print "light")"
 fi
 
 for key in ${(k)${(P)theme}}; do

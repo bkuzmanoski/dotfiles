@@ -19,10 +19,10 @@ case "${SENDER}" in
 
     if [[ ! -f "${icon_path}" ]]; then
       "${CONFIG_DIR}/helpers/bin/GetAppIcon" "${BUNDLE_ID}" >/dev/null
-      return_value="${?}"
+      return_value="$?"
     fi
 
-    if [[ return_value -eq 0 ]]; then
+    if [[ ${return_value} -eq 0 ]]; then
       arguments+=(--set current_app_icon drawing=on background.image="${icon_path}")
     else
       arguments+=(--set current_app_icon drawing=off)

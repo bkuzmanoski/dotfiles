@@ -3,6 +3,7 @@ typeset -A PLUGINS=(
   ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions"
   ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting"
 )
+
 UPDATE_TIMESTAMPS_DIR="${HOME}/.zsh/.update_timestamps"
 UPDATE_REMINDERS=(
   # Format: [emoji]:[description]:[timestamp_file]:[update_command]
@@ -13,11 +14,11 @@ UPDATE_REMINDERS=(
 
 if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
   mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
-  date +%s >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update" # Assume first run, plugin installation to follow
+  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update" # Assume first run, plugin installation to follow
 fi
 
-install_plugins() {
-  for plugin in "${(k)PLUGINS[@]}"; do
+_install_plugins() {
+  for plugin in ${(k)PLUGINS[@]}; do
     local target_path="${HOME}/.zsh/${plugin}"
     local git_repository="${PLUGINS[${plugin}]}"
 
@@ -29,11 +30,11 @@ install_plugins() {
   done
 }
 
-install_plugins
+_install_plugins
 
-check_last_update() {
-  local now="$(date +%s)"
-  local thirty_days="$((30 * 86400))" # 30 days in seconds
+_check_last_update_time() {
+  local now="$(date "+%s")"
+  local frequency="$((7 * 86400))" # Weekly
   local updates_required=0
 
   for reminder in "${UPDATE_REMINDERS[@]}"; do
@@ -42,16 +43,15 @@ check_last_update() {
     local description="${parts[2]}"
     local timestamp_file="${parts[3]}"
     local command="${parts[4]}"
-    local last_update=0
 
+    local last_update_timestamp=0
     if [[ -f "${timestamp_file}" ]]; then
-      last_update="$(<"${timestamp_file}")"
-      [[ "${last_update}" =~ ^[0-9]+$ ]] || last_update=0
+      last_update_timestamp="$(<"${timestamp_file}")"
+      [[ "${last_update_timestamp}" =~ ^[0-9]+$ ]] || last_update_timestamp=0
     fi
 
-    local time_diff="$((now - last_update))"
-
-    if (( time_diff > thirty_days )); then
+    local time_diff="$((now - last_update_timestamp))"
+    if (( time_diff > frequency )); then
       print -P "${emoji} It's been a month since your last %B${description}%b update! Run: %B%F{4}${command}%f%b."
       updates_required=1
     fi
@@ -60,7 +60,7 @@ check_last_update() {
   (( updates_required )) && print
 }
 
-check_last_update
+_check_last_update_time
 
 brewup() (
   cd ~/.dotfiles || { print ".dotfiles directory not found."; exit 1; }
@@ -70,7 +70,7 @@ brewup() (
   brew autoremove || { print "brew autoremove failed."; exit 1; }
   brew cleanup --prune all || { print "brew cleanup failed."; exit 1; }
 
-  date +%s >"${UPDATE_TIMESTAMPS_DIR}/brew_last_update"
+  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/brew_last_update"
   print "brew update timestamp updated, next reminder in 30 days."
 )
 
@@ -144,7 +144,7 @@ fnmup() {
     print "Already up to date."
   fi
 
-  date +%s >"${UPDATE_TIMESTAMPS_DIR}/fnm_last_update"
+  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/fnm_last_update"
   print "fnm update timestamp updated, next reminder in 30 days."
 }
 
@@ -156,6 +156,6 @@ zshup() (
     print
   done
 
-  date +%s >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update"
+  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update"
   print "Zsh plugins update timestamp updated, next reminder in 30 days."
 )
