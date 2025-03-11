@@ -3,7 +3,7 @@ FOLLOW_SYSTEM_THEME=1                       # 0: use DEFAULT_THEME, 1: switch ac
 DEFAULT_THEME="dark"                        # "light" or "dark"
 ANIMATION_CURVE="sin"                       # linear, quadratic, tanh, sin, exp, or circ
 ANIMATION_DURATION=6                        # n/60 seconds
-UPDATE_FREQUENCY=$((60 - $(date '+%-S')))   # Update frequency in seconds for non-event-based items
+UPDATE_FREQUENCY="$((60 - $(date "+%-S")))" # Update frequency in seconds for non-event-based items
 
 # Themes
 typeset -A light=(
@@ -25,7 +25,7 @@ typeset -A dark=(
 
 theme="${DEFAULT_THEME}"
 if [[ "${FOLLOW_SYSTEM_THEME}" -eq 1 ]]; then
-  theme=$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && print "dark" || print "light")
+  theme="$([[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" = "Dark" ]] && print "dark" || print "light")"
 fi
 
 for key in ${(k)${(P)theme}}; do

@@ -12,7 +12,7 @@ scripts=(
 
 for binary in ${(k)scripts}; do
   source_file="${scripts[${binary}]}"
-  source_dir=$(dirname "${source_file}")
+  source_dir="$(dirname "${source_file}")"
   output_dir="${source_dir}/bin"
   mkdir -p "${output_dir}"
   output_file="${output_dir}/${binary}"

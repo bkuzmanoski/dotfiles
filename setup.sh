@@ -9,7 +9,7 @@ mkdir -p "${BACKUP_DIR}"
 mkdir -p "$(dirname "${LOG_FILE}")"
 touch "${LOG_FILE}"
 
-log() {
+setup_log() {
   local now="$(date +"%H:%M:%S")"
 
   case "${1}" in
@@ -22,18 +22,18 @@ log() {
   print "${message}" | tee -a "${LOG_FILE}"
 }
 
-exec 2> >(while read -r line; do log --error "${line}"; done) # Log stderr to log file
+exec 2> >(while read -r line; do setup_log --error "${line}"; done) # Log stderr to log file
 
 ### Install Homebrew
 if ! which -s brew >/dev/null; then
-  log --info "Installing Homebrew..."
+  setup_log --info "Installing Homebrew..."
   (
     exec 2>&1
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   )
 
-  if [[ ${?} -ne 0 ]]; then
-    log --error "Homebrew installation failed, exiting."
+  if [[ "${?}" -ne 0 ]]; then
+    setup_log --error "Homebrew installation failed, exiting."
     exit 1
   fi
 
@@ -41,12 +41,12 @@ if ! which -s brew >/dev/null; then
 fi
 
 ### Install apps and fonts
-log --info "Installing Brewfile bundle."
+setup_log --info "Installing Brewfile bundle."
 if ! (
   exec 2>&1
   brew bundle --file "${SCRIPT_DIR}/Brewfile"
 ); then
-  log --error "brew bundle failed, exiting."
+  setup_log --error "brew bundle failed, exiting."
   exit 1
 fi
 
@@ -66,7 +66,7 @@ typeset -A configs=(
 )
 
 for config in "${(k)configs[@]}"; do
-  log --info "Linking ${config}"
+  setup_log --info "Linking ${config}"
 
   source_path="${SCRIPT_DIR}/${config}"
   target_path="${configs[${config}]}"
@@ -76,37 +76,37 @@ for config in "${(k)configs[@]}"; do
     backup_path="${BACKUP_DIR}/${relative_path}"
     mkdir -p "$(dirname "${backup_path}")"
     mv "${target_path}" "${backup_path}"
-    log --info "Backed up existing config at ${target_path} to ${backup_path}"
+    setup_log --info "Backed up existing config at ${target_path} to ${backup_path}"
   fi
 
   mkdir -p "$(dirname "${target_path}")"
-  ln -sfh "${source_path}" "${target_path}" || log --error "Failed to link ${config}"
+  ln -sfh "${source_path}" "${target_path}" || setup_log --error "Failed to link ${config}"
 done
 
 # Hide "Last login" message in terminal
-log --info "Creating ~/.hushlogin"
+setup_log --info "Creating ~/.hushlogin"
 touch "${HOME}/.hushlogin"
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
-  log --info "Enabling Touch ID for sudo."
+  setup_log --info "Enabling Touch ID for sudo."
   print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local >/dev/null
 fi
 
 # Enable bat to use themes in config directory
-log --info "Rebuilding bat cache."
-bat cache --build >/dev/null || log --error "Failed to build bat cache"
+setup_log --info "Rebuilding bat cache."
+bat cache --build >/dev/null || setup_log --error "Failed to build bat cache"
 
 # Start SketchyBar
 if ! (
   exec 2>&1
   brew services start sketchybar >/dev/null
 ); then
-  log --error "Failed to start SketchyBar."
+  setup_log --error "Failed to start SketchyBar."
 fi
 
 ### Set defaults
-log --info "Setting defaults..."
+setup_log --info "Setting defaults..."
 
 typeset -A backed_up_domains
 
@@ -125,8 +125,8 @@ backup_plist() {
 
   if [[ -z "${backed_up_domains[${fq_domain}]:-}" ]]; then
     local backup_path="${BACKUP_DIR}/${fq_domain//\//_}.plist"
-    log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
-    ${cmd[@]} "${@}" "${backup_path}"
+    setup_log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
+    "${cmd[@]}" "${@}" "${backup_path}"
     backed_up_domains[${fq_domain}]=1
   fi
 }
@@ -143,15 +143,15 @@ defaults_write() {
 
   local domain="${1}"
   backup_plist --sudo "${domain}"
-  log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
-  ${cmd[@]} "${@}"
+  setup_log --info "Executing: $(printf "%q " "${cmd[@]}")${*}"
+  "${cmd[@]}" "${@}"
 }
 
 defaults_delete() {
   if defaults read "${@}" &>/dev/null; then
     local domain="${1}"
     backup_plist "${domain}"
-    log --info "Executing: defaults delete ${*}"
+    setup_log --info "Executing: defaults delete ${*}"
     defaults delete "${@}"
   fi
 }
@@ -208,8 +208,8 @@ defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Dis
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
 
 # Disable True Tone
-current_user=$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')
-user_id=$(dscl . -read "/Users/${current_user}/" GeneratedUID | awk -F': ' '{print $2}')
+current_user="$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')"
+user_id="$(dscl . -read "/Users/${current_user}/" GeneratedUID | awk -F': ' '{print $2}')"
 defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-${user_id}" -dict-add CBColorAdaptationEnabled -bool false
 
 # Set keyboard shortcuts
@@ -244,11 +244,11 @@ add_dock_app "/Applications/Ghostty.app"
 wallpaper_image_path="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
 
 if [[ -f "${wallpaper_image_path}" ]]; then
-  log --info "Setting wallpaper to ${wallpaper_image_path}"
+  setup_log --info "Setting wallpaper to ${wallpaper_image_path}"
   escaped_wallpaper_image_path="$(print "${wallpaper_image_path}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_image_path}\"" || log --error "Failed to set wallpaper."
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_image_path}\"" || setup_log --error "Failed to set wallpaper."
 else
-  log --error "Wallpaper image not found."
+  setup_log --error "Wallpaper image not found."
 fi
 
 ### App settings
@@ -290,7 +290,7 @@ defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot 
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
 
 ### Finish
-log --info "Setup completed."
+setup_log --info "Setup completed."
 print
 print "If there were no errors, you can remove the temporary setup directory by running:"
 print -P "%Brm -rf ${TEMP_DIR}%b"

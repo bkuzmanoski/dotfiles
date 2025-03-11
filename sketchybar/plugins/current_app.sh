@@ -5,7 +5,7 @@ source "${CONFIG_DIR}/variables.sh"
 case "${SENDER}" in
   "appearance_change")
     sketchybar \
-      --animate ${ANIMATION_CURVE} ${ANIMATION_DURATION} \
+      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set current_app_name label.color="${TEXT_DEFAULT_COLOR}"
     ;;
   "app_change")
@@ -19,7 +19,7 @@ case "${SENDER}" in
 
     if [[ ! -f "${icon_path}" ]]; then
       "${CONFIG_DIR}/helpers/bin/GetAppIcon" "${BUNDLE_ID}" >/dev/null
-      return_value=${?}
+      return_value="${?}"
     fi
 
     if [[ return_value -eq 0 ]]; then
