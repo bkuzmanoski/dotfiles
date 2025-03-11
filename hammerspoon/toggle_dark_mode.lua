@@ -6,7 +6,7 @@ module.hotkey = {}
 local function toggleDarkMode()
   hs.osascript.applescript([[
     tell application "System Events" to tell appearance preferences to set dark mode to not dark mode
-    ]])
+  ]])
 end
 
 function module.init()

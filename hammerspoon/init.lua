@@ -12,6 +12,10 @@ if spacesCount < numberOfSpaces then
   end
 end
 
+local appMenu = require("app_menu")
+appMenu.modifiers = { "cmd" }
+appMenu.init()
+
 local appHotkeys = require("app_hotkeys")
 appHotkeys.modifiers = hyper
 appHotkeys.keys = {
@@ -133,6 +137,7 @@ local focusScreen = require("focus_screen")
 focusScreen.init()
 
 hs.shutdownCallback = function()
+  appMenu.cleanup()
   appHotkeys.cleanup()
   systemHotkeys.cleanup()
   showAllSpaces.cleanup()
