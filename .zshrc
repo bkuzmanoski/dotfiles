@@ -26,20 +26,21 @@ alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level 3"
 alias ll="eza --all --group-directories-first --header --long --no-permissions --no-user"
 alias llt="eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level 3"
-alias fd="fd --hidden --no-ignore-vcs --color never"
+alias cat="bat"
 alias mkdir="mkdir -pv"
 alias cp="cp -iv"
 alias mv="mv -i"
 alias rm="rm -i"
-alias cat="bat"
-alias micro="update_theme && micro --colorscheme \${THEME}"
-alias top="top -s 5 -S -stats pid,command,cpu,th,mem,purg,user,state"
+alias fd="fd --hidden --no-ignore-vcs --color never"
+alias micro="update_theme && micro --colorscheme \"\${THEME}\""
+alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
 
 autoload -Uz compinit; compinit
 
 source ~/.zsh/plugins.zsh
 source ~/.zsh/fzf.zsh
 source ~/.zsh/fzf-tab/fzf-tab.plugin.zsh
+source ~/.zsh/utils.zsh
 source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 source ~/.zsh/theme.zsh
