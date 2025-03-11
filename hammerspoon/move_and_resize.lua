@@ -1,27 +1,11 @@
+local utils = require("utils")
 local module = {}
-local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
 local windowFilter, keyboardTap, mouseTap, activeWindow, activeOperation
 
 module.modifiers = {
   move = {},
   resize = {}
 }
-
-local function exactModifiersMatch(requiredModifiers, flags)
-  local requiredLookup = {}
-  for _, modifier in ipairs(requiredModifiers) do
-    requiredLookup[modifier] = true
-  end
-
-  for _, modifier in ipairs(allModifiers) do
-    if (requiredLookup[modifier] and not flags[modifier]) or
-        (not requiredLookup[modifier] and flags[modifier]) then
-      return false
-    end
-  end
-
-  return true
-end
 
 local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
@@ -67,9 +51,9 @@ end
 local function handleFlagsChange(event)
   stopOperation()
   local flags = event:getFlags()
-  if exactModifiersMatch(module.modifiers.move, flags) then
+  if utils.isExactModifiersMatch(module.modifiers.move, flags) then
     startOperation("move")
-  elseif exactModifiersMatch(module.modifiers.resize, flags) then
+  elseif utils.isExactModifiersMatch(module.modifiers.resize, flags) then
     startOperation("resize")
   end
 end
