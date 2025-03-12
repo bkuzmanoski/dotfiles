@@ -73,6 +73,7 @@ local function showAppMenu(position)
 
   menu:setMenu(appMenu)
   menu:popupMenu(position)
+  menu:delete()
 end
 
 local function handleURLEvent(_, parameters)
