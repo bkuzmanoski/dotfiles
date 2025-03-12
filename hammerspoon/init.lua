@@ -4,6 +4,8 @@ local windowPadding = 8
 local hyper = { "control", "option", "command" }
 local hyperShift = { "control", "option", "command", "shift" }
 
+hs.logger.setGlobalLogLevel("warning")
+
 local primaryScreen = hs.screen.primaryScreen()
 local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
 if spacesCount < numberOfSpaces then
