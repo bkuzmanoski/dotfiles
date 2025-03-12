@@ -1,5 +1,9 @@
 #!/bin/zsh
 
+###############################################################################
+# Initialization
+###############################################################################
+
 SCRIPT_DIR="${0:A:h}"
 TEMP_DIR="${HOME}/.dotfiles_setup"
 BACKUP_DIR="${TEMP_DIR}/$(date "+%Y%m%d_%H%M%S")_backups"
@@ -11,20 +15,53 @@ touch "${LOG_FILE}"
 
 _log() {
   local now="$(date "+%H:%M:%S")"
-
   case "$1" in
     "--info")     local message="${now}: [INFO]    $2" ;;
     "--warning")  local message="${now}: [WARNING] $2" ;;
     "--error")    local message="${now}: [ERROR]   $2" ;;
     *)            local message="${now}: [MESSAGE] $@" ;;
   esac
-
   print "${message}" | tee -a "${LOG_FILE}"
 }
 
 exec 2> >(while read -r line; do _log --error "${line}"; done) # Log stderr to log file
 
-### Install Homebrew
+typeset -A backups
+
+_defaults_write() {
+  local sudo currenthost
+  [[ "$1" == "--sudo" ]] && sudo=1 && shift
+  [[ "$1" == "--currenthost" ]] && currenthost=1 && shift
+
+  local -a cmd_prefix=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}")
+
+  local -a export_cmd=(${cmd_prefix[@]} export "$@")
+  local backup_path="${BACKUP_DIR}/${export_cmd[*]//\//_}.plist"
+  if [[ -z "${backups[${export_cmd}]}" ]]; then
+    _log --info "Executing: ${export_cmd[*]}"
+    ${export_cmd[@]}
+    backups[${export_cmd}]=1
+  fi
+
+  local -a write_cmd=(${cmd_prefix[@]} "write" "$@")
+  _log --info "Executing: ${write_cmd[*]}"
+  ${write_cmd[@]}
+}
+
+_set_system_hotkey() {
+  local key="$1" enabled="$2" p1="$3" p2="$4" p3="$5"
+  _defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>${p1}</integer><integer>${p2}</integer><integer>${p3}</integer></array></dict></dict>"
+}
+
+_add_app_to_dock() {
+  local app_path="$1"
+  _defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+}
+
+###############################################################################
+# Install Homebrew, apps, and fonts
+###############################################################################
+
 if ! which -s brew >/dev/null; then
   _log --info "Installing Homebrew..."
   (
@@ -40,17 +77,19 @@ if ! which -s brew >/dev/null; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-### Install apps and fonts
-_log --info "Installing Brewfile bundle."
+_log --info "Installing Homebrew bundle..."
 if ! (
   exec 2>&1
   brew bundle --file "${SCRIPT_DIR}/Brewfile"
 ); then
-  _log --error "brew bundle failed, exiting."
+  _log --error "Homebrew bundle installation failed, exiting."
   exit 1
 fi
 
-### Link dotfiles
+###############################################################################
+# Link dotfiles
+###############################################################################
+
 typeset -A configs=(
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
@@ -83,6 +122,10 @@ for config in "${(k)configs[@]}"; do
   ln -sfh "${source_path}" "${target_path}" || _log --error "Failed to link ${config}"
 done
 
+###############################################################################
+# Set up environment
+###############################################################################
+
 # Hide "Last login" message in terminal
 _log --info "Creating ~/.hushlogin"
 touch "${HOME}/.hushlogin"
@@ -105,52 +148,28 @@ if ! (
   _log --error "Failed to start SketchyBar."
 fi
 
-### Set defaults
+# Set wallpaper
+wallpaper_image_path="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
+
+if [[ -f "${wallpaper_image_path}" ]]; then
+  _log --info "Setting wallpaper to ${wallpaper_image_path}"
+  escaped_wallpaper_image_path="$(print "${wallpaper_image_path}" | sed 's/"/\\"/g')"
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_image_path}\"" || _log --error "Failed to set wallpaper."
+else
+  _log --error "Wallpaper image not found."
+fi
+
+###############################################################################
+# Write defaults
+###############################################################################
+
 _log --info "Setting defaults..."
-
-typeset -A backed_up_domains
-
-_backup_plist() {
-  local cmd=(defaults export)
-  local use_sudo=false
-
-  if [[ "$1" == "--sudo" ]]; then
-    cmd=(sudo defaults export)
-    use_sudo=true
-    shift
-  fi
-
-  local domain="$1"
-  local fq_domain="$1${use_sudo:+".sudo"}"
-
-  if [[ -z "${backed_up_domains[${fq_domain}]:-}" ]]; then
-    local backup_path="${BACKUP_DIR}/${fq_domain//\//_}.plist"
-    _log --info "Executing: ${cmd[@]} $*"
-    "${cmd[@]}" "$@" "${backup_path}"
-    backed_up_domains[${fq_domain}]=1
-  fi
-}
-
-_defaults_write() {
-  local cmd=(defaults write)
-  local use_sudo=false
-
-  if [[ "$1" == "--sudo" ]]; then
-    cmd=(sudo defaults write)
-    use_sudo=true
-    shift
-  fi
-
-  local domain="$1"
-  _backup_plist --sudo "${domain}"
-  _log --info "Executing: ${cmd[@]} $*"
-  "${cmd[@]}" "$@"
-}
 
 # macOS settings
 _defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 _defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
 _defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
+_defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{print $2}')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
 _defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
 _defaults_write com.apple.ActivityMonitor UpdatePeriod -int 1 # Set update frequency to 1 second
 _defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
@@ -197,20 +216,6 @@ _defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before 
 _defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 _defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
 _defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
-
-# Disable True Tone
-current_user="$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')"
-user_id="$(dscl . -read "/Users/${current_user}/" GeneratedUID | awk -F': ' '{print $2}')"
-_defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-${user_id}" -dict-add CBColorAdaptationEnabled -bool false
-
-# Set keyboard shortcuts
-_set_system_hotkey() {
-  local key="$1"
-  local enabled="$2"
-  local p1="$3" p2="$4" p3="$5"
-  _defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>${p1}</integer><integer>${p2}</integer><integer>${p3}</integer></array></dict></dict>"
-}
-
 _set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 _set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
 _set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
@@ -218,42 +223,24 @@ _set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to 
 _set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 _set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 _set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
-
-# Set Dock apps
-_add_dock_app() {
-  local app_path="$1"
-  _defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
-}
-
-_add_dock_app "/System/Applications/Mail.app"
-_add_dock_app "/Applications/Google Chrome.app"
-_add_dock_app "/Applications/Figma.app"
-_add_dock_app "/Applications/Visual Studio Code.app"
-_add_dock_app "/Applications/Ghostty.app"
-
-# Set wallpaper
-wallpaper_image_path="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
-
-if [[ -f "${wallpaper_image_path}" ]]; then
-  _log --info "Setting wallpaper to ${wallpaper_image_path}"
-  escaped_wallpaper_image_path="$(print "${wallpaper_image_path}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_image_path}\"" || _log --error "Failed to set wallpaper."
-else
-  _log --error "Wallpaper image not found."
-fi
+_add_app_to_dock "/System/Applications/Mail.app"
+_add_app_to_dock "/Applications/Google Chrome.app"
+_add_app_to_dock "/Applications/Figma.app"
+_add_app_to_dock "/Applications/Visual Studio Code.app"
+_add_app_to_dock "/Applications/Ghostty.app"
 
 ### App settings
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right to ⌘T
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab
-_defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable battery notifications
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab (conflicts with ⌘T)
+_defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable low battery notifications
 _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 _defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
-_defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Run in faceless mode
+_defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Hide menu bar icon
 _defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
-_defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Disable menu items for Apple and Menuwhere
-_defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Enable automatic updates
-_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide Menu Bar icon
+_defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Hide  and Menuwhere menu items
+_defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Check for updates automatically
+_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
 _defaults_write com.sindresorhus.Scratchpad isSyncEnabled -bool true # Enable iCloud sync
 _defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⌘⌥␣
@@ -280,10 +267,11 @@ _defaults_write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do
 _defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 _defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
 
-### Finish
+###############################################################################
+# The end
+###############################################################################
+
 _log --info "Setup completed."
-print
-print "If there were no errors, you can remove the temporary setup directory by running:"
+print "\nIf there were no errors, you can remove the temporary setup directory by running:"
 print -P "%Brm -rf ${TEMP_DIR}%b"
-print
-print "Restart your computer for all changes to take effect."
+print "\nRestart your computer for all changes to take effect."
