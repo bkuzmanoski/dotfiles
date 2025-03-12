@@ -3,7 +3,7 @@
 # @raycast.schemaVersion 1
 # @raycast.title Send Tabs to Feedbin
 # @raycast.mode silent
-# @raycast.packageName Personal
+# @raycast.packageName Google Chrome
 # @raycast.icon icons/send-tabs-to-feedbin.png
 
 tell application "System Events"
