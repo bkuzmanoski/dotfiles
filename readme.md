@@ -147,6 +147,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Turn off "Show downloads when they're complete"
   - Select "Block sign-in prompts from identity services"
   - Turn off "Show Bookmarks Bar"
+  - Turn on "Allow JavaScript from Apple Events"
   - Log in to Raindrop
   - Set uBlock Origin Lite filtering mode to "Optimal"
 
