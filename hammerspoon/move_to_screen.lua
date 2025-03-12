@@ -47,7 +47,7 @@ local function moveToScreen(direction)
   windowFrame.y = toCenter.y + offset.y - (windowFrame.h / 2)
 
   if window:isMaximizable() then
-    windowFrame = utils.adjustWindowPosition(toFrame, windowFrame, module.topOffset, module.padding)
+    windowFrame = utils.getAdjustedWindowFrame(toFrame, windowFrame, module.topOffset, module.padding)
   end
 
   window:setFrame(windowFrame)
