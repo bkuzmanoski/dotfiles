@@ -13,7 +13,7 @@ local function handleWindowEvent(window)
 
   local screenFrame = window:screen():fullFrame()
   local windowFrame = window:frame()
-  local adjustedWindowFrame = utils.adjustWindowPosition(screenFrame, windowFrame, module.topOffset, module.padding)
+  local adjustedWindowFrame = utils.getAdjustedWindowFrame(screenFrame, windowFrame, module.topOffset, module.padding)
   if windowFrame.x ~= adjustedWindowFrame.x or windowFrame.y ~= adjustedWindowFrame.y then
     window:setFrame(adjustedWindowFrame, 0)
   end

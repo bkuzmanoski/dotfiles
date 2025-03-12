@@ -8,7 +8,7 @@ function module.playAlert()
   end
 end
 
-function module.adjustWindowPosition(screenFrame, windowFrame, topOffset, padding)
+function module.getAdjustedWindowFrame(screenFrame, windowFrame, topOffset, padding)
   local adjustedWindowFrame = windowFrame:copy()
   if adjustedWindowFrame.x - screenFrame.x < (padding) then
     adjustedWindowFrame.x = screenFrame.x + padding
