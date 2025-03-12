@@ -237,6 +237,7 @@ _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable no
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 _defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
 _defaults_write com.manytricks.Menuwhere "Application Mode" -int 2 # Hide menu bar icon
+_defaults_write com.manytricks.Menuwhere "Show Key Equivalents" -bool false # Hide keyboard shortcuts
 _defaults_write com.manytricks.Menuwhere "Stealth Mode" -bool true # Don't show settings on launch
 _defaults_write com.manytricks.Menuwhere Blacklist -string "Apple,Menuwhere" # Hide  and Menuwhere menu items
 _defaults_write com.manytricks.Menuwhere SUEnableAutomaticChecks -bool true # Check for updates automatically
