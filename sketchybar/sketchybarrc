@@ -92,13 +92,9 @@ sketchybar \
   --subscribe battery_status appearance_change power_source_change system_woke \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event calendar_update appearance_change system_woke mouse.entered mouse.clicked mouse.exited \
-
-if pgrep -f "${CONFIG_DIR}/events/bin/SBEventProvider" > /dev/null 2>&1; then
-  pkill -f "${CONFIG_DIR}/events/bin/SBEventProvider"
-fi
-
-"${CONFIG_DIR}/build_binaries.sh"
-"${CONFIG_DIR}/events/bin/SBEventProvider" &
+  --subscribe next_event calendar_update appearance_change system_woke mouse.entered mouse.clicked mouse.exited
 
 sketchybar --update
+pkill -f "${CONFIG_DIR}/events/bin/SBEventProvider" &>/dev/null
+"${CONFIG_DIR}/build_binaries.sh"
+"${CONFIG_DIR}/events/bin/SBEventProvider" &
