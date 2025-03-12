@@ -229,7 +229,7 @@ _add_app_to_dock "/Applications/Figma.app"
 _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
-### App settings
+# App settings
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right to ⌘T
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab (conflicts with ⌘T)
 _defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable low battery notifications
