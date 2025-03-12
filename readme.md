@@ -110,7 +110,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
 - **CleanShot X**
 
-  - Grant Screen & System Audio Recording permission
+  - Grant Accessibility and Screen & System Audio Recording permissions
   - Onboarding:
     - Log in
     - Enter activation key
