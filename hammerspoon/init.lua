@@ -5,6 +5,7 @@ local hyper = { "control", "option", "command" }
 local hyperShift = { "control", "option", "command", "shift" }
 
 hs.logger.setGlobalLogLevel("warning")
+hs.hotkey.setLogLevel("warning")
 
 local primaryScreen = hs.screen.primaryScreen()
 local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
