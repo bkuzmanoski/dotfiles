@@ -1,10 +1,10 @@
 #!/usr/bin/osascript
 
 # @raycast.schemaVersion 1
-# @raycast.title Enable Dark Mode
+# @raycast.title Toggle Dark Mode
 # @raycast.mode silent
 # @raycast.packageName Google Chrome
-# @raycast.icon icons/enable-dark-mode.png
+# @raycast.icon icons/toggle-dark-mode.png
 
 tell application "Google Chrome"
   if (count of windows) > 0 then
@@ -17,11 +17,13 @@ tell application "Google Chrome"
             style = document.createElement('style');
             style.id = 'custom-dark-mode';
             document.head.appendChild(style);
+            style.innerHTML = css;
+          } else {
+            style.parentNode.removeChild(style);
           }
-          style.innerHTML = css;
         })();
       "
-      return "Dark mode enabled"
+      return ""
     end tell
   end if
 end tell
