@@ -24,7 +24,7 @@ _log() {
   print "${message}" | tee -a "${LOG_FILE}"
 }
 
-exec 2> >(while read -r line; do _log --error "${line}"; done) # Log stderr to log file
+exec 2> >(while read -r line; do _log --error ${line}; done) # Log stderr to log file
 
 typeset -A backups
 
@@ -37,10 +37,10 @@ _defaults_write() {
 
   local -a export_cmd=(${cmd_prefix[@]} export "$@")
   local backup_path="${BACKUP_DIR}/${export_cmd[*]//\//_}.plist"
-  if [[ -z "${backups[${export_cmd}]}" ]]; then
+  if [[ -z "${backups[${backup_path}]}" ]]; then
     _log --info "Executing: ${export_cmd[*]}"
     ${export_cmd[@]}
-    backups[${export_cmd}]=1
+    backups[${backup_path}]=1
   fi
 
   local -a write_cmd=(${cmd_prefix[@]} "write" "$@")

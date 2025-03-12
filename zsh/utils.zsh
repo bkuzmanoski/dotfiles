@@ -105,16 +105,16 @@ oi() {
   for input in "$@"; do
     [[ ! -e ${input} ]] && continue
     if [[ -d ${input} ]]; then
-      local dir_files=("${input}"/**/*.(gif|jpg|jpeg|png|svg)(.))
+      local dir_files=("${input}"/**/*.(gif|jpg|jpeg|png|svg)(N))
       files+=("${dir_files[@]}")
     elif [[ -f ${input} ]]; then
-      [[ ${input} =~ \.(gif|jpg|jpeg|png|svg)$ ]] && files+=("${input}")
+      [[ ${input} = *.(gif|jpg|jpeg|png|svg) ]] && files+=("${input}")
     fi
   done
 
   local image_count=${#files[@]}
   if [[ ${image_count} -eq 0 ]]; then
-    print "Error: No valid image files to process."
+    print "Error: Didn't find any valid image files to optimize."
     return 1
   fi
 
