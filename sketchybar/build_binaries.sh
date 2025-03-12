@@ -16,6 +16,6 @@ for binary in ${(k)scripts}; do
   mkdir -p "${output_dir}"
   output_file="${output_dir}/${binary}"
   if [ ! -f "${output_file}" ]; then
-    swiftc -O "${source_file}" -o "${output_file}" || { print "Failed to build ${binary}"; exit 1; }
+    swiftc -O "${source_file}" -o "${output_file}" || { print "Failed to build ${binary}"; exit 1 }
   fi
 done

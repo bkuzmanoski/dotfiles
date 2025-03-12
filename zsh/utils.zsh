@@ -13,9 +13,7 @@ fif() {
     return 1
   fi
 
-  local pattern="$1"
-  shift
-
+  local pattern="$1" && shift
   _select_paths "rg --files-with-matches --no-messages -- \"${pattern}\"" "$@"
 }
 
@@ -35,11 +33,8 @@ fk() {
 }
 
 _select_paths() {
-  local find_command="$1"
-  shift
-
+  local find_command="$1" && shift
   local selected_paths=("${(@f)$(eval "${find_command}" | fzf --multi)}")
-
   [[ -z "${selected_paths[@]}" ]] && return
 
   if [[ $# -gt 0 ]]; then
@@ -58,14 +53,13 @@ cv() {
   fi
 
   local input_file="$1"
-
   if [[ ! -f "${input_file}" ]]; then
     print "Error: File \"${input_file}\" not found."
     return 1
   fi
 
-  local output_file="${input_file%.*}_compressed.mp4"
   local original_size=$(stat -f %z "${input_file}")
+  local output_file="${input_file%.*}_compressed.mp4"
 
   ffmpeg \
     -hide_banner \
@@ -83,16 +77,13 @@ cv() {
     "${output_file}"
 
   if [[ $? -ne 0 ]]; then
-    print
-    print "Failed to compress video."
+    print "\nFailed to compress video."
     return 1
   fi
 
   local compressed_size=$(stat -f %z "${output_file}")
   local size_reduction=$(( (${original_size} - ${compressed_size}) * 100 / ${original_size} ))
-
-  print
-  print -P "%B${output_file}%b"
+  print -P "\n%B${output_file}%b"
   printf "Original size:   %.2f MB\n" $(print "${original_size} / 1000000" | bc -l)
   printf "Compressed size: %.2f MB\n" $(print "${compressed_size} / 1000000" | bc -l)
   printf "Size reduction:  %d%%\n" ${size_reduction}
@@ -105,8 +96,7 @@ oi() {
     return 1
   fi
 
-  local imageoptim="/Applications/ImageOptim.app/Contents/MacOS/ImageOptim"
-  if [[ ! -x ${imageoptim} ]]; then
+  if ! which -s imageoptim >/dev/null; then
     print "ImageOptim is not installed."
     return 1
   fi
@@ -130,11 +120,10 @@ oi() {
 
   local -A original_sizes
   for file in "${files[@]}"; do
-    original_sizes[$file]=$(stat -f %z "${file}")
+    original_sizes[${file}]=$(stat -f %z "${file}")
   done
 
-  "${imageoptim}" "${files[@]}"
-
+  imageoptim "${files[@]}"
   if [[ $? -ne 0 ]]; then
     return 1
   fi
@@ -146,13 +135,13 @@ oi() {
     (( total_size_optimized += $(stat -f %z "${file}") ))
   done
 
-  [[ ${total_size_original} -eq 0 ]] && return 1
-
-  local size_reduction=$(((total_size_original - total_size_optimized) * 100 / total_size_original))
-
-  print
-  print -P "%B${image_count} image(s)%b"
-  printf "Original size:  %.2f MB\n" $(print "${total_size_original} / 1000000" | bc -l)
-  printf "Optimized size: %.2f MB\n" $(print "${total_size_optimized} / 1000000" | bc -l)
-  printf "Size reduction: %d%%\n" ${size_reduction}
+  printf "\n\033[1mOptimized %d image%s\033[0m\n" "${image_count}" "$([[ ${image_count} -eq 1 ]] || print "s")"
+  if [[ ${total_size_original} -eq 0 ]]; then
+    print "There was a problem calculating optimization statistics."
+  else
+    local size_reduction=$(((total_size_original - total_size_optimized) * 100 / total_size_original))
+    printf "Original size:  %.2f MB\n" $(print "${total_size_original} / 1000000" | bc -l)
+    printf "Optimized size: %.2f MB\n" $(print "${total_size_optimized} / 1000000" | bc -l)
+    printf "Size reduction: %d%%\n" ${size_reduction}
+  fi
 }
