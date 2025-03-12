@@ -23,7 +23,7 @@ typeset -a current_app_icon=(
   background.image.padding_left=1
   padding_right=6
   script="${CONFIG_DIR}/plugins/app_menu.sh"
-  click_script="open \"hammerspoon://showAppMenu?x=8&y=45\""
+  click_script="${CONFIG_DIR}/helpers/bin/TriggerAppMenu 8 45"
 )
 
 typeset -a current_app_name=(
