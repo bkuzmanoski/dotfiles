@@ -135,9 +135,6 @@ switchWindow.hotkeys = {
 }
 switchWindow.init()
 
--- local focusAfterClose = require("focus_after_close")
--- focusAfterClose.init()
-
 local focusScreen = require("focus_screen")
 focusScreen.init()
 
@@ -156,6 +153,5 @@ hs.shutdownCallback = function()
   moveToSpace.cleanup()
   moveToScreen.cleanup()
   switchWindow.cleanup()
-  -- focusAfterClose.cleanup()
   focusScreen.cleanup()
 end
