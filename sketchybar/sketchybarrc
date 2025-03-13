@@ -95,6 +95,6 @@ sketchybar \
   --subscribe next_event calendar_update appearance_change system_woke mouse.entered mouse.clicked mouse.exited
 
 sketchybar --update
-pkill -f "${CONFIG_DIR}/events/bin/SBEventProvider" &>/dev/null
+pkill -f "${CONFIG_DIR}/helpers/bin/SBEventProvider" &>/dev/null
 "${CONFIG_DIR}/build_binaries.sh"
-"${CONFIG_DIR}/events/bin/SBEventProvider" &
+"${CONFIG_DIR}/helpers/bin/SBEventProvider" &
