@@ -18,7 +18,6 @@ cask "ghostty"
 cask "google-chrome"
 cask "hammerspoon"
 cask "imageoptim"
-cask "menuwhere"
 cask "raycast"
 cask "visual-studio-code"
 

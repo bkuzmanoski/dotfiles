@@ -156,13 +156,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Grant Accessibility permission
   - Launch Hammerspoon at login
 
-- **Menuwhere**
-
-  - Grant Accessibility permission
-  - Activate license
-  - Launch automatically on login
-  - Set "Pop up frontmost app menu with hot key" to ✦⇧M
-
 - **NextDNS**
 
   - Start at login
