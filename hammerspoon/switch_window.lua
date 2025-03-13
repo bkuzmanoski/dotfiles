@@ -37,7 +37,7 @@ local function focusWindow(direction)
   for _, window in ipairs(windows) do
     if window:screen() == screen and
         window ~= currentWindow and
-        window:title() ~= "" then -- Heuristic about overlays (e.g. CleanShot X recording overlay)
+        window:title() ~= "" then
       local frame = window:frame()
       if direction == "left" and frame.x < referenceFrame.x then
         local diff = referenceFrame.x - frame.x
