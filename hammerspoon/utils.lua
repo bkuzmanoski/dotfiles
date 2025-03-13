@@ -1,12 +1,4 @@
 local module = {}
-local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
-
-function module.playAlert()
-  local alertSound = hs.sound.getByFile("/System/Library/Sounds/Tink.aiff") -- a.k.a. "Boop"
-  if alertSound then
-    alertSound:play()
-  end
-end
 
 function module.getAdjustedWindowFrame(screenFrame, windowFrame, topOffset, padding)
   local adjustedWindowFrame = windowFrame:copy()
@@ -27,6 +19,7 @@ function module.getAdjustedWindowFrame(screenFrame, windowFrame, topOffset, padd
 end
 
 function module.isExactModifiersMatch(requiredModifiers, flags)
+  local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
   local requiredLookup = {}
   local requiredCount = 0
   for _, modifier in ipairs(requiredModifiers) do
@@ -48,6 +41,13 @@ function module.isExactModifiersMatch(requiredModifiers, flags)
   end
 
   return matchedCount == requiredCount
+end
+
+function module.playAlert()
+  local alertSound = hs.sound.getByFile("/System/Library/Sounds/Tink.aiff") -- a.k.a. "Boop"
+  if alertSound then
+    alertSound:play()
+  end
 end
 
 return module
