@@ -7,8 +7,8 @@ module.modifiers = {}
 local function getMenuBarOwningApp()
   local ok, pid = hs.osascript.applescript([[
     tell application "System Events"
-      set frontapp to first application process whose frontmost is true
-      return unix id of frontapp
+      set frontApp to first application process whose frontmost is true
+      return unix id of frontApp
     end tell
   ]])
 
