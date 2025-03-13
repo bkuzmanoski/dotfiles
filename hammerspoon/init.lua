@@ -1,11 +1,13 @@
+hs.logger.setGlobalLogLevel("warning")
+hs.hotkey.setLogLevel("warning")
+
 local numberOfSpaces = 5
 local windowTopOffset = 33
 local windowPadding = 8
 local hyper = { "control", "option", "command" }
 local hyperShift = { "control", "option", "command", "shift" }
 
-hs.logger.setGlobalLogLevel("warning")
-hs.hotkey.setLogLevel("warning")
+require("helpers/build_binaries")
 
 local primaryScreen = hs.screen.primaryScreen()
 local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
