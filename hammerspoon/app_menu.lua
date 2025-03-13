@@ -71,6 +71,7 @@ local function showAppMenu(position)
     return
   end
 
+  hs.timer.doAfter(0.1, function() menuBarOwningApp:activate() end)
   menu:setMenu(appMenu)
   menu:popupMenu(position)
   menu:delete()
