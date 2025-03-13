@@ -1,22 +1,14 @@
 #!/bin/zsh
 
-SCRIPT_DIR="${0:A:h}"
+SOURCE_DIR="${0:A:h}/helpers"
+BIN_DIR="${SOURCE_DIR}/bin"
 
-typeset -A scripts
-scripts=(
-  ["SBEventProvider"]="${SCRIPT_DIR}/events/SBEventProvider.swift"
-  ["GetNextEvent"]="${SCRIPT_DIR}/helpers/GetNextEvent.swift"
-  ["GetAppIcon"]="${SCRIPT_DIR}/helpers/GetAppIcon.swift"
-  ["TriggerAppMenu"]="${SCRIPT_DIR}/helpers/TriggerAppMenu.swift"
-)
+mkdir -p "${BIN_DIR}"
 
-for binary in ${(k)scripts}; do
-  source_file="${scripts[${binary}]}"
-  source_dir="$(dirname "${source_file}")"
-  output_dir="${source_dir}/bin"
-  mkdir -p "${output_dir}"
-  output_file="${output_dir}/${binary}"
-  if [ ! -f "${output_file}" ]; then
-    swiftc -O "${source_file}" -o "${output_file}" || { print "Failed to build ${binary}"; exit 1 }
+local source_files=("${SOURCE_DIR}"/*.swift(N))
+for source_file in "${source_files[@]}"; do
+  target_path="${BIN_DIR}/$(basename "${source_file}" .swift)"
+  if [ ! -x "${target_path}" ]; then
+    swiftc -O "${source_file}" -o "${target_path}"
   fi
 done

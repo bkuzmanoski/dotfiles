@@ -3,5 +3,4 @@ hammerspoon/Spoons/
 micro/*/
 !micro/colorschemes/
 zsh/*/
-**/*.sock
 .DS_Store

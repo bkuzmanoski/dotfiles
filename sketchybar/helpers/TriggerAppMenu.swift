@@ -36,11 +36,13 @@ func getAbsoluteClickTarget(mouseLocation: CGPoint, relativeX: CGFloat, relative
   return CGPoint(x: absoluteX, y: absoluteY)
 }
 
-guard CommandLine.arguments.count == 3,
+guard
+  CommandLine.arguments.count == 3,
   let targetX = Double(CommandLine.arguments[1]),
   let targetY = Double(CommandLine.arguments[2])
 else {
-  print("Usage: \(CommandLine.arguments[0]) x y")
+  let progName = (CommandLine.arguments[0] as NSString?)?.lastPathComponent ?? "TriggerAppMenu"
+  print("Usage: \(progName) <x> <y>")
   exit(1)
 }
 

@@ -16,33 +16,6 @@ struct EventStatus {
   let timeLabel: String
 }
 
-var shouldOpenURL = false
-
-func usage() {
-  let progName = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "GetNextEvent"
-  print(
-    """
-    Usage: \(progName) [--open-url]
-
-      --open-url    Open the URL associated with the next event instead of printing its details.
-    """)
-}
-
-func parseArguments() {
-  let arguments = CommandLine.arguments.dropFirst()  // drop executable name
-  for arg in arguments {
-    switch arg {
-    case "--open-url":
-      shouldOpenURL = true
-    default:
-      usage()
-      exit(1)
-    }
-  }
-}
-
-parseArguments()
-
 private func formatTimeLabel(prefix: String = "", _ minutes: Int, suffix: String = "") -> String {
   let timeString: String
   if minutes >= 60 {
@@ -88,7 +61,8 @@ func generateEventStatus(event: EKEvent, now: Date) -> EventStatus {
 }
 
 private func extractURL(from text: String) -> URL? {
-  guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+  guard
+    let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
   else {
     return nil
   }
@@ -132,9 +106,9 @@ func openURL(for event: EKEvent) {
   NSWorkspace.shared.open(fallbackURL)
 }
 
+let shouldOpenURL = CommandLine.arguments.contains("--open-url")
 let semaphore = DispatchSemaphore(value: 0)
 let eventStore = EKEventStore()
-
 eventStore.requestFullAccessToEvents { granted, _ in handleCalendarAccess(granted: granted) }
 
 func handleCalendarAccess(granted: Bool) {
