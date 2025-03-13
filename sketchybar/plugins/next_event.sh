@@ -3,22 +3,22 @@
 source "${CONFIG_DIR}/variables.sh"
 
 case "${SENDER}" in
-  "appearance_change")
+  appearance_change)
     sketchybar \
       --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set next_event label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
-  "mouse.entered")
+  mouse.entered)
     sketchybar \
       --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
-  "mouse.exited")
+  mouse.exited)
     sketchybar \
       --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set next_event background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
-  "mouse.clicked")
+  mouse.clicked)
     sketchybar --set next_event background.color="${BACKGROUND_ACTIVE_COLOR}"
     sleep $(print "${ANIMATION_DURATION} / 100" | bc -l)
     sketchybar --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
