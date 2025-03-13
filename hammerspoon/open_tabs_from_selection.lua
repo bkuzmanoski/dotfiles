@@ -40,8 +40,25 @@ local function openURLs()
     return
   end
 
+  local success = false
+  local urls = {}
+  local task = hs.task.new(
+    hs.configdir .. "/helpers/bin/ExtractURLs",
+    function(exitCode, stdOut)
+      success = exitCode == 0
+      for url in stdOut:gmatch("([^\n]+)") do
+        table.insert(urls, url)
+      end
+    end
+  )
+  task:setInput(selectedText):start():waitUntilExit()
+
+  if not success then
+    return
+  end
+
   local urlCommands = ""
-  for url in string.gmatch(selectedText, "(https?://[^%s]+)") do
+  for _, url in ipairs(urls) do
     urlCommands = urlCommands .. string.format('make new tab with properties {URL:"%s"}\n', url)
   end
 
