@@ -16,10 +16,10 @@ touch "${LOG_FILE}"
 _log() {
   local now="$(date "+%H:%M:%S")"
   case "$1" in
-    "--info")     local message="${now}: [INFO]    $2" ;;
-    "--warning")  local message="${now}: [WARNING] $2" ;;
-    "--error")    local message="${now}: [ERROR]   $2" ;;
-    *)            local message="${now}: [MESSAGE] $@" ;;
+    --info)    local message="${now}: [INFO]    $2" ;;
+    --warning) local message="${now}: [WARNING] $2" ;;
+    --error)   local message="${now}: [ERROR]   $2" ;;
+    *)         local message="${now}: [MESSAGE] $@" ;;
   esac
   print "${message}" | tee -a "${LOG_FILE}"
 }
@@ -30,8 +30,15 @@ typeset -A backups
 
 _defaults_write() {
   local sudo currenthost
-  [[ "$1" == "--sudo" ]] && sudo=1 && shift
-  [[ "$1" == "--currenthost" ]] && currenthost=1 && shift
+
+  while [[ "$1" == -* ]]; do
+    case "$1" in
+      --sudo)        sudo=1 ;;
+      --currenthost) currenthost=1 ;;
+      *)             _log --error "Unknown option: $1" && return 1 ;;
+    esac
+    shift
+  done
 
   local -a cmd_prefix=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}")
 
