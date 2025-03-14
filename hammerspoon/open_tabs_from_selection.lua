@@ -81,7 +81,7 @@ end
 
 function module.init()
   if next(module.hotkey.extractURLs) then
-    binding = hs.hotkey.bind(module.hotkey.urls.modifiers, module.hotkey.urls.key, extractURLs)
+    binding = hs.hotkey.bind(module.hotkey.extractURLs.modifiers, module.hotkey.extractURLs.key, extractURLs)
   end
   if next(module.hotkey.search) then
     binding = hs.hotkey.bind(module.hotkey.search.modifiers, module.hotkey.search.key, searchForSelection)
