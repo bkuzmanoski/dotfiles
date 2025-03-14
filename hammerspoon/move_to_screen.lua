@@ -4,10 +4,7 @@ local bindings = {}
 
 module.topOffset = 0
 module.padding = 0
-module.hotkeys = {
-  up = {},
-  down = {}
-}
+module.hotkeys = {}
 
 local function moveToScreen(direction)
   local window = hs.window.focusedWindow()
@@ -54,15 +51,8 @@ local function moveToScreen(direction)
 end
 
 function module.init()
-  if next(module.hotkeys.up) then
-    bindings.resizeUp = hs.hotkey.bind(module.hotkeys.up.modifiers, module.hotkeys.up.key, function()
-      moveToScreen("up")
-    end)
-  end
-  if next(module.hotkeys.down) then
-    bindings.resizeDown = hs.hotkey.bind(module.hotkeys.down.modifiers, module.hotkeys.down.key, function()
-      moveToScreen("down")
-    end)
+  for direction, hotkey in pairs(module.hotkeys) do
+    bindings[direction] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function() moveToScreen(direction) end)
   end
 end
 

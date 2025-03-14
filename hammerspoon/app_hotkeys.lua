@@ -5,12 +5,13 @@ module.modifiers = {}
 module.keys = {}
 
 function module.init()
-  if next(module.modifiers) then
-    for key, bundleID in pairs(module.keys) do
-      bindings[bundleID] = hs.hotkey.bind(module.modifiers, key, function()
-        hs.application.launchOrFocusByBundleID(bundleID)
-      end)
-    end
+  if module.modifiers == nil then
+    return
+  end
+  for key, bundleID in pairs(module.keys) do
+    bindings[bundleID] = hs.hotkey.bind(module.modifiers, key, function()
+      hs.application.launchOrFocusByBundleID(bundleID)
+    end)
   end
 end
 
