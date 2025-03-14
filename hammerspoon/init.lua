@@ -60,11 +60,11 @@ pasteAsPlaintext.hotkey = { modifiers = { "option" }, key = "v" }
 pasteAsPlaintext.init()
 
 local reorderLines = require("reorder_lines")
+reorderLines.allowApps = { "Scratchpad", "TextEdit" }
 reorderLines.hotkeys = {
   moveLinesUp = { modifiers = { "option" }, key = "up" },
   moveLinesDown = { modifiers = { "option" }, key = "down" }
 }
-reorderLines.allowApps = { "Scratchpad", "TextEdit" }
 reorderLines.init()
 
 local openTabsFromSelection = require("open_tabs_from_selection")
