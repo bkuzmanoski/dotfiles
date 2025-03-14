@@ -243,6 +243,11 @@ _defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable low 
 _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 _defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
+_defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
+_defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
+_defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for shortcut 1 to ⌘
+_defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for shortcut 2 to ⌘
+_defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 _defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
 _defaults_write com.sindresorhus.Scratchpad isSyncEnabled -bool true # Enable iCloud sync
@@ -261,6 +266,7 @@ _defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don'
 _defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
 _defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
 _defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
+_defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
 _defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
 _defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
 _defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
@@ -268,7 +274,6 @@ _defaults_write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do
 _defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 _defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
 _defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
-_defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
 _defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
 
 ###############################################################################
