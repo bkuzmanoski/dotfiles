@@ -25,7 +25,6 @@ case "${SENDER}" in
     ;;
   *)
     local next_event="$("${CONFIG_DIR}/helpers/bin/GetNextEvent")"
-
     if [[ $? -ne 0 ]] || [[ -z "${next_event}" ]]; then
       sketchybar --set next_event drawing=off
     else
