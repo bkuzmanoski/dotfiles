@@ -3,11 +3,7 @@ local module = {}
 local bindings = {}
 local windowFilter
 
-module.hotkeys = {
-  frontmost = {},
-  left = {},
-  right = {}
-}
+module.hotkeys = {}
 
 local function focusWindow(direction)
   local windows = windowFilter:getWindows()

@@ -85,9 +85,7 @@ local function moveWindowToNextSpace()
 end
 
 function module.init()
-  if module.numberOfSpaces > 1 and module.numberOfSpaces <= 9 and
-      next(module.hotkeys.modifiers) and
-      next(navigationHotkeyModifiers) then
+  if module.numberOfSpaces > 1 and module.numberOfSpaces <= 9 and next(module.hotkeys.modifiers) then
     for i = 1, module.numberOfSpaces do
       bindings[i] = hs.hotkey.bind(module.hotkeys.modifiers, tostring(i), function()
         local focusedWindow = getFocusedWindowAndScreen()
