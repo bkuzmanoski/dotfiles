@@ -122,14 +122,13 @@ moveToScreen.hotkeys = {
 }
 moveToScreen.init()
 
-local switchWindow = require("switch_window")
-switchWindow.hotkeys = {
-  focusFrontmost = { modifiers = { "option", "command" }, key = "return" },
-  hints = { modifiers = { "option", "command" }, key = "\\" },
+local focusWindow = require("focus_window")
+focusWindow.hotkeys = {
+  frontmost = { modifiers = { "option", "command" }, key = "return" },
   left = { modifiers = { "option", "command" }, key = "[" },
-  right = { modifiers = { "option", "command" }, key = "]" }
+  right = { modifiers = { "option", "command" }, key = "]" },
 }
-switchWindow.init()
+focusWindow.init()
 
 local focusScreen = require("focus_screen")
 focusScreen.init()
@@ -148,6 +147,6 @@ hs.shutdownCallback = function()
   moveAndResize.cleanup()
   moveToSpace.cleanup()
   moveToScreen.cleanup()
-  switchWindow.cleanup()
+  focusWindow.cleanup()
   focusScreen.cleanup()
 end

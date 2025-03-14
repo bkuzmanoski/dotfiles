@@ -4,18 +4,10 @@ local bindings = {}
 local windowFilter
 
 module.hotkeys = {
-  focusFrontmost = {},
-  hints = {},
+  frontmost = {},
   left = {},
   right = {}
 }
-
-local function setUpWindowHints()
-  hs.hints.fontName = "SFPro-Medium"
-  hs.hints.fontSize = 13
-  hs.hints.showTitleThresh = 0
-  hs.hints.style = "vimperator"
-end
 
 local function focusWindow(direction)
   local windows = windowFilter:getWindows()
@@ -35,9 +27,7 @@ local function focusWindow(direction)
   local candidateWindow = nil
   local minXDiff = math.huge
   for _, window in ipairs(windows) do
-    if window:screen() == screen and
-        window ~= currentWindow and
-        window:title() ~= "" then
+    if window:screen() == screen and window ~= currentWindow then
       local frame = window:frame()
       if direction == "left" and frame.x < referenceFrame.x then
         local diff = referenceFrame.x - frame.x
@@ -82,40 +72,13 @@ local function focusWindow(direction)
 end
 
 function module.init()
-  if next(module.hotkeys.focusFrontmost) then
-    bindings.focusFrontmost = hs.hotkey.bind(
-      module.hotkeys.focusFrontmost.modifiers,
-      module.hotkeys.focusFrontmost.key,
-      function()
-        focusWindow("frontmost")
-      end)
-  end
-  if next(module.hotkeys.hints) then
-    setUpWindowHints()
-    bindings.hints = hs.hotkey.bind(
-      module.hotkeys.hints.modifiers,
-      module.hotkeys.hints.key,
-      hs.hints.windowHints)
-  end
-  if next(module.hotkeys.left) then
-    bindings.left = hs.hotkey.bind(
-      module.hotkeys.left.modifiers,
-      module.hotkeys.left.key,
-      function()
-        focusWindow("left")
-      end)
-  end
-  if next(module.hotkeys.right) then
-    bindings.right = hs.hotkey.bind(
-      module.hotkeys.right.modifiers,
-      module.hotkeys.right.key,
-      function()
-        focusWindow("right")
-      end)
+  for window, hotkey in pairs(module.hotkeys) do
+    bindings[window] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function() focusWindow(window) end)
   end
   if next(bindings) then
     windowFilter = hs.window.filter.new():setOverrideFilter({
       allowRoles = { "AXStandardWindow" },
+      allowTitles = 1,
       currentSpace = true,
       fullscreen = false,
       visible = true
@@ -128,6 +91,7 @@ function module.cleanup()
     binding:delete()
   end
   bindings = {}
+  windowFilter = nil
 end
 
 return module
