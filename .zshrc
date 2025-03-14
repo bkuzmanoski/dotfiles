@@ -34,14 +34,14 @@ alias fd="fd --hidden --no-ignore-vcs --color never"
 alias cat="bat"
 alias micro="update_theme && micro --colorscheme \"\${THEME}\""
 alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
-alias imageoptim="/Applications/ImageOptim.app/Contents/MacOS/ImageOptim"
 
 autoload -Uz compinit; compinit
 
 source ~/.zsh/plugins.zsh
-source ~/.zsh/fzf.zsh
+source ~/.zsh/cv.zsh
+source ~/.zsh/oi.zsh
+source ~/.zsh/fzf_utils.zsh
 source ~/.zsh/fzf-tab/fzf-tab.plugin.zsh
-source ~/.zsh/utils.zsh
 source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 source ~/.zsh/theme.zsh

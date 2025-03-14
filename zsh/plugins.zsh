@@ -139,7 +139,7 @@ _check_last_update_time() {
 
     local time_diff="$((now - last_update_timestamp))"
     if (( time_diff > frequency )); then
-      print -P "${emoji} It's been a month since the last %B${description}%b update! Run: %B${command}%b."
+      print -P "${emoji} It's been a month since the last %B${description}%b update! Run: ${command}"
       updates_required=1
     fi
   done
