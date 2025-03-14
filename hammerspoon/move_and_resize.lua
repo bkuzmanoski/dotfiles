@@ -1,4 +1,3 @@
-local utils = require("utils")
 local module = {}
 local windowFilter, keyboardTap, mouseTap, activeWindow, activeOperation
 
@@ -11,9 +10,7 @@ local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
 
   -- Get window of topmost element under mouse
-  local rawWindow = hs.axuielement.systemWideElement()
-      :elementAtPosition(rawMousePosition)
-      :attributeValue("AXWindow")
+  local rawWindow = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition):attributeValue("AXWindow")
   if rawWindow and rawWindow:attributeValue("AXSubrole") == "AXStandardWindow" then
     return rawWindow:asHSWindow()
   end
@@ -51,9 +48,9 @@ end
 local function handleFlagsChange(event)
   stopOperation()
   local flags = event:getFlags()
-  if utils.isExactModifiersMatch(module.modifiers.move, flags) then
+  if flags:containExactly(module.modifiers.move) then
     startOperation("move")
-  elseif utils.isExactModifiersMatch(module.modifiers.resize, flags) then
+  elseif flags:containExactly(module.modifiers.resize) then
     startOperation("resize")
   end
 end
@@ -73,17 +70,16 @@ local function handleMouseMove(event)
 end
 
 function module.init()
-  windowFilter = hs.window.filter.new()
-      :setOverrideFilter({
-        allowRoles = { "AXStandardWindow" },
-        currentSpace = true,
-        fullscreen = false,
-        visible = true
-      })
   if #module.modifiers.move > 0 or #module.modifiers.resize > 0 then
-    keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange)
-    keyboardTap:start()
-    mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove)
+    windowFilter = hs.window.filter.new()
+        :setOverrideFilter({
+          allowRoles = { "AXStandardWindow" },
+          currentSpace = true,
+          fullscreen = false,
+          visible = true
+        })
+    keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
+    mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
   end
 end
 

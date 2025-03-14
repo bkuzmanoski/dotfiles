@@ -1,4 +1,3 @@
-local utils = require("utils")
 local module = {}
 local eventTap
 
@@ -107,8 +106,7 @@ function module.init()
 
   if #module.modifiers > 0 then
     eventTap = hs.eventtap.new({ hs.eventtap.event.types.rightMouseDown }, function(event)
-      local flags = event:getFlags()
-      if utils.isExactModifiersMatch(module.modifiers, flags) then
+      if event:getFlags():containExactly(module.modifiers) then
         showAppMenu(hs.mouse.absolutePosition())
         return true
       end
