@@ -71,6 +71,13 @@ local openTabsFromSelection = require("open_tabs_from_selection")
 openTabsFromSelection.hotkey.extractURLs = { modifiers = { "option", "shift" }, key = "o" }
 openTabsFromSelection.hotkey.search = { modifiers = { "shift", "command" }, key = "o" }
 openTabsFromSelection.init()
+local focusWindow = require("focus_window")
+focusWindow.hotkeys = {
+  frontmost = { modifiers = { "option", "command" }, key = "return" },
+  left = { modifiers = { "option", "command" }, key = "[" },
+  right = { modifiers = { "option", "command" }, key = "]" },
+}
+focusWindow.init()
 
 local adjustPosition = require("adjust_position")
 adjustPosition.topOffset = windowTopOffset
@@ -121,14 +128,6 @@ moveToScreen.hotkeys = {
 }
 moveToScreen.init()
 
-local focusWindow = require("focus_window")
-focusWindow.hotkeys = {
-  frontmost = { modifiers = { "option", "command" }, key = "return" },
-  left = { modifiers = { "option", "command" }, key = "[" },
-  right = { modifiers = { "option", "command" }, key = "]" },
-}
-focusWindow.init()
-
 local focusScreen = require("focus_screen")
 focusScreen.init()
 
@@ -141,11 +140,11 @@ hs.shutdownCallback = function()
   pasteAsPlaintext.cleanup()
   reorderLines.cleanup()
   openTabsFromSelection.cleanup()
+  focusWindow.cleanup()
   adjustPosition.cleanup()
   positionAndTile.cleanup()
   moveAndResize.cleanup()
   moveToSpace.cleanup()
   moveToScreen.cleanup()
-  focusWindow.cleanup()
   focusScreen.cleanup()
 end
