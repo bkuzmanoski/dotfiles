@@ -34,7 +34,7 @@ local function openTabs(applescriptFragment)
   end
 end
 
-local function openURLs()
+local function extractURLs()
   local selectedText = getSelectedText()
   if not selectedText or selectedText == "" then
     return
@@ -80,8 +80,8 @@ local function searchForSelection()
 end
 
 function module.init()
-  if next(module.hotkey.urls) then
-    binding = hs.hotkey.bind(module.hotkey.urls.modifiers, module.hotkey.urls.key, openURLs)
+  if next(module.hotkey.extractURLs) then
+    binding = hs.hotkey.bind(module.hotkey.urls.modifiers, module.hotkey.urls.key, extractURLs)
   end
   if next(module.hotkey.search) then
     binding = hs.hotkey.bind(module.hotkey.search.modifiers, module.hotkey.search.key, searchForSelection)

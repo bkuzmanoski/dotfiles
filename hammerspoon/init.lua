@@ -68,7 +68,7 @@ reorderLines.hotkeys = {
 reorderLines.init()
 
 local openTabsFromSelection = require("open_tabs_from_selection")
-openTabsFromSelection.hotkey.urls = { modifiers = { "option", "shift" }, key = "o" }
+openTabsFromSelection.hotkey.extractURLs = { modifiers = { "option", "shift" }, key = "o" }
 openTabsFromSelection.hotkey.search = { modifiers = { "shift", "command" }, key = "o" }
 openTabsFromSelection.init()
 
