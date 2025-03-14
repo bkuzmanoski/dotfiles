@@ -44,10 +44,6 @@ systemHotkeys.hotkeys = {
   moveSpaceLeft = { modifiers = hyper, key = "[" },
   moveSpaceRight = { modifiers = hyper, key = "]" },
   moveSpaceN = { modifiers = hyper, key = "N" }, -- N represents a mapping of number key to space number (handled in module)
-  upKeystroke = { modifiers = hyper, key = "p", keyRepeat = true },
-  downKeystroke = { modifiers = hyper, key = ";", keyRepeat = true },
-  leftKeystroke = { modifiers = hyper, key = "l", keyRepeat = true },
-  rightKeystroke = { modifiers = hyper, key = "'", keyRepeat = true }
 }
 systemHotkeys.init()
 

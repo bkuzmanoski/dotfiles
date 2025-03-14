@@ -8,11 +8,7 @@ local keyMap = {
   showDesktop = { modifiers = { "fn" }, key = "f11" },
   moveSpaceLeft = { modifiers = { "fn", "ctrl" }, key = "left" },
   moveSpaceRight = { modifiers = { "fn", "ctrl" }, key = "right" },
-  moveSpaceN = { modifiers = { "ctrl" } },
-  upKeystroke = { modifiers = { "fn" }, key = "up" },
-  downKeystroke = { modifiers = { "fn" }, key = "down" },
-  leftKeystroke = { modifiers = { "fn" }, key = "left" },
-  rightKeystroke = { modifiers = { "fn" }, key = "right" }
+  moveSpaceN = { modifiers = { "ctrl" } }
 }
 local bindings = {}
 
@@ -27,23 +23,13 @@ function module.init()
             bindings[action .. i] = hs.hotkey.bind(
               hotkey.modifiers,
               tostring(i),
-              function()
-                hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0)
-              end)
+              function() hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0) end)
           end
         else
           bindings[action] = hs.hotkey.bind(
             hotkey.modifiers,
             hotkey.key,
-            function()
-              hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key, 15000) -- Match system key repeat delay
-            end,
-            nil,
-            function()
-              if hotkey.keyRepeat and hotkey.keyRepeat == true then
-                hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key, 0) -- Match system key repeat speed
-              end
-            end)
+            function() hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key) end)
         end
       end
     end
