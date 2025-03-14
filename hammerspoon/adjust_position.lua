@@ -22,11 +22,8 @@ end
 function module.init()
   windowSubscription = hs.window.filter.new()
       :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
-
-  if next(module.ignoreApps) then
-    for _, appName in ipairs(module.ignoreApps) do
-      windowSubscription:rejectApp(appName)
-    end
+  for _, appName in ipairs(module.ignoreApps) do
+    windowSubscription:rejectApp(appName)
   end
 
   windowSubscription:subscribe(hs.window.filter.windowCreated, handleWindowEvent)
