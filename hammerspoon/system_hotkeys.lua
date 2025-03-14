@@ -15,22 +15,20 @@ local bindings = {}
 module.hotkeys = {}
 
 function module.init()
-  if next(module.hotkeys) then
-    for action, hotkey in pairs(module.hotkeys) do
-      if keyMap[action] then
-        if action == "moveSpaceN" then
-          for i = 1, 9 do
-            bindings[action .. i] = hs.hotkey.bind(
-              hotkey.modifiers,
-              tostring(i),
-              function() hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0) end)
-          end
-        else
-          bindings[action] = hs.hotkey.bind(
+  for action, hotkey in pairs(module.hotkeys) do
+    if keyMap[action] then
+      if action == "moveSpaceN" then
+        for i = 1, 9 do
+          bindings[action .. i] = hs.hotkey.bind(
             hotkey.modifiers,
-            hotkey.key,
-            function() hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key) end)
+            tostring(i),
+            function() hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0) end)
         end
+      else
+        bindings[action] = hs.hotkey.bind(
+          hotkey.modifiers,
+          hotkey.key,
+          function() hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key) end)
       end
     end
   end
