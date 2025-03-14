@@ -1,9 +1,9 @@
 local module = {}
 local bindings = {}
-local windowSubscriptions = {}
+local windowSubscription
 
-module.hotkeys = {}
 module.allowApps = {}
+module.hotkeys = {}
 
 local function moveLines(direction)
   if direction ~= "up" and direction ~= "down" then
@@ -160,18 +160,15 @@ local function disableBindings()
 end
 
 function module.init()
-  local handlers = {
-    moveLinesUp = function() moveLines("up") end,
-    moveLinesDown = function() moveLines("down") end
-  }
-
   if module.allowApps and #module.allowApps > 0 and next(module.hotkeys) then
-    for _, appName in ipairs(module.allowApps) do
-      windowSubscriptions[appName] = hs.window.filter.new(appName)
-      windowSubscriptions[appName]:subscribe(hs.window.filter.windowFocused, enableBindings)
-      windowSubscriptions[appName]:subscribe(hs.window.filter.windowUnfocused, disableBindings)
-    end
+    windowSubscription = hs.window.filter.new(module.allowApps)
+        :subscribe(hs.window.filter.windowFocused, enableBindings)
+        :subscribe(hs.window.filter.windowUnfocused, disableBindings)
 
+    local handlers = {
+      moveLinesUp = function() moveLines("up") end,
+      moveLinesDown = function() moveLines("down") end
+    }
     for action, hotkey in pairs(module.hotkeys) do
       if handlers[action] then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])
@@ -182,11 +179,10 @@ function module.init()
 end
 
 function module.cleanup()
-  for _, subscription in pairs(windowSubscriptions) do
-    subscription:unsubscribeAll()
+  if windowSubscription then
+    windowSubscription:unsubscribeAll()
+    windowSubscription = nil
   end
-  windowSubscriptions = {}
-
   for _, binding in pairs(bindings) do
     binding:delete()
   end
