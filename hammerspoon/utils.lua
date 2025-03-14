@@ -18,31 +18,6 @@ function module.getAdjustedWindowFrame(screenFrame, windowFrame, topOffset, padd
   return adjustedWindowFrame
 end
 
-function module.isExactModifiersMatch(requiredModifiers, flags)
-  local allModifiers = { "cmd", "alt", "shift", "ctrl", "fn", "capslock" }
-  local requiredLookup = {}
-  local requiredCount = 0
-  for _, modifier in ipairs(requiredModifiers) do
-    requiredLookup[modifier] = true
-    requiredCount = requiredCount + 1
-  end
-
-  local matchedCount = 0
-  for _, modifier in ipairs(allModifiers) do
-    local isRequired = requiredLookup[modifier] or false
-    local isPressed = flags[modifier] or false
-
-    if isRequired ~= isPressed then
-      return false
-    end
-    if isRequired then
-      matchedCount = matchedCount + 1
-    end
-  end
-
-  return matchedCount == requiredCount
-end
-
 function module.playAlert()
   local alertSound = hs.sound.getByFile("/System/Library/Sounds/Tink.aiff") -- a.k.a. "Boop"
   if alertSound then
