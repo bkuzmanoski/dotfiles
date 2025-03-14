@@ -106,7 +106,11 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
 - **AltTab**
 
-  - Grant Accessibility and Screen & System Audio Recording permissions
+  - Grant Accessibility permission
+  - Turn off "Menubar icon"
+  - Turn on "Hide app badges"
+  - Turn on "Hide status icons"
+  - Turn on "Hide Space number labels"
 
 - **CleanShot X**
 
