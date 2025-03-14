@@ -10,7 +10,6 @@ else
   battery_info="$(pmset -g batt)"
   is_discharging="$(print "${battery_info}" | grep "discharging")"
   percentage="$(print "${battery_info}" | grep -Eo "\d+%" | cut -d% -f1)"
-
   if [[ -n "${is_discharging}" && "${percentage}" =~ ^[0-9]+$ && "${percentage}" -le 20 ]]; then
     sketchybar --set battery_status drawing=on icon.color="${TEXT_WARNING_COLOR}" label="${percentage}%" label.color="${TEXT_WARNING_COLOR}" update_freq="${UPDATE_FREQUENCY}"
   else
