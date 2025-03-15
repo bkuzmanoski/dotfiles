@@ -53,7 +53,7 @@ oi() {
       local dir_files=("${input}"/**/*.(jpg|jpeg|png)(N))
       files+=("${dir_files[@]}")
     elif [[ -f ${input} ]]; then
-      [[ ${input} = *.(jpg|jpeg|png) ]] && files+=("${input}")
+      [[ ${input} == *.(jpg|jpeg|png) ]] && files+=("${input}")
     fi
   done
 
