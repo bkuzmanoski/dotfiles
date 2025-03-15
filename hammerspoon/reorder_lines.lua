@@ -23,22 +23,22 @@ local function moveLines(direction)
   end
 
   local lines = {}
-  local seekPosition
+  local position
 
   -- Split text into lines, preserving empty lines
-  seekPosition = 1
+  position = 1
   while true do
-    local lineEndPosition = fullText:find("\n", seekPosition)
+    local lineEndPosition = fullText:find("\n", position)
     if not lineEndPosition then
       -- Last line
-      local line = fullText:sub(seekPosition)
+      local line = fullText:sub(position)
       table.insert(lines, line)
       break
     end
 
-    local line = fullText:sub(seekPosition, lineEndPosition - 1)
+    local line = fullText:sub(position, lineEndPosition - 1)
     table.insert(lines, line)
-    seekPosition = lineEndPosition + 1
+    position = lineEndPosition + 1
   end
 
   -- Find the line numbers and relative cursor position or selected range
@@ -51,32 +51,32 @@ local function moveLines(direction)
     local endPosition = startPosition + selectedRange.length - 1
 
     -- Find start offset and start and end line numbers
-    seekPosition = 0
+    position = 0
     for i, line in ipairs(lines) do
       local lineLength = #line + 1
-      if not startLineNumber and seekPosition + lineLength >= startPosition then
+      if not startLineNumber and position + lineLength >= startPosition then
         startLineNumber = i
-        startOffset = startPosition - seekPosition
+        startOffset = startPosition - position
       end
-      if not endLineNumber and seekPosition + lineLength >= endPosition then
+      if not endLineNumber and position + lineLength >= endPosition then
         endLineNumber = i
         break
       end
-      seekPosition = seekPosition + lineLength
+      position = position + lineLength
     end
   else
     -- Handle cursor-only case
     local cursorPosition = (selectedRange and selectedRange.location + 1) or 1
-    seekPosition = 0
+    position = 0
     for i, line in ipairs(lines) do
       local lineLength = #line + 1
-      if seekPosition + lineLength >= cursorPosition then
+      if position + lineLength >= cursorPosition then
         startLineNumber = i
         endLineNumber = i
-        startOffset = cursorPosition - seekPosition
+        startOffset = cursorPosition - position
         break
       end
-      seekPosition = seekPosition + lineLength
+      position = position + lineLength
     end
   end
 
