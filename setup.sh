@@ -141,6 +141,8 @@ touch "${HOME}/.hushlogin"
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
   _log --info "Enabling Touch ID for sudo."
   print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local >/dev/null
+else
+  _log --info "Touch ID for sudo already enabled."
 fi
 
 # Enable bat to use themes in config directory
@@ -148,11 +150,12 @@ _log --info "Rebuilding bat cache."
 bat cache --build >/dev/null || _log --error "Failed to build bat cache"
 
 # Start SketchyBar
+_log --info "Starting SketchyBar service."
 if ! (
   exec 2>&1
   brew services start sketchybar >/dev/null
 ); then
-  _log --error "Failed to start SketchyBar."
+  _log --error "Failed to start SketchyBar service."
 fi
 
 # Set wallpaper
