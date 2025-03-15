@@ -179,7 +179,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 - **Scratchpad**
 
   - Launch at login
-  - Set Font to "JetBrains Mono Regular Light"
+  - Set Font to "JetBrains Mono Regular Regular"
 
 - **SketchyBar**
 
