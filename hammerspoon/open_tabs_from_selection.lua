@@ -1,3 +1,4 @@
+local utils = require("utils")
 local module = {}
 local binding
 
@@ -9,6 +10,7 @@ module.hotkey = {
 local function getSelectedText()
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
+    utils.playAlert()
     return
   end
 
@@ -37,6 +39,7 @@ end
 local function extractURLs()
   local selectedText = getSelectedText()
   if not selectedText or selectedText == "" then
+    utils.playAlert()
     return
   end
 
@@ -71,7 +74,8 @@ end
 
 local function searchForSelection()
   local selectedText = getSelectedText()
-  if not selectedText then
+  if not selectedText or selectedText == "" then
+    utils.playAlert()
     return
   end
 

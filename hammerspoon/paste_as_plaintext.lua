@@ -1,3 +1,4 @@
+local utils = require("utils")
 local module = {}
 local binding
 
@@ -6,13 +7,16 @@ module.hotkey = {}
 local function pasteAsPlaintext()
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
+    utils.playAlert()
     return
   end
 
   local plaintext = hs.pasteboard.readString()
-  if plaintext then
-    focusedElement:setAttributeValue("AXSelectedText", plaintext)
+  if not plaintext or plaintext == "" then
+    utils.playAlert()
   end
+
+  focusedElement:setAttributeValue("AXSelectedText", plaintext)
 end
 
 function module.init()

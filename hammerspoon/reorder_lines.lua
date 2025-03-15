@@ -1,3 +1,4 @@
+local utils = require("utils")
 local module = {}
 local bindings = {}
 local windowSubscription
@@ -12,6 +13,7 @@ local function moveLines(direction)
 
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
+    utils.playAlert()
     return
   end
 
