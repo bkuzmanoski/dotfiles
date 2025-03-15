@@ -11,6 +11,7 @@ export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export MANPAGER="col -bx | bat --language man --style plain"
 export MICRO_TRUECOLOR=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
+[[ -f ~/.zsh/.zshenv ]] && source ~/.zsh/.zshenv
 
 setopt AUTO_CD
 setopt GLOB_DOTS
@@ -40,6 +41,7 @@ autoload -Uz compinit; compinit
 source ~/.zsh/plugins.zsh
 source ~/.zsh/cv.zsh
 source ~/.zsh/oi.zsh
+source ~/.zsh/wa.zsh
 source ~/.zsh/fzf_utils.zsh
 source ~/.zsh/fzf-tab/fzf-tab.plugin.zsh
 source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh

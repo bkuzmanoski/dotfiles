@@ -4,3 +4,4 @@ micro/*/
 !micro/colorschemes/
 zsh/*/
 .DS_Store
+.zshenv
