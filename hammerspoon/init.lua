@@ -67,6 +67,11 @@ reorderLines.hotkeys = {
 }
 reorderLines.init()
 
+local calculateInline = require("calculate_inline")
+calculateInline.allowApps = { "Scratchpad", "TextEdit" }
+calculateInline.hotkey = { modifiers = { "shift", "command" }, key = "=" }
+calculateInline.init()
+
 local openTabsFromSelection = require("open_tabs_from_selection")
 openTabsFromSelection.hotkey.extractURLs = { modifiers = { "option", "shift" }, key = "o" }
 openTabsFromSelection.hotkey.search = { modifiers = { "shift", "command" }, key = "o" }

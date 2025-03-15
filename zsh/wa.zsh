@@ -14,7 +14,5 @@ wa() {
   fi
 
   print "${wa_response}"
-
-  [[ "${wa_response}" == "No short answer available" || "${wa_response}" == "Wolfram|Alpha did not understand your input" ]] && return 1
   return 0
 }
