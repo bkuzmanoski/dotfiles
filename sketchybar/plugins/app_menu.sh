@@ -15,7 +15,7 @@ case "${SENDER}" in
     ;;
   mouse.clicked)
     sketchybar --set current_app_icon background.color="${BACKGROUND_ACTIVE_COLOR}"
-    sleep $(print "${ANIMATION_DURATION} / 100" | bc -l)
+    sleep $(print "scale=2; ${ANIMATION_DURATION} / 100" | bc)
     sketchybar --set current_app_icon background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
 esac

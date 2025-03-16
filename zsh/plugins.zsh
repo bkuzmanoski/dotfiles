@@ -1,15 +1,16 @@
 typeset -A PLUGINS=(
-  ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab"
-  ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions"
-  ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting"
+  # Format: [plugin]=git_url|source_file
+  ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
+  ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
+  ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )
 
 UPDATE_TIMESTAMPS_DIR="${HOME}/.zsh/.update_timestamps"
 UPDATE_REMINDERS=(
-  # Format: [emoji]:[description]:[timestamp_file]:[update_command]
-  "🍺:brew:${UPDATE_TIMESTAMPS_DIR}/brew_last_update:brewup"
-  "📦:fnm:${UPDATE_TIMESTAMPS_DIR}/fnm_last_update:fnmup"
-  "🧩:Zsh plugins:${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update:zshup"
+  # Format: emoji|description|timestamp_file|update_command
+  "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
+  "📦|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
+  "🧩|Zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
 )
 
 brewup() (
@@ -92,32 +93,38 @@ fnmup() {
 
 zshup() (
   for plugin in "${(k)PLUGINS[@]}"; do
-    local plugin_path="${HOME}/.zsh/${plugin}"
+    local plugin_dir="${HOME}/.zsh/${plugin}"
     print -P "Updating %B${plugin}%b..."
-    cd "${plugin_path}" && git pull || { print "${plugin} update failed."; exit 1 }
+    cd "${plugin_dir}" && git pull || { print "${plugin} update failed."; exit 1 }
     print
   done
 
   _update_timestamps "zsh_plugins_last_update"
 )
 
-_install_plugins() {
+_source_plugins() {
   local plugins_installed=0
   for plugin in ${(k)PLUGINS[@]}; do
-    local target_path="${HOME}/.zsh/${plugin}"
-    local git_repository="${PLUGINS[${plugin}]}"
-    if [[ ! -d "${target_path}" ]]; then
+    local target_dir="${HOME}/.zsh/${plugin}"
+    local git_repository=${PLUGINS[${plugin}]%%|*}
+    local source_file=${PLUGINS[${plugin}]#*|}
+    if [[ ! -d "${target_dir}" ]]; then
       print -P "Installing %B${plugin}%b..."
-      git clone "${git_repository}" "${target_path}" || { print "${plugin} installation failed.\n"; continue }
+      git clone "${git_repository}" "${target_dir}" || { print "${plugin} installation failed.\n"; continue }
       plugins_installed=1
       print
+    fi
+    if [[ -f "${target_dir}/${source_file}" ]]; then
+      source "${target_dir}/${source_file}"
+    else
+      print "Warning: Plugin file ${source_file} not found for ${plugin}"
     fi
   done
 
   (( plugins_installed )) && zshup > /dev/null # Update timestamps
 }
 
-_install_plugins
+_source_plugins
 
 _check_last_update_time() {
   local now="$(date "+%s")"
@@ -125,7 +132,7 @@ _check_last_update_time() {
   local updates_required=0
 
   for reminder in "${UPDATE_REMINDERS[@]}"; do
-    local parts=("${(@s.:.)reminder}")
+    local parts=("${(@s.|.)reminder}")
     local emoji="${parts[1]}"
     local description="${parts[2]}"
     local timestamp_file="${parts[3]}"

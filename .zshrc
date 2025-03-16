@@ -6,13 +6,6 @@ precmd() {
 
 PROMPT="%F{8}[%f%~%F{8}]%f "
 
-export EDITOR="micro"
-export EZA_CONFIG_DIR="${HOME}/.config/eza"
-export MANPAGER="col -bx | bat --language man --style plain"
-export MICRO_TRUECOLOR=1
-export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
-[[ -f ~/.zsh/.zshenv ]] && source ~/.zsh/.zshenv
-
 setopt AUTO_CD
 setopt GLOB_DOTS
 setopt HIST_IGNORE_DUPS
@@ -20,6 +13,13 @@ setopt HIST_IGNORE_SPACE
 setopt SHARE_HISTORY
 setopt ALWAYS_TO_END
 setopt COMPLETE_IN_WORD
+
+export EDITOR="micro"
+export EZA_CONFIG_DIR="${HOME}/.config/eza"
+export MANPAGER="col -bx | bat --language man --style plain"
+export MICRO_TRUECOLOR=1
+export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
+[[ -f ~/.zsh/.zshenv ]] && source ~/.zsh/.zshenv
 
 alias ..="cd .."
 alias ...="cd ../.."
@@ -39,11 +39,7 @@ alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
 autoload -Uz compinit; compinit
 
 source ~/.zsh/plugins.zsh
-source ~/.zsh/cv.zsh
-source ~/.zsh/oi.zsh
-source ~/.zsh/wa.zsh
-source ~/.zsh/fzf_utils.zsh
-source ~/.zsh/fzf-tab/fzf-tab.plugin.zsh
-source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
-source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 source ~/.zsh/theme.zsh
+for file in ~/.zsh/utils/*.zsh; do
+  source "${file}"
+done
