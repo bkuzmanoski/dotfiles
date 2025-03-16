@@ -10,8 +10,7 @@ module.hotkey = {
 local function getSelectedText()
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
-    utils.playAlert()
-    return
+    return nil
   end
 
   return focusedElement:attributeValue("AXSelectedText")
@@ -57,6 +56,7 @@ local function extractURLs()
   task:setInput(selectedText):start():waitUntilExit()
 
   if not success then
+    utils.playAlert()
     return
   end
 
@@ -66,6 +66,7 @@ local function extractURLs()
   end
 
   if urlCommands == "" then
+    utils.playAlert()
     return
   end
 
