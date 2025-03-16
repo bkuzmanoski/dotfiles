@@ -93,7 +93,7 @@ local function calculate()
           location = newCursorPosition,
           length = 0
         })
-  end, { "-c", "source ~/.zsh/.zshenv && source ~/.zsh/wa.zsh && wa " .. string.format("%q", trimmedLineText) })
+  end, { "-c", "source ~/.zsh/.zshenv && source ~/.zsh/utils/wa.zsh && wa " .. string.format("%q", trimmedLineText) })
   task:start()
 end
 
