@@ -3,5 +3,6 @@ hammerspoon/Spoons/
 micro/*/
 !micro/colorschemes/
 zsh/*/
+!zsh/utils/
 .DS_Store
 .zshenv
