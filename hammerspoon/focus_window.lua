@@ -23,7 +23,7 @@ local function focusWindow(direction)
   local candidateWindow = nil
   local minXDiff = math.huge
   for _, window in ipairs(windows) do
-    if window:screen() == screen and window ~= currentWindow then
+    if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
       local frame = window:frame()
       if direction == "left" and frame.x < referenceFrame.x then
         local diff = referenceFrame.x - frame.x
@@ -48,7 +48,7 @@ local function focusWindow(direction)
     local minX = math.huge
     local maxX = -math.huge
     for _, window in ipairs(windows) do
-      if window:screen() == screen and window ~= currentWindow then
+      if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
         local frame = window:frame()
         if direction == "left" and frame.x > maxX then
           maxX = frame.x
@@ -74,7 +74,6 @@ function module.init()
   if next(bindings) then
     windowFilter = hs.window.filter.new():setOverrideFilter({
       allowRoles = { "AXStandardWindow" },
-      allowTitles = 1,
       currentSpace = true,
       fullscreen = false,
       visible = true
