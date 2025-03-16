@@ -11,7 +11,7 @@ tell application "Google Chrome"
     tell active tab of window 1
       execute javascript "
         (function() {
-          var css = 'html { filter: invert(90%) hue-rotate(180deg); } img, video, canvas, figure svg { filter: invert(100%) hue-rotate(-180deg); }';
+          var css = 'html { filter: invert(90%) hue-rotate(180deg); } body { background: #ffffff; } img, video, canvas, figure svg { filter: invert(100%) hue-rotate(-180deg); }';
           var style = document.getElementById('custom-dark-mode');
           if (!style) {
             style = document.createElement('style');
