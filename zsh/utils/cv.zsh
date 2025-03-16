@@ -107,20 +107,21 @@ cv() {
   local compressed_size=$(stat -f %z "${output_file}")
   local size_reduction=$(( (${original_size} - ${compressed_size}) * 100 / ${original_size} ))
 
-  local overwrite_notice=""
+  local overwrite_notice
   if [[ ${overwrite} -eq 1 ]]; then
     if [[ ${compressed_size} -lt ${original_size} ]]; then
       command mv "${output_file}" "${input_file}"
-      overwrite_notice="\nReplaced original file with compressed version.\n"
+      overwrite_notice="Replaced original file with compressed version."
     else
       command rm "${output_file}"
-      overwrite_notice="\nCompression did not reduce file size. Original file kept unchanged.\n"
+      overwrite_notice="Compression did not reduce file size. Original file kept unchanged."
     fi
     output_file="${input_file}"
   fi
 
-  print -P "\n%B${output_file}%b${overwrite_notice}"
-  printf "Original size:   %.2f MB\n" $(print "${original_size} / 1000000" | bc -l)
-  printf "Compressed size: %.2f MB\n" $(print "${compressed_size} / 1000000" | bc -l)
-  printf "Size reduction:  %d%%\n" ${size_reduction}
+  printf "\n\033[1m%s\033[0m\n" "${output_file}"
+  [[ -n "${overwrite_notice}" ]] && printf "%s\n\n" "${overwrite_notice}"
+  printf "Original size:   %.2f MB\n" "$(print "scale=2; ${original_size} / 1000000" | bc)"
+  printf "Compressed size: %.2f MB\n" "$(print "scale=2; ${compressed_size} / 1000000" | bc)"
+  printf "Size reduction:  %d%%\n" "${size_reduction}"
 }
