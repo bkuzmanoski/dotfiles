@@ -58,6 +58,7 @@ on run
       tell process "NotificationCenter"
         if not (exists window "Notification Center") then
           my toggleNotificationCenter()
+          delay 0.5
         end if
 
         set notificationCenterWindow to window "Notification Center"
