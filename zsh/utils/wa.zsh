@@ -1,5 +1,10 @@
 # Calulations using Wolfram|Alpha
 wa() {
+  if [[ $# -eq 0 ]]; then
+    print "Usage: wa <expression>"
+    return 1
+  fi
+
   if [[ -z ${WA_APPID} ]]; then
     print "Error: \$WA_APPID is not set. Get one at https://developer.wolframalpha.com/access"
     return 1
