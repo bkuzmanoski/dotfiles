@@ -56,7 +56,7 @@ local function moveWindowToPreviousSpace()
 
   local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
   if not (currentSpaceNumber and numberOfSpaces) then return end
-  moveWindowToSpace(window, (currentSpaceNumber % numberOfSpaces) + 1)
+  moveWindowToSpace(window, ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1)
 end
 
 local function moveWindowToNextSpace()
@@ -65,7 +65,7 @@ local function moveWindowToNextSpace()
 
   local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
   if not (currentSpaceNumber and numberOfSpaces) then return end
-  moveWindowToSpace(window, ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1)
+  moveWindowToSpace(window, (currentSpaceNumber % numberOfSpaces) + 1)
 end
 
 function module.init(config)
