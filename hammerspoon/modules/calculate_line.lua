@@ -2,9 +2,6 @@ local utils = require("utils")
 local module = {}
 local binding, windowSubscription
 
-module.allowApps = {}
-module.hotkey = {}
-
 local function calculate()
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
@@ -97,25 +94,25 @@ local function calculate()
   task:start()
 end
 
-function module.init()
-  if module.allowApps and #module.allowApps > 0 and next(module.hotkey) then
-    windowSubscription = hs.window.filter.new(module.allowApps)
+function module.init(config)
+  if binding or windowSubscription then module.cleanup() end
+
+  if config.allowApps and #config.allowApps > 0 and config.modifiers and config.key then
+    binding = hs.hotkey.bind(config.modifiers, config.key, calculate):disable()
+    windowSubscription = hs.window.filter.new(config.allowApps)
         :subscribe(hs.window.filter.windowFocused, function() binding:enable() end)
         :subscribe(hs.window.filter.windowUnfocused, function() binding:disable() end)
-    binding = hs.hotkey.bind(module.hotkey.modifiers, module.hotkey.key, calculate)
-    binding:disable()
   end
+
+  return module
 end
 
 function module.cleanup()
-  if windowSubscription then
-    windowSubscription:unsubscribeAll()
-    windowSubscription = nil
-  end
-  if binding then
-    binding:delete()
-    binding = nil
-  end
+  if binding then binding:delete() end
+  binding = nil
+
+  if windowSubscription then windowSubscription:unsubscribeAll() end
+  windowSubscription = nil
 end
 
 return module

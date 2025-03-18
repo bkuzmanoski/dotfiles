@@ -3,14 +3,7 @@ local module = {}
 local bindings = {}
 local windowSubscription
 
-module.allowApps = {}
-module.hotkeys = {}
-
 local function moveLines(direction)
-  if direction ~= "up" and direction ~= "down" then
-    return
-  end
-
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if not focusedElement then
     utils.playAlert()
@@ -18,9 +11,7 @@ local function moveLines(direction)
   end
 
   local fullText = focusedElement:attributeValue("AXValue")
-  if not fullText then
-    return
-  end
+  if not fullText then return end
 
   local lines = {}
   local position
@@ -31,13 +22,10 @@ local function moveLines(direction)
     local lineEndPosition = fullText:find("\n", position)
     if not lineEndPosition then
       -- Last line
-      local line = fullText:sub(position)
-      table.insert(lines, line)
+      table.insert(lines, fullText:sub(position))
       break
     end
-
-    local line = fullText:sub(position, lineEndPosition - 1)
-    table.insert(lines, line)
+    table.insert(lines, fullText:sub(position, lineEndPosition - 1))
     position = lineEndPosition + 1
   end
 
@@ -80,42 +68,22 @@ local function moveLines(direction)
     end
   end
 
-  if not startLineNumber or not endLineNumber then
-    return
-  end
+  if not startLineNumber or not endLineNumber then return end
 
   -- Calculate target line based on direction
   local targetLine = direction == "up" and (startLineNumber - 1) or (endLineNumber + 1)
-  if targetLine < 1 or targetLine > #lines then
-    return
-  end
+  if targetLine < 1 or targetLine > #lines then return end
 
   -- Move the lines
   local movedLines = {}
   if direction == "up" and startLineNumber > 1 then
-    for i = startLineNumber, endLineNumber do
-      table.insert(movedLines, lines[i])
-    end
-
-    for i = endLineNumber, startLineNumber, -1 do
-      table.remove(lines, i)
-    end
-
-    for i, line in ipairs(movedLines) do
-      table.insert(lines, startLineNumber - 1 + i - 1, line)
-    end
+    for i = startLineNumber, endLineNumber do table.insert(movedLines, lines[i]) end
+    for i = endLineNumber, startLineNumber, -1 do table.remove(lines, i) end
+    for i, line in ipairs(movedLines) do table.insert(lines, startLineNumber - 1 + i - 1, line) end
   elseif direction == "down" and endLineNumber < #lines then
-    for i = startLineNumber, endLineNumber do
-      table.insert(movedLines, lines[i])
-    end
-
-    for i = endLineNumber, startLineNumber, -1 do
-      table.remove(lines, i)
-    end
-
-    for i, line in ipairs(movedLines) do
-      table.insert(lines, startLineNumber + 1 + i - 1, line)
-    end
+    for i = startLineNumber, endLineNumber do table.insert(movedLines, lines[i]) end
+    for i = endLineNumber, startLineNumber, -1 do table.remove(lines, i) end
+    for i, line in ipairs(movedLines) do table.insert(lines, startLineNumber + 1 + i - 1, line) end
   end
 
   -- Calculate new selection range
@@ -124,7 +92,6 @@ local function moveLines(direction)
   for i = 1, targetStartLine - 1 do
     updatedStartOffset = updatedStartOffset + #lines[i] + 1
   end
-
   updatedStartOffset = updatedStartOffset + startOffset - 1
 
   local updatedEndOffset
@@ -150,45 +117,44 @@ local function moveLines(direction)
 end
 
 local function enableBindings()
-  for _, binding in pairs(bindings) do
-    binding:enable()
-  end
+  for _, binding in pairs(bindings) do binding:enable() end
 end
 
 local function disableBindings()
-  for _, binding in pairs(bindings) do
-    binding:disable()
-  end
+  for _, binding in pairs(bindings) do binding:disable() end
 end
 
-function module.init()
-  if module.allowApps and #module.allowApps > 0 and next(module.hotkeys) then
-    windowSubscription = hs.window.filter.new(module.allowApps)
-        :subscribe(hs.window.filter.windowFocused, enableBindings)
-        :subscribe(hs.window.filter.windowUnfocused, disableBindings)
+function module.init(config)
+  if next(bindings) or windowSubscription then module.cleanup() end
 
+  if config.allowApps and #config.allowApps > 0 and config.hotkeys then
     local handlers = {
       moveLinesUp = function() moveLines("up") end,
       moveLinesDown = function() moveLines("down") end
     }
-    for action, hotkey in pairs(module.hotkeys) do
-      if handlers[action] then
+    for action, hotkey in pairs(config.hotkeys) do
+      if handlers[action] and hotkey.modifiers and hotkey.key then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])
         bindings[action]:disable()
       end
     end
+
+    if next(bindings) then
+      windowSubscription = hs.window.filter.new(config.allowApps)
+          :subscribe(hs.window.filter.windowFocused, enableBindings)
+          :subscribe(hs.window.filter.windowUnfocused, disableBindings)
+    end
   end
+
+  return module
 end
 
 function module.cleanup()
-  if windowSubscription then
-    windowSubscription:unsubscribeAll()
-    windowSubscription = nil
-  end
-  for _, binding in pairs(bindings) do
-    binding:delete()
-  end
+  for _, binding in pairs(bindings) do binding:delete() end
   bindings = {}
+
+  if windowSubscription then windowSubscription:unsubscribeAll() end
+  windowSubscription = nil
 end
 
 return module
