@@ -1,10 +1,5 @@
 local module = {}
-local windowFilter, keyboardTap, mouseTap, activeWindow, activeOperation
-
-module.modifiers = {
-  move = {},
-  resize = {}
-}
+local moveModifiers, resizeModifiers, windowFilter, keyboardTap, mouseTap, activeOperation, activeWindow
 
 local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
@@ -29,34 +24,33 @@ end
 
 local function startOperation(operationType)
   activeWindow = getWindowUnderMouse()
-  if not activeWindow or (operationType == "resize" and not activeWindow:isMaximizable()) then
-    return
-  end
-
+  if not activeWindow or (operationType == "resize" and not activeWindow:isMaximizable()) then return end
   activeOperation = operationType
   mouseTap:start()
 end
 
 local function stopOperation()
-  activeWindow = nil
+  if mouseTap then mouseTap:stop() end
   activeOperation = nil
-  if mouseTap then
-    mouseTap:stop()
-  end
+  activeWindow = nil
 end
 
 local function handleFlagsChange(event)
   stopOperation()
+
   local flags = event:getFlags()
-  if flags:containExactly(module.modifiers.move) then
+  if moveModifiers and flags:containExactly(moveModifiers) then
     startOperation("move")
-  elseif flags:containExactly(module.modifiers.resize) then
+    return
+  end
+  if resizeModifiers and flags:containExactly(resizeModifiers) then
     startOperation("resize")
+    return
   end
 end
 
 local function handleMouseMove(event)
-  if activeWindow then
+  if activeOperation and activeWindow then
     local frame = activeWindow:frame()
     if activeOperation == "move" then
       frame.x = frame.x + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaX)
@@ -69,8 +63,13 @@ local function handleMouseMove(event)
   end
 end
 
-function module.init()
-  if #module.modifiers.move > 0 or #module.modifiers.resize > 0 then
+function module.init(config)
+  if keyboardTap or mouseTap then module.cleanup() end
+
+  if config and (config.moveModifiers or config.resizeModifiers) then
+    moveModifiers = config.moveModifiers
+    resizeModifiers = config.resizeModifiers
+
     windowFilter = hs.window.filter.new()
         :setOverrideFilter({
           allowRoles = { "AXStandardWindow" },
@@ -81,18 +80,18 @@ function module.init()
     keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
     mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
   end
+
+  return module
 end
 
 function module.cleanup()
   stopOperation()
-  if keyboardTap then
-    keyboardTap:stop()
-    keyboardTap = nil
-  end
-  if mouseTap then
-    mouseTap:stop()
-    mouseTap = nil
-  end
+
+  if keyboardTap then keyboardTap:stop() end
+  keyboardTap = nil
+
+  if mouseTap then mouseTap:stop() end
+  mouseTap = nil
 end
 
 return module

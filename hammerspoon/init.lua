@@ -1,155 +1,134 @@
 hs.logger.setGlobalLogLevel("warning")
 hs.hotkey.setLogLevel("warning")
 
-local numberOfSpaces = 5
-local windowTopOffset = 33
-local windowPadding = 8
-local hyper = { "control", "option", "command" }
-local hyperShift = { "control", "option", "command", "shift" }
-
-require("helpers/build_binaries")
-
-local primaryScreen = hs.screen.primaryScreen()
-local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
-if spacesCount < numberOfSpaces then
-  for _ = spacesCount + 1, numberOfSpaces do
-    hs.spaces.addSpaceToScreen(primaryScreen)
-  end
-end
-
-local appMenu = require("app_menu")
-appMenu.modifiers = { "cmd" }
-appMenu.init()
-
-local appHotkeys = require("app_hotkeys")
-appHotkeys.modifiers = hyper
-appHotkeys.keys = {
-  ["c"] = "com.google.Chrome",
-  ["d"] = "com.figma.Desktop",
-  ["f"] = "com.apple.finder",
-  ["s"] = "com.apple.systempreferences",
-  ["t"] = "com.mitchellh.ghostty",
-  ["v"] = "com.microsoft.VSCode",
+local modules = {}
+local globalSettings = {
+  numberOfSpaces = 5,
+  windowTopOffset = 33,
+  windowPadding = 8,
+  hyperKeyPrimary = { "control", "option", "command" },
+  hyperKeySecondary = { "control", "option", "command", "shift" }
 }
-appHotkeys.init()
 
-local systemHotkeys = require("system_hotkeys")
-systemHotkeys.hotkeys = {
-  focusDock = { modifiers = hyperShift, key = "d" },
-  focusMenuBar = { modifiers = hyper, key = "m" },
-  toggleControlCenter = { modifiers = hyperShift, key = "c" },
-  toggleNotificationCenter = { modifiers = hyper, key = "n" },
-  applicationWindows = { modifiers = hyper, key = "up" },
-  showDesktop = { modifiers = hyper, key = "down" },
-  moveSpaceLeft = { modifiers = hyper, key = "[" },
-  moveSpaceRight = { modifiers = hyper, key = "]" },
-  moveSpaceN = { modifiers = hyper, key = "N" }, -- N represents a mapping of number key to space number (handled in module)
-}
-systemHotkeys.init()
+require("build_binaries")()
+require("create_spaces")(globalSettings.numberOfSpaces)
 
-local showAllSpaces = require("show_all_spaces")
-showAllSpaces.hotkey = { modifiers = hyper, key = "space" }
-showAllSpaces.init()
+modules.appMenu = require("modules/app_menu").init({
+  modifiers = { "cmd" },
+  triggerEvent = hs.eventtap.event.types.rightMouseDown,
+  enableUrlEvents = true
+})
 
-local toggleDarkMode = require("toggle_dark_mode")
-toggleDarkMode.hotkey = { modifiers = hyper, key = "a" }
-toggleDarkMode.init()
+modules.appHotkeys = require("modules/app_hotkeys").init({
+  modifiers = globalSettings.hyperKeyPrimary,
+  keys = {
+    ["c"] = "com.google.Chrome",
+    ["d"] = "com.figma.Desktop",
+    ["f"] = "com.apple.finder",
+    ["s"] = "com.apple.systempreferences",
+    ["t"] = "com.mitchellh.ghostty",
+    ["v"] = "com.microsoft.VSCode",
+  }
+})
 
-local pasteAsPlaintext = require("paste_as_plaintext")
-pasteAsPlaintext.hotkey = { modifiers = { "option" }, key = "v" }
-pasteAsPlaintext.init()
+modules.systemHotkeys = require("modules/system_hotkeys").init({
+  focusDock = { modifiers = globalSettings.hyperKeySecondary, key = "d" },
+  focusMenuBar = { modifiers = globalSettings.hyperKeyPrimary, key = "m" },
+  toggleControlCenter = { modifiers = globalSettings.hyperKeySecondary, key = "c" },
+  toggleNotificationCenter = { modifiers = globalSettings.hyperKeyPrimary, key = "n" },
+  applicationWindows = { modifiers = globalSettings.hyperKeyPrimary, key = "up" },
+  showDesktop = { modifiers = globalSettings.hyperKeyPrimary, key = "down" },
+  moveSpaceLeft = { modifiers = globalSettings.hyperKeyPrimary, key = "[" },
+  moveSpaceRight = { modifiers = globalSettings.hyperKeyPrimary, key = "]" },
+  moveSpaceN = { modifiers = globalSettings.hyperKeyPrimary },
+})
 
-local reorderLines = require("reorder_lines")
-reorderLines.allowApps = { "Scratchpad", "TextEdit" }
-reorderLines.hotkeys = {
-  moveLinesUp = { modifiers = { "option" }, key = "up" },
-  moveLinesDown = { modifiers = { "option" }, key = "down" }
-}
-reorderLines.init()
+modules.showAllSpaces = require("modules/show_all_spaces").init({
+  modifiers = globalSettings.hyperKeyPrimary, key = "space"
+})
 
-local calculateInline = require("calculate_inline")
-calculateInline.allowApps = { "Scratchpad", "TextEdit" }
-calculateInline.hotkey = { modifiers = { "shift", "command" }, key = "=" }
-calculateInline.init()
+modules.pasteAsPlaintext = require("modules/paste_as_plaintext").init({
+  modifiers = { "option" }, key = "v"
+})
 
-local openTabsFromSelection = require("open_tabs_from_selection")
-openTabsFromSelection.hotkey.extractURLs = { modifiers = { "option", "shift" }, key = "o" }
-openTabsFromSelection.hotkey.search = { modifiers = { "shift", "command" }, key = "o" }
-openTabsFromSelection.init()
-local focusWindow = require("focus_window")
-focusWindow.hotkeys = {
-  frontmost = { modifiers = { "option", "command" }, key = "return" },
-  left = { modifiers = { "option", "command" }, key = "[" },
-  right = { modifiers = { "option", "command" }, key = "]" },
-}
-focusWindow.init()
+modules.reorderLines = require("modules/reorder_lines").init({
+  allowApps = { "Scratchpad", "TextEdit" },
+  hotkeys = {
+    moveLinesUp = { modifiers = { "option" }, key = "up" },
+    moveLinesDown = { modifiers = { "option" }, key = "down" }
+  }
+})
 
-local adjustPosition = require("adjust_position")
-adjustPosition.topOffset = windowTopOffset
-adjustPosition.padding = windowPadding
-adjustPosition.init()
+modules.calculateLine = require("modules/calculate_line").init({
+  allowApps = { "Scratchpad", "TextEdit" },
+  modifiers = { "shift", "command" },
+  key = "="
+})
 
-local positionAndTile = require("position_and_tile")
-positionAndTile.topOffset = windowTopOffset
-positionAndTile.padding = windowPadding
-positionAndTile.hotkeys = {
-  positionCenter = { modifiers = { "option", "command" }, key = "space" },
-  positionReasonableSize = { modifiers = { "option", "command" }, key = "u" },
-  positionAlmostMaximize = { modifiers = { "option", "command" }, key = "i" },
-  positionMaximize = { modifiers = { "option", "command" }, key = "o" },
-  tileLeft = { modifiers = { "option", "command" }, key = "l" },
-  tileRight = { modifiers = { "option", "command" }, key = "'" },
-  tileLeftAndRight = { modifiers = { "option", "shift", "command" }, key = "l" },
-  tileRightAndLeft = { modifiers = { "option", "shift", "command" }, key = "'" },
-  tileTopRight = { modifiers = { "option", "command" }, key = "p" },
-  tileBottomRight = { modifiers = { "option", "command" }, key = ";" },
-  tileTopAndBottomRight = { modifiers = { "option", "shift", "command" }, key = "p" },
-  tileBottomAndTopRight = { modifiers = { "option", "shift", "command" }, key = ";" }
-}
-positionAndTile.init()
+modules.openTabsFromSelection = require("modules/open_tabs_from_selection").init({
+  openSelectedUrls = { modifiers = { "option", "shift" }, key = "o" },
+  searchForSelection = { modifiers = { "shift", "command" }, key = "o" }
+})
 
-local moveAndResize = require("move_and_resize")
-moveAndResize.modifiers = {
-  move = { "alt", "cmd" },
-  resize = { "alt", "shift", "cmd" }
-}
-moveAndResize.init()
+modules.focusWindow = require("modules/focus_window").init({
+  focusFrontmost = { modifiers = { "option", "command" }, key = "return" },
+  focusLeft = { modifiers = { "option", "command" }, key = "[" },
+  focusRight = { modifiers = { "option", "command" }, key = "]" },
+})
 
-local moveToSpace = require("move_to_space")
-moveToSpace.numberOfSpaces = numberOfSpaces
-moveToSpace.hotkeys = {
+modules.adjustPosition = require("modules/adjust_position").init({
+  topOffset = globalSettings.windowTopOffset,
+  padding = globalSettings.windowPadding
+})
+
+modules.positionAndTile = require("modules/position_and_tile").init({
+  topOffset = globalSettings.windowTopOffset,
+  padding = globalSettings.windowPadding,
+  splitRatios = { 0.5, 0.33, 0.67 },
+  tileTopBottomSplitRatioIndex = 2,
+  hotkeys = {
+    positionCenter = { modifiers = { "option", "command" }, key = "space" },
+    positionReasonableSize = { modifiers = { "option", "command" }, key = "u" },
+    positionAlmostMaximize = { modifiers = { "option", "command" }, key = "i" },
+    positionMaximize = { modifiers = { "option", "command" }, key = "o" },
+    tileLeft = { modifiers = { "option", "command" }, key = "l" },
+    tileRight = { modifiers = { "option", "command" }, key = "'" },
+    tileLeftAndRight = { modifiers = { "option", "shift", "command" }, key = "l" },
+    tileRightAndLeft = { modifiers = { "option", "shift", "command" }, key = "'" },
+    tileTopRight = { modifiers = { "option", "command" }, key = "p" },
+    tileBottomRight = { modifiers = { "option", "command" }, key = ";" },
+    tileTopAndBottomRight = { modifiers = { "option", "shift", "command" }, key = "p" },
+    tileBottomAndTopRight = { modifiers = { "option", "shift", "command" }, key = ";" }
+  }
+})
+
+modules.moveAndResize = require("modules/move_and_resize").init({
+  moveModifiers = { "alt", "cmd" },
+  resizeModifiers = { "alt", "shift", "cmd" }
+})
+
+modules.moveToSpace = require("modules/move_to_space").init({
   modifiers = { "option", "command" },
-  previousSpaceKey = "right",
-  nextSpaceKey = "left"
-}
-moveToSpace.init()
+  keys = {
+    previousSpace = "right",
+    nextSpace = "left"
+  },
+  enableNumberedKeys = true,
+})
 
-local moveToScreen = require("move_to_screen")
-moveToScreen.topOffset = windowTopOffset
-moveToScreen.padding = windowPadding
-moveToScreen.hotkeys = {
-  up = { modifiers = { "option", "command" }, key = "up" },
-  down = { modifiers = { "option", "command" }, key = "down" }
-}
-moveToScreen.init()
+modules.moveToScreen = require("modules/move_to_screen").init({
+  topOffset = globalSettings.windowTopOffset,
+  padding = globalSettings.windowPadding,
+  hotkeys = {
+    toNorth = { modifiers = { "option", "command" }, key = "up" },
+    toSouth = { modifiers = { "option", "command" }, key = "down" }
+  }
+})
 
-local focusScreen = require("focus_screen")
-focusScreen.init()
+modules.focusScreen = require("modules/focus_screen").init()
 
 hs.shutdownCallback = function()
-  appMenu.cleanup()
-  appHotkeys.cleanup()
-  systemHotkeys.cleanup()
-  showAllSpaces.cleanup()
-  toggleDarkMode.cleanup()
-  pasteAsPlaintext.cleanup()
-  reorderLines.cleanup()
-  openTabsFromSelection.cleanup()
-  focusWindow.cleanup()
-  adjustPosition.cleanup()
-  positionAndTile.cleanup()
-  moveAndResize.cleanup()
-  moveToSpace.cleanup()
-  moveToScreen.cleanup()
-  focusScreen.cleanup()
+  for _, module in pairs(modules) do
+    if type(module.cleanup) == "function" then module.cleanup() end
+  end
 end

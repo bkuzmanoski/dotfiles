@@ -1,17 +1,10 @@
 local utils = require("utils")
 local module = {}
-local binding
-
-module.hotkey = {
-  urls = {},
-  search = {}
-}
+local bindings = {}
 
 local function getSelectedText()
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
-  if not focusedElement then
-    return nil
-  end
+  if not focusedElement then return nil end
 
   return focusedElement:attributeValue("AXSelectedText")
 end
@@ -35,7 +28,7 @@ local function openTabs(applescriptFragment)
   end
 end
 
-local function extractURLs()
+local function openSelectedUrls()
   local selectedText = getSelectedText()
   if not selectedText or selectedText == "" then
     utils.playAlert()
@@ -80,24 +73,31 @@ local function searchForSelection()
     return
   end
 
-  local searchURL = "https://www.google.com/search?q=" .. hs.http.encodeForQuery(selectedText)
-  openTabs(string.format('make new tab with properties {URL:"%s"}\n', searchURL))
+  local searchUrl = "https://www.google.com/search?q=" .. hs.http.encodeForQuery(selectedText)
+  openTabs(string.format('make new tab with properties {URL:"%s"}\n', searchUrl))
 end
 
-function module.init()
-  if next(module.hotkey.extractURLs) then
-    binding = hs.hotkey.bind(module.hotkey.extractURLs.modifiers, module.hotkey.extractURLs.key, extractURLs)
+function module.init(config)
+  if next(bindings) then module.cleanup() end
+
+  if config then
+    local handlers = {
+      openSelectedUrls = openSelectedUrls,
+      searchForSelection = searchForSelection
+    }
+    for action, hotkey in pairs(config) do
+      if handlers[action] and hotkey.modifiers and hotkey.key then
+        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
+      end
+    end
   end
-  if next(module.hotkey.search) then
-    binding = hs.hotkey.bind(module.hotkey.search.modifiers, module.hotkey.search.key, searchForSelection)
-  end
+
+  return module
 end
 
 function module.cleanup()
-  if binding then
-    binding:delete()
-    binding = nil
-  end
+  for _, binding in pairs(bindings) do binding:delete() end
+  bindings = {}
 end
 
 return module

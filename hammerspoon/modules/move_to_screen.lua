@@ -1,23 +1,20 @@
 local utils = require("utils")
 local module = {}
 local bindings = {}
-
-module.topOffset = 0
-module.padding = 0
-module.hotkeys = {}
+local topOffset, padding
 
 local function moveToScreen(direction)
   local window = hs.window.focusedWindow()
-  if window:isFullscreen() then
+  if not window:isStandard() or window:isFullscreen() then
     utils.playAlert()
     return
   end
 
   local fromScreen = window:screen()
   local toScreen
-  if direction == "up" then
+  if direction == "north" then
     toScreen = fromScreen:toNorth()
-  elseif direction == "down" then
+  elseif direction == "south" then
     toScreen = fromScreen:toSouth()
   end
   if not toScreen then
@@ -44,22 +41,38 @@ local function moveToScreen(direction)
   windowFrame.y = toCenter.y + offset.y - (windowFrame.h / 2)
 
   if window:isMaximizable() then
-    windowFrame = utils.getAdjustedWindowFrame(toFrame, windowFrame, module.topOffset, module.padding)
+    local adjustedScreenFrame = utils.getAdjustedScreenFrame(toFrame, topOffset, padding)
+    windowFrame = utils.getAdjustedWindowFrame(adjustedScreenFrame, windowFrame)
   end
 
   window:setFrame(windowFrame)
 end
 
-function module.init()
-  for direction, hotkey in pairs(module.hotkeys) do
-    bindings[direction] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function() moveToScreen(direction) end)
+function module.init(config)
+  if next(bindings) then module.cleanup() end
+
+  if config and config.hotkeys then
+    local handlers = {
+      toNorth = "north",
+      toSouth = "south"
+    }
+    for action, hotkey in pairs(config.hotkeys) do
+      if handlers[action] then
+        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function() moveToScreen(handlers[action]) end)
+      end
+    end
+
+    if next(bindings) then
+      topOffset = config.topOffset or 0
+      padding = config.padding or 0
+    end
   end
+
+  return module
 end
 
 function module.cleanup()
-  for _, binding in pairs(bindings) do
-    binding:delete()
-  end
+  for _, binding in pairs(bindings) do binding:delete() end
   bindings = {}
 end
 
