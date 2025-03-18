@@ -110,8 +110,8 @@ modules.moveAndResize = require("modules/move_and_resize").init({
 modules.moveToSpace = require("modules/move_to_space").init({
   modifiers = { "option", "command" },
   keys = {
-    previousSpace = "right",
-    nextSpace = "left"
+    previousSpace = "left",
+    nextSpace = "right"
   },
   enableNumberedKeys = true,
 })
