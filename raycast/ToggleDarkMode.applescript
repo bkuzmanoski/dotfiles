@@ -11,27 +11,25 @@ tell application "Google Chrome"
     tell active tab of window 1
       execute javascript "
         (function() {
-          document.querySelectorAll('div,span').forEach(element => {
-            const backgroundImage = window.getComputedStyle(element).backgroundImage;
-            if (backgroundImage && backgroundImage.includes('url(')) {
-              element.classList.add('_britown-has-bg-image');
-            }
-          });
-          const css = 'html { background: #ffffff; filter: invert(90%) hue-rotate(180deg); } ' +
-                      'img, video, canvas, figure svg, ._britown-has-bg-image { ' +
-                      '  filter: invert(100%) hue-rotate(-180deg); ' +
-                      '}';
-          var styleElement = document.getElementById('_britown-dark-mode');
-          if (!styleElement) {
-            styleElement = document.createElement('style');
-            styleElement.id = '_britown-dark-mode';
-            document.head.appendChild(styleElement);
-            styleElement.innerHTML = css;
-          } else {
-            document.querySelectorAll('._britown-has-bg-image').forEach(element => {
-              element.classList.remove('_britown-has-bg-image');
+          const styleId = '_britown-dark-mode';
+          const bgClass = '_britown-has-bg-image';
+          const existingStyle = document.getElementById(styleId);
+
+          if (!existingStyle) {
+            document.querySelectorAll('div,span').forEach(element => {
+              if (window.getComputedStyle(element).backgroundImage.includes('url(')) {
+                element.classList.add(bgClass);
+              }
             });
-            styleElement.parentNode.removeChild(styleElement);
+
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = 'html { background: #ffffff; filter: invert(90%) hue-rotate(180deg) }' +
+                              'img, video, canvas, figure svg, .' + bgClass + ' { filter: invert(100%) hue-rotate(-180deg) }';
+            document.head.appendChild(style);
+          } else {
+            document.querySelectorAll('.' + bgClass).forEach(element => element.classList.remove(bgClass));
+            existingStyle.remove();
           }
         })();
       "
