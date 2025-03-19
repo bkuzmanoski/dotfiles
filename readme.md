@@ -89,10 +89,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Set up Notification Centre layout (see reference screenshot)
   - Turn off "Reopen windows when logging back in" when restarting
 
-- **Zsh**:
-
-  - Run the "Zsh private environment variables" script in 1Password
-
 - **1Password**
 
   - Sign in

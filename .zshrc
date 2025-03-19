@@ -19,7 +19,6 @@ export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export MANPAGER="col -bx | bat --language man --style plain"
 export MICRO_TRUECOLOR=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
-[[ -f ~/.zsh/.zshenv ]] && source ~/.zsh/.zshenv
 
 alias ..="cd .."
 alias ...="cd ../.."
