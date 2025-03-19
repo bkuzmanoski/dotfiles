@@ -9,14 +9,17 @@
 property clearActions : {"Close", "Clear All"}
 property notificationsCleared : 0
 
-on toggleNotificationCenter()
+on isNotificationCenterOpen()
   tell application "System Events"
-    key down 63
-    key down "n"
-    key up "n"
-    key up 63
+    tell process "NotificationCenter"
+      try
+        return (count of windows) > 0
+      on error
+        return false
+      end try
+    end tell
   end tell
-end toggleNotificationCenter
+end isNotificationCenterOpen
 
 on clearNotification(notification)
   tell application "System Events"
@@ -26,20 +29,22 @@ on clearNotification(notification)
         if description of act is in clearActions then
           perform act
           set notificationsCleared to notificationsCleared + 1
+
           return true
         end if
       end repeat
     end try
   end tell
+
   return false
 end clearNotification
 
-on traverseAndClearNotifications(element)
+on traverseNotifications(element)
   tell application "System Events"
     try
       set subElements to UI elements of element
       repeat with subElement in subElements
-        if my traverseAndClearNotifications(subElement) then
+        if my traverseNotifications(subElement) then
           return true
         end if
       end repeat
@@ -49,31 +54,37 @@ on traverseAndClearNotifications(element)
       return true
     end if
   end tell
+
   return false
-end traverseAndClearNotifications
+end traverseNotifications
 
 on run
   try
     tell application "System Events"
-      tell process "NotificationCenter"
-        if not (exists window "Notification Center") then
-          my toggleNotificationCenter()
-          delay 0.5
-        end if
+      if not my isNotificationCenterOpen() then
+        key down 63
+        key down "n"
+        key up "n"
+        key up 63
+        delay 0.5
+      end if
 
+      tell process "NotificationCenter"
         set notificationCenterWindow to window "Notification Center"
         repeat
-          if not my traverseAndClearNotifications(notificationCenterWindow) then
+          if not my traverseNotifications(notificationCenterWindow) then
             exit repeat
           end if
         end repeat
       end tell
+
+      if my isNotificationCenterOpen() then
+        key code 53
+      end if
     end tell
   on error errMsg
     return "Error: " & errMsg
   end try
-
-  my toggleNotificationCenter()
 
   if notificationsCleared > 0 then
     return "Notifications cleared"
