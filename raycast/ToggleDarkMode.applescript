@@ -24,7 +24,7 @@ tell application "Google Chrome"
 
             const style = document.createElement('style');
             style.id = styleId;
-            style.innerHTML = 'html { background: #ffffff; filter: invert(90%) hue-rotate(180deg) }' +
+            style.innerHTML = 'html { background: #ffffff; filter: contrast(80%) invert(100%) hue-rotate(180deg) }' +
                               'img, video, canvas, figure svg, .' + bgClass + ' { filter: invert(100%) hue-rotate(-180deg) }';
             document.head.appendChild(style);
           } else {
