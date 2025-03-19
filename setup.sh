@@ -245,6 +245,7 @@ _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right to ⌘T
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab (conflicts with ⌘T)
 _defaults_write com.henrikruscon.Alcove enableBattery -bool false # Disable low battery notifications
+_defaults_write com.henrikruscon.Alcove enableHaptics -bool false # Disable haptic feedback on hover
 _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 _defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
