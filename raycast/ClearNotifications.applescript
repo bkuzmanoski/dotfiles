@@ -11,14 +11,18 @@ property notificationsCleared : 0
 
 on isNotificationCenterOpen()
   tell application "System Events"
-    tell process "NotificationCenter"
-      try
-        return (count of windows) > 0
-      on error
-        return false
-      end try
-    end tell
+    try
+      tell process "NotificationCenter"
+        set focusedElements to UI elements whose focused is true
+        if (count of focusedElements) > 0 then
+          return true
+        end if
+      end tell
+    on error
+      return false
+    end try
   end tell
+  return false
 end isNotificationCenterOpen
 
 on clearNotification(notification)
@@ -29,13 +33,11 @@ on clearNotification(notification)
         if description of act is in clearActions then
           perform act
           set notificationsCleared to notificationsCleared + 1
-
           return true
         end if
       end repeat
     end try
   end tell
-
   return false
 end clearNotification
 
@@ -54,7 +56,6 @@ on traverseNotifications(element)
       return true
     end if
   end tell
-
   return false
 end traverseNotifications
 
