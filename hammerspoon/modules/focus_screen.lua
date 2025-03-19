@@ -37,9 +37,9 @@ end
 -- Run mouseTap based on number of screens
 local function updateMouseTap()
   if #hs.screen.allScreens() <= 1 then
-    if not mouseTap then startMouseTap() end
+    if not mouseTap then stopMouseTap() end
   else
-    stopMouseTap()
+    startMouseTap()
   end
 end
 
