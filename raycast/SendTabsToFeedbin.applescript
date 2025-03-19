@@ -6,12 +6,14 @@
 # @raycast.packageName Google Chrome
 # @raycast.icon icons/send-tabs-to-feedbin.png
 
-tell application "System Events"
-  if not (exists process "Google Chrome") then
-    -- return "Google Chrome is not running"
-    return "" -- This is slow so just return silently
+try
+  set chromeRunning to (do shell script "ps -ax | grep -v 'grep' | grep 'Google Chrome' | wc -l") as integer
+  if chromeRunning is 0 then
+    return "Google Chrome is not running"
   end if
-end tell
+on error
+  return "Google Chrome is not running"
+end try
 
 tell application "Google Chrome"
   if (count of windows) is 0 then
@@ -41,7 +43,7 @@ tell application "Google Chrome"
   end repeat
 
   if urlCount is 0 then
-    return "No tabs found"
+    return "Google Chrome has no open tabs"
   end if
 
   set the clipboard to urlList
