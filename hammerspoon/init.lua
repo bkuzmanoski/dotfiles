@@ -59,12 +59,6 @@ modules.reorderLines = require("modules/reorder_lines").init({
   }
 })
 
-modules.calculateLine = require("modules/calculate_line").init({
-  allowApps = { "Scratchpad", "TextEdit" },
-  modifiers = { "shift", "command" },
-  key = "="
-})
-
 modules.openTabsFromSelection = require("modules/open_tabs_from_selection").init({
   openSelectedUrls = { modifiers = { "option", "shift" }, key = "o" },
   searchForSelection = { modifiers = { "shift", "command" }, key = "o" }
