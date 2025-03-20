@@ -223,6 +223,7 @@ _defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Sho
 _defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true # Disable wallpaper tinting in windows
 _defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 _defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
+_defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
 _defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 _defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 _defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
