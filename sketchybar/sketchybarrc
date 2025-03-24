@@ -10,6 +10,7 @@ typeset -a bar=(
 
 typeset -a defaults=(
   icon.drawing=off # There is 1px of reserved space even if you don't set an icon
+  icon.font=".AppleSystemUIFont:Medium:13"
   label.drawing=off # Same for labels...
   label.font=".AppleSystemUIFont:Medium:13"
   label.padding_right=1 # Some strings are clipped by 1 pixel
@@ -22,7 +23,7 @@ typeset -a app_icon=(
   background.image.scale=0.5
   background.image.padding_left=1
   padding_right=6
-  script="${CONFIG_DIR}/plugins/app_menu.sh"
+  script="${CONFIG_DIR}/plugins/app_icon.sh"
   click_script="open -g \"hammerspoon://showAppMenu?x=8&y=45\""
 )
 
@@ -63,14 +64,11 @@ typeset -a battery_status=(
   script="${CONFIG_DIR}/plugins/battery_status.sh"
 )
 
-typeset -a date=(
+typeset -a date_time=(
+  icon.drawing=on
+  icon.padding_right=6
   label.drawing=on
   padding_left=4
-  padding_right=6
-)
-
-typeset -a time=(
-  label.drawing=on
   padding_right=2
   script="${CONFIG_DIR}/plugins/date_time.sh"
 )
@@ -91,11 +89,9 @@ sketchybar \
   --add item window_title left \
   --set window_title "${window_title[@]}" \
   --subscribe window_title window_title_changed appearance_changed \
-  --add item time right \
-  --set time "${time[@]}" \
-  --subscribe time appearance_changed system_woke \
-  --add item date right \
-  --set date "${date[@]}" \
+  --add item date_time right \
+  --set date_time "${date_time[@]}" \
+  --subscribe date_time appearance_changed system_woke \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
   --subscribe battery_status appearance_changed power_source_change system_woke \
