@@ -5,22 +5,29 @@ local windowFilter
 
 local function focusWindow(direction)
   local windows = windowFilter:getWindows()
-  if #windows == 0 then
+  local filteredWindows = {}
+  for _, window in ipairs(windows) do
+    if window:title() ~= "" then
+      table.insert(filteredWindows, window)
+    end
+  end
+
+  if #filteredWindows == 0 then
     utils.playAlert()
     return
   end
 
-  if direction == "frontmost" then
-    windows[1]:focus()
+  local currentWindow = hs.window.focusedWindow()
+  if direction == "frontmost" or not currentWindow then
+    filteredWindows[1]:focus()
     return
   end
 
-  local currentWindow = hs.window.focusedWindow()
   local screen = currentWindow:screen()
-  local referenceFrame = hs.window.focusedWindow():frame()
+  local referenceFrame = currentWindow:frame()
   local candidateWindow = nil
   local minXDiff = math.huge
-  for _, window in ipairs(windows) do
+  for _, window in ipairs(filteredWindows) do
     -- Try focusing window to the left or right of the currently focused window
     if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
       local frame = window:frame()
@@ -48,7 +55,7 @@ local function focusWindow(direction)
   local fallbackWindow = nil
   local minX = math.huge
   local maxX = -math.huge
-  for _, window in ipairs(windows) do
+  for _, window in ipairs(filteredWindows) do
     if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
       local frame = window:frame()
       if direction == "left" and frame.x > maxX then
