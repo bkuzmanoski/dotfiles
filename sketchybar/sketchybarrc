@@ -15,7 +15,7 @@ typeset -a defaults=(
   label.padding_right=1 # Some strings are clipped by 1 pixel
 )
 
-typeset -a current_app_icon=(
+typeset -a app_icon=(
   background.drawing=on
   background.height=24
   background.corner_radius=7
@@ -26,11 +26,16 @@ typeset -a current_app_icon=(
   click_script="open -g \"hammerspoon://showAppMenu?x=8&y=45\""
 )
 
-typeset -a current_app_name=(
+typeset -a app_name=(
   label.drawing=on
   label.font="SF Pro:Bold:13"
   padding_right=6
-  script="${CONFIG_DIR}/plugins/current_app.sh"
+  script="${CONFIG_DIR}/plugins/app_name.sh"
+)
+
+typeset -a window_title=(
+  label.drawing=on
+  script="${CONFIG_DIR}/plugins/window_title.sh"
 )
 
 typeset -a next_event=(
@@ -67,32 +72,36 @@ typeset -a date=(
 typeset -a time=(
   label.drawing=on
   padding_right=2
-  script="${CONFIG_DIR}/plugins/datetime.sh"
+  script="${CONFIG_DIR}/plugins/date_time.sh"
 )
 
 sketchybar \
   --bar "${bar[@]}" \
   --default "${defaults[@]}" \
-  --add event appearance_change "AppleInterfaceThemeChangedNotification" \
-  --add event app_change \
-  --add event calendar_update \
-  --add item current_app_icon left \
-  --set current_app_icon "${current_app_icon[@]}" \
-  --subscribe current_app_icon mouse.entered mouse.clicked mouse.exited \
-  --add item current_app_name left \
-  --set current_app_name "${current_app_name[@]}" \
-  --subscribe current_app_name app_change appearance_change \
+  --add event appearance_changed "AppleInterfaceThemeChangedNotification" \
+  --add event app_activated \
+  --add event window_title_changed \
+  --add event calendar_updated \
+  --add item app_icon left \
+  --set app_icon "${app_icon[@]}" \
+  --subscribe app_icon mouse.entered mouse.clicked mouse.exited \
+  --add item app_name left \
+  --set app_name "${app_name[@]}" \
+  --subscribe app_name app_activated appearance_changed \
+  --add item window_title left \
+  --set window_title "${window_title[@]}" \
+  --subscribe window_title window_title_changed appearance_changed \
   --add item time right \
   --set time "${time[@]}" \
-  --subscribe time appearance_change system_woke \
+  --subscribe time appearance_changed system_woke \
   --add item date right \
   --set date "${date[@]}" \
   --add item battery_status right \
   --set battery_status "${battery_status[@]}" \
-  --subscribe battery_status appearance_change power_source_change system_woke \
+  --subscribe battery_status appearance_changed power_source_change system_woke \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event calendar_update appearance_change system_woke mouse.entered mouse.clicked mouse.exited
+  --subscribe next_event calendar_updated appearance_changed system_woke mouse.entered mouse.clicked mouse.exited
 
 sketchybar --update
 pkill -f "${CONFIG_DIR}/helpers/bin/SBEventProvider" &>/dev/null
