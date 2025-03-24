@@ -47,22 +47,15 @@ func offset(_ image: NSImage, by offset: NSPoint) -> NSImage {
   let offsetImage = NSImage(size: image.size)
   offsetImage.lockFocus()
   image.draw(
-    at: offset,
-    from: NSRect(origin: .zero, size: image.size),
-    operation: .copy,
-    fraction: 1.0
-  )
+    at: offset, from: NSRect(origin: .zero, size: image.size), operation: .copy, fraction: 1.0)
   offsetImage.unlockFocus()
   return offsetImage
 }
 
 func writePNGData(from image: NSImage, to outputPath: String) throws {
   let iconWithShadow = addShadow(
-    to: image,
-    offset: CGSize(width: 0.0, height: -1.0),
-    blur: 1.5,
-    color: NSColor.black.withAlphaComponent(0.25).cgColor
-  )
+    to: image, offset: CGSize(width: 0.0, height: -1.0), blur: 1.5,
+    color: NSColor.black.withAlphaComponent(0.25).cgColor)
   let resizedIcon = resize(iconWithShadow, to: NSSize(width: 23, height: 23))
   let offsetIcon = offset(resizedIcon, by: NSPoint(x: -0.5, y: 0))
   guard
