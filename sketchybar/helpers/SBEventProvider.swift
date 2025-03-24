@@ -41,7 +41,6 @@ class SBEventProvider {
       forName: Notification.Name.EKEventStoreChanged, object: eventStore, queue: nil,
       using: { [weak self] notification in self?.handleCalendarUpdated(notification) })
 
-    // Setup initial state
     handleAppActivated()
     handleCalendarUpdated()
   }
@@ -82,7 +81,7 @@ class SBEventProvider {
     }
   }
 
-  // Menu bar owning app change events
+  // App change events
 
   private func handleAppActivated(_ notification: Notification? = nil) {
     guard
@@ -126,25 +125,19 @@ class SBEventProvider {
         return
       }
       self.startAppObserver()
+      self.handleWindowTitleChanged()  // Update main window title in case it wasn't available immediately on launch
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: pendingStartAppObserverWorkItem!)
   }
 
-  // Main window title change events
+  // Window title change events
 
   private func startAppObserver() {
-    // Clean up any existing observers (just in case)
-    stopAppObserver()
-
     guard let app = activeApp else { return }
     let pid = app.processIdentifier
     appElement = AXUIElementCreateApplication(pid)
     guard let appElement = appElement else { return }
 
-    // Update main window title in case it wasn't available immediately on launch
-    handleWindowTitleChanged()
-
-    // Set up AX notification observers
     AXObserverCreate(
       pid,
       { (_, _, notification, contextData) in
