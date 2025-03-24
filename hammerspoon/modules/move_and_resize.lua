@@ -5,9 +5,12 @@ local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
 
   -- Get window of topmost element under mouse
-  local rawWindow = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition):attributeValue("AXWindow")
-  if rawWindow and rawWindow:attributeValue("AXSubrole") == "AXStandardWindow" then
-    return rawWindow:asHSWindow()
+  local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
+  if elementUnderMouse then
+    local rawWindow = elementUnderMouse:attributeValue("AXWindow")
+    if rawWindow and rawWindow:attributeValue("AXSubrole") == "AXStandardWindow" then
+      return rawWindow:asHSWindow()
+    end
   end
 
   -- If topmost element is not (or not in) an AXStandardWindow, fall back to the frontmost window under the mouse
