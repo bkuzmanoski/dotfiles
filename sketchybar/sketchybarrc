@@ -11,7 +11,7 @@ typeset -a bar=(
 typeset -a defaults=(
   icon.drawing=off # There is 1px of reserved space even if you don't set an icon
   label.drawing=off # Same for labels...
-  label.font="SF Pro:Medium:13"
+  label.font=".AppleSystemUIFont:Medium:13"
   label.padding_right=1 # Some strings are clipped by 1 pixel
 )
 
@@ -28,7 +28,7 @@ typeset -a app_icon=(
 
 typeset -a app_name=(
   label.drawing=on
-  label.font="SF Pro:Bold:13"
+  label.font=".AppleSystemUIFont:Bold:13"
   padding_right=6
   script="${CONFIG_DIR}/plugins/app_name.sh"
 )
@@ -55,7 +55,7 @@ typeset -a battery_status=(
   drawing=off
   icon="􀛩"
   icon.drawing=on
-  icon.font="SF Pro:Light:15"
+  icon.font=".AppleSystemUIFont:Light:15"
   icon.padding_left=3
   icon.padding_right=6
   label.drawing=on
