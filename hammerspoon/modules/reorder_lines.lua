@@ -127,7 +127,7 @@ end
 function module.init(config)
   if next(bindings) or windowSubscription then module.cleanup() end
 
-  if config.allowApps and #config.allowApps > 0 and config.hotkeys then
+  if config and config.allowApps and #config.allowApps > 0 and config.hotkeys then
     local handlers = {
       moveLinesUp = function() moveLines("up") end,
       moveLinesDown = function() moveLines("down") end
