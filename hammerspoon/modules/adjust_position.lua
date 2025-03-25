@@ -16,12 +16,14 @@ end
 function module.init(config)
   if windowSubscription then module.cleanup() end
 
-  topOffset = config.topOffset or 0
-  padding = config.padding or 0
+  if config then
+    topOffset = config.topOffset or 0
+    padding = config.padding or 0
 
-  windowSubscription = hs.window.filter.new()
-      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
-      :subscribe(hs.window.filter.windowCreated, handleWindowEvent)
+    windowSubscription = hs.window.filter.new()
+        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
+        :subscribe(hs.window.filter.windowCreated, handleWindowEvent)
+  end
 
   return module
 end
