@@ -46,7 +46,7 @@ fk() {
   fi
 
   local pids="$(print "${selected_processes}" | awk '{print $1}' | xargs echo)"
-  print -rz -- "kill ${pids}"
+  print -rz -- "kill${1:+ $1} ${pids}"
 }
 
 _select_paths() {
