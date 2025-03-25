@@ -122,10 +122,10 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Do not share usage statistics
   - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
   - General → After capture → Screenshot → Turn on "Copy file to clipboard"
-  - Shortcuts → Set "All-In-One" shortcut to ⇧⌘5
   - Shortcuts → Set "Open Capture History" shortcut to ⇧⌘6
   - Shortcuts → Set "Capture Area" shortcut to ⇧⌘2
   - Shortcuts → Set "Capture Fullscreen" shortcut to ⇧⌘1
+  - Shortcuts → Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
   - Shortcuts → Set "Capture Text" shortcut to ⇧⌘4
   - Shortcuts → Set "Annotate Last Screenshot" shortcut to ⇧⌘3
 

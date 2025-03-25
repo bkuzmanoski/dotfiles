@@ -277,7 +277,6 @@ _defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # D
 _defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
 _defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
 _defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
-_defaults_write pl.maketheweb.cleanshotx rememberOneOverlayArea -bool false # Do not remember last selection area for recordings
 _defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 _defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
 _defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
