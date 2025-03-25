@@ -122,6 +122,11 @@ modules.moveToScreen = require("modules/move_to_screen").init({
 
 modules.focusScreen = require("modules/focus_screen").init()
 
+modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
+  { appName = "Figma", processToKill = "figma_agent" }
+})
+hs.timer.doAfter(5, modules.killHelpersOnQuit.killAllNow)
+
 hs.shutdownCallback = function()
   for _, module in pairs(modules) do
     if type(module.cleanup) == "function" then module.cleanup() end
