@@ -1,5 +1,6 @@
-hs.logger.setGlobalLogLevel("warning")
+hs.console.level(hs.drawing.windowLevels.floating)
 hs.hotkey.setLogLevel("warning")
+hs.logger.setGlobalLogLevel("warning")
 
 local modules = {}
 local globalSettings = {
