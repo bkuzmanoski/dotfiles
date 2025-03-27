@@ -249,7 +249,7 @@ _defaults_write com.henrikruscon.Alcove enableHaptics -bool false # Disable hapt
 _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
 _defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
-_defaults_write com.henrikruscon.Alcove warnOnLowBattery -bool false # Disable low battery notifications
+_defaults_write com.henrikruscon.Alcove lowBatteryThreshold -int 20 # Set low battery warning threshold to 20%
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
 _defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for shortcut 1 to ⌘
