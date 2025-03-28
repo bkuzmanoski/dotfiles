@@ -10,7 +10,7 @@ function module.init(config)
       focusMenuBar = { modifiers = { "fn", "ctrl" }, key = "f2" },
       toggleControlCenter = { modifiers = { "fn" }, key = "c" },
       toggleNotificationCenter = { modifiers = { "fn" }, key = "n" },
-      applicationWindows = { modifiers = { "fn", "ctrl" }, key = "down" },
+      appWindows = { modifiers = { "fn", "ctrl" }, key = "down" },
       showDesktop = { modifiers = { "fn" }, key = "f11" },
       moveSpaceLeft = { modifiers = { "fn", "ctrl" }, key = "left" },
       moveSpaceRight = { modifiers = { "fn", "ctrl" }, key = "right" },

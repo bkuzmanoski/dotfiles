@@ -37,7 +37,7 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   focusMenuBar = { modifiers = globalSettings.hyperKeyPrimary, key = "m" },
   toggleControlCenter = { modifiers = globalSettings.hyperKeySecondary, key = "c" },
   toggleNotificationCenter = { modifiers = globalSettings.hyperKeyPrimary, key = "n" },
-  applicationWindows = { modifiers = globalSettings.hyperKeyPrimary, key = "up" },
+  appWindows = { modifiers = globalSettings.hyperKeyPrimary, key = "up" },
   showDesktop = { modifiers = globalSettings.hyperKeyPrimary, key = "down" },
   moveSpaceLeft = { modifiers = globalSettings.hyperKeyPrimary, key = "[" },
   moveSpaceRight = { modifiers = globalSettings.hyperKeyPrimary, key = "]" },
