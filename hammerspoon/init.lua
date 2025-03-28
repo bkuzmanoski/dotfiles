@@ -98,7 +98,7 @@ modules.positionAndTile = require("modules/position_and_tile").init({
 })
 
 modules.moveAndResize = require("modules/move_and_resize").init({
-  moveModifiers = { "alt", "cmd" },
+  moveModifiers = { "shift", "cmd" },
   resizeModifiers = { "alt", "shift", "cmd" }
 })
 
