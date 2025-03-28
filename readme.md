@@ -17,7 +17,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/wallpapers**: Desktop wallpapers (`*-dynamic.heic` wallpapers adapt to light/dark mode)
 - **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration
-- `Brewfile`: Bundle of applications and tools to be installed via Homebrew
+- `Brewfile`: Bundle of apps and tools to be installed via Homebrew
 - `setup.sh`: Setup script that installs apps and configures settings
 
 Not included: Google Chrome and VS Code configurations (synced via account).

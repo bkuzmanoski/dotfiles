@@ -13,7 +13,7 @@ local function getMenuBarOwningApp()
   return nil
 end
 
-local function getAppMenu(application, menuItems, isSubmenu)
+local function getAppMenu(app, menuItems, isSubmenu)
   if not menuItems then return nil end
 
   local formattedMenuItems = {}
@@ -28,15 +28,15 @@ local function getAppMenu(application, menuItems, isSubmenu)
         disabled = not item.AXEnabled,
         checked = (item.AXMenuItemMarkChar == "✓"),
         fn = function()
-          application:activate()
-          application:selectMenuItem(item.AXTitle)
+          app:activate()
+          app:selectMenuItem(item.AXTitle)
         end
       }
 
       if item.AXChildren and #item.AXChildren > 0 then
         local submenuItems = item.AXChildren[1]
         if submenuItems then
-          menuItem.menu = getAppMenu(application, submenuItems, true)
+          menuItem.menu = getAppMenu(app, submenuItems, true)
         end
       end
 
