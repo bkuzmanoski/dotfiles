@@ -1,5 +1,5 @@
 local module = {}
-local moveModifiers, resizeModifiers, windowFilter, keyboardTap, mouseTap, activeOperation, activeWindow
+local moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap, activeOperation, activeWindow
 
 local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
@@ -27,7 +27,15 @@ end
 
 local function startOperation(operationType)
   activeWindow = getWindowUnderMouse()
-  if not activeWindow or (operationType == "resize" and not activeWindow:isMaximizable()) then return end
+  if not activeWindow then return end
+
+  local appName = activeWindow:application():name()
+  for _, app in ipairs(denyApps) do
+    if app == appName then return end
+  end
+
+  if operationType == "resize" and not activeWindow:isMaximizable() then return end
+
   activeOperation = operationType
   mouseTap:start()
 end
@@ -72,6 +80,7 @@ function module.init(config)
   if config and (config.moveModifiers or config.resizeModifiers) then
     moveModifiers = config.moveModifiers
     resizeModifiers = config.resizeModifiers
+    denyApps = config.denyApps or {}
 
     windowFilter = hs.window.filter.new()
         :setOverrideFilter({
