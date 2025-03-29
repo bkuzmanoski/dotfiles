@@ -226,6 +226,7 @@ class SBEventProvider {
       " – Microphone recording.*",
       " – Camera and microphone recording.*",
       " - High memory usage.*",
+      " - Google Chrome \\(Incognito\\)$",
 
       // Font Book
       " – \\d+( of \\d+)? typefaces$",
