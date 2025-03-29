@@ -24,7 +24,6 @@ typeset -a app_icon=(
   background.image.padding_left=1
   padding_right=6
   script="${CONFIG_DIR}/plugins/app_icon.sh"
-  click_script="open -g \"hammerspoon://showAppMenu?x=8&y=45\""
 )
 
 typeset -a app_name=(
@@ -49,7 +48,6 @@ typeset -a next_event=(
   blur_radius=30
   padding_right=12
   script="${CONFIG_DIR}/plugins/next_event.sh"
-  click_script="${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url"
 )
 
 typeset -a battery_status=(
