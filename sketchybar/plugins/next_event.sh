@@ -27,7 +27,10 @@ case "${SENDER}" in
       --set next_event background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
   mouse.clicked)
+    if [[ "${BUTTON}" != "left" ]]; then return; fi
+
     sketchybar --set next_event background.color="${BACKGROUND_ACTIVE_COLOR}"
+    ${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url
     sleep $(print "scale=2; ${ANIMATION_DURATION} / 100" | bc)
     sketchybar --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
