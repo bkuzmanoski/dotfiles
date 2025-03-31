@@ -9,7 +9,7 @@ FZF_OPTS=(
   --marker-multi-line="✓  "
   --highlight-line
   --ellipsis="…"
-  --bind "enter:accept+abort"
+  --bind="enter:accept+abort"
 )
 
 fzf() {
