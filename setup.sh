@@ -159,12 +159,12 @@ if ! (
 fi
 
 # Set wallpaper
-wallpaper_image_path="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
+wallpaper_path="${SCRIPT_DIR}/wallpapers/loupe-mono-dynamic.heic"
 
-if [[ -f "${wallpaper_image_path}" ]]; then
-  _log --info "Setting wallpaper to ${wallpaper_image_path}"
-  escaped_wallpaper_image_path="$(print "${wallpaper_image_path}" | sed 's/"/\\"/g')"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_image_path}\"" || _log --error "Failed to set wallpaper."
+if [[ -f "${wallpaper_path}" ]]; then
+  _log --info "Setting wallpaper to ${wallpaper_path}"
+  escaped_wallpaper_path="$(print "${wallpaper_path}" | sed 's/"/\\"/g')"
+  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_wallpaper_path}\"" || _log --error "Failed to set wallpaper."
 else
   _log --error "Wallpaper image not found."
 fi
