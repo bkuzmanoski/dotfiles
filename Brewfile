@@ -23,6 +23,7 @@ cask "hammerspoon"
 cask "raycast"
 cask "visual-studio-code"
 
+mas "Equinox", id: 1591510203
 mas "NextDNS", id: 1464122853
 mas "Scratchpad", id: 6504040051
 
