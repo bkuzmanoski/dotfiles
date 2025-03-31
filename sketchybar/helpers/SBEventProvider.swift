@@ -231,15 +231,12 @@ class SBEventProvider {
       // Font Book
       " – \\d+( of \\d+)? typefaces$",
 
-      // iPhone Mirroring
-      "iPhone Mirroring",
-
       // Mail
       " – \\d+(,\\d+)? (messages|drafts)(, *\\d+(,\\d+)? unread)?$",
 
-      // App name prefix or suffix
-      "^\(escapedAppName) [-–—] ",
-      " [-–—] \(escapedAppName)$",
+      // Redundant app name
+      "^\(escapedAppName)( [-–—] )?",
+      "( [-–—] )?\(escapedAppName)$",
     ]
 
     for pattern in patternsToRemove {
