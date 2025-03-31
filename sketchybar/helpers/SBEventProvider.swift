@@ -231,6 +231,9 @@ class SBEventProvider {
       // Font Book
       " – \\d+( of \\d+)? typefaces$",
 
+      // iPhone Mirroring
+      "iPhone Mirroring",
+
       // Mail
       " – \\d+(,\\d+)? (messages|drafts)(, *\\d+(,\\d+)? unread)?$",
 
