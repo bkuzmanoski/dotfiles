@@ -34,12 +34,12 @@ class SBEventProvider {
 
   func start() {
     appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
-      forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: nil,
-      using: { [weak self] notification in self?.handleAppActivated(notification) })
+      forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: nil
+    ) { [weak self] notification in self?.handleAppActivated(notification) }
 
     eventStoreChangeObserver = NotificationCenter.default.addObserver(
-      forName: Notification.Name.EKEventStoreChanged, object: eventStore, queue: nil,
-      using: { [weak self] notification in self?.handleCalendarUpdated(notification) })
+      forName: Notification.Name.EKEventStoreChanged, object: eventStore, queue: nil
+    ) { [weak self] notification in self?.handleCalendarUpdated(notification) }
 
     handleAppActivated()
     handleCalendarUpdated()
