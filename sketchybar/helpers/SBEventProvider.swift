@@ -94,7 +94,8 @@ class SBEventProvider {
     let bundleId = app.bundleIdentifier ?? ""
     var name = app.localizedName ?? ""
 
-    if let bundleURL = app.bundleURL, let bundle = Bundle(url: bundleURL),
+    if let bundleURL = app.bundleURL,
+      let bundle = Bundle(url: bundleURL),
       let bundleName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String,
       !bundleName.isEmpty
     {
@@ -196,18 +197,16 @@ class SBEventProvider {
     let windowResult = AXUIElementCopyAttributeValue(
       targetAppElement, kAXMainWindowAttribute as CFString, &mainWindow)
 
-    if windowResult == .success {
-      let window = mainWindow as! AXUIElement
-      var titleRef: AnyObject?
-      let titleResult = AXUIElementCopyAttributeValue(
-        window, kAXTitleAttribute as CFString, &titleRef)
+    guard windowResult == .success else { return nil }
 
-      if titleResult == .success, let rawTitle = titleRef as? String {
-        return formatWindowTitle(rawTitle, appName: targetApp.localizedName)
-      }
-    }
+    let window = mainWindow as! AXUIElement
+    var titleRef: AnyObject?
+    let titleResult = AXUIElementCopyAttributeValue(
+      window, kAXTitleAttribute as CFString, &titleRef)
 
-    return nil
+    guard titleResult == .success, let rawTitle = titleRef as? String else { return nil }
+
+    return formatWindowTitle(rawTitle, appName: targetApp.localizedName)
   }
 
   private func formatWindowTitle(_ rawTitle: String, appName: String?) -> String? {
@@ -240,13 +239,12 @@ class SBEventProvider {
     ]
 
     for pattern in patternsToRemove {
-      if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-        formattedTitle = regex.stringByReplacingMatches(
-          in: formattedTitle,
-          options: [],
-          range: NSRange(location: 0, length: formattedTitle.utf16.count),
-          withTemplate: "")
-      }
+      guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { continue }
+      formattedTitle = regex.stringByReplacingMatches(
+        in: formattedTitle,
+        options: [],
+        range: NSRange(location: 0, length: formattedTitle.utf16.count),
+        withTemplate: "")
     }
 
     return formattedTitle.prefix(maxLength).trimmingCharacters(in: .whitespaces)
