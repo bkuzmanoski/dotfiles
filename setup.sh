@@ -247,13 +247,15 @@ _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U00
 _defaults_write com.henrikruscon.Alcove enableHaptics -bool false # Disable haptic feedback on hover
 _defaults_write com.henrikruscon.Alcove enableQuickPeek -bool false # Disable now playing preview when media changes
 _defaults_write com.henrikruscon.Alcove hideMenuBarIcon -bool true # Hide menu bar icon
-_defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
 _defaults_write com.henrikruscon.Alcove lowBatteryThreshold -int 20 # Set low battery warning threshold to 20%
+_defaults_write com.henrikruscon.Alcove showOnDisplay -string "builtInDisplay" # Show on built-in display only
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
 _defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for shortcut 1 to ⌘
 _defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for shortcut 2 to ⌘
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
+_defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true # Set appearance to auto
+_defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false # Don't show welcome window on launch
 _defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
 _defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⌘⌥␣

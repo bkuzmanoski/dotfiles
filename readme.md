@@ -166,6 +166,11 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Set Configuration ID
   - Enable
 
+- **Pixelmator Pro**
+
+  - Set initial workspace layout to "Illustration"
+  - Create a new workspace layout ("Custom") and relocate Tools to the bottom
+
 - **Raycast**
 
   - Don't install extensions during onboarding
@@ -185,4 +190,4 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
   - Log in and enable settings sync
   - Position Command Center in center
-  - Set "chat.commandCenter.enabled" to `false`
+  - Set "chat.commandCenter.enabled" to "false"
