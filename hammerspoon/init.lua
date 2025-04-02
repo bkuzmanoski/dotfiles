@@ -33,6 +33,7 @@ modules.appHotkeys = require("modules/app_hotkeys").init({
 })
 
 modules.systemHotkeys = require("modules/system_hotkeys").init({
+  launchpad = { modifiers = globalSettings.hyperKeyPrimary, key = "l" },
   focusDock = { modifiers = globalSettings.hyperKeySecondary, key = "d" },
   focusMenuBar = { modifiers = globalSettings.hyperKeyPrimary, key = "m" },
   toggleControlCenter = { modifiers = globalSettings.hyperKeySecondary, key = "c" },
