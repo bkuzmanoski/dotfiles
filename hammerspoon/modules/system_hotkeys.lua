@@ -6,6 +6,7 @@ function module.init(config)
 
   if config then
     local keyMap = {
+      launchpad = {},
       focusDock = { modifiers = { "fn", "ctrl" }, key = "f3" },
       focusMenuBar = { modifiers = { "fn", "ctrl" }, key = "f2" },
       toggleControlCenter = { modifiers = { "fn" }, key = "c" },
@@ -18,7 +19,12 @@ function module.init(config)
     }
     for action, hotkey in pairs(config) do
       if keyMap[action] then
-        if action == "moveSpaceN" then
+        if action == "launchpad" then
+          bindings[action] = hs.hotkey.bind(
+            hotkey.modifiers,
+            hotkey.key,
+            function() hs.execute("open /System/Applications/Launchpad.app") end)
+        elseif action == "moveSpaceN" then
           for i = 1, 9 do
             bindings[action .. i] = hs.hotkey.bind(
               hotkey.modifiers,
