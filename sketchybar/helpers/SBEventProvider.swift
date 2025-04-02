@@ -212,9 +212,17 @@ class SBEventProvider {
   private func formatWindowTitle(_ rawTitle: String, appName: String?) -> String? {
     guard !rawTitle.isEmpty else { return nil }
 
-    var formattedTitle = rawTitle
+    let normalizedTitle = rawTitle.replacingOccurrences(
+      of: "\\s+", with: " ", options: .regularExpression)
+    let normalizedAppName = appName?.replacingOccurrences(
+      of: "\\s+", with: " ", options: .regularExpression)
+
+    guard !(normalizedTitle == normalizedAppName) else { return "" }
+
+    var formattedTitle = normalizedTitle
     let maxLength = 50
-    let escapedAppName = NSRegularExpression.escapedPattern(for: appName ?? "")
+
+    let escapedAppName = NSRegularExpression.escapedPattern(for: normalizedAppName ?? "")
     let patternsToRemove = [
       // Activity Monitor (doesn't send kAXTitleChangedNotification when window title changes)
       "Activity Monitor.*",
@@ -233,9 +241,12 @@ class SBEventProvider {
       // Mail
       " – \\d+(,\\d+)? (messages|drafts)(, *\\d+(,\\d+)? unread)?$",
 
+      // Pixelmator Pro
+      "Welcome to Pixelmator Pro",
+
       // Redundant app name
-      "^\(escapedAppName)( [-–—] )?",
-      "( [-–—] )?\(escapedAppName)$",
+      "^\(escapedAppName) [-–—] ",
+      " [-–—] \(escapedAppName)$",
     ]
 
     for pattern in patternsToRemove {
