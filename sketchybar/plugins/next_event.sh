@@ -3,7 +3,7 @@
 source "${CONFIG_DIR}/variables.sh"
 
 case "${SENDER}" in
-  appearance_change)
+  appearance_changed)
     sketchybar \
       --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set next_event label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}"
