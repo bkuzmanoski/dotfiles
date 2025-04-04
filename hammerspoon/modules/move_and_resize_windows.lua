@@ -123,7 +123,7 @@ local function startOperation(operationType)
     if app == appName then return end
   end
 
-  if (operationType == "resize" or operationType == "resizeTile") and not activeWindow:isMaximizable() then return end
+  if (operationType == "resize") and not activeWindow:isMaximizable() then return end
 
   screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen():fullFrame(), topOffset, padding)
   activeOperation = operationType
