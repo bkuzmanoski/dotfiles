@@ -1,7 +1,9 @@
+local utils = require("utils")
 local module = {}
-local moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap, activeOperation, activeWindow
+local topOffset, padding, threshold, moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap
+local screenFrame, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
 
-local function getWindowUnderMouse()
+local function getWindowUnderMouse(windows)
   local rawMousePosition = hs.mouse.absolutePosition()
 
   -- Get window of topmost element under mouse
@@ -14,9 +16,8 @@ local function getWindowUnderMouse()
   end
 
   -- If topmost element is not (or not in) an AXStandardWindow, fall back to the frontmost window under the mouse
-  local orderedWindows = windowFilter:getWindows()
   local mousePosition = hs.geometry.new(rawMousePosition)
-  for _, window in ipairs(orderedWindows) do
+  for _, window in ipairs(windows) do
     if mousePosition:inside(window:frame()) then
       return window
     end
@@ -25,8 +26,94 @@ local function getWindowUnderMouse()
   return nil
 end
 
+local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, deltaY, snapThreshold)
+  local function findClosestEdge(value, edges)
+    local minDistance = snapThreshold + 1
+    local closestEdge = nil
+    local closestEdgeType = nil
+    for _, edge in ipairs(edges) do
+      local distance = math.abs(value - edge.position)
+      if distance < minDistance then
+        minDistance = distance
+        closestEdge = edge.position
+        closestEdgeType = edge.type
+      end
+    end
+    return closestEdge, closestEdgeType
+  end
+
+  local horizontalEdges = {}
+  local verticalEdges = {}
+
+  -- Add screen edges
+  table.insert(verticalEdges, { position = screenBoundary.x, type = "screenLeft" })
+  table.insert(verticalEdges, { position = screenBoundary.x + screenBoundary.w, type = "screenRight" })
+  table.insert(horizontalEdges, { position = screenBoundary.y, type = "screenTop" })
+  table.insert(horizontalEdges, { position = screenBoundary.y + screenBoundary.h, type = "screenBottom" })
+
+  -- Add window edges
+  for _, window in ipairs(windows) do
+    if window ~= activeWindow then
+      local windowFrame = window:frame()
+      table.insert(verticalEdges, { position = windowFrame.x, type = "windowLeft" })
+      table.insert(verticalEdges, { position = windowFrame.x + windowFrame.w, type = "windowRight" })
+      table.insert(horizontalEdges, { position = windowFrame.y, type = "windowTop" })
+      table.insert(horizontalEdges, { position = windowFrame.y + windowFrame.h, type = "windowBottom" })
+      if padding > 1 then -- 1px offset applied to each edge by default, so padding of 0 is equivalent to 1px
+        table.insert(verticalEdges, { position = windowFrame.x - padding, type = "paddedWindowLeft" })
+        table.insert(verticalEdges, { position = windowFrame.x + windowFrame.w + padding, type = "paddedWindowRight" })
+        table.insert(horizontalEdges, { position = windowFrame.y - padding, type = "paddedWindowTop" })
+        table.insert(horizontalEdges, { position = windowFrame.y + windowFrame.h + padding, type = "paddedWindowBottom" })
+      end
+    end
+  end
+
+  if operation == "move" then
+    local targetX = frame.x + deltaX
+    local targetY = frame.y + deltaY
+    local targetRight = frame.x + frame.w + deltaX
+    local targetBottom = frame.y + frame.h + deltaY
+    local snappedX, snappedXType = findClosestEdge(targetX, verticalEdges)
+    local snappedY, snappedYType = findClosestEdge(targetY, horizontalEdges)
+    local snappedRight, snappedRightType = findClosestEdge(targetRight, verticalEdges)
+    local snappedBottom, snappedBottomType = findClosestEdge(targetBottom, horizontalEdges)
+
+    -- Apply 1px offset if snapping to window edges
+    if snappedX and snappedXType == "windowRight" then snappedX = snappedX + 1 end
+    if snappedY and snappedYType == "windowBottom" then snappedY = snappedY + 1 end
+    if snappedRight and snappedRightType == "windowLeft" then snappedRight = snappedRight - 1 end
+    if snappedBottom and snappedBottomType == "windowTop" then snappedBottom = snappedBottom - 1 end
+
+    -- If bottom/right edge snapped, convert to top/left edge position
+    if snappedRight then snappedX = snappedRight - frame.w end
+    if snappedBottom then snappedY = snappedBottom - frame.h end
+
+    if snappedX or snappedY then
+      return snappedX or (frame.x + deltaX), snappedY or (frame.y + deltaY)
+    end
+  elseif operation == "resize" then
+    local targetRight = frame.x + frame.w + deltaX
+    local targetBottom = frame.y + frame.h + deltaY
+    local snappedRight, snappedRightType = findClosestEdge(targetRight, verticalEdges)
+    local snappedBottom, snappedBottomType = findClosestEdge(targetBottom, horizontalEdges)
+
+    if snappedRight or snappedBottom then
+      -- Apply 1px offset if snapping to window edges
+      if snappedRight and snappedRightType == "windowLeft" then snappedRight = snappedRight - 1 end
+      if snappedBottom and snappedBottomType == "windowTop" then snappedBottom = snappedBottom - 1 end
+
+      return
+          (snappedRight and (snappedRight - frame.x)) or (frame.w + deltaX),
+          (snappedBottom and (snappedBottom - frame.y)) or (frame.h + deltaY)
+    end
+  end
+
+  return nil, nil
+end
+
 local function startOperation(operationType)
-  activeWindow = getWindowUnderMouse()
+  allWindows = windowFilter:getWindows()
+  activeWindow = getWindowUnderMouse(allWindows)
   if not activeWindow then return end
 
   local appName = activeWindow:application():name()
@@ -36,14 +123,21 @@ local function startOperation(operationType)
 
   if operationType == "resize" and not activeWindow:isMaximizable() then return end
 
+  screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen():fullFrame(), topOffset, padding)
   activeOperation = operationType
+  initialWindowFrame = activeWindow:frame()
+  initialMousePosition = hs.mouse.absolutePosition()
   mouseTap:start()
 end
 
 local function stopOperation()
   if mouseTap then mouseTap:stop() end
-  activeOperation = nil
+  allWindows = nil
   activeWindow = nil
+  activeOperation = nil
+  screenFrame = nil
+  initialWindowFrame = nil
+  initialMousePosition = nil
 end
 
 local function handleFlagsChange(event)
@@ -60,17 +154,22 @@ local function handleFlagsChange(event)
   end
 end
 
-local function handleMouseMove(event)
-  if activeOperation and activeWindow then
-    local frame = activeWindow:frame()
+local function handleMouseMove()
+  if activeOperation and activeWindow and initialWindowFrame and initialMousePosition then
+    local currentMousePosition = hs.mouse.absolutePosition()
+    local deltaX = currentMousePosition.x - initialMousePosition.x
+    local deltaY = currentMousePosition.y - initialMousePosition.y
+
+    local newFrame = initialWindowFrame:copy()
+    local x, y = snapToEdges(screenFrame, allWindows, activeOperation, initialWindowFrame, deltaX, deltaY, threshold)
     if activeOperation == "move" then
-      frame.x = frame.x + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaX)
-      frame.y = frame.y + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaY)
+      newFrame.x = x or (newFrame.x + deltaX)
+      newFrame.y = y or (newFrame.y + deltaY)
     elseif activeOperation == "resize" then
-      frame.w = frame.w + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaX)
-      frame.h = frame.h + event:getProperty(hs.eventtap.event.properties.mouseEventDeltaY)
+      newFrame.w = x or (newFrame.w + deltaX)
+      newFrame.h = y or (newFrame.h + deltaY)
     end
-    activeWindow:setFrame(frame, 0)
+    activeWindow:setFrame(newFrame, 0)
   end
 end
 
@@ -78,17 +177,19 @@ function module.init(config)
   if keyboardTap or mouseTap then module.cleanup() end
 
   if config and (config.moveModifiers or config.resizeModifiers) then
+    topOffset = config.topOffset or 0
+    padding = config.padding or 0
+    threshold = config.threshold or 8
     moveModifiers = config.moveModifiers
     resizeModifiers = config.resizeModifiers
     denyApps = config.denyApps or {}
 
-    windowFilter = hs.window.filter.new()
-        :setOverrideFilter({
-          allowRoles = { "AXStandardWindow" },
-          currentSpace = true,
-          fullscreen = false,
-          visible = true
-        })
+    windowFilter = hs.window.filter.new():setOverrideFilter({
+      allowRoles = { "AXStandardWindow" },
+      currentSpace = true,
+      fullscreen = false,
+      visible = true
+    })
     keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
     mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
   end
