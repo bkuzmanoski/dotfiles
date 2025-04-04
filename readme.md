@@ -99,11 +99,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Set "Auto-lock" to never
     - Turn off "Lock on sleep, screensaver, or switching users"
 
-- **Alcove**
-
-  - Activate license
-  - Launch at login
-
 - **AltTab**
 
   - Grant Accessibility permission
