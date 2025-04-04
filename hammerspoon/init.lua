@@ -5,7 +5,7 @@ hs.logger.setGlobalLogLevel("warning")
 local modules = {}
 local globalSettings = {
   numberOfSpaces = 5,
-  windowTopOffset = 33,
+  screenTopOffset = 33,
   windowPadding = 8,
   hyperKeyPrimary = { "control", "option", "command" },
   hyperKeySecondary = { "control", "option", "command", "shift" }
@@ -73,12 +73,12 @@ modules.focusWindow = require("modules/focus_window").init({
 })
 
 modules.adjustPosition = require("modules/adjust_position").init({
-  topOffset = globalSettings.windowTopOffset,
+  topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding
 })
 
 modules.positionAndTile = require("modules/position_and_tile").init({
-  topOffset = globalSettings.windowTopOffset,
+  topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   splitRatios = { 0.5, 0.33, 0.67 },
   tileTopBottomSplitRatioIndex = 2,
@@ -99,6 +99,9 @@ modules.positionAndTile = require("modules/position_and_tile").init({
 })
 
 modules.moveAndResize = require("modules/move_and_resize").init({
+  topOffset = globalSettings.screenTopOffset,
+  padding = globalSettings.windowPadding,
+  threshold = globalSettings.windowPadding,
   moveModifiers = { "alt", "cmd" },
   resizeModifiers = { "alt", "shift", "cmd" },
   denyApps = { "Figma" }
@@ -114,7 +117,7 @@ modules.moveToSpace = require("modules/move_to_space").init({
 })
 
 modules.moveToScreen = require("modules/move_to_screen").init({
-  topOffset = globalSettings.windowTopOffset,
+  topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   hotkeys = {
     toNorth = { modifiers = { "option", "command" }, key = "up" },
