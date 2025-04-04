@@ -1,6 +1,6 @@
 local utils = require("utils")
 local module = {}
-local topOffset, padding, threshold, moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap
+local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap
 local screenFrame, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
 
 local function getWindowUnderMouse(windows)
@@ -26,9 +26,11 @@ local function getWindowUnderMouse(windows)
   return nil
 end
 
-local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, deltaY, snapThreshold)
+local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, deltaY, threshold)
+  if threshold == 0 then return nil, nil end
+
   local function findClosestEdge(value, edges)
-    local minDistance = snapThreshold + 1
+    local minDistance = threshold + 1
     local closestEdge = nil
     local closestEdgeType = nil
     for _, edge in ipairs(edges) do
@@ -121,7 +123,7 @@ local function startOperation(operationType)
     if app == appName then return end
   end
 
-  if operationType == "resize" and not activeWindow:isMaximizable() then return end
+  if (operationType == "resize" or operationType == "resizeTile") and not activeWindow:isMaximizable() then return end
 
   screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen():fullFrame(), topOffset, padding)
   activeOperation = operationType
@@ -161,13 +163,20 @@ local function handleMouseMove()
     local deltaY = currentMousePosition.y - initialMousePosition.y
 
     local newFrame = initialWindowFrame:copy()
-    local x, y = snapToEdges(screenFrame, allWindows, activeOperation, initialWindowFrame, deltaX, deltaY, threshold)
+    local newX, newY = snapToEdges(
+      screenFrame,
+      allWindows,
+      activeOperation,
+      initialWindowFrame,
+      deltaX,
+      deltaY,
+      snapThreshold)
     if activeOperation == "move" then
-      newFrame.x = x or (newFrame.x + deltaX)
-      newFrame.y = y or (newFrame.y + deltaY)
+      newFrame.x = newX or (newFrame.x + deltaX)
+      newFrame.y = newY or (newFrame.y + deltaY)
     elseif activeOperation == "resize" then
-      newFrame.w = x or (newFrame.w + deltaX)
-      newFrame.h = y or (newFrame.h + deltaY)
+      newFrame.w = newX or (newFrame.w + deltaX)
+      newFrame.h = newY or (newFrame.h + deltaY)
     end
     activeWindow:setFrame(newFrame, 0)
   end
@@ -176,10 +185,10 @@ end
 function module.init(config)
   if keyboardTap or mouseTap then module.cleanup() end
 
-  if config and (config.moveModifiers or config.resizeModifiers) then
+  if config and (config.moveModifiers or config.resizeModifiers or config.resizeTileModifiers) then
     topOffset = config.topOffset or 0
     padding = config.padding or 0
-    threshold = config.threshold or 8
+    snapThreshold = config.snapThreshold or 0
     moveModifiers = config.moveModifiers
     resizeModifiers = config.resizeModifiers
     denyApps = config.denyApps or {}

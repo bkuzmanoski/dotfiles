@@ -72,12 +72,12 @@ modules.focusWindow = require("modules/focus_window").init({
   focusRight = { modifiers = { "option", "command" }, key = "]" },
 })
 
-modules.adjustPosition = require("modules/adjust_position").init({
+modules.adjustWindowPosition = require("modules/adjust_window_position").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding
 })
 
-modules.positionAndTile = require("modules/position_and_tile").init({
+modules.positionAndTileWindows = require("modules/position_and_tile_windows").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   splitRatios = { 0.5, 0.33, 0.67 },
@@ -98,16 +98,16 @@ modules.positionAndTile = require("modules/position_and_tile").init({
   }
 })
 
-modules.moveAndResize = require("modules/move_and_resize").init({
+modules.moveAndResizeWindows = require("modules/move_and_resize_windows").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
-  threshold = globalSettings.windowPadding,
+  snapThreshold = globalSettings.windowPadding,
   moveModifiers = { "alt", "cmd" },
   resizeModifiers = { "alt", "shift", "cmd" },
   denyApps = { "Figma" }
 })
 
-modules.moveToSpace = require("modules/move_to_space").init({
+modules.moveWindowToSpace = require("modules/move_window_to_space").init({
   modifiers = { "option", "command" },
   keys = {
     previousSpace = "left",
@@ -116,7 +116,7 @@ modules.moveToSpace = require("modules/move_to_space").init({
   enableNumberedKeys = true,
 })
 
-modules.moveToScreen = require("modules/move_to_screen").init({
+modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   hotkeys = {
