@@ -159,7 +159,7 @@ if ! (
 fi
 
 # Set wallpaper
-wallpaper_path="${SCRIPT_DIR}/wallpapers/wallpaper.heic"
+wallpaper_path="${SCRIPT_DIR}/wallpapers/Wallpaper.heic"
 
 if [[ -f "${wallpaper_path}" ]]; then
   _log --info "Setting wallpaper to ${wallpaper_path}"

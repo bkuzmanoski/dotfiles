@@ -14,7 +14,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/reference**: Reference screenshots for things I couldn't automate
 - **/ripgrep**: ripgrep configuration
 - **/sketchybar**: SketchyBar configuration
-- **/wallpapers**: Desktop wallpapers
+- **/wallpapers**: Desktop wallpaper
 - **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration
 - `Brewfile`: Bundle of apps and tools to be installed via Homebrew
