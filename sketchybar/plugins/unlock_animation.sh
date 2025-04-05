@@ -11,7 +11,7 @@ case "${SENDER}" in
     sleep 0.2 # Wait for system to stabilize to avoid glitches
     afplay "${CONFIG_DIR}/assets/unlock.wav" &
     sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
+      --animate "${ANIMATION_CURVE}" $((ANIMATION_DURATION * 2)) \
       --bar y_offset=0 margin=0
   ;;
 esac
