@@ -16,6 +16,11 @@ typeset -a defaults=(
   label.padding_right=1 # Some strings are clipped by 1 pixel
 )
 
+typeset -a unlock_animation=(
+  drawing=off
+  script="${CONFIG_DIR}/plugins/unlock_animation.sh"
+)
+
 typeset -a app_icon=(
   background.drawing=on
   background.height=24
@@ -74,10 +79,15 @@ typeset -a date_time=(
 sketchybar \
   --bar "${bar[@]}" \
   --default "${defaults[@]}" \
+  --add event screen_locked "com.apple.screenIsLocked" \
+  --add event screen_unlocked "com.apple.screenIsUnlocked" \
   --add event appearance_changed "AppleInterfaceThemeChangedNotification" \
   --add event app_activated \
   --add event window_title_changed \
   --add event calendar_updated \
+  --add item unlock_animation left \
+  --set unlock_animation "${unlock_animation[@]}" \
+  --subscribe unlock_animation screen_locked screen_unlocked \
   --add item app_icon left \
   --set app_icon "${app_icon[@]}" \
   --subscribe app_icon mouse.entered mouse.clicked mouse.exited \
