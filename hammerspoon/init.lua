@@ -14,10 +14,6 @@ local globalSettings = {
 require("build_binaries")()
 require("create_spaces")(globalSettings.numberOfSpaces)
 
-modules.unlockSound = require("modules/unlock_sound").init({
-  soundPath = hs.configdir .. "/assets/unlock.wav"
-})
-
 modules.appMenu = require("modules/app_menu").init({
   modifiers = { "cmd" },
   triggerEvent = hs.eventtap.event.types.rightMouseDown,
