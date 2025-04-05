@@ -5,7 +5,7 @@ source "${CONFIG_DIR}/variables.sh"
 case "${SENDER}" in
   appearance_changed)
     sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
+      --animate "${THEME_ANIMATION_CURVE}" "${THEME_ANIMATION_DURATION}" \
       --set app_name label.color="${TEXT_DEFAULT_COLOR}"
     ;;
   app_activated)

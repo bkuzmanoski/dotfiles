@@ -5,7 +5,7 @@ source "${CONFIG_DIR}/variables.sh"
 case "${SENDER}" in
   appearance_changed)
     sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
+      --animate "${THEME_ANIMATION_CURVE}" "${THEME_ANIMATION_DURATION}" \
       --set battery_status icon.color="${TEXT_WARNING_COLOR}" label.color="${TEXT_WARNING_COLOR}"
       ;;
   *)

@@ -5,7 +5,7 @@ source "${CONFIG_DIR}/variables.sh"
 case "${SENDER}" in
   appearance_changed)
     sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
+      --animate "${THEME_ANIMATION_CURVE}" "${THEME_ANIMATION_DURATION}" \
       --set next_event label.color="${TEXT_INVERSE_COLOR}" background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
   calendar_updated)
@@ -17,21 +17,17 @@ case "${SENDER}" in
     fi
     ;;
   mouse.entered)
-    sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
-      --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
+    sketchybar --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
   mouse.exited)
-    sketchybar \
-      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
-      --set next_event background.color="${BACKGROUND_DEFAULT_COLOR}"
+    sketchybar --set next_event background.color="${BACKGROUND_DEFAULT_COLOR}"
     ;;
   mouse.clicked)
     if [[ "${BUTTON}" != "left" ]]; then return; fi
 
     sketchybar --set next_event background.color="${BACKGROUND_ACTIVE_COLOR}"
-    ${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url
-    sleep $(print "scale=2; ${ANIMATION_DURATION} / 100" | bc)
+    ${CONFIG_DIR}/helpers/bin/GetNextEvent --open-url &
+    sleep $(awk "BEGIN {print ${THEME_ANIMATION_DURATION} / 100}")
     sketchybar --set next_event background.color="${BACKGROUND_HOVER_COLOR}"
     ;;
 esac
