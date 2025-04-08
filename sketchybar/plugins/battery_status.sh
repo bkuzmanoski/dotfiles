@@ -5,7 +5,7 @@ source "${CONFIG_DIR}/variables.sh"
 case "${SENDER}" in
   appearance_changed)
     sketchybar \
-      --animate "${THEME_ANIMATION_CURVE}" "${THEME_ANIMATION_DURATION}" \
+      --animate "${ANIMATION_CURVE}" "${ANIMATION_DURATION}" \
       --set battery_status icon.color="${TEXT_WARNING_COLOR}" label.color="${TEXT_WARNING_COLOR}"
       ;;
   *)
@@ -16,7 +16,7 @@ case "${SENDER}" in
     if [[ -n "${is_discharging}" && "${percentage}" =~ ^[0-9]+$ && "${percentage}" -le 20 ]]; then
       sketchybar --set battery_status drawing=on icon.color="${TEXT_WARNING_COLOR}" label="${percentage}%" label.color="${TEXT_WARNING_COLOR}" update_freq="${UPDATE_FREQUENCY}"
     else
-      sketchybar --set battery_status drawing=off update_freq="${UPDATE_FREQUENCY}"
+      sketchybar --set battery_status drawing=off
     fi
     ;;
 esac
