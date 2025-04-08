@@ -3,75 +3,82 @@
 typeset -a bar=(
   display="all"
   height=40
+  y_offset=-40
   color=0x00000000
   padding_left=16
   padding_right=16
 )
 
 typeset -a defaults=(
-  icon.drawing=off # There is 1px of reserved space even if you don't set an icon
+  icon.drawing="off" # There is 1px of reserved space even if you don't set an icon
   icon.font=".AppleSystemUIFont:Medium:13"
-  label.drawing=off # Same for labels...
+  label.drawing="off" # Same for labels...
   label.font=".AppleSystemUIFont:Medium:13"
   label.padding_right=1 # Some strings are clipped by 1 pixel
+  padding_left=8
+  padding_right=8
 )
 
 typeset -a unlock_animation=(
-  drawing=off
+  drawing="off"
   script="${CONFIG_DIR}/plugins/unlock_animation.sh"
 )
 
-typeset -a app_icon=(
-  background.drawing=on
+typeset -a app_name=(
+  icon.background.drawing="on"
+  icon.background.image.scale=0.5
+  icon.background.image.padding_left=1
+  label.drawing="on"
+  label.font=".AppleSystemUIFont:Bold:13"
+  label.padding_left=6
+  label.padding_right=8
   background.height=24
   background.corner_radius=7
-  background.image.scale=0.5
-  background.image.padding_left=1
-  padding_right=6
-  script="${CONFIG_DIR}/plugins/app_icon.sh"
-)
-
-typeset -a app_name=(
-  label.drawing=on
-  label.font=".AppleSystemUIFont:Bold:13"
-  padding_right=6
+  blur_radius=30
+  padding_left=0
+  padding_right=0
   script="${CONFIG_DIR}/plugins/app_name.sh"
 )
 
 typeset -a window_title=(
-  label.drawing=on
+  label.drawing="on"
   script="${CONFIG_DIR}/plugins/window_title.sh"
+  padding_left=0
 )
 
 typeset -a next_event=(
-  drawing=off
-  label.drawing=on
-  label.padding_left=9
-  label.padding_right=10
-  background.corner_radius=8
+  drawing="off"
+  icon="􀉉"
+  icon.drawing="on"
+  icon.font=".AppleSystemUIFont:Light:14"
+  icon.padding_left=8
+  icon.padding_right=10
+  label.drawing="on"
+  label.padding_right=8
+  background.corner_radius=7
   background.height=24
   blur_radius=30
-  padding_right=12
+  padding_left=0
+  padding_right=0
   script="${CONFIG_DIR}/plugins/next_event.sh"
+  updates="when_shown"
 )
 
 typeset -a battery_status=(
-  drawing=off
+  drawing="off"
   icon="􀛩"
-  icon.drawing=on
-  icon.font=".AppleSystemUIFont:Light:15"
-  icon.padding_left=3
-  icon.padding_right=6
-  label.drawing=on
-  padding_right=8
+  icon.drawing="on"
+  icon.font=".AppleSystemUIFont:Light:16"
+  icon.padding_right=8
+  label.drawing="on"
   script="${CONFIG_DIR}/plugins/battery_status.sh"
+  updates="when_shown"
 )
 
 typeset -a date_time=(
-  icon.drawing=on
-  icon.padding_right=6
-  label.drawing=on
-  padding_left=4
+  icon.drawing="on"
+  icon.padding_right=8
+  label.drawing="on"
   padding_right=2
   script="${CONFIG_DIR}/plugins/date_time.sh"
 )
@@ -88,12 +95,9 @@ sketchybar \
   --add item unlock_animation left \
   --set unlock_animation "${unlock_animation[@]}" \
   --subscribe unlock_animation screen_locked screen_unlocked \
-  --add item app_icon left \
-  --set app_icon "${app_icon[@]}" \
-  --subscribe app_icon mouse.entered mouse.clicked mouse.exited \
   --add item app_name left \
   --set app_name "${app_name[@]}" \
-  --subscribe app_name app_activated appearance_changed \
+  --subscribe app_name app_activated appearance_changed mouse.entered mouse.clicked mouse.exited \
   --add item window_title left \
   --set window_title "${window_title[@]}" \
   --subscribe window_title window_title_changed appearance_changed \
@@ -105,9 +109,14 @@ sketchybar \
   --subscribe battery_status appearance_changed power_source_change system_woke \
   --add item next_event right \
   --set next_event "${next_event[@]}" \
-  --subscribe next_event calendar_updated appearance_changed system_woke mouse.entered mouse.clicked mouse.exited
+  --subscribe next_event calendar_updated appearance_changed system_woke mouse.entered mouse.clicked mouse.exited \
+  --update
 
-sketchybar --update
 pkill -f "${CONFIG_DIR}/helpers/bin/SBEventProvider" &>/dev/null
 "${CONFIG_DIR}/build_binaries.sh"
 "${CONFIG_DIR}/helpers/bin/SBEventProvider" &
+
+source "${CONFIG_DIR}/variables.sh"
+sketchybar \
+  --animate "${ANIMATION_CURVE}" ${ANIMATION_DURATION} \
+  --bar y_offset=0
