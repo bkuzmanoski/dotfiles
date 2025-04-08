@@ -1,5 +1,6 @@
 local module = {}
-local displayWatcher, windowFilter, mouseTap, lastScreen
+local screenWatcher, windowFilter, mouseTap
+local lastScreen
 
 local function focusFrontmostWindow(screen)
   if not screen or #hs.screen.allScreens() <= 1 then return end
@@ -44,20 +45,16 @@ local function updateMouseTap()
 end
 
 function module.init()
-  displayWatcher = hs.screen.watcher.new(updateMouseTap):start()
+  screenWatcher = hs.screen.watcher.new(updateMouseTap):start()
   windowFilter = hs.window.filter.new()
-      :setOverrideFilter({
-        allowRoles = { "AXStandardWindow" },
-        currentSpace = true,
-        visible = true
-      })
+      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, visible = true })
 
   updateMouseTap()
 end
 
 function module.cleanup()
-  if displayWatcher then displayWatcher:stop() end
-  displayWatcher = nil
+  if screenWatcher then screenWatcher:stop() end
+  screenWatcher = nil
 
   stopMouseTap()
 end

@@ -1,4 +1,5 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
 
@@ -41,9 +42,7 @@ local function openSelectedUrls()
     hs.configdir .. "/helpers/bin/ExtractURLs",
     function(exitCode, stdOut)
       success = exitCode == 0
-      for url in stdOut:gmatch("([^\n]+)") do
-        table.insert(urls, url)
-      end
+      for url in stdOut:gmatch("([^\n]+)") do table.insert(urls, url) end
     end
   )
   task:setInput(selectedText):start():waitUntilExit()
@@ -81,10 +80,7 @@ function module.init(config)
   if next(bindings) then module.cleanup() end
 
   if config then
-    local handlers = {
-      openSelectedUrls = openSelectedUrls,
-      searchForSelection = searchForSelection
-    }
+    local handlers = { openSelectedUrls = openSelectedUrls, searchForSelection = searchForSelection }
     for action, hotkey in pairs(config) do
       if handlers[action] and hotkey.modifiers and hotkey.key then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])

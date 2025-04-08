@@ -1,4 +1,5 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
 local topOffset, padding
@@ -25,14 +26,8 @@ local function moveToScreen(direction)
   local fromFrame = fromScreen:fullFrame()
   local toFrame = toScreen:fullFrame()
   local windowFrame = window:frame()
-  local fromCenter = {
-    x = fromFrame.x + fromFrame.w / 2,
-    y = fromFrame.y + fromFrame.h / 2
-  }
-  local toCenter = {
-    x = toFrame.x + toFrame.w / 2,
-    y = toFrame.y + toFrame.h / 2
-  }
+  local fromCenter = { x = fromFrame.x + fromFrame.w / 2, y = fromFrame.y + fromFrame.h / 2 }
+  local toCenter = { x = toFrame.x + toFrame.w / 2, y = toFrame.y + toFrame.h / 2 }
   local offset = {
     x = windowFrame.x + (windowFrame.w / 2) - fromCenter.x,
     y = windowFrame.y + (windowFrame.h / 2) - fromCenter.y
@@ -41,7 +36,7 @@ local function moveToScreen(direction)
   windowFrame.y = toCenter.y + offset.y - (windowFrame.h / 2)
 
   if window:isMaximizable() then
-    local adjustedScreenFrame = utils.getAdjustedScreenFrame(toFrame, topOffset, padding)
+    local adjustedScreenFrame = utils.getAdjustedScreenFrame(fromFrame, topOffset, padding)
     windowFrame = utils.getAdjustedWindowFrame(adjustedScreenFrame, windowFrame)
   end
 
@@ -52,10 +47,7 @@ function module.init(config)
   if next(bindings) then module.cleanup() end
 
   if config and config.hotkeys then
-    local handlers = {
-      toNorth = "north",
-      toSouth = "south"
-    }
+    local handlers = { toNorth = "north", toSouth = "south" }
     for action, hotkey in pairs(config.hotkeys) do
       if handlers[action] then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function() moveToScreen(handlers[action]) end)

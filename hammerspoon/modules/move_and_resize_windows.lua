@@ -1,7 +1,9 @@
 local utils = require("utils")
+
 local module = {}
-local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, denyApps, windowFilter, keyboardTap, mouseTap
+local windowFilter, keyboardTap, mouseTap
 local screenFrame, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
+local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, rejectApps
 
 local function getWindowUnderMouse(windows)
   local rawMousePosition = hs.mouse.absolutePosition()
@@ -10,17 +12,13 @@ local function getWindowUnderMouse(windows)
   local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
   if elementUnderMouse then
     local rawWindow = elementUnderMouse:attributeValue("AXWindow")
-    if rawWindow and rawWindow:attributeValue("AXSubrole") == "AXStandardWindow" then
-      return rawWindow:asHSWindow()
-    end
+    if rawWindow and rawWindow:attributeValue("AXSubrole") == "AXStandardWindow" then return rawWindow:asHSWindow() end
   end
 
   -- If topmost element is not (or not in) an AXStandardWindow, fall back to the frontmost window under the mouse
   local mousePosition = hs.geometry.new(rawMousePosition)
   for _, window in ipairs(windows) do
-    if mousePosition:inside(window:frame()) then
-      return window
-    end
+    if mousePosition:inside(window:frame()) then return window end
   end
 
   return nil
@@ -119,7 +117,7 @@ local function startOperation(operationType)
   if not activeWindow then return end
 
   local appName = activeWindow:application():name()
-  for _, app in ipairs(denyApps) do
+  for _, app in ipairs(rejectApps) do
     if app == appName then return end
   end
 
@@ -134,10 +132,10 @@ end
 
 local function stopOperation()
   if mouseTap then mouseTap:stop() end
+  screenFrame = nil
   allWindows = nil
   activeWindow = nil
   activeOperation = nil
-  screenFrame = nil
   initialWindowFrame = nil
   initialMousePosition = nil
 end
@@ -148,11 +146,8 @@ local function handleFlagsChange(event)
   local flags = event:getFlags()
   if moveModifiers and flags:containExactly(moveModifiers) then
     startOperation("move")
-    return
-  end
-  if resizeModifiers and flags:containExactly(resizeModifiers) then
+  elseif resizeModifiers and flags:containExactly(resizeModifiers) then
     startOperation("resize")
-    return
   end
 end
 
@@ -164,13 +159,7 @@ local function handleMouseMove()
 
     local newFrame = initialWindowFrame:copy()
     local newX, newY = snapToEdges(
-      screenFrame,
-      allWindows,
-      activeOperation,
-      initialWindowFrame,
-      deltaX,
-      deltaY,
-      snapThreshold)
+      screenFrame, allWindows, activeOperation, initialWindowFrame, deltaX, deltaY, snapThreshold)
     if activeOperation == "move" then
       newFrame.x = newX or (newFrame.x + deltaX)
       newFrame.y = newY or (newFrame.y + deltaY)
@@ -191,14 +180,10 @@ function module.init(config)
     snapThreshold = config.snapThreshold or 0
     moveModifiers = config.moveModifiers
     resizeModifiers = config.resizeModifiers
-    denyApps = config.denyApps or {}
+    rejectApps = config.rejectApps or {}
 
-    windowFilter = hs.window.filter.new():setOverrideFilter({
-      allowRoles = { "AXStandardWindow" },
-      currentSpace = true,
-      fullscreen = false,
-      visible = true
-    })
+    windowFilter = hs.window.filter.new()
+        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
     keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
     mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
   end

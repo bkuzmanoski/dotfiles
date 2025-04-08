@@ -1,7 +1,10 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
-local topOffset, padding, splitRatios, tileTopBottomSplitRatioIndex, currentSplitRatioIndex, windowFilter, lastDirection, lastWindow
+local windowFilter
+local currentSplitRatioIndex, lastDirection, lastWindow
+local topOffset, padding, splitRatios, tileTopBottomSplitRatioIndex
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()

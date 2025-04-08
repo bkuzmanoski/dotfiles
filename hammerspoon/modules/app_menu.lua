@@ -1,5 +1,6 @@
 local module = {}
-local modifiers, eventTap
+local modifiers
+local eventTap
 
 local function getMenuBarOwningApp()
   local ok, pid = hs.osascript.applescript([[
@@ -71,21 +72,6 @@ local function handleTriggerEvent(event)
   return false
 end
 
-local function handleUrlEvent(_, parameters)
-  if not parameters.x or not parameters.y then return end
-
-  local x = tonumber(parameters.x)
-  local y = tonumber(parameters.y)
-  if not x or not y then return end
-
-  local screen = hs.mouse.getCurrentScreen()
-  if not screen then return end
-
-  local frame = screen:fullFrame()
-  local position = { x = frame.x + x, y = frame.y + y }
-  showAppMenu(position)
-end
-
 function module.init(config)
   if eventTap then module.cleanup() end
 
@@ -93,10 +79,6 @@ function module.init(config)
     if config.modifiers and config.triggerEvent then
       modifiers = config.modifiers
       eventTap = hs.eventtap.new({ config.triggerEvent }, handleTriggerEvent):start()
-    end
-
-    if config.enableUrlEvents then
-      hs.urlevent.bind("showAppMenu", handleUrlEvent)
     end
   end
 
@@ -106,8 +88,6 @@ end
 function module.cleanup()
   if eventTap then eventTap:stop() end
   eventTap = nil
-
-  hs.urlevent.bind("showAppMenu", nil)
 end
 
 return module

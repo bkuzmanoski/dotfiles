@@ -1,4 +1,5 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
 
@@ -73,10 +74,7 @@ function module.init(config)
 
   if config and config.modifiers then
     if config.keys then
-      local handlers = {
-        previousSpace = moveWindowToPreviousSpace,
-        nextSpace = moveWindowToNextSpace
-      }
+      local handlers = { previousSpace = moveWindowToPreviousSpace, nextSpace = moveWindowToNextSpace }
       for action, key in pairs(config.keys) do
         if handlers[action] then
           bindings[action] = hs.hotkey.bind(config.modifiers, key, handlers[action])
@@ -84,7 +82,7 @@ function module.init(config)
       end
     end
 
-    if config.enableNumberedKeys then
+    if config.enableNumberKeys then
       for i = 1, 9 do
         bindings[i] = hs.hotkey.bind(config.modifiers, tostring(i), function()
           local focusedWindow = getFocusedWindowAndScreen()

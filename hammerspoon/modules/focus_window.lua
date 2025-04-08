@@ -1,4 +1,5 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
 local windowFilter
@@ -7,9 +8,7 @@ local function focusWindow(direction)
   local windows = windowFilter:getWindows()
   local filteredWindows = {}
   for _, window in ipairs(windows) do
-    if window:title() ~= "" then
-      table.insert(filteredWindows, window)
-    end
+    if window:title() ~= "" then table.insert(filteredWindows, window) end
   end
 
   if #filteredWindows == 0 then
@@ -92,12 +91,8 @@ function module.init(config)
     end
 
     if next(bindings) then
-      windowFilter = hs.window.filter.new():setOverrideFilter({
-        allowRoles = { "AXStandardWindow" },
-        currentSpace = true,
-        fullscreen = false,
-        visible = true
-      })
+      windowFilter = hs.window.filter.new()
+          :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
     end
   end
 

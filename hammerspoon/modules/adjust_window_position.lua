@@ -1,6 +1,8 @@
 local utils = require("utils")
+
 local module = {}
-local topOffset, padding, windowSubscription
+local windowSubscription
+local topOffset, padding
 
 local function handleWindowEvent(window)
   if not window or window:title() == "" then return end

@@ -1,12 +1,9 @@
-local utils = require("utils")
 local module = {}
 local binding
 
 local function pasteAsPlaintext()
   local plaintext = hs.pasteboard.readString()
-  if not plaintext or plaintext == "" then
-    return
-  end
+  if not plaintext or plaintext == "" then return end
 
   local focusedElement = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
   if focusedElement then
@@ -28,10 +25,8 @@ function module.init(config)
 end
 
 function module.cleanup()
-  if binding then
-    binding:delete()
-    binding = nil
-  end
+  if binding then binding:delete() end
+  binding = nil
 end
 
 return module
