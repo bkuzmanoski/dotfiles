@@ -1,6 +1,11 @@
 local module = {}
 
 function module.getAdjustedScreenFrame(screenFullFrame, topOffset, padding)
+  local menuBar = hs.axuielement.systemElementAtPosition(0, 0)
+  if menuBar and menuBar:attributeValue("AXRole") == "AXMenuBar" then
+    topOffset = topOffset + menuBar:attributeValue("AXSize").h
+  end
+
   screenFullFrame.x = screenFullFrame.x + padding
   screenFullFrame.y = screenFullFrame.y + topOffset + padding
   screenFullFrame.w = screenFullFrame.w - (padding * 2)
