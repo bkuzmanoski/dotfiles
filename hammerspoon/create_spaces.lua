@@ -5,7 +5,5 @@ return function(numberOfSpaces)
   local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
   if numberOfSpaces <= spacesCount then return end
 
-  for _ = spacesCount + 1, numberOfSpaces do
-    hs.spaces.addSpaceToScreen(primaryScreen)
-  end
+  for _ = spacesCount + 1, numberOfSpaces do hs.spaces.addSpaceToScreen(primaryScreen) end
 end

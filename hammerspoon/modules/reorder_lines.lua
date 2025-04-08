@@ -1,4 +1,5 @@
 local utils = require("utils")
+
 local module = {}
 local bindings = {}
 local windowSubscription
@@ -128,10 +129,7 @@ function module.init(config)
   if next(bindings) or windowSubscription then module.cleanup() end
 
   if config and config.allowApps and #config.allowApps > 0 and config.hotkeys then
-    local handlers = {
-      moveLinesUp = function() moveLines("up") end,
-      moveLinesDown = function() moveLines("down") end
-    }
+    local handlers = { moveLinesUp = function() moveLines("up") end, moveLinesDown = function() moveLines("down") end }
     for action, hotkey in pairs(config.hotkeys) do
       if handlers[action] and hotkey.modifiers and hotkey.key then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])

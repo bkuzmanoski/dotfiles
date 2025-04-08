@@ -1,41 +1,37 @@
 local module = {}
 local bindings = {}
 
+local actions = {
+  focusDock = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "f3") end,
+  focusMenuBar = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "f2") end,
+  toggleLaunchpad = hs.spaces.toggleLaunchPad,
+  toggleMissionControl = function()
+    local mousePosition = hs.mouse.absolutePosition()
+    hs.mouse.absolutePosition({ x = 10, y = 10 })
+    hs.eventtap.keyStroke({ "fn", "ctrl" }, "up", 0)
+    hs.mouse.absolutePosition(mousePosition)
+  end,
+  toggleAppExpose = function() hs.spaces.toggleAppExpose() end,
+  toggleShowDesktop = function() hs.spaces.toggleShowDesktop() end,
+  toggleControlCenter = function() hs.eventtap.keyStroke({ "fn" }, "c") end,
+  toggleNotificationCenter = function() hs.eventtap.keyStroke({ "fn" }, "n") end,
+  moveToSpaceLeft = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "left") end,
+  moveToSpaceRight = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "right") end,
+  moveToSpaceN = function(n) hs.eventtap.keyStroke({ "ctrl" }, tostring(n), 0) end
+}
+
 function module.init(config)
   if next(bindings) then module.cleanup() end
 
   if config then
-    local keyMap = {
-      launchpad = {},
-      focusDock = { modifiers = { "fn", "ctrl" }, key = "f3" },
-      focusMenuBar = { modifiers = { "fn", "ctrl" }, key = "f2" },
-      toggleControlCenter = { modifiers = { "fn" }, key = "c" },
-      toggleNotificationCenter = { modifiers = { "fn" }, key = "n" },
-      appWindows = { modifiers = { "fn", "ctrl" }, key = "down" },
-      showDesktop = { modifiers = { "fn" }, key = "f11" },
-      moveSpaceLeft = { modifiers = { "fn", "ctrl" }, key = "left" },
-      moveSpaceRight = { modifiers = { "fn", "ctrl" }, key = "right" },
-      moveSpaceN = { modifiers = { "ctrl" } }
-    }
     for action, hotkey in pairs(config) do
-      if keyMap[action] then
-        if action == "launchpad" then
-          bindings[action] = hs.hotkey.bind(
-            hotkey.modifiers,
-            hotkey.key,
-            function() hs.execute("open /System/Applications/Launchpad.app") end)
-        elseif action == "moveSpaceN" then
-          for i = 1, 9 do
-            bindings[action .. i] = hs.hotkey.bind(
-              hotkey.modifiers,
-              tostring(i),
-              function() hs.eventtap.keyStroke(keyMap[action].modifiers, tostring(i), 0) end)
+      if actions[action] then
+        if action == "moveToSpaceN" then
+          for n = 1, 9 do
+            bindings[action .. n] = hs.hotkey.bind(hotkey.modifiers, tostring(n), function() actions[action](n) end)
           end
         else
-          bindings[action] = hs.hotkey.bind(
-            hotkey.modifiers,
-            hotkey.key,
-            function() hs.eventtap.keyStroke(keyMap[action].modifiers, keyMap[action].key) end)
+          bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, actions[action])
         end
       end
     end
