@@ -13,7 +13,6 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
 - **/ripgrep**: ripgrep configuration
-- **/sketchybar**: SketchyBar configuration
 - **/wallpapers**: Desktop wallpaper
 - **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration
@@ -176,10 +175,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
   - Launch at login
   - Set Font to "JetBrains Mono Regular Regular"
-
-- **SketchyBar**
-
-  - Grant Accessibility permission
 
 - **VS Code**
 

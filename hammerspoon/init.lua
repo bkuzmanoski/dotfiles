@@ -1,7 +1,7 @@
 local modules = {}
 local globalSettings = {
   numberOfSpaces = 5,
-  screenTopOffset = 33,
+  screenTopOffset = 0,
   windowPadding = 8,
   hyperKey = { "control", "option", "command" }
 }

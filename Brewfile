@@ -9,9 +9,6 @@ brew "micro"
 brew "oxipng"
 brew "ripgrep"
 
-tap "FelixKratz/formulae"
-brew "FelixKratz/formulae/sketchybar"
-
 cask "1password"
 cask "alt-tab"
 cask "cleanshot"
@@ -22,7 +19,6 @@ cask "hammerspoon"
 cask "raycast"
 cask "visual-studio-code"
 
-mas "Equinox", id: 1591510203
 mas "NextDNS", id: 1464122853
 mas "Pixelmator Pro", id: 1289583905
 mas "Scratchpad", id: 6504040051
