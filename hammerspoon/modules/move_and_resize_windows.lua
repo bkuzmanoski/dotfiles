@@ -174,7 +174,7 @@ end
 function module.init(config)
   if keyboardTap or mouseTap then module.cleanup() end
 
-  if config and (config.moveModifiers or config.resizeModifiers or config.resizeTileModifiers) then
+  if config and (config.moveModifiers or config.resizeModifiers) then
     topOffset = config.topOffset or 0
     padding = config.padding or 0
     snapThreshold = config.snapThreshold or 0

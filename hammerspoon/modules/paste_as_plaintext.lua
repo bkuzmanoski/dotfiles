@@ -17,7 +17,7 @@ end
 function module.init(config)
   if binding then module.cleanup() end
 
-  if config.modifiers and config.key then
+  if config and config.modifiers and config.key then
     binding = hs.hotkey.bind(config.modifiers, config.key, pasteAsPlaintext, nil, pasteAsPlaintext)
   end
 

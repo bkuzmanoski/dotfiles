@@ -24,6 +24,8 @@ local function getWindows()
 end
 
 local function position(location)
+  if location ~= "center" then return end
+
   local screen, window = getWindows()
   if not screen or not window then
     utils.playAlert()
@@ -32,19 +34,33 @@ local function position(location)
 
   local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
   local windowFrame = window:frame()
+  windowFrame.x = screenFrame.x + math.floor((screenFrame.w - windowFrame.w) / 2)
+  windowFrame.y = screenFrame.y + math.floor((screenFrame.h - windowFrame.h) / 2)
 
-  if location == "center" or location == "reasonableSize" or location == "almostMaximize" then
-    if location == "reasonableSize" then
+  window:setFrame(windowFrame)
+end
+
+local function resize(size)
+  local screen, window = getWindows()
+  if not screen or not window then
+    utils.playAlert()
+    return
+  end
+
+  local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
+  local windowFrame = window:frame()
+  if size == "small" or size == "medium" then
+    if size == "small" then
       windowFrame.h = math.floor(screenFrame.h * 0.6)
       windowFrame.w = math.floor(windowFrame.h * 1.3)
     end
-    if location == "almostMaximize" then
+    if size == "medium" then
       windowFrame.w = math.floor(screenFrame.w * 0.9)
       windowFrame.h = math.floor(screenFrame.h * 0.9)
     end
     windowFrame.x = screenFrame.x + math.floor((screenFrame.w - windowFrame.w) / 2)
     windowFrame.y = screenFrame.y + math.floor((screenFrame.h - windowFrame.h) / 2)
-  elseif location == "maximize" then
+  elseif size == "large" then
     windowFrame = screenFrame
   end
 
@@ -89,7 +105,7 @@ local function tileLeftRight(direction)
   end
 end
 
-local function tileTopRightBottomRight(direction)
+local function tileTopBottomRight(direction)
   local screen, firstWindow, secondWindow = getWindows()
   if not screen or not firstWindow then
     utils.playAlert()
@@ -129,9 +145,11 @@ function module.init(config)
     local handlers = {
       -- Positioning
       positionCenter = function() position("center") end,
-      positionReasonableSize = function() position("reasonableSize") end,
-      positionAlmostMaximize = function() position("almostMaximize") end,
-      positionMaximize = function() position("maximize") end,
+
+      -- Resizing
+      resizeSmall = function() resize("small") end,
+      resizeMedium = function() resize("medium") end,
+      resizeLarge = function() resize("large") end,
 
       -- Horizontal tiling
       tileLeft = function() tileLeftRight("left") end,
@@ -140,10 +158,10 @@ function module.init(config)
       tileRightAndLeft = function() tileLeftRight("rightAndLeft") end,
 
       -- Vertical tiling
-      tileTopRight = function() tileTopRightBottomRight("topRight") end,
-      tileBottomRight = function() tileTopRightBottomRight("bottomRight") end,
-      tileTopAndBottomRight = function() tileTopRightBottomRight("topAndBottomRight") end,
-      tileBottomAndTopRight = function() tileTopRightBottomRight("bottomAndTopRight") end,
+      tileTopRight = function() tileTopBottomRight("topRight") end,
+      tileBottomRight = function() tileTopBottomRight("bottomRight") end,
+      tileTopAndBottomRight = function() tileTopBottomRight("topAndBottomRight") end,
+      tileBottomAndTopRight = function() tileTopBottomRight("bottomAndTopRight") end,
     }
     for action, hotkey in pairs(config.hotkeys) do
       if handlers[action] then
