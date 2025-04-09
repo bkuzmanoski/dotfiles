@@ -239,14 +239,14 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools to ⌥⌘I
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove shortcut for Email Link (conflicts with ⌥⌘I)
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right to ⌘T
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove shortcut for New Tab (conflicts with ⌘T)
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⌥⌘I
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⌥⌘I)
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
-_defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for shortcut 1 to ⌘
-_defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for shortcut 2 to ⌘
+_defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for keyboard shortcut 1 to ⌘
+_defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for keyboard shortcut 2 to ⌘
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 _defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true # Set appearance to auto
 _defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false # Don't show welcome window on launch
@@ -260,8 +260,6 @@ _defaults_write com.sindresorhus.Scratchpad showOnAllSpaces -bool true # Show on
 _defaults_write com.sindresorhus.Scratchpad SS_NSStatusItem_ensureVisibility_shouldNotShowAgain -bool true # Disable warning about menu bar item visibility
 _defaults_write com.sindresorhus.Scratchpad SS_Tooltip_statusBarButtonWelcomePopover -bool true # Disable menu bar item welcome popover
 _defaults_write com.sindresorhus.Scratchpad textSize -int 13 # Set font size to 13
-_defaults_write net.pornel.ImageOptim PngCrush2Enabled -bool true # Enable PNG Crush 2
-_defaults_write net.pornel.ImageOptim PngOutEnabled -bool false # Disable PNG Out (doesn't work on arm64)
 _defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
 _defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
 _defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
@@ -270,6 +268,7 @@ _defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # D
 _defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
 _defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
 _defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
+_defaults_write pl.maketheweb.cleanshotx rememberRecordingArea -bool false # Disable remember last recording area selection
 _defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 _defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
 _defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
