@@ -15,9 +15,9 @@ local actions = {
   toggleShowDesktop = function() hs.spaces.toggleShowDesktop() end,
   toggleControlCenter = function() hs.eventtap.keyStroke({ "fn" }, "c") end,
   toggleNotificationCenter = function() hs.eventtap.keyStroke({ "fn" }, "n") end,
-  moveToSpaceLeft = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "left") end,
-  moveToSpaceRight = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "right") end,
-  moveToSpaceN = function(n) hs.eventtap.keyStroke({ "ctrl" }, tostring(n), 0) end
+  goToSpaceLeft = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "left") end,
+  goToSpaceRight = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "right") end,
+  goToSpaceN = function(n) hs.eventtap.keyStroke({ "ctrl" }, tostring(n), 0) end
 }
 
 function module.init(config)
@@ -26,7 +26,7 @@ function module.init(config)
   if config then
     for action, hotkey in pairs(config) do
       if actions[action] then
-        if action == "moveToSpaceN" then
+        if action == "goToSpaceN" then
           for n = 1, 9 do
             bindings[action .. n] = hs.hotkey.bind(hotkey.modifiers, tostring(n), function() actions[action](n) end)
           end
