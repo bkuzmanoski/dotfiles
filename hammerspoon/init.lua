@@ -25,24 +25,21 @@ modules.appHotkeys = require("modules/app_hotkeys").init({
     ["f"] = "com.apple.finder",
     ["s"] = "com.apple.systempreferences",
     ["t"] = "com.mitchellh.ghostty",
-    ["b"] = "com.google.Chrome",
+    ["c"] = "com.google.Chrome",
     ["v"] = "com.microsoft.VSCode",
-    ["g"] = "com.figma.Desktop"
+    ["d"] = "com.figma.Desktop"
   }
 })
 
 modules.systemHotkeys = require("modules/system_hotkeys").init({
-  focusDock = { modifiers = globalSettings.hyperKey, key = "d" },
-  focusMenuBar = { modifiers = globalSettings.hyperKey, key = "m" },
   toggleLaunchpad = { modifiers = globalSettings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = globalSettings.hyperKey, key = "space" },
   toggleAppExpose = { modifiers = globalSettings.hyperKey, key = "up" },
   toggleShowDesktop = { modifiers = globalSettings.hyperKey, key = "down" },
-  toggleControlCenter = { modifiers = globalSettings.hyperKey, key = "c" },
   toggleNotificationCenter = { modifiers = globalSettings.hyperKey, key = "n" },
-  moveToSpaceLeft = { modifiers = globalSettings.hyperKey, key = "[" },
-  moveToSpaceRight = { modifiers = globalSettings.hyperKey, key = "]" },
-  moveToSpaceN = { modifiers = globalSettings.hyperKey },
+  goToSpaceLeft = { modifiers = globalSettings.hyperKey, key = "[" },
+  goToSpaceRight = { modifiers = globalSettings.hyperKey, key = "]" },
+  goToSpaceN = { modifiers = globalSettings.hyperKey },
 })
 
 modules.pasteAsPlaintext = require("modules/paste_as_plaintext").init({
