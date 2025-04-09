@@ -70,9 +70,6 @@ local function focusWindow(direction)
     fallbackWindow:focus()
     return
   end
-
-  -- No window to focus was found
-  utils.playAlert()
 end
 
 function module.init(config)
