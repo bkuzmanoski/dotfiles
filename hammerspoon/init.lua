@@ -3,7 +3,7 @@ local globalSettings = {
   numberOfSpaces = 5,
   screenTopOffset = 0,
   windowPadding = 8,
-  hyperKey = { "control", "option", "command" }
+  hyperKey = { "control", "option", "shift", "command" }
 }
 
 hs.hotkey.setLogLevel("error")
