@@ -32,7 +32,7 @@ class MeasurePixels: NSWindow {
 
   override var canBecomeKey: Bool { true }
 
-  init(for screen: NSScreen) {
+  init(on screen: NSScreen) {
     let screenFrame = screen.frame
     super.init(contentRect: screenFrame, styleMask: [.borderless], backing: .buffered, defer: false)
 
@@ -213,7 +213,7 @@ guard let mainScreen = NSScreen.main else {
 NSApplication.shared.setActivationPolicy(.accessory)
 NSApplication.shared.activate(ignoringOtherApps: true)
 
-let window = MeasurePixels(for: mainScreen)
+let window = MeasurePixels(on: mainScreen)
 window.makeKeyAndOrderFront(nil)
 window.makeFirstResponder(window)
 
