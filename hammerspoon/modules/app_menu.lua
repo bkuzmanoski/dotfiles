@@ -75,11 +75,9 @@ end
 function module.init(config)
   if eventTap then module.cleanup() end
 
-  if config then
-    if config.modifiers and config.triggerEvent then
-      modifiers = config.modifiers
-      eventTap = hs.eventtap.new({ config.triggerEvent }, handleTriggerEvent):start()
-    end
+  if config and config.modifiers and config.triggerEvent then
+    modifiers = config.modifiers
+    eventTap = hs.eventtap.new({ config.triggerEvent }, handleTriggerEvent):start()
   end
 
   return module

@@ -77,9 +77,9 @@ modules.positionAndTileWindows = require("modules/position_and_tile_windows").in
   tileTopBottomSplitRatioIndex = 2,
   hotkeys = {
     positionCenter = { modifiers = { "option", "command" }, key = "space" },
-    positionReasonableSize = { modifiers = { "option", "command" }, key = "u" },
-    positionAlmostMaximize = { modifiers = { "option", "command" }, key = "i" },
-    positionMaximize = { modifiers = { "option", "command" }, key = "o" },
+    resizeSmall = { modifiers = { "option", "command" }, key = "u" },
+    resizeMedium = { modifiers = { "option", "command" }, key = "i" },
+    resizeLarge = { modifiers = { "option", "command" }, key = "o" },
     tileLeft = { modifiers = { "option", "command" }, key = "l" },
     tileRight = { modifiers = { "option", "command" }, key = "'" },
     tileLeftAndRight = { modifiers = { "option", "shift", "command" }, key = "l" },
