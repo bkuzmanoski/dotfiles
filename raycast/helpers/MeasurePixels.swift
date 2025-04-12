@@ -51,7 +51,7 @@ class MeasurePixels: NSWindow {
     NSCursor.crosshair.set()
   }
 
-  override func mouseUp(with event: NSEvent) {
+  override func mouseDown(with event: NSEvent) {
     let point = event.locationInWindow
     if startPoint == nil {
       startPoint = point
@@ -63,10 +63,11 @@ class MeasurePixels: NSWindow {
   }
 
   override func mouseMoved(with event: NSEvent) {
-    guard let startPoint = startPoint else { return }
+    updateMeasurement(with: event)
+  }
 
-    let measurement = Measurement(startPoint: startPoint, endPoint: event.locationInWindow)
-    drawOverlay(for: measurement)
+  override func mouseDragged(with event: NSEvent) {
+    updateMeasurement(with: event)
   }
 
   override func keyDown(with event: NSEvent) {
@@ -81,6 +82,13 @@ class MeasurePixels: NSWindow {
     default:
       super.keyDown(with: event)
     }
+  }
+
+  private func updateMeasurement(with event: NSEvent) {
+    guard let startPoint = startPoint else { return }
+
+    let measurement = Measurement(startPoint: startPoint, endPoint: event.locationInWindow)
+    drawOverlay(for: measurement)
   }
 
   func drawOverlay(for measurement: Measurement) {
