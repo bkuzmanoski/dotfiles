@@ -1,74 +1,56 @@
-local utils = require("utils")
-
 local module = {}
 local bindings = {}
 local windowFilter
 
 local function focusWindow(direction)
-  local windows = windowFilter:getWindows()
-  local filteredWindows = {}
-  for _, window in ipairs(windows) do
-    if window:title() ~= "" then table.insert(filteredWindows, window) end
-  end
+  local screen = hs.mouse.getCurrentScreen()
+  local focusedWindow = hs.window.focusedWindow()
+  local otherWindows = hs.fnutils.filter(windowFilter:getWindows(), function(window)
+    return window:screen() == screen and window ~= focusedWindow
+  end)
 
-  if #filteredWindows == 0 then
-    utils.playAlert()
+  if direction == "frontmost" or not focusedWindow or focusedWindow:screen() ~= screen then
+    if #otherWindows > 0 then otherWindows[1]:focus() end
     return
   end
 
-  local currentWindow = hs.window.focusedWindow()
-  if direction == "frontmost" or not currentWindow then
-    filteredWindows[1]:focus()
-    return
-  end
+  local focusedWindowFrame = focusedWindow:frame()
+  local leftWindows = {}
+  local rightWindows = {}
 
-  local screen = currentWindow:screen()
-  local referenceFrame = currentWindow:frame()
-  local candidateWindow = nil
-  local minXDiff = math.huge
-  for _, window in ipairs(filteredWindows) do
-    -- Try focusing window to the left or right of the currently focused window
-    if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
-      local frame = window:frame()
-      if direction == "left" and frame.x < referenceFrame.x then
-        local diff = referenceFrame.x - frame.x
-        if diff < minXDiff then
-          candidateWindow = window
-          minXDiff = diff
-        end
-      elseif direction == "right" and frame.x > referenceFrame.x then
-        local diff = frame.x - referenceFrame.x
-        if diff < minXDiff then
-          candidateWindow = window
-          minXDiff = diff
-        end
-      end
+  for _, window in ipairs(otherWindows) do
+    local frame = window:frame()
+    if frame.x + (frame.w / 2) < focusedWindowFrame.x + (focusedWindowFrame.w / 2) then
+      table.insert(leftWindows, window)
+    else
+      table.insert(rightWindows, window)
     end
   end
-  if candidateWindow then
-    candidateWindow:focus()
-    return
+
+  local function sortWindowsRightToLeft(a, b)
+    return (a:frame().x + (a:frame().w / 2)) > (b:frame().x + (b:frame().w / 2))
   end
 
-  -- If no candidate window was found, try focusing the leftmost or rightmost window
-  local fallbackWindow = nil
-  local minX = math.huge
-  local maxX = -math.huge
-  for _, window in ipairs(filteredWindows) do
-    if window:screen() == screen and window ~= currentWindow and window:title() ~= "" then
-      local frame = window:frame()
-      if direction == "left" and frame.x > maxX then
-        maxX = frame.x
-        fallbackWindow = window
-      elseif direction == "right" and frame.x < minX then
-        minX = frame.x
-        fallbackWindow = window
-      end
-    end
+  local function sortWindowsLeftToRight(a, b)
+    return (a:frame().x + (a:frame().w / 2)) < (b:frame().x + (b:frame().w / 2))
   end
-  if fallbackWindow then
-    fallbackWindow:focus()
-    return
+
+  if direction == "left" then
+    if #leftWindows > 0 then
+      table.sort(leftWindows, sortWindowsRightToLeft)
+      leftWindows[1]:focus()
+    elseif #rightWindows > 0 then
+      table.sort(rightWindows, sortWindowsRightToLeft)
+      rightWindows[1]:focus()
+    end
+  elseif direction == "right" then
+    if #rightWindows > 0 then
+      table.sort(rightWindows, sortWindowsLeftToRight)
+      rightWindows[1]:focus()
+    elseif #leftWindows > 0 then
+      table.sort(leftWindows, sortWindowsLeftToRight)
+      leftWindows[1]:focus()
+    end
   end
 end
 
@@ -82,14 +64,14 @@ function module.init(config)
       focusRight = function() focusWindow("right") end
     }
     for action, hotkey in pairs(config) do
-      if handlers[action] and hotkey.modifiers and hotkey.key then
-        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
+      if hotkey.modifiers and hotkey.key and handlers[action] then
+        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])
       end
     end
 
     if next(bindings) then
       windowFilter = hs.window.filter.new()
-          :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
+          :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, allowTitles = ".", currentSpace = true, fullscreen = false, visible = true })
     end
   end
 

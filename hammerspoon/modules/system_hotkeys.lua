@@ -2,8 +2,8 @@ local module = {}
 local bindings = {}
 
 local actions = {
-  focusDock = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "f3") end,
   focusMenuBar = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "f2") end,
+  focusDock = function() hs.eventtap.keyStroke({ "fn", "ctrl" }, "f3") end,
   toggleLaunchpad = hs.spaces.toggleLaunchPad,
   toggleMissionControl = function()
     local mousePosition = hs.mouse.absolutePosition()

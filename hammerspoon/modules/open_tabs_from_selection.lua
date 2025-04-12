@@ -48,7 +48,7 @@ local function openSelectedUrls()
   task:setInput(selectedText):start():waitUntilExit()
 
   if not success then
-    utils.playAlert()
+    utils.playAlert(3)
     return
   end
 
@@ -58,7 +58,7 @@ local function openSelectedUrls()
   end
 
   if urlCommands == "" then
-    utils.playAlert()
+    utils.playAlert(2)
     return
   end
 
