@@ -77,12 +77,18 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Control Centre → Now Playing → Select "Don't Show in Menu Bar"
     - Control Centre → Spotlight → Select "Don't Show in Menu Bar"
     - Displays → Turn off "Automatically adjust brightness"
-    - Keyboard → Keyboard Shortcuts -> Mission Control -> Click on "Restore Defaults"
+    - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
+    - Keyboard → Keyboard Shortcuts → Services → Text → Turn off "Convert Text to Simplified Chinese"
   - Set up Finder sidebar favorites (see reference screenshot)
   - Mail:
     - Set up Mail sidebar favorites (see reference screenshot)
+    - Turn off "Show Mail Categories"
+    - Settings → Junk Mail → Turn on "Enable junk mail filtering"
+    - Settings → Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
+    - Settings → Junk Mail → Advanced → _If..._ "Message is junk mail" _Perform..._ "Move Message to mailbox: Junk" and "Mark as Read"
     - Settings → Viewing → Turn on "Mark all messages as read when opening a conversation"
-    - Settings → Composing → Set Message Format to "Plain Text"
+    - Settings → Composing → Set "Message format" to "Plain Text"
+    - Settings → Composing → Set "Undo send delay" to "Off"
     - Settings → Composing → Turn on "Use the same message format as the original message"
   - Set up Menu Bar layout (see reference screenshot)
   - Set up Notification Centre layout (see reference screenshot)

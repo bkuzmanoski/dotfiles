@@ -253,7 +253,9 @@ _defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false # 
 _defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
 _defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⌘⌥␣
+_defaults_write com.sindresorhus.Scratchpad launchFocusMode -string "cursorAtStart" # Place cursor at start at launch/when shown
 _defaults_write com.sindresorhus.Scratchpad lineSpacing -string "0.3" # Set line spacing to 0.3
+_defaults_write com.sindresorhus.Scratchpad pinWindow -bool true # Show window always on top
 _defaults_write com.sindresorhus.Scratchpad showCloseButton -bool false # Hide close button
 _defaults_write com.sindresorhus.Scratchpad showMenuBarIcon -bool false # Hide menu bar icon
 _defaults_write com.sindresorhus.Scratchpad showOnAllSpaces -bool true # Show on all spaces
