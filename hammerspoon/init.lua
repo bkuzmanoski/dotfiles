@@ -19,19 +19,9 @@ modules.appMenu = require("modules/app_menu").init({
   triggerEvent = hs.eventtap.event.types.rightMouseDown
 })
 
-modules.appHotkeys = require("modules/app_hotkeys").init({
-  modifiers = globalSettings.hyperKey,
-  keys = {
-    ["f"] = "com.apple.finder",
-    ["s"] = "com.apple.systempreferences",
-    ["t"] = "com.mitchellh.ghostty",
-    ["c"] = "com.google.Chrome",
-    ["v"] = "com.microsoft.VSCode",
-    ["d"] = "com.figma.Desktop"
-  }
-})
-
 modules.systemHotkeys = require("modules/system_hotkeys").init({
+  focusMenuBar = { modifiers = globalSettings.hyperKey, key = "m" },
+  focusDock = { modifiers = globalSettings.hyperKey, key = "b" },
   toggleLaunchpad = { modifiers = globalSettings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = globalSettings.hyperKey, key = "space" },
   toggleAppExpose = { modifiers = globalSettings.hyperKey, key = "up" },
@@ -113,8 +103,8 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   hotkeys = {
-    toNorth = { modifiers = { "option", "command" }, key = "up" },
-    toSouth = { modifiers = { "option", "command" }, key = "down" }
+    moveOneScreenNorth = { modifiers = { "option", "command" }, key = "up" },
+    moveOneScreenSouth = { modifiers = { "option", "command" }, key = "down" }
   }
 })
 
@@ -130,3 +120,5 @@ hs.shutdownCallback = function()
     if type(module.cleanup) == "function" then module.cleanup() end
   end
 end
+
+require("utils").playAlert(1, "Blow")

@@ -123,7 +123,7 @@ local function startOperation(operationType)
 
   if (operationType == "resize") and not activeWindow:isMaximizable() then return end
 
-  screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen():fullFrame(), topOffset, padding)
+  screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen(), topOffset, padding)
   activeOperation = operationType
   initialWindowFrame = activeWindow:frame()
   initialMousePosition = hs.mouse.absolutePosition()

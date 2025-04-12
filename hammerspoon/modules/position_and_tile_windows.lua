@@ -8,7 +8,7 @@ local topOffset, padding, splitRatios, tileTopBottomSplitRatioIndex
 
 local function getWindows()
   local focusedWindow = hs.window.focusedWindow()
-  if not focusedWindow or focusedWindow:isFullscreen() or not focusedWindow:isMaximizable() then
+  if not focusedWindow or not focusedWindow:isMaximizable() or focusedWindow:isFullscreen() then
     return nil, nil, nil
   end
 
@@ -32,11 +32,10 @@ local function position(location)
     return
   end
 
-  local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
+  local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   local windowFrame = window:frame()
   windowFrame.x = screenFrame.x + math.floor((screenFrame.w - windowFrame.w) / 2)
   windowFrame.y = screenFrame.y + math.floor((screenFrame.h - windowFrame.h) / 2)
-
   window:setFrame(windowFrame)
 end
 
@@ -47,7 +46,7 @@ local function resize(size)
     return
   end
 
-  local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
+  local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   local windowFrame = window:frame()
   if size == "small" or size == "medium" then
     if size == "small" then
@@ -81,7 +80,7 @@ local function tileLeftRight(direction)
   end
 
   local splitRatio = splitRatios[currentSplitRatioIndex]
-  local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
+  local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   screenFrame.w = screenFrame.w - padding
 
   local leftFrame = screenFrame:copy()
@@ -113,7 +112,7 @@ local function tileTopBottomRight(direction)
   end
 
   local splitRatio = splitRatios[tileTopBottomSplitRatioIndex]
-  local screenFrame = utils.getAdjustedScreenFrame(screen:fullFrame(), topOffset, padding)
+  local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   screenFrame.w = screenFrame.w - padding
   screenFrame.h = screenFrame.h - padding
 
@@ -125,6 +124,9 @@ local function tileTopBottomRight(direction)
   local bottomFrame = topFrame:copy()
   bottomFrame.h = screenFrame.h - topFrame.h
   bottomFrame.y = screenFrame.y + topFrame.h + padding
+
+  print(screen:name(), firstWindow:title(), hs.inspect(screen:fullFrame()), hs.inspect(screenFrame), hs.inspect(topFrame),
+    hs.inspect(bottomFrame))
 
   if direction == "topRight" or direction == "topAndBottomRight" then
     firstWindow:setFrame(topFrame)

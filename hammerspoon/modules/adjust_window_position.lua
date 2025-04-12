@@ -5,14 +5,7 @@ local windowSubscription
 local topOffset, padding
 
 local function handleWindowEvent(window)
-  if not window or window:title() == "" then return end
-
-  local windowFrame = window:frame()
-  local adjustedScreenFrame = utils.getAdjustedScreenFrame(window:screen():fullFrame(), topOffset, padding)
-  local adjustedWindowFrame = utils.getAdjustedWindowFrame(adjustedScreenFrame, windowFrame)
-  if windowFrame.x ~= adjustedWindowFrame.x or windowFrame.y ~= adjustedWindowFrame.y then
-    window:setFrame(adjustedWindowFrame, 0)
-  end
+  utils.adjustWindowFrame(window, topOffset, padding)
 end
 
 function module.init(config)

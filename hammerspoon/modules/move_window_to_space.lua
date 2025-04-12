@@ -5,10 +5,7 @@ local bindings = {}
 
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.focusedWindow()
-  if not focusedWindow or not focusedWindow:isStandard() or focusedWindow:isFullscreen() then
-    utils.playAlert()
-    return nil, nil
-  end
+  if not focusedWindow or not focusedWindow:isStandard() or focusedWindow:isFullscreen() then return nil, nil end
 
   local screen = focusedWindow:screen()
   return focusedWindow, screen

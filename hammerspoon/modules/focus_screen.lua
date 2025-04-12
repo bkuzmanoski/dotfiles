@@ -3,8 +3,6 @@ local screenWatcher, windowFilter, mouseTap
 local lastScreen
 
 local function focusFrontmostWindow(screen)
-  if not screen or #hs.screen.allScreens() <= 1 then return end
-
   local windows = windowFilter:getWindows()
   for _, window in ipairs(windows) do
     if window:screen() == screen and window:isVisible() then
@@ -35,7 +33,6 @@ local function stopMouseTap()
   mouseTap = nil
 end
 
--- Run mouseTap based on number of screens
 local function updateMouseTap()
   if #hs.screen.allScreens() <= 1 then
     if not mouseTap then stopMouseTap() end
