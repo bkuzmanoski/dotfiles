@@ -18,6 +18,7 @@ cask "ghostty"
 cask "google-chrome"
 cask "hammerspoon"
 cask "raycast"
+cask "sf-symbols"
 cask "visual-studio-code"
 
 mas "NextDNS", id: 1464122853
