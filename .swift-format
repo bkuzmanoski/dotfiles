@@ -1,0 +1,10 @@
+{
+  "lineLength": 120,
+  "multiElementCollectionTrailingCommas": false,
+  "respectsExistingLineBreaks": false,
+  "rules": {
+    "UseEarlyExits": true
+  },
+  "spacesBeforeEndOfLineComments": 1,
+  "version": 1
+}

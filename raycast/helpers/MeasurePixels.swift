@@ -13,9 +13,7 @@ struct Measurement {
   var endX: CGFloat { isMovingRight ? floor(endPoint.x) : floor(endPoint.x) - 1 }
   var endY: CGFloat { isMovingDown ? floor(endPoint.y) + 1 : floor(endPoint.y) }
 
-  var selectionFrame: NSRect {
-    NSRect(x: min(startX, endX), y: min(startY, endY), width: width, height: height)
-  }
+  var selectionFrame: NSRect { NSRect(x: min(startX, endX), y: min(startY, endY), width: width, height: height) }
   var width: CGFloat { abs(endX - startX) }
   var height: CGFloat { abs(endY - startY) }
 
@@ -41,15 +39,11 @@ class MeasurePixels: NSWindow {
     contentView?.wantsLayer = true
     contentView?.addTrackingArea(
       NSTrackingArea(
-        rect: contentView?.bounds ?? .zero,
-        options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
-        owner: self,
-        userInfo: nil))
+        rect: contentView?.bounds ?? .zero, options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
+        owner: self, userInfo: nil))
   }
 
-  override func cursorUpdate(with event: NSEvent) {
-    NSCursor.crosshair.set()
-  }
+  override func cursorUpdate(with event: NSEvent) { NSCursor.crosshair.set() }
 
   override func mouseDown(with event: NSEvent) {
     let point = event.locationInWindow
@@ -62,25 +56,20 @@ class MeasurePixels: NSWindow {
     }
   }
 
-  override func mouseMoved(with event: NSEvent) {
-    updateMeasurement(with: event)
-  }
+  override func mouseMoved(with event: NSEvent) { updateMeasurement(with: event) }
 
-  override func mouseDragged(with event: NSEvent) {
-    updateMeasurement(with: event)
-  }
+  override func mouseDragged(with event: NSEvent) { updateMeasurement(with: event) }
 
   override func keyDown(with event: NSEvent) {
     switch event.keyCode {
-    case 53:  // Escape
+    case 53: // Escape
       if startPoint != nil {
         startPoint = nil
         removeOverlay()
       } else {
         NSApplication.shared.terminate(nil)
       }
-    default:
-      super.keyDown(with: event)
+    default: super.keyDown(with: event)
     }
   }
 
@@ -105,14 +94,10 @@ class MeasurePixels: NSWindow {
     let path = CGMutablePath()
 
     path.move(to: CGPoint(x: measurement.isMovingRight ? 0.5 : selectionFrame.width - 0.5, y: 0))
-    path.addLine(
-      to: CGPoint(
-        x: measurement.isMovingRight ? 0.5 : selectionFrame.width - 0.5, y: selectionFrame.height))
+    path.addLine(to: CGPoint(x: measurement.isMovingRight ? 0.5 : selectionFrame.width - 0.5, y: selectionFrame.height))
 
     path.move(to: CGPoint(x: 0, y: measurement.isMovingDown ? 0.5 : selectionFrame.height - 0.5))
-    path.addLine(
-      to: CGPoint(
-        x: selectionFrame.width, y: measurement.isMovingDown ? 0.5 : selectionFrame.height - 0.5))
+    path.addLine(to: CGPoint(x: selectionFrame.width, y: measurement.isMovingDown ? 0.5 : selectionFrame.height - 0.5))
 
     borderLayer.path = path
     borderLayer.strokeColor = NSColor.systemRed.cgColor
@@ -170,32 +155,22 @@ class MeasurePixels: NSWindow {
 
     if let widthLabel = widthLabel, let widthBackground = widthLabel.superview {
       widthBackground.frame = NSRect(
-        x: 0, y: 0,
-        width: widthLabel.frame.width + padding * 2, height: widthLabel.frame.height + padding * 2
-      )
+        x: 0, y: 0, width: widthLabel.frame.width + padding * 2, height: widthLabel.frame.height + padding * 2)
       widthLabel.frame.origin = NSPoint(x: padding, y: padding)
 
       let absoluteX = frame.origin.x + (frame.width - widthBackground.frame.width) / 2
       let absoluteY: CGFloat =
-        frame.origin.y
-        + (measurement.isMovingDown
-          ? -widthBackground.frame.height - 5
-          : frame.height + 5)
+        frame.origin.y + (measurement.isMovingDown ? -widthBackground.frame.height - 5 : frame.height + 5)
       widthBackground.frame.origin = CGPoint(x: absoluteX, y: absoluteY)
     }
 
     if let heightLabel = heightLabel, let heightBackground = heightLabel.superview {
       heightBackground.frame = NSRect(
-        x: 0, y: 0,
-        width: heightLabel.frame.width + padding * 2, height: heightLabel.frame.height + padding * 2
-      )
+        x: 0, y: 0, width: heightLabel.frame.width + padding * 2, height: heightLabel.frame.height + padding * 2)
       heightLabel.frame.origin = NSPoint(x: padding, y: padding)
 
       let absoluteX: CGFloat =
-        frame.origin.x
-        + (measurement.isMovingRight
-          ? -heightBackground.frame.width - 5
-          : frame.width + 5)
+        frame.origin.x + (measurement.isMovingRight ? -heightBackground.frame.width - 5 : frame.width + 5)
       let absoluteY = frame.origin.y + (frame.height - heightBackground.frame.height) / 2
       heightBackground.frame.origin = CGPoint(x: absoluteX, y: absoluteY)
     }
@@ -211,7 +186,7 @@ class MeasurePixels: NSWindow {
   }
 }
 
-freopen("/dev/null", "w", stderr)  // Silence logs from Input Method Kit
+freopen("/dev/null", "w", stderr) // Silence logs from Input Method Kit
 
 guard let mainScreen = NSScreen.main else {
   print("Error: Screen unavailable")

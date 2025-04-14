@@ -2,10 +2,10 @@ import AppKit
 
 extension NSColor {
   var hexAlphaString: String {
-    let r = lroundf(Float(redComponent) * 0xFF)
-    let g = lroundf(Float(greenComponent) * 0xFF)
-    let b = lroundf(Float(blueComponent) * 0xFF)
-    return String(format: "#%02lx%02lx%02lx", r, g, b)
+    let redComponent = lroundf(Float(redComponent) * 0xFF)
+    let greenComponent = lroundf(Float(greenComponent) * 0xFF)
+    let blueComponent = lroundf(Float(blueComponent) * 0xFF)
+    return String(format: "#%02lx%02lx%02lx", redComponent, greenComponent, blueComponent)
   }
 }
 
