@@ -125,9 +125,6 @@ local function tileTopBottomRight(direction)
   bottomFrame.h = screenFrame.h - topFrame.h
   bottomFrame.y = screenFrame.y + topFrame.h + padding
 
-  print(screen:name(), firstWindow:title(), hs.inspect(screen:fullFrame()), hs.inspect(screenFrame), hs.inspect(topFrame),
-    hs.inspect(bottomFrame))
-
   if direction == "topRight" or direction == "topAndBottomRight" then
     firstWindow:setFrame(topFrame)
     if direction == "topAndBottomRight" and secondWindow then secondWindow:setFrame(bottomFrame) end
