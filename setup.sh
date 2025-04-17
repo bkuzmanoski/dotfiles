@@ -30,7 +30,6 @@ typeset -A backups
 
 _defaults_write() {
   local sudo currenthost
-
   while [[ "$1" == -* ]]; do
     case "$1" in
       --sudo)        sudo=1 ;;
@@ -41,8 +40,7 @@ _defaults_write() {
   done
 
   local -a cmd_prefix=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}")
-
-  local -a export_cmd=(${cmd_prefix[@]} export "$@")
+  local -a export_cmd=(${cmd_prefix[@]} "export" "$@")
   local backup_path="${BACKUP_DIR}/${export_cmd[*]//\//_}.plist"
   if [[ -z "${backups[${backup_path}]}" ]]; then
     _log --info "Executing: ${export_cmd[*]}"
