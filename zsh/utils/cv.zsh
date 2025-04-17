@@ -23,35 +23,67 @@ cv() {
   while [[ "$1" == -* ]]; do
     case "$1" in
       -p|--preset)
-        preset="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          preset="$2"
+          shift 2
+        else
+          print "Please specify a preset or omit the option."
+          return 1
+        fi
         ;;
       -q|--quality)
-        crf="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          crf="$2"
+          shift 2
+        else
+          print "Please specify a quality or omit the option."
+          return 1
+        fi
         ;;
       -f|--fps)
-        fps="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          fps="$2"
+          shift 2
+        else
+          print "Please specify a frame rate or omit the option."
+          return 1
+        fi
         ;;
       -t|--tune)
-        tune="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          tune="$2"
+          shift 2
+        else
+          print "Please specify a tune or omit the option."
+          return 1
+        fi
         ;;
       -c|--codec)
-        codec="$2"
-        if [[ "$codec" == "h264" ]]; then
-          codec="libx264"
-          tag="avc1"
-        elif [[ "$codec" == "h265" ]]; then
-          codec="libx265"
-          tag="hvc1"
+        if [[ -n "$2" ]]; then
+          if [[ "$2" == "h264" ]]; then
+            codec="libx264"
+            tag="avc1"
+          elif [[ "$2" == "h265" ]]; then
+            codec="libx265"
+            tag="hvc1"
+          else
+            print "Invalid codec: $2"
+            return 1
+          fi
+          shift 2
+        else
+          print "Please specify a codec or omit the option."
+          return 1
         fi
-        shift 2
         ;;
       -a|--audio)
-        audio_bitrate="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          audio_bitrate="$2"
+          shift 2
+        else
+          print "Please specify an audio bitrate or omit the option."
+          return 1
+        fi
         ;;
       -o|--overwrite)
         overwrite=1

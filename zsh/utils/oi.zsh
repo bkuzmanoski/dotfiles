@@ -18,25 +18,30 @@ oi() {
     return 1
   fi
 
-  local use_zopfli=false
+  local use_zopfli=0
   local quality=""
 
   while [[ "$1" == -* ]]; do
     case "$1" in
       "-z"|"--zopfli")
-        use_zopfli=true
+        use_zopfli=1
         shift
         ;;
       "-q"|"--quality")
-        quality="$2"
-        shift 2
+        if [[ -n "$2" ]]; then
+          quality="$2"
+          shift 2
+        else
+          print "Please specify a quality or omit the option."
+          return 1
+        fi
         ;;
       "-h"|"--help")
         print "Usage: oi [options] <image|directory> ..."
         print "Options:"
-        print "  -z, --zopfli    Use Zopfli compression for PNGs (slower but better compression)"
-        print "  -q, --quality N Set JPEG quality (0-100, lower = smaller file)"
-        print "  -h, --help      Show this help message"
+        print "  -z, --zopfli     Use Zopfli compression for PNGs (slower but better compression)"
+        print "  -q, --quality N  Set JPEG quality (0-100, lower = smaller file)"
+        print "  -h, --help       Show this help message"
         return 0
         ;;
       *)
@@ -75,18 +80,14 @@ oi() {
     printf "\n\033[1m%d/%d\033[0m\n" "$((processed + 1))" "${image_count}"
     case "${file:l}" in
       *.jpg|*.jpeg)
-        local -a jpeg_opts=(--all-progressive --strip-exif --strip-com)
-        if [[ -n "${quality}" ]]; then
-          jpeg_opts=(${jpeg_opts[@]} "--max=${quality}")
-        fi
-        jpegoptim ${jpeg_opts} "${file}"
+        local -a jpeg_opts=("--all-progressive" "--strip-exif" "--strip-com")
+        [[ -n "${quality}" ]] && jpeg_opts+=("--max=${quality}")
+        jpegoptim ${jpeg_opts[@]} "${file}"
         ;;
       *.png)
-        if ${use_zopfli}; then
-          oxipng --opt max --zopfli --strip safe "${file}"
-        else
-          oxipng --opt 4 --strip safe "${file}"
-        fi
+        local -a oxipng_opts=("--strip" "safe")
+        [[ ${use_zopfli} -eq 1 ]] && oxipng_opts+=("--zopfli")
+        oxipng ${oxipng_opts[@]} "${file}"
         ;;
     esac
     ((processed++))
