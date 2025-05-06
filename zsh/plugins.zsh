@@ -62,7 +62,7 @@ fnmup() {
       if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
         local installed_versions="$(fnm ls | grep -v "system" | grep -v "${latest_version}" | tr -d "* " | grep -o "v[0-9][0-9.]*")"
         if [[ -n "${installed_versions}" ]]; then
-          print "The following versions will be removed:"
+          print "The following version(s) will be removed:"
           print "${installed_versions}"
 
           print && read -r "confirm?Proceed? (y/N) "
