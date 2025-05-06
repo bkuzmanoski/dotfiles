@@ -250,6 +250,16 @@ _defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool tr
 _defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false # Don't show welcome window on launch
 _defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
+_defaults_write com.sindresorhus.Pure-Paste KeyboardShortcuts_clearFormatting -string '{"carbonModifiers":9,"carbonKeyCode":2048}' # Set keyboard shortcut "Clear formatting and paste" to ⌥V
+_defaults_write com.sindresorhus.Pure-Paste automaticallyClearFormatting -bool 0 # Disable automatically clearing formatting
+_defaults_write com.sindresorhus.Pure-Paste hideMenuBarIcon -bool 1 # Hide menu bar icon
+_defaults_write com.sindresorhus.Pure-Paste normalizeNewlines -bool 1 # Normalize newlines
+_defaults_write com.sindresorhus.Pure-Paste normalizeQuotes -bool 1 # Normalize quotes
+_defaults_write com.sindresorhus.Pure-Paste normalizeUnorderedLists -bool 1 # Normalize unordered list styles
+_defaults_write com.sindresorhus.Pure-Paste preserveLinks -bool 1 # Preserve links
+_defaults_write com.sindresorhus.Pure-Paste removeMailtoPrefixFromEmailAddress -bool 1 # Remove "mailto:" prefix from email addresses
+_defaults_write com.sindresorhus.Pure-Paste removeTrackingParametersFromURLs -bool 1 # Remove tracking parameters from URLs
+_defaults_write com.sindresorhus.Pure-Paste trimLeadingAndTrailingWhitespace -bool 1 # Trim leading and trailing whitespace
 _defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⌘⌥␣
 _defaults_write com.sindresorhus.Scratchpad launchFocusMode -string "cursorAtStart" # Place cursor at start at launch/when shown
 _defaults_write com.sindresorhus.Scratchpad lineSpacing -string "0.3" # Set line spacing to 0.3

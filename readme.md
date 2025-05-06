@@ -176,6 +176,11 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Set initial workspace layout to "Illustration"
   - Create a new workspace layout ("Custom") and relocate Tools to the bottom
 
+- **Pure Paste**
+
+  - Grant Accessibility permission
+  - Launch at login
+
 - **Raycast**
 
   - Don't install extensions during onboarding
