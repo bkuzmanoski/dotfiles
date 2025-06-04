@@ -215,7 +215,6 @@ _defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set dou
 _defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 _defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
 _defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show menu bar in full screen
-_defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true # Disable wallpaper tinting in windows
 _defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 _defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 _defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
