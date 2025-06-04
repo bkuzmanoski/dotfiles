@@ -187,11 +187,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Import settings file
   - Disable Raycast AI, Raycast Focus, and Raycast Notes extensions
 
-- **Scratchpad**
-
-  - Launch at login
-  - Set Font to "JetBrains Mono Regular Regular"
-
 - **VS Code**
 
   - Log in and enable settings sync
