@@ -260,16 +260,6 @@ _defaults_write com.sindresorhus.Pure-Paste preserveLinks -bool 1 # Preserve lin
 _defaults_write com.sindresorhus.Pure-Paste removeMailtoPrefixFromEmailAddress -bool 1 # Remove "mailto:" prefix from email addresses
 _defaults_write com.sindresorhus.Pure-Paste removeTrackingParametersFromURLs -bool 1 # Remove tracking parameters from URLs
 _defaults_write com.sindresorhus.Pure-Paste trimLeadingAndTrailingWhitespace -bool 1 # Trim leading and trailing whitespace
-_defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⌘⌥␣
-_defaults_write com.sindresorhus.Scratchpad launchFocusMode -string "cursorAtStart" # Place cursor at start at launch/when shown
-_defaults_write com.sindresorhus.Scratchpad lineSpacing -string "0.3" # Set line spacing to 0.3
-_defaults_write com.sindresorhus.Scratchpad pinWindow -bool true # Show window always on top
-_defaults_write com.sindresorhus.Scratchpad showCloseButton -bool false # Hide close button
-_defaults_write com.sindresorhus.Scratchpad showMenuBarIcon -bool false # Hide menu bar icon
-_defaults_write com.sindresorhus.Scratchpad showOnAllSpaces -bool true # Show on all spaces
-_defaults_write com.sindresorhus.Scratchpad SS_NSStatusItem_ensureVisibility_shouldNotShowAgain -bool true # Disable warning about menu bar item visibility
-_defaults_write com.sindresorhus.Scratchpad SS_Tooltip_statusBarButtonWelcomePopover -bool true # Disable menu bar item welcome popover
-_defaults_write com.sindresorhus.Scratchpad textSize -int 13 # Set font size to 13
 _defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
 _defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
 _defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
