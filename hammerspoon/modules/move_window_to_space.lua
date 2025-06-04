@@ -11,38 +11,39 @@ local function getFocusedWindowAndScreen()
   return focusedWindow, screen
 end
 
-local function getCurrentSpace(screen)
-  local spacesData = hs.spaces.data_managedDisplaySpaces()
-  if not spacesData then return nil, nil end
+-- local function getCurrentSpace(screen)
+--   local spacesData = hs.spaces.data_managedDisplaySpaces()
+--   if not spacesData then return nil, nil end
 
-  local targetScreen
-  for _, display in ipairs(spacesData) do
-    if display["Display Identifier"] == screen:getUUID() then
-      targetScreen = display
-      break
-    end
-  end
-  if not targetScreen then return nil, nil end
+--   local targetScreen
+--   for _, display in ipairs(spacesData) do
+--     if display["Display Identifier"] == screen:getUUID() then
+--       targetScreen = display
+--       break
+--     end
+--   end
+--   if not targetScreen then return nil, nil end
 
-  local numberOfSpaces = #targetScreen.Spaces
-  if numberOfSpaces == 1 then return nil, nil end
+--   local numberOfSpaces = #targetScreen.Spaces
+--   if numberOfSpaces == 1 then return nil, nil end
 
-  local currentSpaceId = targetScreen["Current Space"].ManagedSpaceID
-  for i, space in ipairs(targetScreen.Spaces) do
-    if space.ManagedSpaceID == currentSpaceId then
-      return i, numberOfSpaces
-    end
-  end
+--   local currentSpaceId = targetScreen["Current Space"].ManagedSpaceID
+--   for i, space in ipairs(targetScreen.Spaces) do
+--     if space.ManagedSpaceID == currentSpaceId then
+--       return i, numberOfSpaces
+--     end
+--   end
 
-  return nil, nil
-end
+--   return nil, nil
+-- end
 
-local function moveWindowToSpace(window, spaceNumber)
+local function moveWindowToSpace(window, destination)
   local frame = window:frame()
   local mousePosition = hs.mouse.absolutePosition()
+  local modifiers = (destination == "left" or destination == "right") and { "fn ", "ctrl" } or { "ctrl" }
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.timer.usleep(300000)
-  hs.eventtap.keyStroke({ "ctrl" }, tostring(spaceNumber), 0)
+  hs.eventtap.keyStroke(modifiers, destination, 0)
   hs.timer.usleep(300000)
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
   hs.mouse.absolutePosition(mousePosition)
@@ -52,18 +53,22 @@ local function moveWindowToPreviousSpace()
   local window, screen = getFocusedWindowAndScreen()
   if not (window and screen) then return end
 
-  local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
-  if not (currentSpaceNumber and numberOfSpaces) then return end
-  moveWindowToSpace(window, ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1)
+  -- local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
+  -- if not (currentSpaceNumber and numberOfSpaces) then return end
+  -- moveWindowToSpace(window, ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1)
+
+  moveWindowToSpace(window, "left")
 end
 
 local function moveWindowToNextSpace()
   local window, screen = getFocusedWindowAndScreen()
   if not (window and screen) then return end
 
-  local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
-  if not (currentSpaceNumber and numberOfSpaces) then return end
-  moveWindowToSpace(window, (currentSpaceNumber % numberOfSpaces) + 1)
+  -- local currentSpaceNumber, numberOfSpaces = getCurrentSpace(screen)
+  -- if not (currentSpaceNumber and numberOfSpaces) then return end
+  -- moveWindowToSpace(window, (currentSpaceNumber % numberOfSpaces) + 1)
+
+  moveWindowToSpace(window, "right")
 end
 
 function module.init(config)
@@ -84,7 +89,7 @@ function module.init(config)
         bindings[i] = hs.hotkey.bind(config.modifiers, tostring(i), function()
           local focusedWindow = getFocusedWindowAndScreen()
           if not focusedWindow then return end
-          moveWindowToSpace(focusedWindow, i)
+          moveWindowToSpace(focusedWindow, tostring(i))
         end)
       end
     end
