@@ -14,11 +14,6 @@ require("create_spaces")(globalSettings.numberOfSpaces)
 
 modules.unlockSound = require("modules/unlock_sound").init()
 
-modules.appMenu = require("modules/app_menu").init({
-  modifiers = { "cmd" },
-  triggerEvent = hs.eventtap.event.types.rightMouseDown
-})
-
 modules.systemHotkeys = require("modules/system_hotkeys").init({
   focusMenuBar = { modifiers = globalSettings.hyperKey, key = "m" },
   focusDock = { modifiers = globalSettings.hyperKey, key = "b" },
@@ -32,12 +27,8 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   goToSpaceN = { modifiers = globalSettings.hyperKey },
 })
 
-modules.pasteAsPlaintext = require("modules/paste_as_plaintext").init({
-  modifiers = { "option" }, key = "v"
-})
-
 modules.reorderLines = require("modules/reorder_lines").init({
-  allowApps = { "Scratchpad", "TextEdit" },
+  allowApps = { "Raycast", "TextEdit" },
   hotkeys = {
     moveLinesUp = { modifiers = { "option" }, key = "up" },
     moveLinesDown = { modifiers = { "option" }, key = "down" }
@@ -53,11 +44,6 @@ modules.focusWindow = require("modules/focus_window").init({
   focusFrontmost = { modifiers = { "option", "command" }, key = "return" },
   focusLeft = { modifiers = { "option", "command" }, key = "[" },
   focusRight = { modifiers = { "option", "command" }, key = "]" },
-})
-
-modules.adjustWindowPosition = require("modules/adjust_window_position").init({
-  topOffset = globalSettings.screenTopOffset,
-  padding = globalSettings.windowPadding
 })
 
 modules.positionAndTileWindows = require("modules/position_and_tile_windows").init({
