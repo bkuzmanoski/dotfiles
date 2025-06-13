@@ -93,6 +93,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Set up Menu Bar layout (see reference screenshot)
   - Set up Notification Centre layout (see reference screenshot)
   - Turn off "Reopen windows when logging back in" when restarting
+  - Create five spaces on primary screen
 
 - **1Password**
 
