@@ -5,28 +5,15 @@
 ###############################################################################
 
 SCRIPT_DIR="${0:A:h}"
-TEMP_DIR="${HOME}/.dotfiles_setup"
-BACKUP_DIR="${TEMP_DIR}/$(date "+%Y%m%d_%H%M%S")_backups"
-LOG_FILE="${TEMP_DIR}/$(date "+%Y%m%d_%H%M%S").log"
-
-mkdir -p "${BACKUP_DIR}"
-mkdir -p "$(dirname "${LOG_FILE}")"
-touch "${LOG_FILE}"
 
 _log() {
-  local now="$(date "+%H:%M:%S")"
   case "$1" in
-    --info)    local message="${now}: [INFO]    $2" ;;
-    --warning) local message="${now}: [WARNING] $2" ;;
-    --error)   local message="${now}: [ERROR]   $2" ;;
-    *)         local message="${now}: [MESSAGE] $@" ;;
+    --info)    print "[INFO]    $2" ;;
+    --warning) print "[WARNING] $2" ;;
+    --error)   print "[ERROR]   $2" ;;
+    *)         print "[MESSAGE] $@" ;;
   esac
-  print "${message}" | tee -a "${LOG_FILE}"
 }
-
-exec 2> >(while read -r line; do _log --error ${line}; done) # Log stderr to log file
-
-typeset -A backups
 
 _defaults_write() {
   local sudo currenthost
@@ -39,16 +26,7 @@ _defaults_write() {
     shift
   done
 
-  local -a cmd_prefix=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}")
-  local -a export_cmd=(${cmd_prefix[@]} "export" "$@")
-  local backup_path="${BACKUP_DIR}/${export_cmd[*]//\//_}.plist"
-  if [[ -z "${backups[${backup_path}]}" ]]; then
-    _log --info "Executing: ${export_cmd[*]}"
-    ${export_cmd[@]}
-    backups[${backup_path}]=1
-  fi
-
-  local -a write_cmd=(${cmd_prefix[@]} "write" "$@")
+  local -a write_cmd=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}" "write" "$@")
   _log --info "Executing: ${write_cmd[*]}"
   ${write_cmd[@]}
 }
@@ -68,16 +46,16 @@ _add_app_to_dock() {
 ###############################################################################
 
 if ! which -s brew >/dev/null; then
-  _log --info "Installing Homebrew..."
-  (
-    exec 2>&1
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  )
+ _log --info "Installing Homebrew..."
+ (
+   exec 2>&1
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+ )
 
-  if [[ $? -ne 0 ]]; then
-    _log --error "Homebrew installation failed, exiting."
-    exit 1
-  fi
+ if [[ $? -ne 0 ]]; then
+   _log --error "Homebrew installation failed, exiting."
+   exit 1
+ fi
 
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
@@ -100,10 +78,8 @@ typeset -A configs=(
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"
   ["ghostty"]="${HOME}/.config/ghostty"
-  ["hammerspoon"]="${HOME}/.hammerspoon"
   ["micro"]="${HOME}/.config/micro"
   ["ripgrep"]="${HOME}/.config/ripgrep"
-  ["sketchybar"]="${HOME}/.config/sketchybar"
   ["zsh"]="${HOME}/.zsh"
   [".zprofile"]="${HOME}/.zprofile"
   [".zshrc"]="${HOME}/.zshrc"
@@ -116,11 +92,8 @@ for config in "${(k)configs[@]}"; do
   target_path="${configs[${config}]}"
 
   if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
-    relative_path="${target_path#${HOME}/}"
-    backup_path="${BACKUP_DIR}/${relative_path}"
-    mkdir -p "$(dirname "${backup_path}")"
-    mv "${target_path}" "${backup_path}"
-    _log --info "Backed up existing config at ${target_path} to ${backup_path}"
+    mv "${target_path}" "${target_path}.backup"
+    _log --info "Backed up existing config at ${target_path} to ${target_path}.backup"
   fi
 
   mkdir -p "$(dirname "${target_path}")"
@@ -147,25 +120,6 @@ fi
 _log --info "Rebuilding bat cache."
 bat cache --build >/dev/null || _log --error "Failed to build bat cache"
 
-# Start SketchyBar
-_log --info "Starting SketchyBar service."
-if ! (
-  exec 2>&1
-  brew services start sketchybar >/dev/null
-); then
-  _log --error "Failed to start SketchyBar service."
-fi
-
-# Set wallpaper
-wallpaper_path="${SCRIPT_DIR}/wallpapers/Wallpaper.heic"
-
-if [[ -f "${wallpaper_path}" ]]; then
-  _log --info "Setting wallpaper to ${wallpaper_path}"
-  osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${wallpaper_path}\"" || _log --error "Failed to set wallpaper."
-else
-  _log --error "Wallpaper image not found."
-fi
-
 ###############################################################################
 # Write defaults
 ###############################################################################
@@ -178,8 +132,6 @@ _defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery P
 _defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
 _defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{ print $2 }')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
 _defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
-_defaults_write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
-_defaults_write com.apple.AppleMultitouchTrackpad SecondClickThreshold -int 2 # Decrease click sensitivity/increase haptic feedback strength
 _defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
 _defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 _defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
@@ -236,33 +188,19 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⌥⌘I
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⌥⌘I)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
+_defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide menu bar icon
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
+_defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true # Hide app badges
+_defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true # Hide space number labels
+_defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true # Hide status icons
 _defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for keyboard shortcut 1 to ⌘
 _defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for keyboard shortcut 2 to ⌘
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
-_defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true # Set appearance to auto
-_defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false # Don't show welcome window on launch
-_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" 0 # Hide menu bar icon
-_defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"; # Set hotkey to ⌘␣
-_defaults_write com.sindresorhus.Pure-Paste KeyboardShortcuts_clearFormatting -string '{"carbonModifiers":9,"carbonKeyCode":2048}' # Set keyboard shortcut "Clear formatting and paste" to ⌥V
-_defaults_write com.sindresorhus.Pure-Paste automaticallyClearFormatting -bool 0 # Disable automatically clearing formatting
-_defaults_write com.sindresorhus.Pure-Paste hideMenuBarIcon -bool 1 # Hide menu bar icon
-_defaults_write com.sindresorhus.Pure-Paste normalizeNewlines -bool 1 # Normalize newlines
-_defaults_write com.sindresorhus.Pure-Paste normalizeQuotes -bool 1 # Normalize quotes
-_defaults_write com.sindresorhus.Pure-Paste normalizeUnorderedLists -bool 1 # Normalize unordered list styles
-_defaults_write com.sindresorhus.Pure-Paste preserveLinks -bool 1 # Preserve links
-_defaults_write com.sindresorhus.Pure-Paste removeMailtoPrefixFromEmailAddress -bool 1 # Remove "mailto:" prefix from email addresses
-_defaults_write com.sindresorhus.Pure-Paste removeTrackingParametersFromURLs -bool 1 # Remove tracking parameters from URLs
-_defaults_write com.sindresorhus.Pure-Paste trimLeadingAndTrailingWhitespace -bool 1 # Trim leading and trailing whitespace
-_defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
-_defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
-_defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
-_defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
+_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide menu bar icon
+_defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
 _defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
 _defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
 _defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
@@ -278,6 +216,4 @@ _defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording 
 ###############################################################################
 
 _log --info "Setup completed."
-print "\nIf there were no errors, you can remove the temporary setup directory by running:"
-print -P "%Brm -rf ${TEMP_DIR}%b"
 print "\nRestart your computer for all changes to take effect."

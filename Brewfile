@@ -8,7 +8,6 @@ brew "jpegoptim"
 brew "micro"
 brew "oxipng"
 brew "ripgrep"
-brew "xcode-build-server"
 
 cask "1password"
 cask "alt-tab"

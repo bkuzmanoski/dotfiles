@@ -1,5 +1,4 @@
 **/bin/
-hammerspoon/Spoons/
 micro/*/
 !micro/colorschemes/
 zsh/*/
