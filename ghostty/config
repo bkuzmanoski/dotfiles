@@ -19,13 +19,7 @@ cursor-style = bar
 cursor-style-blink = true
 adjust-cursor-thickness = 1
 
-quick-terminal-animation-duration = 0.1
-quick-terminal-autohide = false
-quick-terminal-position = bottom
-quick-terminal-screen = macos-menu-bar
-
 macos-option-as-alt = true
-keybind = global:shift+control+space=toggle_quick_terminal
 keybind = command+z=text:\x18\x15
 keybind = command+up=jump_to_prompt:-1
 keybind = command+down=jump_to_prompt:1
