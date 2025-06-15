@@ -49,15 +49,6 @@ cv() {
           return 1
         fi
         ;;
-      -t|--tune)
-        if [[ -n "$2" ]]; then
-          tune="$2"
-          shift 2
-        else
-          print "Please specify a tune or omit the option."
-          return 1
-        fi
-        ;;
       -c|--codec)
         if [[ -n "$2" ]]; then
           if [[ "$2" == "h264" ]]; then

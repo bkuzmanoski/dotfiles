@@ -5,7 +5,7 @@ typeset -A PLUGINS=(
   ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )
 
-UPDATE_TIMESTAMPS_DIR="${HOME}/.zsh/.update_timestamps"
+UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
 UPDATE_REMINDERS=(
   # Format: emoji|description|timestamp_file|update_command
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
