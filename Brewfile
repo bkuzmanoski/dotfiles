@@ -6,6 +6,7 @@ brew "fnm"
 brew "fzf"
 brew "jpegoptim"
 brew "micro"
+brew "nextdns"
 brew "oxipng"
 brew "ripgrep"
 
@@ -21,7 +22,6 @@ cask "sf-symbols"
 cask "virtualbuddy"
 cask "visual-studio-code"
 
-mas "NextDNS", id: 1464122853
 mas "Xcode", id: 497799835
 
 cask "font-inter"

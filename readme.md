@@ -127,12 +127,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
   - Set "Google Web" as default search engine
 
-- **NextDNS**
-
-  - Start at login
-  - Set Configuration ID
-  - Enable
-
 - **Raycast**
 
   - Import settings file
