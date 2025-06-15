@@ -1,4 +1,4 @@
-# Generate shell command using LLM
+# Generate shell command using a one-shot LLM prompt
 ai() {
   if [[ $# -eq 0 ]]; then
     print "Usage: ai <prompt>"
@@ -6,7 +6,20 @@ ai() {
   fi
 
   local api_key_file="${HOME}/.config/zsh/ai_api_key"
-  local instructions="You will be given a prompt to generate a shell command for Zsh on macOS. You should output only the executable command without any additional text, explanations, or formatting. If multiple commands are needed, separate them with && or ;. If the prompt is unclear or potentially dangerous, output \"LLM_ERROR: <brief reason>\" instead.
+  local instructions="You will be given a prompt to generate a shell command for Zsh on macOS. You should output only an executable command without any additional text, explanations, or formatting. If multiple commands are needed, separate them with && or ;. If you are unable to generate a command, output \"LLM_ERROR: <brief reason>\" instead.
+
+    Ensure the output is compatible with these aliases in .zshrc:
+    - ls -> eza --all --group-directories-first --oneline
+    - lt -> eza --all --group-directories-first --tree --level 3
+    - ll -> eza --all --group-directories-first --header --long --no-permissions --no-user
+    - llt -> eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level 3
+    - mkdir -> mkdir -pv
+    - mv -> mv -i
+    - cp -> cp -iv
+    - rm -> rm -i
+    - fd -> fd --hidden --no-ignore-vcs --color never
+    - cat -> bat
+    - top -> top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state
 
     Available custom functions:
     - cv [options] <video>: Compress video using ffmpeg (options: -p <preset>, -q <quality>, -f <fps>, -c <codec>, -a <audio>, --overwrite)
@@ -18,20 +31,9 @@ ai() {
     - fh: Select from command history with fzf
     - fk [signal]: Kill processes interactively with fzf
 
-    Available aliases:
-    - ls → eza --all --group-directories-first --oneline
-    - lt → eza --all --group-directories-first --tree --level 3
-    - ll → eza --all --group-directories-first --header --long --no-permissions --no-user
-    - llt → eza --all --group-directories-first --header --long --no-permissions --no-user --tree --level 3
-    - mkdir → mkdir -pv
-    - mv → mv -i
-    - cp → cp -iv
-    - rm → rm -i
-    - fd → fd --hidden --no-ignore-vcs --color never
-    - cat → bat
-    - top → top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state
+    Available third-party tools: bat, eza, fd, ffmpeg, fnm, fzf, jpegoptim, micro, nextdns, oxipng, ripgrep.
 
-    Available third-party tools: bat, eza, fd, ffmpeg, fnm, fzf, jpegoptim, micro, nextdns, oxipng, ripgrep. For everything else, use only built-in macOS/Xcode CLT commands (e.g. networkquality -s instead of speedtest)."
+    For everything else, use only built-in macOS or Xcode CLT commands."
 
   local api_key
   local prompt="$*"
