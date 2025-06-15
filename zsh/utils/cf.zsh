@@ -53,7 +53,8 @@ cf() {
   else
     rg_output=$("${rg_cmd[@]}")
     rg_status=$?
-    [[ ${rg_status} -eq 0 && -n "${rg_output}" ]] && { print -n "${rg_output}" | pbcopy }
+
+    [[ ${rg_status} -eq 0 && -n "${rg_output}" ]] && { print -rn "${rg_output}" | pbcopy }
     return_message="Output copied to clipboard."
   fi
 
