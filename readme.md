@@ -125,6 +125,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Turn off "Make searches and browsing better"
   - Turn off "Show downloads when they're complete"
   - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
+  - Set "Google Web" as default search engine
 
 - **NextDNS**
 
