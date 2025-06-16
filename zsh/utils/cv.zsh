@@ -83,8 +83,7 @@ cv() {
       -h|--help)
         print "Usage: cv [options] <video>"
         print "Options:"
-        print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster,"
-        print "                       fast, medium, slow, slower, veryslow) [default: medium]"
+        print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: medium]"
         print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 28]"
         print "  -f, --fps VALUE      Set frame rate [default: 30]"
         print "  -c, --codec VALUE    Set codec (h264, h265) [default: h265]"
