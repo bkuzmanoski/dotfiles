@@ -1,21 +1,58 @@
 import AppKit
 
-extension NSColor {
-  var hexAlphaString: String {
-    let redComponent = lroundf(Float(redComponent) * 0xFF)
-    let greenComponent = lroundf(Float(greenComponent) * 0xFF)
-    let blueComponent = lroundf(Float(blueComponent) * 0xFF)
-    return String(format: "#%02lx%02lx%02lx", redComponent, greenComponent, blueComponent)
+enum OutputFormat {
+  case hex
+  case rgb
+
+  init?(fromArgument: String) {
+    switch fromArgument.lowercased() {
+    case "--hex": self = .hex
+    case "--rgb": self = .rgb
+    default: return nil
+    }
   }
 }
 
-NSColorSampler().show { sampledColor in
-  if let hexTuple = sampledColor?.hexAlphaString {
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.writeObjects([hexTuple as NSPasteboardWriting])
-    print(hexTuple)
+extension NSColor {
+  func string(for format: OutputFormat) -> String {
+    let color = usingColorSpace(.sRGB) ?? .black
+    let red = Int((color.redComponent * 255).rounded())
+    let green = Int((color.greenComponent * 255).rounded())
+    let blue = Int((color.blueComponent * 255).rounded())
+
+    switch format {
+    case .hex: return String(format: "#%02x%02x%02x", red, green, blue)
+    case .rgb: return "rgb(\(red), \(green), \(blue))"
+    }
   }
+}
+
+let arguments = CommandLine.arguments
+var outputFormat = OutputFormat.hex
+
+if arguments.contains("-h") || arguments.contains("--help") {
+  print("Usage: \(arguments[0]) [--rgb | --hex]")
   exit(0)
 }
 
-RunLoop.main.run()
+if arguments.count > 1, let format = OutputFormat(fromArgument: arguments[1]) {
+  outputFormat = format
+}
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
+
+NSColorSampler().show { selectedColor in
+  guard let selectedColor else {
+    NSApplication.shared.terminate(nil)
+    return
+  }
+
+  let pasteboard = NSPasteboard.general
+  let output = selectedColor.string(for: outputFormat)
+  pasteboard.clearContents()
+  pasteboard.setString(output, forType: .string)
+  print(output)
+  NSApplication.shared.terminate(nil)
+}
+
+app.run()

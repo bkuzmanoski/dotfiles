@@ -1,203 +1,208 @@
-import Cocoa
-import Foundation
+import AppKit
+
+struct Constants {
+  static let overlayColor = NSColor.black.withAlphaComponent(0.1)
+  static let selectionColor = NSColor.systemRed.withAlphaComponent(0.15)
+  static let guideColor = NSColor.systemRed
+  static let labelMargin = CGFloat(5)
+  static let labelHorizontalPadding = CGFloat(4)
+  static let labelVerticalPadding = CGFloat(2)
+  static let labelFontSize = CGFloat(11)
+  static let labelFontWeight = NSFont.Weight.medium
+  static let labelCornerRadius = CGFloat(4)
+  static let labelBackgroundColor = NSColor.systemRed
+  static let labelForegroundColor = NSColor.white
+}
 
 struct Measurement {
   let startPoint: NSPoint
   let endPoint: NSPoint
-
-  var isMovingRight: Bool { endPoint.x >= startPoint.x }
-  var isMovingDown: Bool { endPoint.y >= startPoint.y }
-
-  var startX: CGFloat { isMovingRight ? floor(startPoint.x) - 1 : floor(startPoint.x) }
-  var startY: CGFloat { isMovingDown ? floor(startPoint.y) : floor(startPoint.y) + 1 }
-  var endX: CGFloat { isMovingRight ? floor(endPoint.x) : floor(endPoint.x) - 1 }
-  var endY: CGFloat { isMovingDown ? floor(endPoint.y) + 1 : floor(endPoint.y) }
-
-  var selectionFrame: NSRect { NSRect(x: min(startX, endX), y: min(startY, endY), width: width, height: height) }
-  var width: CGFloat { abs(endX - startX) }
-  var height: CGFloat { abs(endY - startY) }
-
-  var widthString: String { String(format: "%.0f", width) }
-  var heightString: String { String(format: "%.0f", height) }
-  var resultString: String { String(format: "%.0f × %.0f", width, height) }
+  var selection: NSRect {
+    NSRect(x: startPoint.x, y: startPoint.y, width: endPoint.x - startPoint.x, height: endPoint.y - startPoint.y)
+      .offsetBy(dx: -1, dy: 0) // Visually center origin with crosshair mouse cursor
+      .integral
+  }
 }
 
-class MeasurePixels: NSWindow {
-  private var startPoint: NSPoint?
-  private var overlay: NSView?
-  private var widthLabel: NSTextField?
-  private var heightLabel: NSTextField?
+enum LabelPosition { case top, bottom, left, right }
 
+class OverlayWindow: NSWindow {
   override var canBecomeKey: Bool { true }
+}
 
-  init(on screen: NSScreen) {
-    let screenFrame = screen.frame
-    super.init(contentRect: screenFrame, styleMask: [.borderless], backing: .buffered, defer: false)
+class MeasurementView: NSView {
+  private var trackingArea: NSTrackingArea?
+  private var measurement: Measurement?
 
-    level = .screenSaver
-    backgroundColor = NSColor.black.withAlphaComponent(0.1)
-    contentView?.wantsLayer = true
-    contentView?.addTrackingArea(
-      NSTrackingArea(
-        rect: contentView?.bounds ?? .zero, options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
-        owner: self, userInfo: nil))
+  override var acceptsFirstResponder: Bool { true }
+
+  override func updateTrackingAreas() {
+    if let existingArea = trackingArea { removeTrackingArea(existingArea) }
+    let newArea = NSTrackingArea(
+      rect: bounds,
+      options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
+      owner: self,
+      userInfo: nil)
+    trackingArea = newArea
+    addTrackingArea(newArea)
   }
 
   override func cursorUpdate(with event: NSEvent) { NSCursor.crosshair.set() }
 
   override func mouseDown(with event: NSEvent) {
-    let point = event.locationInWindow
-    if startPoint == nil {
-      startPoint = point
-    } else {
-      let measurement = Measurement(startPoint: startPoint!, endPoint: point)
-      print(measurement.resultString)
+    let mouseLocation = event.locationInWindow
+    if let selection = measurement?.selection {
+      let pasteboard = NSPasteboard.general
+      let result = "\(Int(selection.width)) × \(Int(selection.height))"
+      pasteboard.clearContents()
+      pasteboard.setString(result, forType: .string)
+      print(result)
       NSApplication.shared.terminate(nil)
+    } else {
+      measurement = Measurement(startPoint: mouseLocation, endPoint: mouseLocation)
+      needsDisplay = true
     }
   }
 
-  override func mouseMoved(with event: NSEvent) { updateMeasurement(with: event) }
-
-  override func mouseDragged(with event: NSEvent) { updateMeasurement(with: event) }
+  override func mouseMoved(with event: NSEvent) {
+    guard let existingMeasurement = measurement else { return }
+    measurement = Measurement(startPoint: existingMeasurement.startPoint, endPoint: event.locationInWindow)
+    needsDisplay = true
+  }
 
   override func keyDown(with event: NSEvent) {
-    switch event.keyCode {
-    case 53: // Escape
-      if startPoint != nil {
-        startPoint = nil
-        removeOverlay()
+    if event.keyCode == 53 { // Escape
+      if measurement != nil {
+        measurement = nil
+        needsDisplay = true
       } else {
         NSApplication.shared.terminate(nil)
       }
-    default: super.keyDown(with: event)
     }
   }
 
-  private func updateMeasurement(with event: NSEvent) {
-    guard let startPoint = startPoint else { return }
+  override func draw(_ dirtyRect: NSRect) {
+    guard let measurement else { return }
+    let isMeasuringRight = measurement.endPoint.x >= measurement.startPoint.x
+    let isMeasuringUp = measurement.endPoint.y >= measurement.startPoint.y
+    let selectionRect = measurement.selection
+    let guideRect = selectionRect.insetBy(dx: 0.5, dy: 0.5)
+    let guideOrigin = CGPoint(
+      x: isMeasuringRight ? guideRect.minX : guideRect.maxX,
+      y: isMeasuringUp ? guideRect.minY : guideRect.maxY)
+    let guidePath = NSBezierPath()
 
-    let measurement = Measurement(startPoint: startPoint, endPoint: event.locationInWindow)
-    drawOverlay(for: measurement)
+    Constants.selectionColor.setFill()
+    selectionRect.fill()
+
+    guidePath.lineWidth = 1
+    guidePath.move(to: NSPoint(x: selectionRect.minX, y: guideOrigin.y))
+    guidePath.line(to: NSPoint(x: selectionRect.maxX, y: guideOrigin.y))
+    guidePath.move(to: NSPoint(x: guideOrigin.x, y: selectionRect.minY))
+    guidePath.line(to: NSPoint(x: guideOrigin.x, y: selectionRect.maxY))
+    Constants.guideColor.setStroke()
+    guidePath.stroke()
+
+    drawLabel(
+      text: String(Int(selectionRect.width)),
+      at: selectionRect,
+      position: isMeasuringUp ? .bottom : .top)
+    drawLabel(
+      text: String(Int(selectionRect.height)),
+      at: selectionRect,
+      position: isMeasuringRight ? .left : .right)
   }
 
-  func drawOverlay(for measurement: Measurement) {
-    if overlay == nil {
-      overlay = NSView(frame: .zero)
-      overlay?.wantsLayer = true
-      contentView?.addSubview(overlay!)
-    }
+  private func drawLabel(text: String, at rect: NSRect, position: LabelPosition) {
+    let stringAttributes: [NSAttributedString.Key: Any] = [
+      .font: NSFont.systemFont(ofSize: Constants.labelFontSize, weight: Constants.labelFontWeight),
+      .foregroundColor: Constants.labelForegroundColor
+    ]
+    let string = NSAttributedString(string: text, attributes: stringAttributes)
+    let stringSize = string.size()
+    let backgroundSize = NSSize(
+      width: stringSize.width + Constants.labelHorizontalPadding * 2,
+      height: stringSize.height + Constants.labelVerticalPadding * 2)
+    let labelOrigin =
+      switch position {
+      case .top:
+        CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
+      case .bottom:
+        CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.minY - backgroundSize.height - Constants.labelMargin)
+      case .left:
+        CGPoint(x: rect.minX - backgroundSize.width - Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
+      case .right:
+        CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
+      }
+    let backgroundRect = NSRect(origin: labelOrigin, size: backgroundSize)
 
-    let selectionFrame = measurement.selectionFrame
-    overlay?.frame = selectionFrame
+    let backgroundPath = NSBezierPath(
+      roundedRect: backgroundRect,
+      xRadius: Constants.labelCornerRadius,
+      yRadius: Constants.labelCornerRadius)
 
-    let borderLayer = CAShapeLayer()
-    let path = CGMutablePath()
+    Constants.labelBackgroundColor.setFill()
+    backgroundPath.fill()
 
-    path.move(to: CGPoint(x: measurement.isMovingRight ? 0.5 : selectionFrame.width - 0.5, y: 0))
-    path.addLine(to: CGPoint(x: measurement.isMovingRight ? 0.5 : selectionFrame.width - 0.5, y: selectionFrame.height))
-
-    path.move(to: CGPoint(x: 0, y: measurement.isMovingDown ? 0.5 : selectionFrame.height - 0.5))
-    path.addLine(to: CGPoint(x: selectionFrame.width, y: measurement.isMovingDown ? 0.5 : selectionFrame.height - 0.5))
-
-    borderLayer.path = path
-    borderLayer.strokeColor = NSColor.systemRed.cgColor
-    borderLayer.fillColor = nil
-    borderLayer.lineWidth = 1
-
-    overlay?.layer?.sublayers?.removeAll()
-    overlay?.layer?.addSublayer(borderLayer)
-    overlay?.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
-
-    updateLabels(for: measurement)
-  }
-
-  private func updateLabels(for measurement: Measurement) {
-    if widthLabel == nil {
-      let (label, background) = createLabel(with: measurement.widthString)
-      widthLabel = label
-      contentView?.addSubview(background)
-      background.addSubview(label)
-    } else {
-      widthLabel?.stringValue = measurement.widthString
-    }
-
-    if heightLabel == nil {
-      let (label, background) = createLabel(with: measurement.heightString)
-      heightLabel = label
-      contentView?.addSubview(background)
-      background.addSubview(label)
-    } else {
-      heightLabel?.stringValue = measurement.heightString
-    }
-
-    widthLabel?.sizeToFit()
-    heightLabel?.sizeToFit()
-
-    positionLabels(for: measurement)
-  }
-
-  private func createLabel(with string: String) -> (label: NSTextField, background: NSView) {
-    let label = NSTextField(labelWithString: string)
-    label.font = .systemFont(ofSize: 11, weight: .medium)
-    label.textColor = .white
-
-    let background = NSView()
-    background.wantsLayer = true
-    background.layer?.cornerRadius = 4
-    background.layer?.backgroundColor = NSColor.systemRed.cgColor
-
-    return (label, background)
-  }
-
-  private func positionLabels(for measurement: Measurement) {
-    let frame = measurement.selectionFrame
-    let padding: CGFloat = 2
-
-    if let widthLabel = widthLabel, let widthBackground = widthLabel.superview {
-      widthBackground.frame = NSRect(
-        x: 0, y: 0, width: widthLabel.frame.width + padding * 2, height: widthLabel.frame.height + padding * 2)
-      widthLabel.frame.origin = NSPoint(x: padding, y: padding)
-
-      let absoluteX = frame.origin.x + (frame.width - widthBackground.frame.width) / 2
-      let absoluteY: CGFloat =
-        frame.origin.y + (measurement.isMovingDown ? -widthBackground.frame.height - 5 : frame.height + 5)
-      widthBackground.frame.origin = CGPoint(x: absoluteX, y: absoluteY)
-    }
-
-    if let heightLabel = heightLabel, let heightBackground = heightLabel.superview {
-      heightBackground.frame = NSRect(
-        x: 0, y: 0, width: heightLabel.frame.width + padding * 2, height: heightLabel.frame.height + padding * 2)
-      heightLabel.frame.origin = NSPoint(x: padding, y: padding)
-
-      let absoluteX: CGFloat =
-        frame.origin.x + (measurement.isMovingRight ? -heightBackground.frame.width - 5 : frame.width + 5)
-      let absoluteY = frame.origin.y + (frame.height - heightBackground.frame.height) / 2
-      heightBackground.frame.origin = CGPoint(x: absoluteX, y: absoluteY)
-    }
-  }
-
-  func removeOverlay() {
-    overlay?.removeFromSuperview()
-    overlay = nil
-    widthLabel?.superview?.removeFromSuperview()
-    heightLabel?.superview?.removeFromSuperview()
-    widthLabel = nil
-    heightLabel = nil
+    string.draw(
+      at: NSPoint(
+        x: backgroundRect.minX + Constants.labelHorizontalPadding,
+        y: backgroundRect.minY + Constants.labelVerticalPadding))
   }
 }
 
-freopen("/dev/null", "w", stderr) // Silence logs from Input Method Kit
+class AppDelegate: NSObject, NSApplicationDelegate {
+  private var screen: NSScreen!
+  private var window: OverlayWindow!
+  private var measurementView: MeasurementView!
+  private var observers = [(token: NSObjectProtocol, center: NotificationCenter)]()
 
-guard let mainScreen = NSScreen.main else {
-  print("Error: Screen unavailable")
-  exit(1)
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    screen =
+      NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
+      ?? NSScreen.main
+      ?? NSScreen.screens.first!
+    window = OverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+    measurementView = MeasurementView()
+
+    window.level = .screenSaver
+    window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
+    window.backgroundColor = Constants.overlayColor
+    window.contentView = measurementView
+    window.setFrame(screen.frame, display: true)
+    window.makeKeyAndOrderFront(nil)
+    window.makeFirstResponder(measurementView)
+    NSApplication.shared.activate(ignoringOtherApps: true)
+
+    let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
+    let activeSpaceObservationToken = workspaceNotificationCenter.addObserver(
+      forName: NSWorkspace.activeSpaceDidChangeNotification,
+      object: nil,
+      queue: .main
+    ) { _ in
+      NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+    observers.append((activeSpaceObservationToken, workspaceNotificationCenter))
+
+    let notificationCenter = NotificationCenter.default
+    let screenParametersObservationToken = notificationCenter.addObserver(
+      forName: NSApplication.didChangeScreenParametersNotification,
+      object: nil,
+      queue: .main
+    ) { [weak self] _ in
+      guard let self else { return }
+      window.setFrame(screen.frame, display: true)
+    }
+    observers.append((screenParametersObservationToken, notificationCenter))
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    observers.forEach { observer in observer.center.removeObserver(observer.token) }
+  }
 }
 
-NSApplication.shared.setActivationPolicy(.accessory)
-NSApplication.shared.activate(ignoringOtherApps: true)
-
-let window = MeasurePixels(on: mainScreen)
-window.makeKeyAndOrderFront(nil)
-window.makeFirstResponder(window)
-
-NSApplication.shared.run()
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.setActivationPolicy(.accessory)
+app.run()

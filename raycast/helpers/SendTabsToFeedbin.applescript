@@ -1,13 +1,4 @@
-#!/usr/bin/osascript
-
-# @raycast.schemaVersion 1
-# @raycast.title Send Tabs to Feedbin
-# @raycast.mode silent
-# @raycast.packageName Google Chrome
-# @raycast.icon icons/send-tabs-to-feedbin.png
-
 property feedbinEmail : "bwilw@feedb.in"
-property emailSubject : "Mac Tabs"
 
 on isAppRunning(appName)
   try
@@ -18,7 +9,25 @@ on isAppRunning(appName)
   end try
 end isAppRunning
 
-on getTabURLs()
+on getActiveTabURL()
+  tell application "Google Chrome"
+    if (count windows) > 0 then
+      set frontWindow to front window
+      set activeTab to active tab of frontWindow
+      set tabURL to URL of activeTab
+      set tabTitle to title of activeTab
+
+      if tabURL is not "chrome://newtab/" then
+        set tabContent to tabTitle & return & tabURL
+        return {content:tabContent, urlCount:1}
+      end if
+    end if
+  end tell
+
+  return {content:"", urlCount:0}
+end getActiveTab
+
+on getAllTabURLs()
   set urlCount to 0
   set urlList to ""
 
@@ -42,8 +51,12 @@ on getTabURLs()
     end repeat
   end tell
 
-  return {urlCount:urlCount, urlList:urlList}
-end getTabURLs
+  if urlCount > 0 then
+    return {content:urlList, urlCount:urlCount}
+  end if
+
+  return {content:"", urlCount:0}
+end getAllTabs
 
 on sendEmail(toAddress, emailSubject, body)
   set mailWasRunning to isAppRunning("Mail.app")
@@ -61,24 +74,38 @@ on sendEmail(toAddress, emailSubject, body)
   end if
 end sendEmail
 
-on run
+on run argv
+  set mode to ""
+  if (count of argv) > 0 then
+    set mode to item 1 of argv
+  end if
+
   if not isAppRunning("Google Chrome.app") then
     return "Google Chrome is not running"
   end if
 
-  set urls to getTabURLs()
-  set urlCount to urlCount of urls
-  set urlList to urlList of urls
+  if mode is "--active-only" then
+    set urlData to getActiveTabURL()
+    set emailSubject to "Tab from macOS"
+  else
+    set urlData to getAllTabURLs()
+    set emailSubject to "Tabs from macOS"
+  end if
 
-  if urlCount is 0 then
+  set urlCount to urlCount of urlData
+  if urlCount = 0 then
     return "Google Chrome has no open tabs"
   end if
 
-  sendEmail(feedbinEmail, emailSubject, urlList)
+  sendEmail(feedbinEmail, emailSubject, (content of urlData))
 
-  if urlCount = 1 then
-    return "Sent " & urlCount & " tab to Feedbin"
+  if mode is "--active-only" then
+    return "Sent active tab to Feedbin"
   else
-    return "Sent " & urlCount & " tabs to Feedbin"
+    if urlCount = 1 then
+      return "Sent 1 tab to Feedbin"
+    else
+      return "Sent " & urlCount & " tabs to Feedbin"
+    end if
   end if
-end
+end run
