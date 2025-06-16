@@ -1,11 +1,3 @@
-#!/usr/bin/osascript
-
-# @raycast.schemaVersion 1
-# @raycast.title Clear Notifications
-# @raycast.mode silent
-# @raycast.packageName System
-# @raycast.icon icons/clear-notifications.png
-
 property clearActions : {"Close", "Clear All"}
 property notificationsCleared : 0
 
