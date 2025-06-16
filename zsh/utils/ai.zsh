@@ -57,17 +57,20 @@ ai() {
     end
   ' 2>/dev/null)
 
-  if [[ -z "${output}" ]]; then
-    output="PARSE_ERROR"
+  if [[ -z "${output}" || "${output}" == "PARSE_ERROR" ]]; then
+    output=$(print "${response}" | sed -n 's/.*"content":"\(.*\)","refusal".*/\1/p')
+
+    if [[ -z "${output}" ]]; then
+      print "Error: Could not parse API response\n"
+      print "Raw response:"
+      print "${response}"
+      return 1
+    fi
   fi
 
   case "${output}" in
     "API_ERROR: "*)
       print "Error: ${output#API_ERROR: }"
-      return 1
-      ;;
-    "PARSE_ERROR")
-      print "Error: Invalid API response"
       return 1
       ;;
     "LLM_ERROR: "*)

@@ -135,7 +135,6 @@ class MeasurementView: NSView {
         CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
       }
     let backgroundRect = NSRect(origin: labelOrigin, size: backgroundSize)
-
     let backgroundPath = NSBezierPath(
       roundedRect: backgroundRect,
       xRadius: Constants.labelCornerRadius,

@@ -28,18 +28,15 @@ extension NSColor {
 }
 
 let arguments = CommandLine.arguments
-var outputFormat = OutputFormat.hex
-
 if arguments.contains("-h") || arguments.contains("--help") {
   print("Usage: \(arguments[0]) [--rgb | --hex]")
   exit(0)
 }
 
+var outputFormat = OutputFormat.hex
 if arguments.count > 1, let format = OutputFormat(fromArgument: arguments[1]) {
   outputFormat = format
 }
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
 
 NSColorSampler().show { selectedColor in
   guard let selectedColor else {
@@ -55,4 +52,6 @@ NSColorSampler().show { selectedColor in
   NSApplication.shared.terminate(nil)
 }
 
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
 app.run()
