@@ -9,6 +9,7 @@ brew "micro"
 brew "nextdns"
 brew "oxipng"
 brew "ripgrep"
+brew "xcbeautify"
 brew "xcode-build-server"
 
 cask "1password"
