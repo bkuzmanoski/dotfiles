@@ -1,4 +1,4 @@
-# Generate shell command using a one-shot LLM prompt
+# Generate a shell command using a one-shot LLM prompt
 ai() {
   if [[ $# -eq 0 ]]; then
     print "Usage: ai <prompt>"
