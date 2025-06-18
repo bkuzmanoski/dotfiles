@@ -191,6 +191,11 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
+_defaults_write com.brnbw.Moves excludedApplicationPaths -array "/Applications/Figma.app/" # Ignore Figma windows
+_defaults_write com.brnbw.Moves moveModifiers -array "command" "option"
+_defaults_write com.brnbw.Moves resizeModifiers -array "command" "shift" "option"
+_defaults_write com.brnbw.Moves showInMenubar -int 0
+_defaults_write com.brnbw.Moves SUEnableAutomaticChecks -int 1 # Enable automatic update checks
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark All Tabs…" "\U0000" # Remove keyboard shortcut for Bookmark All Tabs… (conflicts with ⇧⌘D)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark This Tab…" "\$@d" # Map Bookmark This Tab… keyboard shortcut to ⇧⌘D
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
@@ -200,9 +205,9 @@ _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U00
 _defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide menu bar icon
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
-_defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true # Hide app badges
-_defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true # Hide space number labels
-_defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true # Hide status icons
+_defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
+_defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
+_defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 _defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for keyboard shortcut 1 to ⌘
 _defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for keyboard shortcut 2 to ⌘
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
@@ -215,8 +220,8 @@ _defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen
 _defaults_write pl.maketheweb.cleanshotx rememberRecordingArea -bool false # Disable remember last recording area selection
 _defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
 _defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
-_defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false # Hide menu bar icon
-_defaults_write pl.maketheweb.cleanshotx videoFPS -int 30 # Set video recording FPS to 30
+_defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
+_defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
 
 ###############################################################################
 # The end
