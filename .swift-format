@@ -1,0 +1,11 @@
+{
+  "lineLength": 120,
+  "multiElementCollectionTrailingCommas": false,
+  "prioritizeKeepingFunctionOutputTogether": true,
+  "respectsExistingLineBreaks": true,
+  "rules": {
+    "UseEarlyExits": true
+  },
+  "spacesBeforeEndOfLineComments": 1,
+  "version": 1
+}
