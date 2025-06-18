@@ -79,9 +79,9 @@ actor SingletonLock {
 class MenuBarController {
   let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-  deinit {
-    NSStatusBar.system.removeStatusItem(statusItem)
-  }
+  init() { statusItem.button?.isEnabled = false }
+
+  deinit { NSStatusBar.system.removeStatusItem(statusItem) }
 
   func show() {
     statusItem.length = NSStatusItem.variableLength
