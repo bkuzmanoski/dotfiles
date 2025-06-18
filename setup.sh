@@ -149,24 +149,24 @@ _defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set defau
 _defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
 _defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
 _defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
-_defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false # Hide external drives on Desktop
-_defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false # Hide internal drives on Desktop
-_defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false # Hide servers on Desktop
-_defaults_write com.apple.finder ShowPathbar -bool true # Show path bar
-_defaults_write com.apple.finder ShowRecentTags -bool false # Hide recent tags
-_defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false # Hide removable media on Desktop
-_defaults_write com.apple.finder ShowStatusBar -bool true # Show status bar
-_defaults_write com.apple.finder WarnOnEmptyTrash -bool false # Disable warning when emptying Trash
-_defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular" # Set plain text font to JetBrains Mono
-_defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13 # Set plain text font size to 13
+_defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
+_defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
+_defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false
+_defaults_write com.apple.finder ShowPathbar -bool true
+_defaults_write com.apple.finder ShowRecentTags -bool false
+_defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
+_defaults_write com.apple.finder ShowStatusBar -bool true
+_defaults_write com.apple.finder WarnOnEmptyTrash -bool false
+_defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
+_defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
 _defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
-_defaults_write com.apple.TextEdit RichText -bool false # Use plain text by default
+_defaults_write com.apple.TextEdit RichText -bool false
 _defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
 _defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
-_defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false # Disable click to show desktop
+_defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
 _defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
 _defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
-_defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to zoom/fill window
+_defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to maximize window
 _defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 _defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
 _defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show menu bar in full screen
@@ -175,7 +175,7 @@ _defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files 
 _defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
 _defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 _defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
-_defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization
+_defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization of text
 _defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
 _set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 _set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
