@@ -1,5 +1,4 @@
 import AppKit
-import os.log
 
 enum Constants {
   static let subsystem = "industries.britown.MenuBarItemHider"
@@ -100,7 +99,6 @@ class MenuBarController {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-  private let logger = Logger(subsystem: Constants.subsystem, category: "AppDelegate")
   private var singletonLock: SingletonLock
   private var menuBarController: MenuBarController!
 
@@ -113,32 +111,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     menuBarController = MenuBarController()
     menuBarController.show()
 
-    Task { [weak self] in
-      do {
-        try await withThrowingTaskGroup(of: Void.self) { group in
-          group.addTask {
-            for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-              self?.logger.notice("Received \(Signal.name(for: signal)), shutting down")
-              await NSApp.terminate(nil)
-            }
-          }
-          group.addTask {
-            let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
-            for await notification in stream {
-              guard
-                let userInfo = notification.userInfo,
-                let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
-              else {
-                self?.logger.warning("Received notification with malformed user info")
-                continue
-              }
-              await self?.handleCommand(with: arguments)
-            }
-          }
-          try await group.waitForAll()
+    Task {
+      let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
+      for await notification in stream {
+        guard
+          let userInfo = notification.userInfo,
+          let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
+        else {
+          continue
         }
-      } catch {
-        self?.logger.error("A critical error occurred in the background listening task: \(error)")
+        await self.handleCommand(with: arguments)
+      }
+    }
+
+    Task {
+      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+        print("Received \(Signal.name(for: signal)), shutting down")
         NSApp.terminate(nil)
       }
     }
@@ -149,7 +137,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     switch command {
     case "--toggle": await menuBarController.toggle()
     case "--quit": await NSApp.terminate(nil)
-    default: logger.warning("Received unknown command: \(command)")
+    default: return
     }
   }
 }
@@ -169,7 +157,6 @@ do {
   Command(arguments: arguments).send()
   exit(0)
 } catch {
-  let logger = Logger(subsystem: "industries.britown.HideMenuBarItems", category: "main")
-  logger.critical("A critical error occurred on startup: \(error.localizedDescription)")
+  print("An error occurred on startup: \(error.localizedDescription)")
   exit(1)
 }
