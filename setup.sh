@@ -162,8 +162,10 @@ _defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regul
 _defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
 _defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
 _defaults_write com.apple.TextEdit RichText -bool false
+_defaults_write com.apple.universalaccess closeViewPanningMode -int 0 # Set zoomed image to move continuously with pointer
 _defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
 _defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
+_defaults_write com.apple.universalaccess closeViewZoomScreenShareEnabledKey -bool true # Show zoomed image while screen sharing
 _defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
 _defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
 _defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
