@@ -8,6 +8,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/eza**: eza theme
 - **/fd**: fd configuration
 - **/ghostty**: Ghostty configuration
+- **/hammerspoon**: Hammerspoon configuration
 - **/micro**: micro configuration
 - **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
@@ -66,6 +67,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Control Centre → Now Playing → Select "Don't Show in Menu Bar"
     - Control Centre → Spotlight → Select "Don't Show in Menu Bar"
     - Displays → Turn off "Automatically adjust brightness"
+    - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
   - Set up Finder sidebar favorites (see reference screenshot)
   - Mail:
     - Set up Mail sidebar favorites (see reference screenshot)
@@ -77,7 +79,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Settings → Composing → Set "Message format" to "Plain Text"
     - Settings → Composing → Set "Undo send delay" to "Off"
     - Settings → Composing → Turn on "Use the same message format as the original message"
-  - Set up Menu Bar layout (see reference screenshot)
   - Set up Notification Centre layout (see reference screenshot)
 
 - **1Password**
