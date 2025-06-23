@@ -194,8 +194,6 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark All Tabs…" "\U0000" # Remove keyboard shortcut for Bookmark All Tabs… (conflicts with ⇧⌘D)
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark This Tab…" "\$@d" # Map Bookmark This Tab… keyboard shortcut to ⇧⌘D
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
