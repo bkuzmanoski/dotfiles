@@ -120,7 +120,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         else {
           continue
         }
-        await self.handleCommand(with: arguments)
+
+        await handleCommand(with: arguments)
       }
     }
 

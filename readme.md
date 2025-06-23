@@ -112,7 +112,6 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Turn off "Show Figma in Menu Bar"
   - Turn off "Rename duplicated layers"
   - Turn off "Flip objects while resizing"
-  - Turn on "Invert zoom direction"
   - Set "Big nudge" to 8px
 
 - **Ghostty**

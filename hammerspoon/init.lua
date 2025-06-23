@@ -12,6 +12,7 @@ hs.logger.setGlobalLogLevel("error")
 require("create_spaces")(globalSettings.numberOfSpaces)
 
 hs.execute("nohup ~/.dotfiles/raycast/helpers/bin/MenuBarItemHider > /dev/null 2>&1 &")
+hs.execute("nohup ~/.dotfiles/raycast/helpers/bin/ScrollToZoom > /dev/null 2>&1 &")
 
 modules.unlockSound = require("modules/unlock_sound").init()
 
