@@ -9,6 +9,8 @@ local globalSettings = {
 hs.hotkey.setLogLevel("error")
 hs.logger.setGlobalLogLevel("error")
 
+hs.window.animationDuration = 0
+
 require("create_spaces")(globalSettings.numberOfSpaces)
 
 hs.execute("nohup ~/.dotfiles/raycast/helpers/bin/MenuBarItemHider > /dev/null 2>&1 &")
