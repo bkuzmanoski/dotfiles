@@ -78,6 +78,7 @@ typeset -A configs=(
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"
   ["ghostty"]="${HOME}/.config/ghostty"
+  ["hammerspoon"]="${HOME}/.hammerspoon"
   ["micro"]="${HOME}/.config/micro"
   ["ripgrep"]="${HOME}/.config/ripgrep"
   ["zsh"]="${HOME}/.zsh"
@@ -191,11 +192,6 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
-_defaults_write com.brnbw.Moves excludedApplicationPaths -array "/Applications/Figma.app/" # Ignore Figma windows
-_defaults_write com.brnbw.Moves moveModifiers -array "command" "option"
-_defaults_write com.brnbw.Moves resizeModifiers -array "command" "shift" "option"
-_defaults_write com.brnbw.Moves showInMenubar -int 0
-_defaults_write com.brnbw.Moves SUEnableAutomaticChecks -int 1 # Enable automatic update checks
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark All Tabs…" "\U0000" # Remove keyboard shortcut for Bookmark All Tabs… (conflicts with ⇧⌘D)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Bookmark This Tab…" "\$@d" # Map Bookmark This Tab… keyboard shortcut to ⇧⌘D
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
@@ -213,6 +209,10 @@ _defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set h
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 _defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide menu bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
+_defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
+_defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
+_defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
+_defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
 _defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
 _defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
 _defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder

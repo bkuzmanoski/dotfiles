@@ -89,7 +89,7 @@ class MenuBarController {
   }
 
   func hide() {
-    statusItem.length = 1000
+    statusItem.length = 6016
     statusItem.button?.title = ""
   }
 
@@ -109,7 +109,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     menuBarController = MenuBarController()
-    menuBarController.show()
+    menuBarController.hide()
 
     Task {
       let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
@@ -135,8 +135,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleCommand(with arguments: [String]) async {
     guard let command = arguments.first else { return }
     switch command {
-    case "--toggle": await menuBarController.toggle()
-    case "--quit": await NSApp.terminate(nil)
+    case "toggle": await menuBarController.toggle()
+    case "quit": await NSApp.terminate(nil)
     default: return
     }
   }
@@ -151,7 +151,7 @@ do {
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
   guard !arguments.isEmpty else {
-    print("Already running, specify \"--toggle\" or \"--quit\" as an argument")
+    print("Already running, specify \"toggle\" or \"quit\" as an argument")
     exit(0)
   }
   Command(arguments: arguments).send()
