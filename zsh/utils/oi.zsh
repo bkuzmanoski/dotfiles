@@ -1,19 +1,25 @@
-# Optimize images
 oi() {
-  if [[ $# -eq 0 ]]; then
-    print "Usage: oi <image|directory> ..."
-    return 1
-  fi
+  _help() {
+    print "Usage: oi [options] <image|directory> ..."
+    print "Options:"
+    print "  -z, --zopfli     Use Zopfli compression for PNGs (slower but better compression)"
+    print "  -q, --quality N  Set JPEG quality (0-100, lower = smaller file)"
+    print "  -h, --help       Show this help message"
+  }
 
   local missing_tools=()
   local install_instructions=()
-
-  which -s oxipng >/dev/null || { missing_tools+=("oxipng"); install_instructions+=("%Boxipng%b: brew install oxipng"); }
-  which -s jpegoptim >/dev/null || { missing_tools+=("jpegoptim"); install_instructions+=("%Bjpegoptim%b: brew install jpegoptim"); }
+  which -s oxipng >/dev/null || {
+    missing_tools+=("oxipng");
+    install_instructions+=("%Boxipng%b: brew install oxipng"); }
+  which -s jpegoptim >/dev/null || {
+    missing_tools+=("jpegoptim");
+    install_instructions+=("%Bjpegoptim%b: brew install jpegoptim");
+  }
   if [[ ${#missing_tools[@]} -gt 0 ]]; then
     print "Required tools missing:"
     for instruction in "${install_instructions[@]}"; do
-      print -P "  - ${instruction}"
+      print -u2 -P "  - ${instruction}"
     done
     return 1
   fi
@@ -21,35 +27,23 @@ oi() {
   local use_zopfli=0
   local quality=""
 
-  while [[ "$1" == -* ]]; do
-    case "$1" in
-      "-z"|"--zopfli")
-        use_zopfli=1
-        shift
-        ;;
-      "-q"|"--quality")
-        if [[ -n "$2" ]]; then
-          quality="$2"
-          shift 2
-        else
-          print "Please specify a quality or omit the option."
-          return 1
-        fi
-        ;;
-      "-h"|"--help")
-        print "Usage: oi [options] <image|directory> ..."
-        print "Options:"
-        print "  -z, --zopfli     Use Zopfli compression for PNGs (slower but better compression)"
-        print "  -q, --quality N  Set JPEG quality (0-100, lower = smaller file)"
-        print "  -h, --help       Show this help message"
-        return 0
-        ;;
-      *)
-        print "Unknown option: $1"
-        return 1
-        ;;
-    esac
-  done
+  if ! zparseopts -D -E -F -- \
+    {z,-zopfli}=flag_zopfli \
+    {q,-quality}:=opt_quality \
+    {h,-help}=flag_help \
+    2>/dev/null; then
+    print -u2 "Error: Invalid or incomplete options provided.\n"
+    _help
+    return 1
+  fi
+
+  if (( ${#flag_help} > 0 )); then
+    _help
+    return 0
+  fi
+
+  (( ${#flag_zopfli} > 0 )) && use_zopfli=1
+  (( ${#opt_quality} > 0 )) && quality=${opt_quality[-1]}
 
   local -a files
   for input in "$@"; do
@@ -64,7 +58,7 @@ oi() {
 
   local image_count=${#files[@]}
   if [[ ${image_count} -eq 0 ]]; then
-    print "Didn't find any JP(E)G or PNG files to optimize."
+    print -u2 "Didn't find any JP(E)G or PNG files to optimize."
     return 1
   fi
 

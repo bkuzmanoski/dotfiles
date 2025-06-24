@@ -1,7 +1,6 @@
-# Generate a shell command using a one-shot LLM prompt
 ai() {
   if [[ $# -eq 0 ]]; then
-    print "Usage: ai <prompt>"
+    print -u2 "Usage: ai <prompt>"
     return 1
   fi
 
@@ -43,7 +42,7 @@ ai() {
       }')")
 
   if [[ -z "${response}" ]]; then
-    print "Error: Failed to contact API"
+    print -u2 "Error: Failed to contact API"
     return 1
   fi
 
@@ -64,17 +63,17 @@ ai() {
 
   case "${output}" in
     "API_ERROR: "*)
-      print "Error: ${output#API_ERROR: }"
+      print -u2 "Error: ${output#API_ERROR: }"
       return 1
       ;;
     "PARSE_ERROR")
-      print "Error: Could not parse API response\n"
-      print "Raw response:"
-      print "${response}"
+      print -u2 "Error: Could not parse API response\n"
+      print -u2 "Raw response:"
+      print -u2 "${response}"
       return 1
       ;;
     "LLM_ERROR: "*)
-      print "Error: ${output#LLM_ERROR: }"
+      print -u2 "Error: ${output#LLM_ERROR: }"
       return 1
       ;;
     *)

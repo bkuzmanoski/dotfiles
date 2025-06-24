@@ -1,13 +1,18 @@
-# Compress video
 cv() {
-  if [[ $# -eq 0 ]]; then
+  _help() {
     print "Usage: cv [options] <video>"
-    print "Use -h or --help for more information."
-    return 1
-  fi
+    print "Options:"
+    print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: medium]"
+    print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 28]"
+    print "  -f, --fps VALUE      Set frame rate [default: 30]"
+    print "  -c, --codec VALUE    Set codec (h264, h265) [default: h265]"
+    print "  -a, --audio VALUE    Set audio bitrate [default: 128k]"
+    print "  -o, --overwrite      Overwrite input file with compressed version"
+    print "  -h, --help           Show this help message"
+  }
 
   if ! which -s ffmpeg >/dev/null; then
-    print -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
+    print -u2 -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
     return 1
   fi
 
@@ -17,91 +22,41 @@ cv() {
   local codec="libx265"
   local tag="hvc1"
   local audio_bitrate="128k"
-  local overwrite=0
-  local -a opts=()
 
-  while [[ "$1" == -* ]]; do
-    case "$1" in
-      -p|--preset)
-        if [[ -n "$2" ]]; then
-          preset="$2"
-          shift 2
-        else
-          print "Please specify a preset or omit the option."
-          return 1
-        fi
-        ;;
-      -q|--quality)
-        if [[ -n "$2" ]]; then
-          crf="$2"
-          shift 2
-        else
-          print "Please specify a quality or omit the option."
-          return 1
-        fi
-        ;;
-      -f|--fps)
-        if [[ -n "$2" ]]; then
-          fps="$2"
-          shift 2
-        else
-          print "Please specify a frame rate or omit the option."
-          return 1
-        fi
-        ;;
-      -c|--codec)
-        if [[ -n "$2" ]]; then
-          if [[ "$2" == "h264" ]]; then
-            codec="libx264"
-            tag="avc1"
-          elif [[ "$2" == "h265" ]]; then
-            codec="libx265"
-            tag="hvc1"
-          else
-            print "Invalid codec: $2"
-            return 1
-          fi
-          shift 2
-        else
-          print "Please specify a codec or omit the option."
-          return 1
-        fi
-        ;;
-      -a|--audio)
-        if [[ -n "$2" ]]; then
-          audio_bitrate="$2"
-          shift 2
-        else
-          print "Please specify an audio bitrate or omit the option."
-          return 1
-        fi
-        ;;
-      -o|--overwrite)
-        overwrite=1
-        shift
-        ;;
-      -h|--help)
-        print "Usage: cv [options] <video>"
-        print "Options:"
-        print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: medium]"
-        print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 28]"
-        print "  -f, --fps VALUE      Set frame rate [default: 30]"
-        print "  -c, --codec VALUE    Set codec (h264, h265) [default: h265]"
-        print "  -a, --audio VALUE    Set audio bitrate [default: 128k]"
-        print "  -o, --overwrite      Overwrite input file with compressed version"
-        print "  -h, --help           Show this help message"
-        return 0
-        ;;
-      *)
-        print "Unknown option: $1"
-        return 1
-        ;;
+  if ! zparseopts -D -E -F -- \
+    {p,-preset}:=opt_preset \
+    {q,-quality}:=opt_crf \
+    {f,-fps}:=opt_fps \
+    {c,-codec}:=opt_codec \
+    {a,-audio}:=opt_audio \
+    {o,-overwrite}=flag_overwrite \
+    {h,-help}=flag_help \
+    2>/dev/null; then
+    print -u2 "Error: Invalid or incomplete options provided.\n"
+    _help
+    return 1
+  fi
+
+  if (( ${#flag_help} > 0 )); then
+    _help
+    return 0
+  fi
+
+  if (( ${#opt_preset} > 0 )); then preset=${opt_preset[-1]}; fi
+  if (( ${#opt_crf} > 0 )); then crf=${opt_crf[-1]}; fi
+  if (( ${#opt_fps} > 0 )); then fps=${opt_fps[-1]}; fi
+  if (( ${#opt_audio} > 0 )); then audio_bitrate=${opt_audio[-1]}; fi
+  if (( ${#opt_codec} > 0 )); then
+    case "${opt_codec[-1]}" in
+      h264) codec="libx264"; tag="avc1" ;;
+      h265) codec="libx265"; tag="hvc1" ;;
+      *) print -u2 "Unknown codec: ${opt_codec[-1]}"; return 1 ;;
     esac
-  done
+  fi
 
   local input_file="$1"
   if [[ ! -f "${input_file}" ]]; then
-    print "Error: File \"${input_file}\" not found."
+    print -u2 "Error: File \"${input_file}\" not found."
     return 1
   fi
 
@@ -111,18 +66,18 @@ cv() {
     -hide_banner \
     -stats \
     -i "${input_file}" \
-    -r ${fps} \
-    -c:v ${codec} \
-    -preset ${preset} \
-    -crf ${crf} \
+    -r "${fps}" \
+    -c:v "${codec}" \
+    -preset "${preset}" \
+    -crf "${crf}" \
     -pix_fmt yuv420p \
-    -tag:v ${tag} \
+    -tag:v "${tag}" \
     -c:a aac \
-    -b:a ${audio_bitrate} \
+    -b:a "${audio_bitrate}" \
     "${output_file}"
 
   if [[ $? -ne 0 ]]; then
-    print "\nFailed to compress video."
+    print -u2 "\nFailed to compress video."
     return 1
   fi
 
@@ -130,7 +85,7 @@ cv() {
   local size_reduction=$(( (${original_size} - ${compressed_size}) * 100 / ${original_size} ))
 
   local overwrite_notice
-  if [[ ${overwrite} -eq 1 ]]; then
+  if (( ${#flag_overwrite} > 0 )); then
     if [[ ${compressed_size} -lt ${original_size} ]]; then
       command mv "${output_file}" "${input_file}"
       overwrite_notice="Replaced original file with compressed version."

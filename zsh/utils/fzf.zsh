@@ -26,7 +26,7 @@ ff() {
 
 fif() {
   if [[ $# -eq 0 ]]; then
-    print "Usage: fif <search_pattern> [output_command]"
+    print -u2 "Usage: fif <search_pattern> [output_command]"
     return 1
   fi
 

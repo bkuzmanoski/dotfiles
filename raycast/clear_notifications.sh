@@ -1,9 +1,11 @@
 #!/bin/zsh
 
-# @raycast.schemaVersion 1
 # @raycast.title Clear Notifications
-# @raycast.packageName System
+# @raycast.packageName Notification Center
 # @raycast.icon icons/clear-notifications.png
+
 # @raycast.mode silent
 
-${0:A:h}/helpers/run_command.sh ClearNotifications
+# @raycast.schemaVersion 1
+
+${HOME}/.dotfiles/utils/run_command.sh ClearNotifications

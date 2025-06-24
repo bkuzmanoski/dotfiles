@@ -13,6 +13,7 @@ This repository contains scripts to automate the setup of a new macOS installati
 - **/raycast**: Raycast settings and script commands
 - **/reference**: Reference screenshots for things I couldn't automate
 - **/ripgrep**: ripgrep configuration
+- **/utils**: Utility scripts/applets
 - **/wallpapers**: Desktop wallpapers
 - **/zsh**: Zsh plugins and scripts
 - `.zprofile` and `.zshrc`: Zsh configuration

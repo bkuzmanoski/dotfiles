@@ -1,72 +1,56 @@
-# Combine files
 cf() {
   if ! command -v rg >/dev/null 2>&1; then
-    print -P "%Brg%b is not installed. Install with: brew install ripgrep"
+    print -u2 -P "%Brg%b is not installed. Install with: brew install ripgrep"
     return 1
   fi
 
-  local glob_pattern output_file
-  while [[ "$1" == -* ]]; do
-    case "$1" in
-      "-g"|"--glob")
-        if [[ -n "$2" ]]; then
-          glob_pattern="$2"
-          shift 2
-        else
-          print "Please specify a glob pattern or omit the option."
-          return 1
-        fi
-        ;;
-      "-o"|"--output")
-        if [[ -n "$2" ]]; then
-          output_file="$2"
-          shift 2
-        else
-          print "Please specify an output file or omit the option."
-          return 1
-        fi
-        ;;
-      "-h"|"--help")
-        print "Usage: cf [options]"
-        print "Options:"
-        print "  -g, --glob      Specify a glob pattern to search for files (default: all text files)"
-        print "  -o, --output    Specify an output file to write the output to (default: copy to clipboard)"
-        print "  -h, --help      Show this help message"
-        return 0
-        ;;
-      *)
-        print "Unknown option: $1"
-        return 1
-        ;;
-    esac
-  done
+  _help() {
+    print "Usage: cf [options] [rg options]"
+    print "Options:"
+    print "  -o, --output    Specify an output file to write the output to (default: copy to clipboard)"
+    print "  -h, --help      Show this help message"
+  }
 
-  local rg_cmd=("rg" "--heading" "--line-number" "--color=never")
-  [[ -n "${glob_pattern}" ]] && rg_cmd+=("--glob" "${glob_pattern}")
-  rg_cmd+=(".")
-
-  local rg_output rg_status return_message
-  if [[ -n "${output_file}" ]]; then
-    "${rg_cmd[@]}" >| "${output_file}"
-    rg_status=$?
-    return_message="Output written to file: ${output_file}"
-  else
-    rg_output=$("${rg_cmd[@]}")
-    rg_status=$?
-
-    [[ ${rg_status} -eq 0 && -n "${rg_output}" ]] && { print -rn "${rg_output}" | pbcopy }
-    return_message="Output copied to clipboard."
+  if ! zparseopts -D -E -K {o,-output}:=output_file {h,-help}=flag_help 2>/dev/null; then
+    print -u2 "Error: Invalid options provided.\n"
+    _help
+    return 1
   fi
 
-  local return_code=0
-  if [[ ${rg_status} -eq 0 ]]; then
-    print "${return_message}"
-  elif [[ ${rg_status} -eq 1 ]]; then
-    print "No matches found."
-  else
-    return_code=1
-  fi
+  [[ -z "${flag_help}" ]] || { _help; return 0 }
 
-  [[ ${return_code} -ne 0 && -n "${output_file}" && -f "${output_file}" ]] && rm "${output_file}"
+  local return_message return_code
+  local -a rg_cmd=("rg" "--heading" "--line-number" "--color=never" "${@}" ".")
+  local rg_output
+  rg_output=$("${rg_cmd[@]}")
+
+
+  local rg_status=$?
+  case "${rg_status}" in
+    0)
+      if [[ -n "${output_file[-1]}" ]]; then
+        print -r -- "${rg_output}" >| "${output_file[-1]}"
+        return_message="Output written to file: ${output_file[-1]}"
+      else
+        print -rn -- "${rg_output}" | pbcopy
+        return_message="Output copied to clipboard."
+      fi
+      return_code=0
+      ;;
+    1)
+      return_message="No matches found."
+      return_code=0
+      ;;
+    *)
+      return_message="\nripgrep failed with exit code: ${rg_status}"
+      return_code=1
+      ;;
+  esac
+
+  case "${return_code}" in
+    0) print "${return_message}" ;;
+    *) print -u2 "${return_message}" ;;
+  esac
+
   return ${return_code}
 }

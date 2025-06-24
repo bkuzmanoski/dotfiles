@@ -240,7 +240,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     Task {
       for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        print("Received \(Signal.name(for: signal)), shutting down")
+        print("Received \(Signal.name(for: signal)), shutting down.")
         await terminateApp()
       }
     }
@@ -273,7 +273,7 @@ do {
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
   guard !arguments.isEmpty else {
-    print("Already running, specify \"quit\" to stop")
+    print("Already running, specify \"quit\" to stop.")
     exit(0)
   }
   Command(arguments: arguments).send()
