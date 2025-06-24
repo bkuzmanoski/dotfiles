@@ -2,23 +2,17 @@ local utils = require("utils")
 
 local module = {}
 local windowSubscription
-local topOffset, padding
-
-local function handleWindowEvent(window)
-  utils.adjustWindowFrame(window, topOffset, padding)
-end
 
 function module.init(config)
   if windowSubscription then module.cleanup() end
 
-  if config then
-    topOffset = config.topOffset or 0
-    padding = config.padding or 0
+  if not config then return module end
 
-    windowSubscription = hs.window.filter.new()
-        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
-        :subscribe(hs.window.filter.windowCreated, handleWindowEvent)
-  end
+  windowSubscription = hs.window.filter.new()
+      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
+      :subscribe(hs.window.filter.windowCreated, function(window)
+        utils.adjustWindowFrame(window, config.topOffset or 0, config.padding or 0)
+      end)
 
   return module
 end

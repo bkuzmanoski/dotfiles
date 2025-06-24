@@ -7,26 +7,23 @@ local topOffset, padding
 function module.init(config)
   if next(bindings) then module.cleanup() end
 
-  if config and config.hotkeys then
-    local windowObject = hs.window.desktop()
-    for action, hotkey in pairs(config.hotkeys) do
-      if hotkey.modifiers and hotkey.key and windowObject[action] then
-        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
-          local window = hs.window.focusedWindow()
-          if not window:isStandard() or window:isFullscreen() then return end
+  if not config or not config.hotkeys then return module end
 
-          window[action](window, true)
-          hs.timer.doAfter(hs.window.animationDuration, function()
-            utils.adjustWindowFrame(window, topOffset, padding)
-          end)
-        end)
-      end
-    end
+  for action, hotkey in pairs(config.hotkeys) do
+    if hotkey.modifiers and hotkey.key then
+      bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
+        local window = hs.window.focusedWindow()
+        if window:isFullscreen() then return end
 
-    if next(bindings) then
-      topOffset = config.topOffset or 0
-      padding = config.padding or 0
+        window[action](window, true)
+        utils.adjustWindowFrame(window, topOffset, padding)
+      end)
     end
+  end
+
+  if next(bindings) then
+    topOffset = config.topOffset or 0
+    padding = config.padding or 0
   end
 
   return module

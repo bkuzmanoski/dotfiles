@@ -3,6 +3,7 @@ local globalSettings = {
   numberOfSpaces = 5,
   screenTopOffset = 0,
   windowPadding = 8,
+  splitRatios = { 0.5, 0.33, 0.67 },
   hyperKey = { "control", "option", "shift", "command" }
 }
 
@@ -19,22 +20,12 @@ hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 modules.unlockSound = require("modules/unlock_sound").init()
 
 modules.systemHotkeys = require("modules/system_hotkeys").init({
-  -- focusMenuBar = { modifiers = globalSettings.hyperKey, key = "m" },
-  -- focusDock = { modifiers = globalSettings.hyperKey, key = "b" },
   toggleLaunchpad = { modifiers = globalSettings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = globalSettings.hyperKey, key = "space" },
-  -- toggleAppExpose = { modifiers = globalSettings.hyperKey, key = "up" },
-  -- toggleShowDesktop = { modifiers = globalSettings.hyperKey, key = "down" },
   toggleNotificationCenter = { modifiers = globalSettings.hyperKey, key = "n" },
   goToSpaceLeft = { modifiers = globalSettings.hyperKey, key = "[" },
   goToSpaceRight = { modifiers = globalSettings.hyperKey, key = "]" },
   goToSpaceN = { modifiers = globalSettings.hyperKey }
-})
-
-modules.focusWindow = require("modules/focus_window").init({
-  focusFrontmost = { modifiers = { "option", "command" }, key = "return" },
-  focusLeft = { modifiers = { "option", "command" }, key = "[" },
-  focusRight = { modifiers = { "option", "command" }, key = "]" }
 })
 
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
@@ -42,41 +33,51 @@ modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").
   padding = globalSettings.windowPadding
 })
 
-modules.positionAndTileWindows = require("modules/position_and_tile_windows").init({
+modules.positionWindow = require("modules/position_window").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
-  splitRatios = { 0.5, 0.33, 0.67 },
-  tileTopBottomSplitRatioIndex = 2,
+  splitRatios = globalSettings.splitRatios,
   hotkeys = {
-    positionCenter = { modifiers = { "option", "command" }, key = "space" },
-    resizeSmall = { modifiers = { "option", "command" }, key = "u" },
-    resizeMedium = { modifiers = { "option", "command" }, key = "i" },
-    resizeLarge = { modifiers = { "option", "command" }, key = "o" },
-    tileLeft = { modifiers = { "option", "command" }, key = "l" },
-    tileRight = { modifiers = { "option", "command" }, key = "'" },
-    tileLeftAndRight = { modifiers = { "option", "shift", "command" }, key = "l" },
-    tileRightAndLeft = { modifiers = { "option", "shift", "command" }, key = "'" },
-    tileTopRight = { modifiers = { "option", "command" }, key = "p" },
-    tileBottomRight = { modifiers = { "option", "command" }, key = ";" },
-    tileTopAndBottomRight = { modifiers = { "option", "shift", "command" }, key = "p" },
-    tileBottomAndTopRight = { modifiers = { "option", "shift", "command" }, key = ";" }
+    center = { modifiers = { "option", "command" }, key = "space" },
+    centerSmall = { modifiers = { "option", "command" }, key = "u" },
+    centerMedium = { modifiers = { "option", "command" }, key = "i" },
+    centerLarge = { modifiers = { "option", "command" }, key = "o" },
+    left = { modifiers = { "option", "command" }, key = "l" },
+    right = { modifiers = { "option", "command" }, key = "'" }
   }
 })
 
-modules.moveAndResizeWindows = require("modules/move_and_resize_windows").init({
+modules.tileWindows = require("modules/tile_windows").init({
+  topOffset = globalSettings.screenTopOffset,
+  padding = globalSettings.windowPadding,
+  splitRatios = globalSettings.splitRatios,
+  initialNumberOfStackedWindows = 1,
+  hotkeys = {
+    tileLeft = { modifiers = { "option", "shift", "command" }, key = "l" },
+    tileRight = { modifiers = { "option", "shift", "command" }, key = "'" },
+    increaseStackSize = { modifiers = { "option", "shift", "command" }, key = "=" },
+    decreaseStackSize = { modifiers = { "option", "shift", "command" }, key = "-" },
+    promoteWindowToMain = { modifiers = { "option", "shift", "command" }, key = "return" },
+    promoteWindow = { modifiers = { "option", "shift", "command" }, key = "p" },
+    demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
+    stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
+  }
+})
+
+modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
   snapThreshold = globalSettings.windowPadding,
   moveModifiers = { "alt", "cmd" },
   resizeModifiers = { "alt", "shift", "cmd" },
-  rejectApps = { "Figma" }
+  excludeApps = { "Figma" }
 })
 
 modules.moveWindowToSpace = require("modules/move_window_to_space").init({
-  modifiers = { "option", "shift", "command" },
+  modifiers = { "option", "command" },
   keys = {
-    previousSpace = "o",
-    nextSpace = "p"
+    previousSpace = "left",
+    nextSpace = "right"
   },
   enableNumberKeys = true,
 })
@@ -90,12 +91,19 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
   }
 })
 
-modules.focusScreen = require("modules/focus_screen").init()
+modules.focusWindow = require("modules/focus_window").init({
+  hotkeys = {
+    frontmost = { modifiers = { "option", "command" }, key = "return" },
+    left = { modifiers = { "option", "command" }, key = "[" },
+    right = { modifiers = { "option", "command" }, key = "]" }
+  }
+})
+
+modules.focusWindowOnScreenEnter = require("modules/focus_window_on_screen_enter").init()
 
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
   { appName = "Figma", processToKill = "figma_agent" }
 })
-hs.timer.doAfter(5, modules.killHelpersOnQuit.killAllNow)
 
 hs.shutdownCallback = function()
   for _, module in pairs(modules) do
