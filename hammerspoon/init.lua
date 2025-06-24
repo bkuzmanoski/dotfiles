@@ -13,8 +13,8 @@ hs.window.animationDuration = 0
 
 require("create_spaces")(globalSettings.numberOfSpaces)
 
-hs.execute("nohup ~/.dotfiles/raycast/helpers/bin/MenuBarItemHider > /dev/null 2>&1 &")
-hs.execute("nohup ~/.dotfiles/raycast/helpers/bin/ScrollToZoom > /dev/null 2>&1 &")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 
 modules.unlockSound = require("modules/unlock_sound").init()
 

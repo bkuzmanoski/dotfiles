@@ -27,13 +27,13 @@ brewup() (
 fnmup() {
   local current_version="$(fnm current)"
   local latest_version="$(fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)" || {
-    print "Failed to fetch latest Node version."
+    print -u2 "Failed to fetch latest Node version."
     return 1
   }
 
   if [[ -z "${latest_version}" ]]; then
-    print "No LTS versions found."
-    return 1
+    print -u2 "No LTS versions found."
+  return 1
   fi
 
   if [[ "${current_version}" != "${latest_version}" ]]; then
@@ -45,14 +45,14 @@ fnmup() {
 
     if [[ "${response}" =~ ^[Yy]$ ]]; then
       fnm install "${latest_version}" || {
-        print "Failed to install Node ${latest_version}."
+        print -u2 "Failed to install Node ${latest_version}."
         return 1
       }
 
       print && read -r "default?Set as default? (y/N) "
       if [[ "${default}" =~ ^[Yy]$ ]]; then
         fnm default "${latest_version}" || {
-          print "Failed to set Node.js ${latest_version} as default."
+          print -u2 "Failed to set Node.js ${latest_version} as default."
           return 1
         }
         print "Node ${latest_version} is now default."
@@ -71,7 +71,7 @@ fnmup() {
               if [[ -n "${version}" ]]; then
                 printf "Removing %s...\n" "${version}"
                 fnm uninstall "${version}" || {
-                  print "Failed to remove Node ${version}."
+                  print -u2 "Failed to remove Node ${version}."
                   return 1
                 }
               fi

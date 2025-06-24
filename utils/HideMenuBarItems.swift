@@ -76,7 +76,7 @@ actor SingletonLock {
 }
 
 @MainActor
-class MenuBarController {
+class MenuBarItemController {
   let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() { statusItem.button?.isEnabled = false }
@@ -100,7 +100,7 @@ class MenuBarController {
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   private var singletonLock: SingletonLock
-  private var menuBarController: MenuBarController!
+  private var menuBarController: MenuBarItemController!
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -108,7 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    menuBarController = MenuBarController()
+    menuBarController = MenuBarItemController()
     menuBarController.hide()
 
     Task {
@@ -127,7 +127,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     Task {
       for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        print("Received \(Signal.name(for: signal)), shutting down")
+        print("Received \(Signal.name(for: signal)), shutting down.")
         NSApp.terminate(nil)
       }
     }
@@ -152,7 +152,7 @@ do {
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
   guard !arguments.isEmpty else {
-    print("Already running, specify \"toggle\" or \"quit\" as an argument")
+    print("Already running, specify \"toggle\" or \"quit\" as an argument.")
     exit(0)
   }
   Command(arguments: arguments).send()

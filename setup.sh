@@ -8,25 +8,20 @@ SCRIPT_DIR="${0:A:h}"
 
 _log() {
   case "$1" in
-    --info)    print "[INFO]    $2" ;;
-    --warning) print "[WARNING] $2" ;;
-    --error)   print "[ERROR]   $2" ;;
-    *)         print "[MESSAGE] $@" ;;
+    "--info")    print "[INFO]    $2" ;;
+    "--warning") print "[WARNING] $2" ;;
+    "--error")   print "[ERROR]   $2" ;;
+    *).          print "[MESSAGE] $@" ;;
   esac
 }
 
 _defaults_write() {
-  local sudo currenthost
-  while [[ "$1" == -* ]]; do
-    case "$1" in
-      --sudo)        sudo=1 ;;
-      --currenthost) currenthost=1 ;;
-      *)             _log --error "Unknown option: $1" && return 1 ;;
-    esac
-    shift
-  done
+  if ! zparseopts -D -E options -- "-sudo"=use_sudo "-currenthost"=use_currenthost; then
+    _log --error "Invalid options provided for _defaults_write."
+    return 1
+  fi
 
-  local -a write_cmd=(${sudo:+"sudo"} "defaults" "${currenthost:+"-currentHost"}" "write" "$@")
+  local -a write_cmd=(${use_sudo:+"sudo "}"defaults""${use_currenthost:+" -currentHost"}"" write" "$@")
   _log --info "Executing: ${write_cmd[*]}"
   ${write_cmd[@]}
 }

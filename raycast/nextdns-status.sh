@@ -1,13 +1,17 @@
 #!/bin/zsh
 
-# @raycast.schemaVersion 1
-# @raycast.title NextDNS
+# @raycast.title NextDNS Status
 # @raycast.packageName NextDNS
 # @raycast.icon icons/nextdns.png
+
 # @raycast.argument1 { "type": "dropdown", "placeholder": "Action", "data": [{"title": "Enable", "value": "activate"}, {"title": "Disable", "value": "deactivate"}] }
 # @raycast.mode silent
 
+# @raycast.schemaVersion 1
+
 nextdns "$@"
+
+sleep 1
 
 if [[ "$(scutil --dns | grep "nameserver\[0\]" | head -1 | awk '{print $3}')" == "127.0.0.1" ]]; then
   print "NextDNS is enabled"

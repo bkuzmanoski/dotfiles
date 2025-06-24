@@ -1,9 +1,11 @@
 #!/bin/zsh
 
-# @raycast.schemaVersion 1
 # @raycast.title Send All Tabs to Feedbin
-# @raycast.packageName Google Chrome
+# @raycast.packageName Utilities
 # @raycast.icon icons/send-tabs-to-feedbin.png
+
 # @raycast.mode silent
 
-${0:A:h}/helpers/run_command.sh SendTabsToFeedbin
+# @raycast.schemaVersion 1
+
+${HOME}/.dotfiles/utils/run_command.sh SendTabsToFeedbin
