@@ -1,34 +1,21 @@
 local module = {}
+local appProcessPairs = {}
 local appWatcher
-local appProcessPairs
-
-local function killProcess(processToKill)
-  hs.execute("pkill -9 '" .. processToKill .. "'")
-end
-
-function module.killAllNow()
-  if appProcessPairs and #appProcessPairs > 0 then
-    for _, pair in ipairs(appProcessPairs) do killProcess(pair.processToKill) end
-  end
-end
 
 function module.init(config)
   if appWatcher then module.cleanup() end
 
-  if config and #config > 0 then
-    appProcessPairs = config
+  if not config or #config == 0 then return module end
 
-    appWatcher = hs.application.watcher.new(function(_, eventType, appObject)
-      if eventType == hs.application.watcher.terminated then
-        local appName = appObject:name()
-        for _, appProcessPair in ipairs(appProcessPairs) do
-          if appName == appProcessPair.appName then killProcess(appProcessPair.processToKill) end
+  appProcessPairs = config
+  appWatcher = hs.application.watcher.new(function(_, eventType, app)
+        if eventType == hs.application.watcher.terminated then
+          hs.fnutils.each(appProcessPairs, function(pair)
+            if app:name() == pair.appName then hs.execute("pkill '" .. pair.processToKill .. "'") end
+          end)
         end
-      end
-    end):start()
-  end
-
-  return module
+      end)
+      :start()
 end
 
 function module.cleanup()

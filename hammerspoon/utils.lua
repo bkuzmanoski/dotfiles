@@ -1,5 +1,41 @@
 local module = {}
 
+function module.cycleNext(array, after)
+  if not after then return array[1] end
+
+  for i, value in ipairs(array) do
+    if value == after then return array[(i % #array) + 1] end
+  end
+
+  return array[1]
+end
+
+function module.getCurrentSpaceIndex(screen)
+  if not screen then return nil, nil end
+
+  local spacesData = hs.spaces.data_managedDisplaySpaces()
+  if not spacesData then return nil, nil end
+
+  local screenUUID = screen:getUUID()
+  for _, display in ipairs(spacesData) do
+    if display["Display Identifier"] == screenUUID then
+      local currentSpaceId = display["Current Space"].ManagedSpaceID
+      if not currentSpaceId then return nil, nil end
+
+      local numberOfSpaces = #display.Spaces
+      for i, space in ipairs(display.Spaces) do
+        if space.ManagedSpaceID == currentSpaceId then
+          return i, numberOfSpaces
+        end
+      end
+
+      break
+    end
+  end
+
+  return nil, nil
+end
+
 function module.getAdjustedScreenFrame(screen, topOffset, padding)
   local screenFrame = (topOffset and topOffset > 0) and screen:fullFrame() or screen:frame()
   screenFrame.x = screenFrame.x + padding
