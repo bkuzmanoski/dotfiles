@@ -192,7 +192,7 @@ function module.init(config)
   end, {})
 
   windowFilter = hs.window.filter.new()
-      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
+      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, allowTitles = ".", currentSpace = true, fullscreen = false, visible = true })
   keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
   mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
 

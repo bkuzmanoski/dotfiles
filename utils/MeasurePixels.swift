@@ -17,27 +17,40 @@ struct Constants {
 struct Measurement {
   let startPoint: NSPoint
   let endPoint: NSPoint
+
   var selection: NSRect {
-    NSRect(x: startPoint.x, y: startPoint.y, width: endPoint.x - startPoint.x, height: endPoint.y - startPoint.y)
+    return NSRect(x: startPoint.x, y: startPoint.y, width: endPoint.x - startPoint.x, height: endPoint.y - startPoint.y)
       .offsetBy(dx: -1, dy: 0) // Visually center origin with crosshair mouse cursor
       .integral
   }
 }
 
-enum LabelPosition { case top, bottom, left, right }
+enum LabelPosition {
+  case top
+  case bottom
+  case left
+  case right
+}
 
 class OverlayWindow: NSWindow {
-  override var canBecomeKey: Bool { true }
+  override var canBecomeKey: Bool {
+    return true
+  }
 }
 
 class MeasurementView: NSView {
   private var trackingArea: NSTrackingArea?
   private var measurement: Measurement?
 
-  override var acceptsFirstResponder: Bool { true }
+  override var acceptsFirstResponder: Bool {
+    return true
+  }
 
   override func updateTrackingAreas() {
-    if let existingArea = trackingArea { removeTrackingArea(existingArea) }
+    if let existingArea = trackingArea {
+      removeTrackingArea(existingArea)
+    }
+
     let newArea = NSTrackingArea(
       rect: bounds,
       options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
@@ -47,10 +60,13 @@ class MeasurementView: NSView {
     addTrackingArea(newArea)
   }
 
-  override func cursorUpdate(with event: NSEvent) { NSCursor.crosshair.set() }
+  override func cursorUpdate(with event: NSEvent) {
+    NSCursor.crosshair.set()
+  }
 
   override func mouseDown(with event: NSEvent) {
     let mouseLocation = event.locationInWindow
+
     if let selection = measurement?.selection {
       let pasteboard = NSPasteboard.general
       let result = "\(Int(selection.width)) × \(Int(selection.height))"
@@ -154,7 +170,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var screen: NSScreen!
   private var window: OverlayWindow!
   private var measurementView: MeasurementView!
-  private var observers = [(token: NSObjectProtocol, center: NotificationCenter)]()
+  private var observers: [(token: NSObjectProtocol, center: NotificationCenter)] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     screen =

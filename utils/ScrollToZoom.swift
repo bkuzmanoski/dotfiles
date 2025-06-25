@@ -6,13 +6,16 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
+
   static let hotkey = CGEventFlags.maskAlternate
   static let zoomSensitivity = 0.005
   static let reverseZoomDirection = true
 }
 
 enum Signal {
-  enum Error: Swift.Error { case interrupted(CInt) }
+  enum Error: Swift.Error {
+    case interrupted(CInt)
+  }
 
   static func name(for signal: CInt) -> String {
     guard let namePtr = strsignal(signal) else { return "Unknown signal (\(signal))" }
@@ -24,10 +27,12 @@ enum Signal {
       let sources = signals.map { signal in
         DispatchSource.makeSignalSource(signal: signal, queue: .main)
       }
+
       for (signal, source) in zip(signals, sources) {
         source.setEventHandler { continuation.yield(signal) }
         source.resume()
       }
+
       continuation.onTermination = { @Sendable _ in
         sources.forEach { $0.cancel() }
       }
@@ -49,7 +54,10 @@ struct Command {
 }
 
 actor SingletonLock {
-  enum Error: Swift.Error { case instanceAlreadyRunning, lockFileError(String) }
+  enum Error: Swift.Error {
+    case instanceAlreadyRunning
+    case lockFileError(String)
+  }
 
   private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
   private var lockFileDescriptor: CInt
@@ -87,7 +95,10 @@ extension CGEventType {
 
 @MainActor
 class ScrollZoomController {
-  enum Error: Swift.Error { case accessibilityPermissionDenied, eventTapCreationFailed }
+  enum Error: Swift.Error {
+    case accessibilityPermissionDenied
+    case eventTapCreationFailed
+  }
 
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
@@ -131,7 +142,9 @@ class ScrollZoomController {
     runLoopSource = nil
   }
 
-  private func checkPermissions() -> Bool { AXIsProcessTrustedWithOptions(nil) }
+  private func checkPermissions() -> Bool {
+    return AXIsProcessTrustedWithOptions(nil)
+  }
 
   private func postPinchGestureEvent(phase: CGSGesturePhase, magnification: Double) {
     guard let event = CGEvent(source: nil) else { return }
@@ -186,7 +199,9 @@ class ScrollZoomController {
 
         return nil
       } else {
-        Task { await self.endZoom() }
+        Task {
+          await self.endZoom()
+        }
       }
     }
 
@@ -200,7 +215,10 @@ private func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else { return Unmanaged.passUnretained(event) }
+  guard let refcon else {
+    return Unmanaged.passUnretained(event)
+  }
+
   let controller = Unmanaged<ScrollZoomController>.fromOpaque(refcon).takeUnretainedValue()
   return controller.handleEvent(proxy: proxy, type: type, event: event)
 }
@@ -259,7 +277,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func terminateApp() async {
-    await scrollZoomController.stop()
     await NSApp.terminate(nil)
   }
 }
