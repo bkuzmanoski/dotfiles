@@ -133,11 +133,6 @@ local function applyLayout()
   local tilingState = tiledSpaces[spaceId]
   if not tilingState or #tilingState.managedWindows == 0 then return end
 
-  print("**** Applying layout for space: " .. spaceId .. " on screen: " .. screen:name())
-  for _, windowData in ipairs(tilingState.managedWindows) do
-    print(windowData.window:title())
-  end
-
   local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   local newWindowStates = {}
   if #tilingState.managedWindows == 1 or tilingState.numberOfStackedWindows == 0 then
@@ -198,8 +193,20 @@ local function updateManagedWindows()
     acc[windowData.window:id()] = windowData.initialFrame
     return acc
   end, tilingState.savedWindowFrames or {})
-  tiledSpaces[spaceId] = tilingState
 
+  -- Update saved frames for floating windows
+  local tiledWindowCount = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
+  for i = tiledWindowCount + 1, #tilingState.managedWindows do
+    local windowData = tilingState.managedWindows[i]
+    if windowData and windowData.window then
+      local windowId = windowData.window:id()
+      if windowId then
+        tilingState.savedWindowFrames[windowId] = windowData.window:frame()
+      end
+    end
+  end
+
+  tiledSpaces[spaceId] = tilingState
   applyLayout()
 end
 
