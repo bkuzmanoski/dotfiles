@@ -184,8 +184,16 @@ local function updateManagedWindows()
   local retainedWindows = hs.fnutils.ifilter(tilingState.managedWindows, function(windowData)
     return currentWindowsMap[windowData.window:id()] ~= nil
   end)
+
+  local screenFrame = screen:fullFrame()
   local newWindows = hs.fnutils.ifilter(currentWindows, function(windowData)
-    return not existingWindowIds[windowData.window:id()]
+    if existingWindowIds[windowData.window:id()] or
+        windowData.window:frame() == screenFrame or
+        hs.axuielement.windowElement(windowData.window):attributeValue("AXIdentifier") == "com.apple.LocalAuthentication.TouchIdDialog" then
+      return false
+    end
+
+    return true
   end)
 
   tilingState.managedWindows = hs.fnutils.concat(retainedWindows, newWindows)
@@ -403,7 +411,7 @@ function module.init(config)
     end, {})
 
     windowFilter = hs.window.filter.new()
-        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
+        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, allowTitles = ".", currentSpace = true, fullscreen = false, visible = true })
         :setSortOrder(hs.window.filter.sortByCreated)
         :subscribe(hs.window.filter.windowsChanged, updateManagedWindowsDebounced)
         :subscribe(hs.window.filter.windowMoved, updateManagedWindowsDebounced)

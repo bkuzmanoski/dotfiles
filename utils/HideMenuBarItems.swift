@@ -5,6 +5,7 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
+
   static let menuBarItemTitle = "􂉏"
 }
 
@@ -46,7 +47,10 @@ struct Command {
 }
 
 actor SingletonLock {
-  enum Error: Swift.Error { case instanceAlreadyRunning, lockFileError(String) }
+  enum Error: Swift.Error {
+    case instanceAlreadyRunning
+    case lockFileError(String)
+  }
 
   private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
   private var lockFileDescriptor: CInt
@@ -79,9 +83,13 @@ actor SingletonLock {
 class MenuBarItemController {
   let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
-  init() { statusItem.button?.isEnabled = false }
+  init() {
+    statusItem.button?.isEnabled = false
+  }
 
-  deinit { NSStatusBar.system.removeStatusItem(statusItem) }
+  deinit {
+    NSStatusBar.system.removeStatusItem(statusItem)
+  }
 
   func show() {
     statusItem.length = NSStatusItem.variableLength

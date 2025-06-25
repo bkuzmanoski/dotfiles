@@ -1,8 +1,8 @@
 #!/bin/zsh
 
-# @raycast.title NextDNS Status
+# @raycast.title NextDNS
 # @raycast.packageName NextDNS
-# @raycast.icon icons/nextdns-status.png
+# @raycast.icon icons/nextdns.png
 
 # @raycast.argument1 { "type": "dropdown", "placeholder": "Action", "data": [{"title": "Enable", "value": "activate"}, {"title": "Disable", "value": "deactivate"}] }
 # @raycast.mode silent
