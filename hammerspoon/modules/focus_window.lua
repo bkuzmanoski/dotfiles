@@ -9,17 +9,17 @@ local targetWindow = {
 }
 
 local function focusWindow(target)
-  local windows = windowFilter:getWindows()
+  local windows = hs.window.orderedWindows()
   if not windows or #windows == 0 then return end
 
   local screen = hs.screen.mainScreen()
   local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
-    return window:screen() == screen
+    return window:screen() == screen and not window:isFullscreen()
   end)
   if #windowsOnScreen == 0 then return end
 
   local focusedWindow = hs.window.focusedWindow()
-  if target == targetWindow.frontmost or not focusedWindow then
+  if target == targetWindow.frontmost or not focusedWindow or #windowsOnScreen == 1 then
     windowsOnScreen[1]:focus()
     return
   end
@@ -62,16 +62,6 @@ function module.init(config)
     if hotkey.modifiers and hotkey.key and handlers[action] then
       bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])
     end
-  end
-
-  if next(bindings) then
-    windowFilter = hs.window.filter.new():setOverrideFilter({
-      allowRoles = { "AXStandardWindow" },
-      allowTitles = ".",
-      currentSpace = true,
-      fullscreen = false,
-      visible = true
-    })
   end
 
   return module

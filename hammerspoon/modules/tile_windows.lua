@@ -4,7 +4,7 @@ local module = {}
 local bindings = {}
 local tiledSpaces = {}
 local screenWatcher, windowFilter, debounceTimer
-local topOffset, padding, splitRatios, initialNumberOfStackedWindows, excludedApps
+local topOffset, padding, splitRatios, initialNumberOfStackedWindows, excludedApps, excludeWindowsLessThanWidth
 
 local edge = { left = "left", right = "right", top = "top", bottom = "bottom" }
 
@@ -43,11 +43,19 @@ local function getWindowsInCurrentSpace()
   local spaceId, screen = getCurrentSpaceAndScreen()
   if not spaceId or not screen then return {} end
 
-  local windows = windowFilter:getWindows()
+  -- Don't use windowFilter.getWindows() as it becomes out of sync with actual window state when using tabs
+  local windows = hs.window.visibleWindows()
   if not windows or #windows == 0 then return {} end
 
+  local screenFrame = screen:fullFrame()
   local windowsToManage = hs.fnutils.ifilter(windows, function(window)
-    return window:screen() == screen and window:application() and not excludedApps[window:application():name()]
+    local windowFrame = window:frame()
+    return window:application() and
+        not excludedApps[window:application():name()] and
+        window:screen() == screen and
+        windowFrame ~= screenFrame and
+        windowFrame.w >= excludeWindowsLessThanWidth and
+        #hs.spaces.windowSpaces(window) == 1
   end)
 
   return hs.fnutils.imap(windowsToManage, function(window)
@@ -184,16 +192,8 @@ local function updateManagedWindows()
   local retainedWindows = hs.fnutils.ifilter(tilingState.managedWindows, function(windowData)
     return currentWindowsMap[windowData.window:id()] ~= nil
   end)
-
-  local screenFrame = screen:fullFrame()
   local newWindows = hs.fnutils.ifilter(currentWindows, function(windowData)
-    if existingWindowIds[windowData.window:id()] or
-        windowData.window:frame() == screenFrame or
-        hs.axuielement.windowElement(windowData.window):attributeValue("AXIdentifier") == "com.apple.LocalAuthentication.TouchIdDialog" then
-      return false
-    end
-
-    return true
+    return not existingWindowIds[windowData.window:id()]
   end)
 
   tilingState.managedWindows = hs.fnutils.concat(retainedWindows, newWindows)
@@ -409,11 +409,12 @@ function module.init(config)
       acc[appName] = true
       return acc
     end, {})
+    excludeWindowsLessThanWidth = config.excludeWindowsLessThanWidth or 0
 
     windowFilter = hs.window.filter.new()
-        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, allowTitles = ".", currentSpace = true, fullscreen = false, visible = true })
-        :setSortOrder(hs.window.filter.sortByCreated)
-        :subscribe(hs.window.filter.windowsChanged, updateManagedWindowsDebounced)
+        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
+        :subscribe(hs.window.filter.windowOnScreen, updateManagedWindowsDebounced)
+        :subscribe(hs.window.filter.windowNotOnScreen, updateManagedWindowsDebounced)
         :subscribe(hs.window.filter.windowMoved, updateManagedWindowsDebounced)
     screenWatcher = hs.screen.watcher.new(updateTiledSpaces):start()
   end
