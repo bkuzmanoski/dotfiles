@@ -8,7 +8,7 @@ local topOffset, padding, splitRatios
 local direction = { left = "left", right = "right" }
 local size = { small = "small", medium = "medium", large = "large", current = "current" }
 local sizeConfigs = {
-  [size.small] = { heightRatio = 0.6, widthAspectRatio = 1.3 },
+  [size.small] = { heightRatio = 0.7, widthAspectRatio = 1.3 },
   [size.medium] = { widthRatio = 0.9, heightRatio = 0.9 },
   [size.large] = { fillScreen = true },
   [size.current] = { keepCurrentSize = true }
