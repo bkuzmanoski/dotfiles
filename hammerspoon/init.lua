@@ -62,7 +62,7 @@ modules.tileWindows = require("modules/tile_windows").init({
     demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
     stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
   },
-  excludeApps = { "coreautha" },
+  excludeApps = { "coreautha", "CleanShot X" },
   excludeWindowsLessThanWidth = 288
 })
 
