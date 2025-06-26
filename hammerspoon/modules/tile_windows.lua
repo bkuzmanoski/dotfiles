@@ -50,12 +50,10 @@ local function getWindowsInCurrentSpace()
   local screenFrame = screen:fullFrame()
   local windowsToManage = hs.fnutils.ifilter(windows, function(window)
     local windowFrame = window:frame()
-    return window:application() and
-        not excludedApps[window:application():name()] and
-        window:screen() == screen and
-        windowFrame ~= screenFrame and
-        windowFrame.w >= excludeWindowsLessThanWidth and
-        #hs.spaces.windowSpaces(window) == 1
+    return window:isMaximizable() and
+        windowFrame ~= screenFrame and windowFrame.w >= excludeWindowsLessThanWidth and
+        window:screen() == screen and #hs.spaces.windowSpaces(window) == 1 and
+        window:application() and not excludedApps[window:application():name()]
   end)
 
   return hs.fnutils.imap(windowsToManage, function(window)
