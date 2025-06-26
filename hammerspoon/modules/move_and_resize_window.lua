@@ -28,7 +28,7 @@ local validSubroles = {
   ["AXSystemFloatingWindow"] = true
 }
 
-local function getWindowUnderMouse()
+local function getWindowUnderMouse(windows)
   local rawMousePosition = hs.mouse.absolutePosition()
 
   -- Get window of topmost element under mouse (more reliable than frontmost hit-testing with unfocused windows)
@@ -53,7 +53,7 @@ local function getWindowUnderMouse()
 
   -- Fall back to the frontmost window under the mouse
   local mousePosition = hs.geometry.new(rawMousePosition)
-  for _, window in ipairs(hs.window.orderedWindows()) do
+  for _, window in ipairs(windows) do
     if mousePosition:inside(window:frame()) then return window end
   end
 
@@ -147,7 +147,8 @@ local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, de
 end
 
 local function startOperation(operation)
-  activeWindow = getWindowUnderMouse()
+  allWindows = hs.window.orderedWindows()
+  activeWindow = getWindowUnderMouse(allWindows)
   if not activeWindow or
       excludedApps[activeWindow:application():name()] or
       (operation == operationType.resize and not activeWindow:isMaximizable()) then
