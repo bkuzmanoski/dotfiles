@@ -1,7 +1,7 @@
 local utils = require("utils")
 
 local module = {}
-local windowFilter, keyboardTap, mouseTap
+local keyboardTap, mouseTap
 local screenFrame, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
 local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, excludedApps
 
@@ -20,11 +20,40 @@ local edgeType = {
   screenTop = "screenTop",
   screenBottom = "screenBottom",
 }
+local validSubroles = {
+  ["AXStandardWindow"] = true,
+  ["AXDialog"] = true,
+  ["AXSystemDialog"] = true,
+  ["AXFloatingWindow"] = true,
+  ["AXSystemFloatingWindow"] = true
+}
 
-local function getWindowUnderMouse(windows)
+local function getWindowUnderMouse()
   local rawMousePosition = hs.mouse.absolutePosition()
+
+  -- Get window of topmost element under mouse (more reliable than frontmost hit-testing with unfocused windows)
+  local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
+  if elementUnderMouse then
+    -- Element _should_ have an "AXWindow" attribute that points to the window it is in, but
+    -- some do not and you have to walk up the parent chain looking for the window element
+    local currentElement = elementUnderMouse
+    while currentElement do
+      local rawWindow = currentElement:attributeValue("AXWindow")
+      if rawWindow then
+        local subrole = rawWindow:attributeValue("AXSubrole")
+        if subrole and validSubroles[subrole] then
+          return rawWindow:asHSWindow()
+        end
+      end
+
+      -- Move to parent element
+      currentElement = currentElement:attributeValue("AXParent")
+    end
+  end
+
+  -- Fall back to the frontmost window under the mouse
   local mousePosition = hs.geometry.new(rawMousePosition)
-  for _, window in ipairs(windows) do
+  for _, window in ipairs(hs.window.orderedWindows()) do
     if mousePosition:inside(window:frame()) then return window end
   end
 
@@ -118,8 +147,7 @@ local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, de
 end
 
 local function startOperation(operation)
-  allWindows = windowFilter:getWindows()
-  activeWindow = getWindowUnderMouse(allWindows)
+  activeWindow = getWindowUnderMouse()
   if not activeWindow or
       excludedApps[activeWindow:application():name()] or
       (operation == operationType.resize and not activeWindow:isMaximizable()) then
@@ -191,11 +219,8 @@ function module.init(config)
     return acc
   end, {})
 
-  windowFilter = hs.window.filter.new()
-      :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, allowTitles = ".", currentSpace = true, fullscreen = false, visible = true })
   keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
   mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet
-
 
   return module
 end

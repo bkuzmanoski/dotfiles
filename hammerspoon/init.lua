@@ -61,7 +61,9 @@ modules.tileWindows = require("modules/tile_windows").init({
     promoteWindow = { modifiers = { "option", "shift", "command" }, key = "p" },
     demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
     stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
-  }
+  },
+  excludeApps = { "coreautha" },
+  excludeWindowsLessThanWidth = 288
 })
 
 modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
