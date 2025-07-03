@@ -28,38 +28,6 @@ local validSubroles = {
   ["AXSystemFloatingWindow"] = true
 }
 
-local function getWindowUnderMouse(windows)
-  local rawMousePosition = hs.mouse.absolutePosition()
-
-  -- Get window of topmost element under mouse (more reliable than frontmost hit-testing with unfocused windows)
-  local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
-  if elementUnderMouse then
-    -- Element _should_ have an "AXWindow" attribute that points to the window it is in, but
-    -- some do not and you have to walk up the parent chain looking for the window element
-    local currentElement = elementUnderMouse
-    while currentElement do
-      local rawWindow = currentElement:attributeValue("AXWindow")
-      if rawWindow then
-        local subrole = rawWindow:attributeValue("AXSubrole")
-        if subrole and validSubroles[subrole] then
-          return rawWindow:asHSWindow()
-        end
-      end
-
-      -- Move to parent element
-      currentElement = currentElement:attributeValue("AXParent")
-    end
-  end
-
-  -- Fall back to the frontmost window under the mouse
-  local mousePosition = hs.geometry.new(rawMousePosition)
-  for _, window in ipairs(windows) do
-    if mousePosition:inside(window:frame()) then return window end
-  end
-
-  return nil
-end
-
 local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, deltaY, threshold)
   if threshold == 0 then return nil, nil end
 
@@ -148,7 +116,7 @@ end
 
 local function startOperation(operation)
   allWindows = hs.window.orderedWindows()
-  activeWindow = getWindowUnderMouse(allWindows)
+  activeWindow = utils.getWindowUnderMouse(allWindows, validSubroles)
   if not activeWindow or
       excludedApps[activeWindow:application():name()] or
       (operation == operationType.resize and not activeWindow:isMaximizable()) then
@@ -215,10 +183,10 @@ function module.init(config)
   snapThreshold = config.snapThreshold or 0
   moveModifiers = config.moveModifiers
   resizeModifiers = config.resizeModifiers
-  excludedApps = hs.fnutils.reduce(config.excludeApps or {}, function(acc, appName)
-    acc[appName] = true
-    return acc
-  end, {})
+  excludedApps = {}
+  for _, appName in ipairs(config.excludeApps or {}) do
+    excludedApps[appName] = true
+  end
 
   keyboardTap = hs.eventtap.new({ hs.eventtap.event.types.flagsChanged }, handleFlagsChange):start()
   mouseTap = hs.eventtap.new({ hs.eventtap.event.types.mouseMoved }, handleMouseMove) -- Don't start yet

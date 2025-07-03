@@ -13,23 +13,15 @@ end
 function module.getCurrentSpaceIndex(screen)
   if not screen then return nil, nil end
 
-  local spacesData = hs.spaces.data_managedDisplaySpaces()
-  if not spacesData then return nil, nil end
+  local activeSpaceID = hs.spaces.activeSpaceOnScreen(screen)
+  if not activeSpaceID then return nil, nil end
 
-  local screenUUID = screen:getUUID()
-  for _, display in ipairs(spacesData) do
-    if display["Display Identifier"] == screenUUID then
-      local currentSpaceId = display["Current Space"].ManagedSpaceID
-      if not currentSpaceId then return nil, nil end
+  local spacesForScreen = hs.spaces.spacesForScreen(screen)
+  if not spacesForScreen then return nil, nil end
 
-      local numberOfSpaces = #display.Spaces
-      for i, space in ipairs(display.Spaces) do
-        if space.ManagedSpaceID == currentSpaceId then
-          return i, numberOfSpaces
-        end
-      end
-
-      break
+  for i, spaceID in ipairs(spacesForScreen) do
+    if spaceID == activeSpaceID then
+      return i, #spacesForScreen
     end
   end
 
@@ -72,6 +64,38 @@ function module.adjustWindowFrame(window, topOffset, padding)
   if windowFrame.x ~= adjustedWindowFrame.x or windowFrame.y ~= adjustedWindowFrame.y then
     window:setFrame(adjustedWindowFrame, 0)
   end
+end
+
+function module.getWindowUnderMouse(windows, validSubroles)
+  local rawMousePosition = hs.mouse.absolutePosition()
+
+  -- Get window of topmost element under mouse (more reliable than frontmost hit-testing with unfocused windows)
+  local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
+  if elementUnderMouse then
+    -- Element _should_ have an "AXWindow" attribute that points to the window it is in, but
+    -- some do not and you have to walk up the parent chain looking for the window element
+    local currentElement = elementUnderMouse
+    while currentElement do
+      local rawWindow = currentElement:attributeValue("AXWindow")
+      if rawWindow then
+        local subrole = rawWindow:attributeValue("AXSubrole")
+        if subrole and validSubroles[subrole] then
+          return rawWindow:asHSWindow()
+        end
+      end
+
+      -- Move to parent element
+      currentElement = currentElement:attributeValue("AXParent")
+    end
+  end
+
+  -- Fall back to the frontmost window under the mouse
+  local mousePosition = hs.geometry.new(rawMousePosition)
+  for _, window in ipairs(windows) do
+    if mousePosition:inside(window:frame()) then return window end
+  end
+
+  return nil
 end
 
 function module.playAlert(repeatCount, soundNameOrPath)

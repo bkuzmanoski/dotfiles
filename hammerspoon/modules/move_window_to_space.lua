@@ -13,13 +13,16 @@ local function getFocusedWindowAndScreen()
 end
 
 local function moveWindowToSpace(window, spaceNumber)
-  local frame = window:frame()
   local mousePosition = hs.mouse.absolutePosition()
-  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, { x = frame.x + 5, y = frame.y + 20 }):post()
+  local zoomButtonRect = window:zoomButtonRect()
+  if not zoomButtonRect then return end
+
+  local windowTarget = { x = zoomButtonRect.x + zoomButtonRect.w + 5, y = zoomButtonRect.y + (zoomButtonRect.h / 2) }
+  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, windowTarget):post()
   hs.timer.usleep(300000)
   hs.eventtap.keyStroke({ "ctrl" }, tostring(spaceNumber), 0)
   hs.timer.usleep(300000)
-  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, { x = frame.x + 5, y = frame.y + 20 }):post()
+  hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseUp, windowTarget):post()
   hs.mouse.absolutePosition(mousePosition)
 end
 
