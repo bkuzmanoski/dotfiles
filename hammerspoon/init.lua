@@ -62,8 +62,7 @@ modules.tileWindows = require("modules/tile_windows").init({
     demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
     stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
   },
-  excludeApps = { "coreautha", "CleanShot X" },
-  excludeWindowsLessThanWidth = 288
+  excludeApps = { "Activity Monitor", "CleanShot X", "Console", "coreautha", "Hammerspoon", "System Settings" }
 })
 
 modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
@@ -101,7 +100,10 @@ modules.focusWindow = require("modules/focus_window").init({
   }
 })
 
-modules.focusWindowOnScreenEnter = require("modules/focus_window_on_screen_enter").init()
+modules.focusFollowsMouse = require("modules/focus_follows_mouse").init({
+  enableOnLoad = true,
+  toggleHotkey = { modifiers = { "option", "command" }, key = "f" }
+})
 
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
   { appName = "Figma", processToKill = "figma_agent" }

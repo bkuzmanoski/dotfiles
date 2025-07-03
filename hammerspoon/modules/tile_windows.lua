@@ -3,11 +3,10 @@ local utils = require("utils")
 local module = {}
 local bindings = {}
 local tiledSpaces = {}
-local screenWatcher, windowFilter, debounceTimer
-local topOffset, padding, splitRatios, initialNumberOfStackedWindows, excludedApps, excludeWindowsLessThanWidth
+local screenWatcher, applicationWatcher, windowFilter, debounceTimer
+local topOffset, padding, splitRatios, initialNumberOfStackedWindows, excludedApps
 
 local edge = { left = "left", right = "right", top = "top", bottom = "bottom" }
-
 local function getOppositeEdge(initialEdge)
   local opposites = {
     [edge.left] = edge.right,
@@ -19,46 +18,37 @@ local function getOppositeEdge(initialEdge)
   return opposites[initialEdge]
 end
 
-local function getCurrentSpaceAndScreen()
+local function getCurrentScreenAndSpace()
   local screen = hs.screen.mainScreen()
   if not screen then return nil, nil end
 
-  local spacesData = hs.spaces.data_managedDisplaySpaces()
-  if not spacesData then return nil, nil end
+  local activeSpaceID = hs.spaces.activeSpaceOnScreen(screen)
+  if not activeSpaceID then return nil, nil end
 
-  local screenUUID = screen:getUUID()
-  for _, display in ipairs(spacesData) do
-    if display["Display Identifier"] == screenUUID then
-      local spaceId = display["Current Space"].ManagedSpaceID
-      if not spaceId then return nil, nil end
-
-      return spaceId, screen
-    end
-  end
-
-  return nil, nil
+  return screen, activeSpaceID
 end
 
-local function getWindowsInCurrentSpace()
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return {} end
-
-  -- Don't use windowFilter.getWindows() as it becomes out of sync with actual window state when using tabs
-  local windows = hs.window.visibleWindows()
-  if not windows or #windows == 0 then return {} end
-
-  local screenFrame = screen:fullFrame()
-  local windowsToManage = hs.fnutils.ifilter(windows, function(window)
-    local windowFrame = window:frame()
-    return window:isMaximizable() and
-        windowFrame ~= screenFrame and windowFrame.w >= excludeWindowsLessThanWidth and
-        window:screen() == screen and #hs.spaces.windowSpaces(window) == 1 and
-        window:application() and not excludedApps[window:application():name()]
+local function getCurrentWindowData(screen, spaceID)
+  local windowData = {}
+  hs.fnutils.ieach(hs.window._orderedwinids(), function(id)
+    local window = hs.window.get(id)
+    if window then
+      local app = window:application()
+      local windowSpaces = hs.spaces.windowSpaces(window)
+      if app and not excludedApps[app:name()] and
+          window:screen() == screen and
+          #windowSpaces == 1 and
+          hs.fnutils.contains(windowSpaces, spaceID) and
+          window:isVisible() and
+          window:isStandard() and
+          window:isMaximizable() and
+          not window:isFullScreen() then
+        table.insert(windowData, { id = id, window = window })
+      end
+    end
   end)
 
-  return hs.fnutils.imap(windowsToManage, function(window)
-    return { window = window, initialFrame = window:frame() }
-  end)
+  return windowData
 end
 
 local function dividedRect(rect, ratio, mainEdge, margin)
@@ -110,203 +100,224 @@ local function layoutStackWindows(windows, boundingRect, margin, isHorizontal)
   return windowFrames
 end
 
+local function setFrameWithConstraints(window, targetFrame, screenBounds)
+  local currentFrame = window:frame()
+  if hs.geometry.equals(currentFrame, targetFrame) then return end
 
-local function restoreWindow(tilingState, windowIndex)
-  local windowData = tilingState.managedWindows[windowIndex]
-  if not windowData or not windowData.window then return end
+  window:setFrame(targetFrame)
 
-  local windowId = windowData.window:id()
-  if not windowId then return end
+  local resultingFrame = window:frame()
+  local needsRepositioning = false
+  if resultingFrame.x + resultingFrame.w > screenBounds.x + screenBounds.w then
+    resultingFrame.x = screenBounds.x + screenBounds.w - resultingFrame.w
+    needsRepositioning = true
+  end
 
-  local savedFrame = tilingState.savedWindowFrames[windowId]
-  if not savedFrame then return end
+  if resultingFrame.y + resultingFrame.h > screenBounds.y + screenBounds.h then
+    resultingFrame.y = screenBounds.y + screenBounds.h - resultingFrame.h
+    needsRepositioning = true
+  end
 
-  windowData.window:setFrame(savedFrame)
-end
-
-local function restoreWindows(spaceId)
-  local tilingState = tiledSpaces[spaceId]
-  if not tilingState then return end
-  for i, _ in ipairs(tilingState.managedWindows) do
-    restoreWindow(tilingState, i)
+  if needsRepositioning then
+    window:setFrame(resultingFrame)
   end
 end
 
-local function applyLayout()
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
-
-  local tilingState = tiledSpaces[spaceId]
-  if not tilingState or #tilingState.managedWindows == 0 then return end
-
+local function applyLayout(screen, tilingState)
   local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
+  local managedWindows = tilingState.managedWindows
+  if #managedWindows == 0 then return end
+
   local newWindowStates = {}
-  if #tilingState.managedWindows == 1 or tilingState.numberOfStackedWindows == 0 then
-    table.insert(newWindowStates, { window = tilingState.managedWindows[1].window, frame = screenFrame })
+  if #managedWindows == 1 or tilingState.numberOfStackedWindows == 0 then
+    table.insert(newWindowStates, { window = managedWindows[1].window, frame = screenFrame })
   else
     local mainWindowFrame, stackBoundingRect =
         dividedRect(screenFrame, tilingState.splitRatio, tilingState.mainWindowEdge, padding)
-    table.insert(newWindowStates, { window = tilingState.managedWindows[1].window, frame = mainWindowFrame })
+    table.insert(newWindowStates, { window = managedWindows[1].window, frame = mainWindowFrame })
 
     local stackWindows = {}
-    local endIndex = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
-    for i = 2, endIndex do table.insert(stackWindows, tilingState.managedWindows[i].window) end
+    local endIndex = math.min(tilingState.numberOfStackedWindows + 1, #managedWindows)
+    for i = 2, endIndex do
+      table.insert(stackWindows, managedWindows[i].window)
+    end
 
     if #stackWindows > 0 then
       local isHorizontal = tilingState.mainWindowEdge == edge.top or tilingState.mainWindowEdge == edge.bottom
       local stackFrames = layoutStackWindows(stackWindows, stackBoundingRect, padding, isHorizontal)
-      for _, stackFrame in ipairs(stackFrames) do table.insert(newWindowStates, stackFrame) end
+      hs.fnutils.each(stackFrames, function(stackFrame)
+        table.insert(newWindowStates, stackFrame)
+      end)
     end
   end
 
-  for _, windowState in ipairs(newWindowStates) do windowState.window:setFrame(windowState.frame) end
+  hs.fnutils.each(newWindowStates, function(windowState)
+    setFrameWithConstraints(windowState.window, windowState.frame, screenFrame)
+  end)
 
-  for i = #newWindowStates + 1, #tilingState.managedWindows do
-    restoreWindow(tilingState, i)
+  for i = #newWindowStates + 1, #managedWindows do
+    local windowData = managedWindows[i]
+    windowData.window:setFrame(windowData.originalFrame)
+  end
+end
+
+
+local function restoreAllWindows(spaceID)
+  local tilingState = tiledSpaces[spaceID]
+  if not tilingState then return end
+
+  for _, windowData in ipairs(tilingState.managedWindows) do
+    if windowData.window and windowData.originalFrame then
+      windowData.window:setFrame(windowData.originalFrame)
+    end
   end
 end
 
 local function updateManagedWindows()
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
+  local tilingState = tiledSpaces[spaceID]
   if not tilingState then return end
 
-  local currentWindows = getWindowsInCurrentSpace()
-  if #currentWindows == 0 then
-    tiledSpaces[spaceId] = nil
+  local currentWindowData = getCurrentWindowData(screen, spaceID)
+  if #currentWindowData == 0 then
+    restoreAllWindows(spaceID)
+    tiledSpaces[spaceID] = nil
     return
   end
 
-  local currentWindowsMap = hs.fnutils.reduce(currentWindows, function(acc, windowData)
-    acc[windowData.window:id()] = windowData
-    return acc
-  end, {})
-  local existingWindowIds = hs.fnutils.reduce(tilingState.managedWindows, function(acc, windowData)
-    acc[windowData.window:id()] = true
-    return acc
-  end, {})
-  local retainedWindows = hs.fnutils.ifilter(tilingState.managedWindows, function(windowData)
-    return currentWindowsMap[windowData.window:id()] ~= nil
-  end)
-  local newWindows = hs.fnutils.ifilter(currentWindows, function(windowData)
-    return not existingWindowIds[windowData.window:id()]
-  end)
+  local currentWindowsMap = {}
+  for _, windowData in ipairs(currentWindowData) do
+    currentWindowsMap[windowData.id] = windowData.window
+  end
 
-  tilingState.managedWindows = hs.fnutils.concat(retainedWindows, newWindows)
-  tilingState.savedWindowFrames = hs.fnutils.reduce(newWindows, function(acc, windowData)
-    acc[windowData.window:id()] = windowData.initialFrame
-    return acc
-  end, tilingState.savedWindowFrames or {})
-
-  -- Update saved frames for floating windows
-  local tiledWindowCount = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
-  for i = tiledWindowCount + 1, #tilingState.managedWindows do
-    local windowData = tilingState.managedWindows[i]
-    if windowData and windowData.window then
-      local windowId = windowData.window:id()
-      if windowId then
-        tilingState.savedWindowFrames[windowId] = windowData.window:frame()
-      end
+  local retainedWindows = {}
+  for _, windowData in ipairs(tilingState.managedWindows) do
+    if windowData.window and currentWindowsMap[windowData.window:id()] then
+      table.insert(retainedWindows, windowData)
     end
   end
 
-  tiledSpaces[spaceId] = tilingState
-  applyLayout()
+  local existingWindowIds = {}
+  for _, windowData in ipairs(retainedWindows) do
+    existingWindowIds[windowData.window:id()] = true
+  end
+
+  local newWindows = {}
+  for _, windowData in ipairs(currentWindowData) do
+    if not existingWindowIds[windowData.id] then
+      table.insert(newWindows, {
+        window = windowData.window,
+        originalFrame = windowData.window:frame()
+      })
+    end
+  end
+
+  tilingState.managedWindows = hs.fnutils.concat(retainedWindows, newWindows)
+
+  local tiledWindowCount = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
+  for i = tiledWindowCount + 1, #tilingState.managedWindows do
+    local windowData = tilingState.managedWindows[i]
+    windowData.originalFrame = windowData.window:frame()
+  end
+
+  tiledSpaces[spaceID] = tilingState
+  applyLayout(screen, tilingState)
 end
 
 local function updateManagedWindowsDebounced()
   if debounceTimer then debounceTimer:stop() end
-  debounceTimer = hs.timer.doAfter(0.2, updateManagedWindows)
+  debounceTimer = hs.timer.doAfter(0.3, updateManagedWindows)
 end
 
 local function updateTiledSpaces()
-  local currentScreenIds = hs.fnutils.reduce(hs.screen.allScreens(), function(acc, screen)
-    acc[screen:id()] = true
-    return acc
-  end, {})
+  local currentScreenIds = {}
+  for _, screen in ipairs(hs.screen.allScreens()) do
+    currentScreenIds[screen:id()] = true
+  end
 
-  for spaceId, tilingState in pairs(tiledSpaces) do
+  for spaceID, tilingState in pairs(tiledSpaces) do
     local screenId = tilingState.screen:id()
     if not screenId or not currentScreenIds[screenId] then
-      restoreWindows(spaceId)
-      tiledSpaces[spaceId] = nil
+      restoreAllWindows(spaceID)
+      tiledSpaces[spaceID] = nil
     end
   end
 end
 
 local function tile(mainWindowEdge)
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
-  local newTilingState
-
+  local tilingState = tiledSpaces[spaceID]
   if tilingState then
-    newTilingState = tilingState
     if tilingState.mainWindowEdge == mainWindowEdge then
-      newTilingState.splitRatio = utils.cycleNext(splitRatios, tilingState.splitRatio)
+      tilingState.splitRatio = utils.cycleNext(splitRatios, tilingState.splitRatio)
     else
-      newTilingState.mainWindowEdge = mainWindowEdge
-      -- If swapping main window and stack, keep split ratio; otherwise reset
+      tilingState.mainWindowEdge = mainWindowEdge
       if getOppositeEdge(tilingState.mainWindowEdge) ~= mainWindowEdge then
-        newTilingState.splitRatio = utils.cycleNext(splitRatios)
+        tilingState.splitRatio = utils.cycleNext(splitRatios)
       end
     end
-  else
-    local windowsToManage = getWindowsInCurrentSpace()
-    if #windowsToManage == 0 then return end
 
-    local savedFrames = {}
-    for _, windowData in ipairs(windowsToManage) do
-      savedFrames[windowData.window:id()] = windowData.initialFrame
+    tiledSpaces[spaceID] = tilingState
+    applyLayout(screen, tilingState)
+  else
+    local currentWindowData = getCurrentWindowData(screen, spaceID)
+    if #currentWindowData == 0 then return end
+
+    local managedWindows = {}
+    for _, windowData in ipairs(currentWindowData) do
+      table.insert(managedWindows, {
+        window = windowData.window,
+        originalFrame = windowData.window:frame()
+      })
     end
 
-    newTilingState = {
+    local newTilingState = {
       screen = screen,
       splitRatio = splitRatios[1],
       mainWindowEdge = mainWindowEdge,
       numberOfStackedWindows = initialNumberOfStackedWindows,
-      managedWindows = windowsToManage,
-      savedWindowFrames = savedFrames
+      managedWindows = managedWindows
     }
-  end
 
-  tiledSpaces[spaceId] = newTilingState
-  applyLayout()
+    tiledSpaces[spaceID] = newTilingState
+    applyLayout(screen, newTilingState)
+  end
 end
 
 local function updateStackSize(amount)
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
+  local tilingState = tiledSpaces[spaceID]
   if not tilingState or #tilingState.managedWindows <= 1 then return end
 
-  tilingState.numberOfStackedWindows =
-      math.max(0, math.min(#tilingState.managedWindows - 1, tilingState.numberOfStackedWindows + amount))
-  tiledSpaces[spaceId] = tilingState
-  applyLayout()
+  tilingState.numberOfStackedWindows = math.max(0,
+    math.min(#tilingState.managedWindows - 1, tilingState.numberOfStackedWindows + amount))
+
+  tiledSpaces[spaceID] = tilingState
+  applyLayout(screen, tilingState)
 end
 
 local function promoteToMain()
   local window = hs.window.focusedWindow()
   if not window then return end
 
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
+  local tilingState = tiledSpaces[spaceID]
   if not tilingState or #tilingState.managedWindows == 0 then return end
 
   for i, windowData in ipairs(tilingState.managedWindows) do
     if windowData.window:id() == window:id() then
       table.remove(tilingState.managedWindows, i)
       table.insert(tilingState.managedWindows, 1, windowData)
-      tiledSpaces[spaceId] = tilingState
-      applyLayout()
-
+      tiledSpaces[spaceID] = tilingState
+      applyLayout(screen, tilingState)
       return
     end
   end
@@ -316,10 +327,10 @@ local function promoteWindow()
   local window = hs.window.focusedWindow()
   if not window then return end
 
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
+  local tilingState = tiledSpaces[spaceID]
   if not tilingState or #tilingState.managedWindows <= 1 then return end
 
   local endIndex = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
@@ -334,9 +345,8 @@ local function promoteWindow()
         table.insert(tilingState.managedWindows, i - 1, windowToMove)
       end
 
-      tiledSpaces[spaceId] = tilingState
-      applyLayout()
-
+      tiledSpaces[spaceID] = tilingState
+      applyLayout(screen, tilingState)
       return
     end
   end
@@ -346,10 +356,10 @@ local function demoteWindow()
   local window = hs.window.focusedWindow()
   if not window then return end
 
-  local spaceId, screen = getCurrentSpaceAndScreen()
-  if not spaceId or not screen then return end
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
 
-  local tilingState = tiledSpaces[spaceId]
+  local tilingState = tiledSpaces[spaceID]
   if not tilingState or #tilingState.managedWindows <= 1 then return end
 
   local stackEnd = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
@@ -359,20 +369,19 @@ local function demoteWindow()
 
       local windowToMove = table.remove(tilingState.managedWindows, i)
       table.insert(tilingState.managedWindows, i + 1, windowToMove)
-      tiledSpaces[spaceId] = tilingState
-      applyLayout()
-
+      tiledSpaces[spaceID] = tilingState
+      applyLayout(screen, tilingState)
       return
     end
   end
 end
 
 local function stopTiling()
-  local spaceId = getCurrentSpaceAndScreen()
-  if not spaceId then return end
+  local _, spaceID = getCurrentScreenAndSpace()
+  if not spaceID then return end
 
-  restoreWindows(spaceId)
-  tiledSpaces[spaceId] = nil
+  restoreAllWindows(spaceID)
+  tiledSpaces[spaceID] = nil
 end
 
 function module.init(config)
@@ -403,37 +412,55 @@ function module.init(config)
     padding = config.padding or 0
     splitRatios = config.splitRatios or { 0.5, 0.33, 0.67 }
     initialNumberOfStackedWindows = config.initialNumberOfStackedWindows or 1
-    excludedApps = hs.fnutils.reduce(config.excludeApps or {}, function(acc, appName)
-      acc[appName] = true
-      return acc
-    end, {})
-    excludeWindowsLessThanWidth = config.excludeWindowsLessThanWidth or 0
+    excludedApps = {}
+    for _, appName in ipairs(config.excludeApps or {}) do
+      excludedApps[appName] = true
+    end
 
-    windowFilter = hs.window.filter.new()
-        :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, currentSpace = true, fullscreen = false, visible = true })
-        :subscribe(hs.window.filter.windowOnScreen, updateManagedWindowsDebounced)
-        :subscribe(hs.window.filter.windowNotOnScreen, updateManagedWindowsDebounced)
-        :subscribe(hs.window.filter.windowMoved, updateManagedWindowsDebounced)
     screenWatcher = hs.screen.watcher.new(updateTiledSpaces):start()
+    applicationWatcher = hs.application.watcher.new(function(_, event, _)
+      if event == hs.application.watcher.terminated then
+        updateManagedWindowsDebounced()
+      end
+    end):start()
+
+    windowFilter = hs.window.filter.new():setOverrideFilter({
+      allowRoles = { "AXStandardWindow" },
+      currentSpace = true,
+      fullscreen = false,
+      visible = true
+    })
+
+    for appName, _ in pairs(excludedApps) do
+      windowFilter:rejectApp(appName)
+    end
+
+    windowFilter:subscribe(
+      { hs.window.filter.windowsChanged, hs.window.filter.windowFocused },
+      updateManagedWindowsDebounced
+    )
   end
 
   return module
 end
 
 function module.cleanup()
-  if debounceTimer then debounceTimer:stop() end
-  debounceTimer = nil
-
   for _, binding in pairs(bindings) do binding:delete() end
   bindings = {}
 
   if screenWatcher then screenWatcher:stop() end
   screenWatcher = nil
 
+  if applicationWatcher then applicationWatcher:stop() end
+  applicationWatcher = nil
+
   if windowFilter then windowFilter:unsubscribeAll() end
   windowFilter = nil
 
-  for spaceId, _ in pairs(tiledSpaces) do restoreWindows(spaceId) end
+  if debounceTimer then debounceTimer:stop() end
+  debounceTimer = nil
+
+  for spaceID, _ in pairs(tiledSpaces) do restoreAllWindows(spaceID) end
   tiledSpaces = {}
 end
 
