@@ -6,7 +6,6 @@ on isNotificationCenterOpen()
     try
       tell process "NotificationCenter"
         set focusedElements to UI elements whose focused is true
-
         if (count of focusedElements) > 0 then
           return true
         end if
@@ -38,7 +37,6 @@ on traverseNotifications(element)
   tell application "System Events"
     try
       set subElements to UI elements of element
-
       repeat with subElement in subElements
         if my traverseNotifications(subElement) then
           return true
@@ -66,7 +64,6 @@ on run
 
       tell process "NotificationCenter"
         set notificationCenterWindow to window "Notification Center"
-
         repeat
           if not my traverseNotifications(notificationCenterWindow) then
             exit repeat
