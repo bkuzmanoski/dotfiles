@@ -65,6 +65,7 @@ cv() {
   ffmpeg \
     -hide_banner \
     -stats \
+    -loglevel error \
     -i "${input_file}" \
     -r "${fps}" \
     -c:v "${codec}" \
