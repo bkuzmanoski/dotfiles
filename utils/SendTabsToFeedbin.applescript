@@ -1,12 +1,9 @@
 property feedbinEmail : "bwilw@feedb.in"
 
 on isAppRunning(appName)
-  try
-    set processCount to (do shell script "ps -ax | grep -v 'grep' | grep '" & appName & "' | wc -l") as integer
-    return processCount > 0
-  on error
-    return false
-  end try
+  tell application "System Events"
+    return exists (processes where name is appName)
+  end tell
 end isAppRunning
 
 on getActiveTabURL()
@@ -16,7 +13,6 @@ on getActiveTabURL()
       set activeTab to active tab of frontWindow
       set tabURL to URL of activeTab
       set tabTitle to title of activeTab
-
       if tabURL is not "chrome://newtab/" then
         set tabContent to tabTitle & return & tabURL
         return {content:tabContent, urlCount:1}
@@ -33,15 +29,12 @@ on getAllTabURLs()
 
   tell application "Google Chrome"
     set windowCount to count windows
-
     repeat with windowIndex from 1 to windowCount
       set currentWindow to window windowIndex
       set tabCount to count tabs of currentWindow
-
       repeat with tabIndex from 1 to tabCount
         set currentTab to tab tabIndex of currentWindow
         set tabURL to URL of currentTab
-
         if tabURL is not "chrome://newtab/" then
           set tabTitle to title of currentTab
           set urlList to urlList & tabTitle & return & tabURL & return & return
@@ -60,7 +53,6 @@ end getAllTabs
 
 on sendEmail(toAddress, emailSubject, body)
   set mailWasRunning to isAppRunning("Mail.app")
-
   tell application "Mail"
     set newMessage to make new outgoing message with properties {subject:emailSubject, content:body}
     tell newMessage
@@ -80,7 +72,7 @@ on run argv
     set mode to item 1 of argv
   end if
 
-  if not isAppRunning("Google Chrome.app") then
+  if not isAppRunning("Google Chrome") then
     return "Google Chrome is not running"
   end if
 
