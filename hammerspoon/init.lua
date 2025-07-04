@@ -104,7 +104,7 @@ modules.focusFollowsMouse = require("modules/focus_follows_mouse").init({
   toggleHotkey = { modifiers = { "option", "command" }, key = "f" },
   playSoundOnToggle = true,
   enableOnLoad = false,
-  guardApps = { "coreautha", "CoreServicesUIAgent", "System Settings", "universalAccessAuthWarn" },
+  guardApps = { "CleanShot X", "coreautha", "CoreServicesUIAgent", "System Settings", "universalAccessAuthWarn" },
   guardWindows = {
     { match = "Settings", exclude = "Google Chrome" }
   }
