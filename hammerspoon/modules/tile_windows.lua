@@ -7,6 +7,7 @@ local screenWatcher, applicationWatcher, windowFilter, debounceTimer
 local topOffset, padding, splitRatios, initialNumberOfStackedWindows, excludedApps
 
 local edge = { left = "left", right = "right", top = "top", bottom = "bottom" }
+
 local function getOppositeEdge(initialEdge)
   local opposites = {
     [edge.left] = edge.right,
