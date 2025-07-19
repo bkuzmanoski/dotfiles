@@ -10,7 +10,15 @@ enum Constants {
 }
 
 enum Signal {
-  enum Error: Swift.Error { case interrupted(CInt) }
+  enum Error: Swift.Error, LocalizedError {
+    case interrupted(CInt)
+
+    var errorDescription: String? {
+      switch self {
+      case .interrupted(let signal): return "Interrupted with signal \(Signal.name(for: signal))"
+      }
+    }
+  }
 
   static func name(for signal: CInt) -> String {
     guard let namePtr = strsignal(signal) else { return "Unknown signal (\(signal))" }
@@ -47,9 +55,16 @@ struct Command {
 }
 
 actor SingletonLock {
-  enum Error: Swift.Error {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case lockFileError(String)
+
+    var errorDescription: String? {
+      switch self {
+      case .instanceAlreadyRunning: return "Instance already running."
+      case .lockFileError(let message): return "Failed to acquire lock: \(message)"
+      }
+    }
   }
 
   private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
