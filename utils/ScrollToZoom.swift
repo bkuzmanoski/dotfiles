@@ -13,8 +13,14 @@ enum Constants {
 }
 
 enum Signal {
-  enum Error: Swift.Error {
+  enum Error: Swift.Error, LocalizedError {
     case interrupted(CInt)
+
+    var errorDescription: String? {
+      switch self {
+      case .interrupted(let signal): return "Interrupted with signal \(Signal.name(for: signal))"
+      }
+    }
   }
 
   static func name(for signal: CInt) -> String {
@@ -54,9 +60,16 @@ struct Command {
 }
 
 actor SingletonLock {
-  enum Error: Swift.Error {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case lockFileError(String)
+
+    var errorDescription: String? {
+      switch self {
+      case .instanceAlreadyRunning: return "Instance already running."
+      case .lockFileError(let message): return "Failed to acquire lock: \(message)"
+      }
+    }
   }
 
   private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
@@ -95,9 +108,16 @@ extension CGEventType {
 
 @MainActor
 class ScrollZoomController {
-  enum Error: Swift.Error {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
     case eventTapCreationFailed
+
+    var errorDescription: String? {
+      switch self {
+      case .accessibilityPermissionDenied: return "Accessibility permission denied."
+      case .eventTapCreationFailed: return "Failed to create event tap."
+      }
+    }
   }
 
   private var eventTap: CFMachPort?
