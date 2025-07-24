@@ -334,16 +334,16 @@ local function promoteWindow()
   local tilingState = tiledSpaces[spaceID]
   if not tilingState or #tilingState.managedWindows <= 1 then return end
 
-  local endIndex = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
+  local stackEnd = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
   for i, windowData in ipairs(tilingState.managedWindows) do
     if windowData.window:id() == window:id() then
       if i == 1 then return end
 
-      local windowToMove = table.remove(tilingState.managedWindows, i)
-      if i > endIndex then
-        table.insert(tilingState.managedWindows, endIndex, windowToMove)
+      local windowToPromote = table.remove(tilingState.managedWindows, i)
+      if i > stackEnd then
+        table.insert(tilingState.managedWindows, stackEnd, windowToPromote)
       else
-        table.insert(tilingState.managedWindows, i - 1, windowToMove)
+        table.insert(tilingState.managedWindows, i - 1, windowToPromote)
       end
 
       tiledSpaces[spaceID] = tilingState
@@ -368,8 +368,32 @@ local function demoteWindow()
     if windowData.window:id() == window:id() then
       if i > stackEnd or i == #tilingState.managedWindows then return end
 
-      local windowToMove = table.remove(tilingState.managedWindows, i)
-      table.insert(tilingState.managedWindows, i + 1, windowToMove)
+      local windowToDemote = table.remove(tilingState.managedWindows, i)
+      table.insert(tilingState.managedWindows, i + 1, windowToDemote)
+      tiledSpaces[spaceID] = tilingState
+      applyLayout(screen, tilingState)
+      return
+    end
+  end
+end
+
+local function floatWindow()
+  local window = hs.window.focusedWindow()
+  if not window then return end
+
+  local screen, spaceID = getCurrentScreenAndSpace()
+  if not screen or not spaceID then return end
+
+  local tilingState = tiledSpaces[spaceID]
+  if not tilingState or #tilingState.managedWindows <= 1 then return end
+
+  local stackEnd = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
+  for i, windowData in ipairs(tilingState.managedWindows) do
+    if windowData.window:id() == window:id() then
+      if i > stackEnd then return end
+
+      local windowToFloat = table.remove(tilingState.managedWindows, i)
+      table.insert(tilingState.managedWindows, windowToFloat)
       tiledSpaces[spaceID] = tilingState
       applyLayout(screen, tilingState)
       return
@@ -400,6 +424,7 @@ function module.init(config)
     promoteWindowToMain = promoteToMain,
     promoteWindow = promoteWindow,
     demoteWindow = demoteWindow,
+    floatWindow = floatWindow,
     stopTiling = stopTiling
   }
   for action, hotkey in pairs(config.hotkeys) do

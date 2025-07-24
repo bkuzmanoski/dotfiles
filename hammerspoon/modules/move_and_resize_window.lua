@@ -2,7 +2,7 @@ local utils = require("utils")
 
 local module = {}
 local keyboardTap, mouseTap
-local screenFrame, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
+local screen, allWindows, activeWindow, activeOperation, initialWindowFrame, initialMousePosition
 local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, excludedApps
 
 local operationType = { move = "move", resize = "resize" }
@@ -18,7 +18,7 @@ local edgeType = {
   screenLeft = "screenLeft",
   screenRight = "screenRight",
   screenTop = "screenTop",
-  screenBottom = "screenBottom",
+  screenBottom = "screenBottom"
 }
 local validSubroles = {
   ["AXStandardWindow"] = true,
@@ -28,17 +28,21 @@ local validSubroles = {
   ["AXSystemFloatingWindow"] = true
 }
 
-local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, deltaY, threshold)
+local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
   if threshold == 0 then return nil, nil end
 
   local function findClosestEdge(value, edges)
-    local closestEdge = hs.fnutils.reduce(edges, function(acc, edge)
-      local distance = math.abs(value - edge.position)
-      if distance < acc.minDistance then
-        return { minDistance = distance, position = edge.position, type = edge.type }
-      end
-      return acc
-    end, { minDistance = threshold + 1, position = nil, type = nil })
+    local closestEdge = hs.fnutils.reduce(
+      edges,
+      function(acc, edge)
+        local distance = math.abs(value - edge.position)
+        if distance < acc.minDistance then
+          return { minDistance = distance, position = edge.position, type = edge.type }
+        end
+        return acc
+      end,
+      { minDistance = threshold + 1, position = nil, type = nil }
+    )
 
     return closestEdge.position, closestEdge.type
   end
@@ -47,10 +51,22 @@ local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, de
   local verticalEdges = {}
 
   -- Add screen edges
-  table.insert(verticalEdges, { position = screenBoundary.x, type = edgeType.screenLeft })
-  table.insert(verticalEdges, { position = screenBoundary.x + screenBoundary.w, type = edgeType.screenRight })
-  table.insert(horizontalEdges, { position = screenBoundary.y, type = edgeType.screenTop })
-  table.insert(horizontalEdges, { position = screenBoundary.y + screenBoundary.h, type = edgeType.screenBottom })
+  local screenFrame = screen:frame()
+  table.insert(verticalEdges, { position = screenFrame.x, type = edgeType.screenLeft })
+  table.insert(verticalEdges, { position = screenFrame.x + screenFrame.w, type = edgeType.screenRight })
+  table.insert(horizontalEdges, { position = screenFrame.y, type = edgeType.screenTop })
+  table.insert(horizontalEdges, { position = screenFrame.y + screenFrame.h, type = edgeType.screenBottom })
+
+  if topOffset > 0 or padding > 0 then
+    local adjustedScreenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
+    table.insert(verticalEdges, { position = adjustedScreenFrame.x, type = edgeType.screenLeft })
+    table.insert(verticalEdges, { position = adjustedScreenFrame.x + adjustedScreenFrame.w, type = edgeType.screenRight })
+    table.insert(horizontalEdges, { position = adjustedScreenFrame.y, type = edgeType.screenTop })
+    table.insert(
+      horizontalEdges,
+      { position = adjustedScreenFrame.y + adjustedScreenFrame.h, type = edgeType.screenBottom }
+    )
+  end
 
   -- Add window edges
   for _, window in ipairs(windows) do
@@ -62,52 +78,56 @@ local function snapToEdges(screenBoundary, windows, operation, frame, deltaX, de
       table.insert(horizontalEdges, { position = windowFrame.y + windowFrame.h, type = edgeType.windowBottom })
       if padding > 1 then -- 1px offset applied to each edge by default, so padding of 0 is equivalent to 1px
         table.insert(verticalEdges, { position = windowFrame.x - padding, type = edgeType.paddedWindowLeft })
-        table.insert(verticalEdges,
-          { position = windowFrame.x + windowFrame.w + padding, type = edgeType.paddedWindowRight })
+        table.insert(
+          verticalEdges,
+          { position = windowFrame.x + windowFrame.w + padding, type = edgeType.paddedWindowRight }
+        )
         table.insert(horizontalEdges, { position = windowFrame.y - padding, type = edgeType.paddedWindowTop })
-        table.insert(horizontalEdges,
-          { position = windowFrame.y + windowFrame.h + padding, type = edgeType.paddedWindowBottom })
+        table.insert(
+          horizontalEdges,
+          { position = windowFrame.y + windowFrame.h + padding, type = edgeType.paddedWindowBottom }
+        )
       end
     end
   end
 
   if operation == operationType.move then
-    local targetX = frame.x + deltaX
-    local targetY = frame.y + deltaY
-    local targetRight = frame.x + frame.w + deltaX
-    local targetBottom = frame.y + frame.h + deltaY
-    local snappedX, snappedXType = findClosestEdge(targetX, verticalEdges)
-    local snappedY, snappedYType = findClosestEdge(targetY, horizontalEdges)
-    local snappedRight, snappedRightType = findClosestEdge(targetRight, verticalEdges)
-    local snappedBottom, snappedBottomType = findClosestEdge(targetBottom, horizontalEdges)
+    local targetStartX = frame.x + deltaX
+    local targetEndX = frame.x + frame.w + deltaX
+    local targetStartY = frame.y + deltaY
+    local targetEndY = frame.y + frame.h + deltaY
+    local snappedStartX, snappedStartXType = findClosestEdge(targetStartX, verticalEdges)
+    local snappedEndX, snappedEndXType = findClosestEdge(targetEndX, verticalEdges)
+    local snappedStartY, snappedStartYType = findClosestEdge(targetStartY, horizontalEdges)
+    local snappedEndY, snappedEndYType = findClosestEdge(targetEndY, horizontalEdges)
 
-    -- Apply 1px offset if snapping to window edges
-    if snappedX and snappedXType == edgeType.windowRight then snappedX = snappedX + 1 end
-    if snappedY and snappedYType == edgeType.windowBottom then snappedY = snappedY + 1 end
-    if snappedRight and snappedRightType == edgeType.windowLeft then snappedRight = snappedRight - 1 end
-    if snappedBottom and snappedBottomType == edgeType.windowTop then snappedBottom = snappedBottom - 1 end
+    -- Apply 1px offset if snapped to window edge
+    if snappedStartX and snappedStartXType == edgeType.windowRight then snappedStartX = snappedStartX + 1 end
+    if snappedEndX and snappedEndXType == edgeType.windowLeft then snappedEndX = snappedEndX - 1 end
+    if snappedStartY and snappedStartYType == edgeType.windowBottom then snappedStartY = snappedStartY + 1 end
+    if snappedEndY and snappedEndYType == edgeType.windowTop then snappedEndY = snappedEndY - 1 end
 
-    -- If bottom/right edge snapped, convert to top/left edge position
-    if snappedRight then snappedX = snappedRight - frame.w end
-    if snappedBottom then snappedY = snappedBottom - frame.h end
+    -- If snapped to right/bottom edges, convert left/top edge positions
+    if snappedEndX then snappedStartX = snappedEndX - frame.w end
+    if snappedEndY then snappedStartY = snappedEndY - frame.h end
 
-    if snappedX or snappedY then
-      return snappedX or (frame.x + deltaX), snappedY or (frame.y + deltaY)
+    if snappedStartX or snappedStartY then
+      return snappedStartX or (frame.x + deltaX), snappedStartY or (frame.y + deltaY)
     end
   elseif operation == "resize" then
-    local targetRight = frame.x + frame.w + deltaX
-    local targetBottom = frame.y + frame.h + deltaY
-    local snappedRight, snappedRightType = findClosestEdge(targetRight, verticalEdges)
-    local snappedBottom, snappedBottomType = findClosestEdge(targetBottom, horizontalEdges)
+    local targetEndX = frame.x + frame.w + deltaX
+    local targetEndY = frame.y + frame.h + deltaY
+    local snappedEndX, snappedEndXType = findClosestEdge(targetEndX, verticalEdges)
+    local snappedEndY, snappedEndYType = findClosestEdge(targetEndY, horizontalEdges)
 
-    if snappedRight or snappedBottom then
-      -- Apply 1px offset if snapping to window edges
-      if snappedRight and snappedRightType == edgeType.windowLeft then snappedRight = snappedRight - 1 end
-      if snappedBottom and snappedBottomType == edgeType.windowTop then snappedBottom = snappedBottom - 1 end
+    if snappedEndX or snappedEndY then
+      -- Apply 1px offset if snapped to window edge
+      if snappedEndX and snappedEndXType == edgeType.windowLeft then snappedEndX = snappedEndX - 1 end
+      if snappedEndY and snappedEndYType == edgeType.windowTop then snappedEndY = snappedEndY - 1 end
 
       return
-          (snappedRight and (snappedRight - frame.x)) or (frame.w + deltaX),
-          (snappedBottom and (snappedBottom - frame.y)) or (frame.h + deltaY)
+          (snappedEndX and (snappedEndX - frame.x)) or (frame.w + deltaX),
+          (snappedEndY and (snappedEndY - frame.y)) or (frame.h + deltaY)
     end
   end
 
@@ -123,7 +143,7 @@ local function startOperation(operation)
     return
   end
 
-  screenFrame = utils.getAdjustedScreenFrame(activeWindow:screen(), topOffset, padding)
+  screen = activeWindow:screen()
   activeOperation = operation
   initialWindowFrame = activeWindow:frame()
   initialMousePosition = hs.mouse.absolutePosition()
@@ -133,7 +153,7 @@ end
 local function stopOperation()
   if mouseTap then mouseTap:stop() end
 
-  screenFrame = nil
+  screen = nil
   allWindows = nil
   activeWindow = nil
   activeOperation = nil
@@ -159,8 +179,7 @@ local function handleMouseMove()
     local deltaY = currentMousePosition.y - initialMousePosition.y
 
     local newFrame = initialWindowFrame:copy()
-    local newX, newY =
-        snapToEdges(screenFrame, allWindows, activeOperation, initialWindowFrame, deltaX, deltaY, snapThreshold)
+    local newX, newY = snapToEdges(allWindows, activeOperation, initialWindowFrame, deltaX, deltaY, snapThreshold)
     if activeOperation == operationType.move then
       newFrame.x = newX or (newFrame.x + deltaX)
       newFrame.y = newY or (newFrame.y + deltaY)

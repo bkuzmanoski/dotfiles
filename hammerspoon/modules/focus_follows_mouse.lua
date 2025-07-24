@@ -2,7 +2,7 @@ local utils = require("utils")
 
 local module = {}
 local windowCache = {}
-local binding, mouseTap, debounceTimer, cacheTime, lastPosition
+local binding, mouseTap, debounceTimer, cacheTime, lastPosition, lastScreen
 local playSoundOnToggle, guardApps, guardWindows
 
 local validSubroles = {
@@ -69,6 +69,15 @@ end
 
 local function focusWindowUnderMouseDebounced()
   if debounceTimer then debounceTimer:stop() end
+
+  local currentScreen = hs.mouse.getCurrentScreen()
+  if not lastScreen or lastScreen:id() ~= currentScreen:id() then
+    lastScreen = lastScreen or currentScreen
+    focusWindowUnderMouse()
+
+    return
+  end
+
   debounceTimer = hs.timer.doAfter(0.1, focusWindowUnderMouse)
 end
 

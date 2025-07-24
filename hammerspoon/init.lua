@@ -60,6 +60,7 @@ modules.tileWindows = require("modules/tile_windows").init({
     promoteWindowToMain = { modifiers = { "option", "shift", "command" }, key = "return" },
     promoteWindow = { modifiers = { "option", "shift", "command" }, key = "p" },
     demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
+    floatWindow = { modifiers = { "option", "shift", "command" }, key = "f" },
     stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
   },
   excludeApps = { "Activity Monitor", "CleanShot X", "Console", "Ghostty", "Hammerspoon", "System Settings" }
@@ -104,7 +105,7 @@ modules.focusFollowsMouse = require("modules/focus_follows_mouse").init({
   toggleHotkey = { modifiers = { "option", "command" }, key = "f" },
   playSoundOnToggle = true,
   enableOnLoad = false,
-  guardApps = { "CleanShot X", "coreautha", "CoreServicesUIAgent", "System Settings", "universalAccessAuthWarn" },
+  guardApps = { "CleanShot X", "coreautha", "CoreServicesUIAgent", "MeasurePixels", "System Settings", "universalAccessAuthWarn" },
   guardWindows = {
     { match = "Settings", exclude = "Google Chrome" }
   }
