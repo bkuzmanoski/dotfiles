@@ -84,7 +84,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
 - **1Password**
 
-  - Set "Show Quick Access" shortcut to ⌥⇧␣
+  - Set "Show Quick Access" shortcut to ⌃⇧␣
   - Clear "Autofill" shortcut
   - Security settings:
     - Set "Confirm my account password" to never

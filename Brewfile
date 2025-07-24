@@ -27,6 +27,7 @@ cask "virtualbuddy"
 cask "visual-studio-code"
 
 mas "Aqua Swatch", id: 1565479346
+mas "flowy", id: 6748351905
 mas "Xcode", id: 497799835
 
 cask "font-inter"
