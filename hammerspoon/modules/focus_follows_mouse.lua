@@ -50,7 +50,7 @@ local function focusWindowUnderMouse()
   local currentPosition = hs.mouse.absolutePosition()
   if lastPosition then
     local distance = math.sqrt((currentPosition.x - lastPosition.x) ^ 2 + (currentPosition.y - lastPosition.y) ^ 2)
-    if distance < 16 then return end
+    if distance < 80 then return end
   end
 
   lastPosition = currentPosition
