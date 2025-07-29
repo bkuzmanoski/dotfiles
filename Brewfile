@@ -1,4 +1,5 @@
 brew "bat"
+brew "create-dmg"
 brew "eza"
 brew "fd"
 brew "ffmpeg"
