@@ -10,6 +10,7 @@ brew "micro"
 brew "nextdns"
 brew "oxipng"
 brew "ripgrep"
+brew "sentry-cli"
 brew "xcbeautify"
 brew "xcode-build-server"
 
