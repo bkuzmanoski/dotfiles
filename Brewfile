@@ -33,6 +33,7 @@ mas "Aqua Swatch", id: 1565479346
 mas "flowy", id: 6748351905
 mas "Xcode", id: 497799835
 
+cask "font-instrument-serif"
 cask "font-inter"
 cask "font-jetbrains-mono"
 cask "font-sf-compact"
