@@ -3,9 +3,7 @@
 # @raycast.title Open Directory in Ghostty
 # @raycast.packageName Finder
 # @raycast.icon icons/open-directory-in-ghostty.png
-
 # @raycast.mode silent
-
 # @raycast.schemaVersion 1
 
 on getSelectedFolderPath()
