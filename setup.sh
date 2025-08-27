@@ -192,7 +192,7 @@ _add_app_to_dock "/Applications/Ghostty.app"
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
-_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
+_defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
 _defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide menu bar icon
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
