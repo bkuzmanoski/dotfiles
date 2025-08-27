@@ -1,6 +1,5 @@
 local module = {}
 local bindings = {}
-local windowFilter
 
 local targetWindow = {
   frontmost = "frontmost",
@@ -49,7 +48,7 @@ local function focusWindow(target)
 end
 
 function module.init(config)
-  if next(bindings) or windowFilter then module.cleanup() end
+  if next(bindings) then module.cleanup() end
 
   if not config or not config.hotkeys then return module end
 
@@ -70,7 +69,6 @@ end
 function module.cleanup()
   for _, binding in pairs(bindings) do binding:delete() end
   bindings = {}
-  windowFilter = nil
 end
 
 return module

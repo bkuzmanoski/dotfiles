@@ -72,8 +72,8 @@ function module.getWindowUnderMouse(windows, validSubroles)
   -- Get window of topmost element under mouse (more reliable than frontmost hit-testing with unfocused windows)
   local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
   if elementUnderMouse then
-    -- Element _should_ have an "AXWindow" attribute that points to the window it is in, but
-    -- some do not and you have to walk up the parent chain looking for the window element
+    -- Element _should_ have an "AXWindow" attribute that points to the window
+    -- it is in, but some do not and require a lookup via the parent chain
     local currentElement = elementUnderMouse
     while currentElement do
       local rawWindow = currentElement:attributeValue("AXWindow")
