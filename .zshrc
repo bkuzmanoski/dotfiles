@@ -22,6 +22,9 @@ export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 
 alias ..="cd .."
 alias ...="cd ../.."
+alias -- --='cd - >/dev/null'
+alias cdd="cd ~/Downloads"
+alias cdp="cd ~/Developer"
 alias ls="eza --all --group-directories-first --oneline"
 alias lt="eza --all --group-directories-first --tree --level 3"
 alias ll="eza --all --group-directories-first --header --long --no-permissions --no-user"
