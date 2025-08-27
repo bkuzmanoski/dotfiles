@@ -116,9 +116,6 @@ fi
 _log --info "Rebuilding bat cache."
 bat cache --build >/dev/null || _log --error "Failed to build bat cache"
 
-# Configure NextDNS
-nextdns config wizard
-
 ###############################################################################
 # Write defaults
 ###############################################################################
