@@ -33,20 +33,6 @@ modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").
   padding = globalSettings.windowPadding
 })
 
-modules.positionWindow = require("modules/position_window").init({
-  topOffset = globalSettings.screenTopOffset,
-  padding = globalSettings.windowPadding,
-  splitRatios = globalSettings.splitRatios,
-  hotkeys = {
-    center = { modifiers = { "option", "command" }, key = "space" },
-    centerSmall = { modifiers = { "option", "command" }, key = "u" },
-    centerMedium = { modifiers = { "option", "command" }, key = "i" },
-    centerLarge = { modifiers = { "option", "command" }, key = "o" },
-    left = { modifiers = { "option", "command" }, key = "l" },
-    right = { modifiers = { "option", "command" }, key = "'" }
-  }
-})
-
 modules.tileWindows = require("modules/tile_windows").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
@@ -101,15 +87,7 @@ modules.focusWindow = require("modules/focus_window").init({
   }
 })
 
-modules.focusFollowsMouse = require("modules/focus_follows_mouse").init({
-  toggleHotkey = { modifiers = { "option", "command" }, key = "f" },
-  playSoundOnToggle = true,
-  enableOnLoad = false,
-  guardApps = { "CleanShot X", "coreautha", "CoreServicesUIAgent", "MeasurePixels", "System Settings", "universalAccessAuthWarn" },
-  guardWindows = {
-    { match = "Settings", exclude = "Google Chrome" }
-  }
-})
+modules.focusWindowOnScreen = require("modules/focus_window_on_screen").init()
 
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
   { appName = "Figma", processToKill = "figma_agent" }
