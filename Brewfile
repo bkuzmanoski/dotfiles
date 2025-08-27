@@ -14,6 +14,8 @@ brew "xcbeautify"
 brew "xcode-build-server"
 
 cask "1password"
+cask "apparency"
+cask "archaeology"
 cask "alt-tab"
 cask "cleanshot"
 cask "deskpad"
