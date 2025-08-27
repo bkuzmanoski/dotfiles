@@ -1,4 +1,4 @@
-#!/usr/bin/osascript
+#!/bin/zsh
 
 # @raycast.title Delete Downloads
 # @raycast.packageName Finder
@@ -6,5 +6,4 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-trash ${HOME}/Downloads/*
-return ""
+trash ${HOME}/Downloads/*(N)
