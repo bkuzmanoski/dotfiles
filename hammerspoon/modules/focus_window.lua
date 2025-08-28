@@ -23,11 +23,23 @@ local function focusWindow(target)
     return
   end
 
+  local sortingTolerance = 10
   table.sort(windowsOnScreen, function(a, b)
     local frameA = a:frame()
     local frameB = b:frame()
-    if math.abs(frameA.x - frameB.x) > 5 then return frameA.x < frameB.x end
-    if math.abs(frameA.y - frameB.y) > 5 then return frameA.y < frameB.y end
+
+    local xA = math.floor(frameA.x / sortingTolerance)
+    local xB = math.floor(frameB.x / sortingTolerance)
+    if xA ~= xB then
+      return xA < xB
+    end
+
+    local yA = math.floor(frameA.y / sortingTolerance)
+    local yB = math.floor(frameB.y / sortingTolerance)
+    if yA ~= yB then
+      return yA < yB
+    end
+
     return a:id() < b:id()
   end)
 
