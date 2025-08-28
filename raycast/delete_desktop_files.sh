@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/osascript
 
 # @raycast.title Delete Desktop Files
 # @raycast.packageName Finder
@@ -6,4 +6,8 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-trash ${HOME}/Desktop/*(N)
+tell application "Finder"
+  delete (every item of folder (path to desktop folder))
+end tell
+
+return ""
