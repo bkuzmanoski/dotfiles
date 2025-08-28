@@ -15,7 +15,7 @@ function module.init(config)
         local window = hs.window.focusedWindow()
         if window:isFullscreen() then return end
 
-        window[action](window, true, true)
+        window[action](window)
         utils.adjustWindowFrame(window, topOffset, padding)
       end)
     end
