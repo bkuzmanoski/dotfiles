@@ -34,16 +34,15 @@ local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
   local function findClosestEdge(value, edges)
     local closestEdge = hs.fnutils.reduce(
       edges,
-      function(acc, edge)
+      function(accumulator, edge)
         local distance = math.abs(value - edge.position)
-        if distance < acc.minDistance then
+        if distance < accumulator.minDistance then
           return { minDistance = distance, position = edge.position, type = edge.type }
         end
-        return acc
+        return accumulator
       end,
       { minDistance = threshold + 1, position = nil, type = nil }
     )
-
     return closestEdge.position, closestEdge.type
   end
 

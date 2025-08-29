@@ -7,13 +7,21 @@ local targetWindow = {
   right = "right"
 }
 
+local validSubroles = {
+  ["AXStandardWindow"] = true,
+  ["AXDialog"] = true,
+  ["AXSystemDialog"] = true,
+  ["AXFloatingWindow"] = true,
+  ["AXSystemFloatingWindow"] = true
+}
+
 local function focusWindow(target)
   local windows = hs.window.orderedWindows()
   if not windows or #windows == 0 then return end
 
   local screen = hs.screen.mainScreen()
   local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
-    return window:screen() == screen and not window:isFullscreen()
+    return window:screen() == screen and not window:isFullscreen() and validSubroles[window:subrole()]
   end)
   if #windowsOnScreen == 0 then return end
 
@@ -24,23 +32,19 @@ local function focusWindow(target)
   end
 
   local sortingTolerance = 10
-  table.sort(windowsOnScreen, function(a, b)
-    local frameA = a:frame()
-    local frameB = b:frame()
+  table.sort(windowsOnScreen, function(windowA, windowB)
+    local frameA = windowA:frame()
+    local frameB = windowB:frame()
 
     local xA = math.floor(frameA.x / sortingTolerance)
     local xB = math.floor(frameB.x / sortingTolerance)
-    if xA ~= xB then
-      return xA < xB
-    end
+    if xA ~= xB then return xA < xB end
 
     local yA = math.floor(frameA.y / sortingTolerance)
     local yB = math.floor(frameB.y / sortingTolerance)
-    if yA ~= yB then
-      return yA < yB
-    end
+    if yA ~= yB then return yA < yB end
 
-    return a:id() < b:id()
+    return windowA:id() < windowB:id()
   end)
 
   local currentIndex = hs.fnutils.indexOf(windowsOnScreen, focusedWindow)
@@ -51,9 +55,9 @@ local function focusWindow(target)
 
   local nextIndex
   if target == targetWindow.left then
-    nextIndex = currentIndex == 1 and #windowsOnScreen or currentIndex - 1
+    nextIndex = ((currentIndex - 2 + #windowsOnScreen) % #windowsOnScreen) + 1
   elseif target == targetWindow.right then
-    nextIndex = currentIndex == #windowsOnScreen and 1 or currentIndex + 1
+    nextIndex = (currentIndex % #windowsOnScreen) + 1
   end
 
   windowsOnScreen[nextIndex]:focus()
