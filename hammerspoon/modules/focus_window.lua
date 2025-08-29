@@ -75,7 +75,7 @@ function module.init(config)
   }
   for action, hotkey in pairs(config.hotkeys) do
     if hotkey.modifiers and hotkey.key and handlers[action] then
-      bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action], nil, handlers[action])
+      bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
     end
   end
 
