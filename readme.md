@@ -90,6 +90,9 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Set "Confirm my account password" to never
     - Set "Auto-lock" to never
     - Turn off "Lock on sleep, screensaver, or switching users"
+  - Developer settings:
+    - Turn on "Show 1Password Developer dxperience"
+    - Turn on "Integrate with 1Password CLI"
 
 - **CleanShot X**
 
