@@ -1,3 +1,4 @@
+brew "1password-cli"
 brew "bat"
 brew "create-dmg"
 brew "eza"
