@@ -68,7 +68,7 @@ fi
 # Link dotfiles
 # =============================================================================
 
-typeset -A configs=(
+declare -A configs=(
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"

@@ -1,4 +1,4 @@
-typeset -A PLUGINS=(
+declare -A PLUGINS=(
   # Format: [plugin]=git_url|source_file
   ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
   ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
