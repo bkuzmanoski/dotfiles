@@ -1,4 +1,3 @@
-brew "1password-cli"
 brew "bat"
 brew "create-dmg"
 brew "eza"
@@ -16,6 +15,7 @@ brew "xcbeautify"
 brew "xcode-build-server"
 
 cask "1password"
+cask "1password-cli"
 cask "apparency"
 cask "archaeology"
 cask "alt-tab"
