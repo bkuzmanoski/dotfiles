@@ -2,10 +2,10 @@ cv() {
   _help() {
     print "Usage: cv [options] <video>"
     print "Options:"
-    print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: medium]"
-    print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 28]"
+    print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]"
+    print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 23]"
     print "  -f, --fps VALUE      Set frame rate [default: 30]"
-    print "  -c, --codec VALUE    Set codec (h264, h265) [default: h265]"
+    print "  -c, --codec VALUE    Set codec (h264, h265) [default: h264]"
     print "  -a, --audio VALUE    Set audio bitrate [default: 128k]"
     print "  -o, --overwrite      Overwrite input file with compressed version"
     print "  -h, --help           Show this help message"
@@ -16,11 +16,11 @@ cv() {
     return 1
   fi
 
-  local preset="medium"
-  local crf=28
+  local preset="veryfast"
+  local crf=23
   local fps=30
-  local codec="libx265"
-  local tag="hvc1"
+  local codec="libx264"
+  local tag="avc1"
   local audio_bitrate="128k"
 
   if ! zparseopts -D -E -F -- \
