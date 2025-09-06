@@ -32,7 +32,6 @@ cask "visual-studio-code"
 
 mas "Aqua Swatch", id: 1565479346
 mas "Equinox", id: 1591510203
-mas "flowy", id: 6748351905
 mas "Xcode", id: 497799835
 
 cask "font-instrument-serif"
