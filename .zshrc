@@ -7,6 +7,7 @@ precmd() {
 PROMPT="%F{8}[%f%~%F{8}]%f "
 
 setopt AUTO_CD
+setopt CORRECT_ALL
 setopt GLOB_DOTS
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_SPACE
