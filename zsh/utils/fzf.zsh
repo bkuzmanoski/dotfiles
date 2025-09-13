@@ -51,7 +51,25 @@ fk() {
 
 _select_paths() {
   local find_command="$1" && shift
-  local selected_paths=("${(@f)$(eval "${find_command}" | fzf --multi)}")
+  local find_command_pid
+  local fifo
+  local selected_paths
+
+  fifo=$(mktemp)
+  rm -f "${fifo}"
+  mkfifo "${fifo}"
+
+  trap '
+    rm -f "${fifo}"
+    if [[ -n "${find_command_pid}" ]] && kill -0 "${find_command_pid}" 2>/dev/null; then
+      kill "${find_command_pid}"
+    fi
+  ' INT TERM EXIT
+
+  (eval "${find_command}" > "$fifo" &)
+  find_command_pid=$!
+
+  selected_paths=("${(@f)$(fzf --multi < "${fifo}")}")
   [[ -z "${selected_paths[@]}" ]] && return
 
   if [[ $# -gt 0 ]]; then
