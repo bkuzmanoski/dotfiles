@@ -23,8 +23,8 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   toggleLaunchpad = { modifiers = globalSettings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = globalSettings.hyperKey, key = "space" },
   toggleNotificationCenter = { modifiers = globalSettings.hyperKey, key = "n" },
-  goToSpaceLeft = { modifiers = globalSettings.hyperKey, key = "[" },
-  goToSpaceRight = { modifiers = globalSettings.hyperKey, key = "]" },
+  goToSpaceLeft = { modifiers = { "option", "command" }, key = "[" },
+  goToSpaceRight = { modifiers = { "option", "command" }, key = "]" },
   goToSpaceN = { modifiers = globalSettings.hyperKey }
 })
 
@@ -82,8 +82,8 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
 modules.focusWindow = require("modules/focus_window").init({
   hotkeys = {
     frontmost = { modifiers = { "option", "command" }, key = "return" },
-    left = { modifiers = { "option", "command" }, key = "[" },
-    right = { modifiers = { "option", "command" }, key = "]" }
+    left = { modifiers = globalSettings.hyperKey, key = "[" },
+    right = { modifiers = globalSettings.hyperKey, key = "]" }
   }
 })
 
