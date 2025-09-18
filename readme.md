@@ -80,7 +80,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Settings → Composing → Set "Message format" to "Plain Text"
     - Settings → Composing → Set "Undo send delay" to "Off"
     - Settings → Composing → Turn on "Use the same message format as the original message"
-  - Set up Menu Bar and Notification Centre layout (see reference screenshot)
+  - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
 
 - **1Password**
 
