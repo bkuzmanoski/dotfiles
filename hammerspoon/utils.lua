@@ -29,7 +29,7 @@ function module.getCurrentSpaceIndex(screen)
 end
 
 function module.getAdjustedScreenFrame(screen, topOffset, padding)
-  local screenFrame = (topOffset and topOffset > 0) and screen:fullFrame() or screen:frame()
+  local screenFrame = screen:frame()
   screenFrame.x = screenFrame.x + padding
   screenFrame.y = screenFrame.y + topOffset + padding
   screenFrame.w = screenFrame.w - (padding * 2)
