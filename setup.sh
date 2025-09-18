@@ -150,6 +150,7 @@ _defaults_write com.apple.finder ShowRecentTags -bool false
 _defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 _defaults_write com.apple.finder ShowStatusBar -bool true
 _defaults_write com.apple.finder WarnOnEmptyTrash -bool false
+_defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 _defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 _defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
 _defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
