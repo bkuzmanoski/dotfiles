@@ -64,9 +64,9 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 - **macOS**:
 
   - System settings:
-    - Control Centre → Wi-Fi → Select "Don't Show in Menu Bar"
-    - Control Centre → Now Playing → Select "Don't Show in Menu Bar"
-    - Control Centre → Spotlight → Select "Don't Show in Menu Bar"
+    - Menu Bar → Turn off "Wi-Fi"
+    - Menu Bar → Turn off "Now Playing"
+    - Menu Bar → Turn off "Spotlight"
     - Displays → Turn off "Automatically adjust brightness"
     - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
   - Set up Finder sidebar favorites (see reference screenshot)
@@ -80,7 +80,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Settings → Composing → Set "Message format" to "Plain Text"
     - Settings → Composing → Set "Undo send delay" to "Off"
     - Settings → Composing → Turn on "Use the same message format as the original message"
-  - Set up Notification Centre layout (see reference screenshot)
+  - Set up Menu Bar and Notification Centre layout (see reference screenshot)
 
 - **1Password**
 
