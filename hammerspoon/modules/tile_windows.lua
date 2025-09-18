@@ -304,7 +304,7 @@ local function updateStackSize(amount)
 end
 
 local function promoteToMain()
-  local window = hs.window.focusedWindow()
+  local window = hs.window.frontmostWindow()
   if not window then return end
 
   local screen, spaceID = getCurrentScreenAndSpace()
@@ -325,7 +325,7 @@ local function promoteToMain()
 end
 
 local function promoteWindow()
-  local window = hs.window.focusedWindow()
+  local window = hs.window.frontmostWindow()
   if not window then return end
 
   local screen, spaceID = getCurrentScreenAndSpace()
@@ -354,7 +354,7 @@ local function promoteWindow()
 end
 
 local function demoteWindow()
-  local window = hs.window.focusedWindow()
+  local window = hs.window.frontmostWindow()
   if not window then return end
 
   local screen, spaceID = getCurrentScreenAndSpace()
@@ -378,7 +378,7 @@ local function demoteWindow()
 end
 
 local function floatWindow()
-  local window = hs.window.focusedWindow()
+  local window = hs.window.frontmostWindow()
   if not window then return end
 
   local screen, spaceID = getCurrentScreenAndSpace()

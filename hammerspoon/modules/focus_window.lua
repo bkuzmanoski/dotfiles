@@ -15,6 +15,8 @@ local validSubroles = {
   ["AXSystemFloatingWindow"] = true
 }
 
+local sortingTolerance = 8
+
 local function focusWindow(target)
   local windows = hs.window.orderedWindows()
   if not windows or #windows == 0 then return end
@@ -25,13 +27,11 @@ local function focusWindow(target)
   end)
   if #windowsOnScreen == 0 then return end
 
-  local focusedWindow = hs.window.focusedWindow()
-  if target == targetWindow.frontmost or not focusedWindow or #windowsOnScreen == 1 then
+  if target == targetWindow.frontmost or #windowsOnScreen == 1 then
     windowsOnScreen[1]:focus()
     return
   end
 
-  local sortingTolerance = 10
   table.sort(windowsOnScreen, function(windowA, windowB)
     local frameA = windowA:frame()
     local frameB = windowB:frame()
@@ -47,12 +47,8 @@ local function focusWindow(target)
     return windowA:id() < windowB:id()
   end)
 
-  local currentIndex = hs.fnutils.indexOf(windowsOnScreen, focusedWindow)
-  if not currentIndex then
-    windowsOnScreen[1]:focus()
-    return
-  end
-
+  local focusedWindow = hs.window.frontmostWindow() or windowsOnScreen[1]
+  local currentIndex = hs.fnutils.indexOf(windowsOnScreen, focusedWindow) or 1
   local nextIndex
   if target == targetWindow.left then
     nextIndex = ((currentIndex - 2 + #windowsOnScreen) % #windowsOnScreen) + 1
