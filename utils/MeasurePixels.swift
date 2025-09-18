@@ -55,7 +55,8 @@ class MeasurementView: NSView {
       rect: bounds,
       options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
       owner: self,
-      userInfo: nil)
+      userInfo: nil
+    )
     trackingArea = newArea
     addTrackingArea(newArea)
   }
@@ -81,7 +82,10 @@ class MeasurementView: NSView {
   }
 
   override func mouseMoved(with event: NSEvent) {
-    guard let existingMeasurement = measurement else { return }
+    guard let existingMeasurement = measurement else {
+      return
+    }
+
     measurement = Measurement(startPoint: existingMeasurement.startPoint, endPoint: event.locationInWindow)
     needsDisplay = true
   }
@@ -98,14 +102,18 @@ class MeasurementView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
-    guard let measurement else { return }
+    guard let measurement else {
+      return
+    }
+
     let isMeasuringRight = measurement.endPoint.x >= measurement.startPoint.x
     let isMeasuringUp = measurement.endPoint.y >= measurement.startPoint.y
     let selectionRect = measurement.selection
     let guideRect = selectionRect.insetBy(dx: 0.5, dy: 0.5)
     let guideOrigin = CGPoint(
       x: isMeasuringRight ? guideRect.minX : guideRect.maxX,
-      y: isMeasuringUp ? guideRect.minY : guideRect.maxY)
+      y: isMeasuringUp ? guideRect.minY : guideRect.maxY
+    )
     let guidePath = NSBezierPath()
 
     Constants.selectionColor.setFill()
@@ -122,11 +130,13 @@ class MeasurementView: NSView {
     drawLabel(
       text: String(Int(selectionRect.width)),
       at: selectionRect,
-      position: isMeasuringUp ? .bottom : .top)
+      position: isMeasuringUp ? .bottom : .top
+    )
     drawLabel(
       text: String(Int(selectionRect.height)),
       at: selectionRect,
-      position: isMeasuringRight ? .left : .right)
+      position: isMeasuringRight ? .left : .right
+    )
   }
 
   private func drawLabel(text: String, at rect: NSRect, position: LabelPosition) {
@@ -138,7 +148,8 @@ class MeasurementView: NSView {
     let stringSize = string.size()
     let backgroundSize = NSSize(
       width: stringSize.width + Constants.labelHorizontalPadding * 2,
-      height: stringSize.height + Constants.labelVerticalPadding * 2)
+      height: stringSize.height + Constants.labelVerticalPadding * 2
+    )
     let labelOrigin =
       switch position {
       case .top:
@@ -154,7 +165,8 @@ class MeasurementView: NSView {
     let backgroundPath = NSBezierPath(
       roundedRect: backgroundRect,
       xRadius: Constants.labelCornerRadius,
-      yRadius: Constants.labelCornerRadius)
+      yRadius: Constants.labelCornerRadius
+    )
 
     Constants.labelBackgroundColor.setFill()
     backgroundPath.fill()
@@ -162,7 +174,9 @@ class MeasurementView: NSView {
     string.draw(
       at: NSPoint(
         x: backgroundRect.minX + Constants.labelHorizontalPadding,
-        y: backgroundRect.minY + Constants.labelVerticalPadding))
+        y: backgroundRect.minY + Constants.labelVerticalPadding
+      )
+    )
   }
 }
 
@@ -173,13 +187,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var observers: [(token: NSObjectProtocol, center: NotificationCenter)] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    measurementView = MeasurementView()
     screen =
       NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
       ?? NSScreen.main
       ?? NSScreen.screens.first!
     window = OverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
-    measurementView = MeasurementView()
-
     window.level = .screenSaver
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.backgroundColor = Constants.overlayColor
