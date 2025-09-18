@@ -1,7 +1,7 @@
 local modules = {}
 local globalSettings = {
   numberOfSpaces = 5,
-  screenTopOffset = 0,
+  screenTopOffset = -8,
   windowPadding = 8,
   splitRatios = { 0.5, 0.33, 0.67 },
   hyperKey = { "control", "option", "shift", "command" }
@@ -31,6 +31,20 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding
+})
+
+modules.positionWindow = require("modules/position_window").init({
+  topOffset = globalSettings.screenTopOffset,
+  padding = globalSettings.windowPadding,
+  splitRatios = globalSettings.splitRatios,
+  hotkeys = {
+    center = { modifiers = { "option", "command" }, key = "space" },
+    centerSmall = { modifiers = { "option", "command" }, key = "u" },
+    centerMedium = { modifiers = { "option", "command" }, key = "i" },
+    centerLarge = { modifiers = { "option", "command" }, key = "o" },
+    left = { modifiers = { "option", "command" }, key = "l" },
+    right = { modifiers = { "option", "command" }, key = "'" }
+  }
 })
 
 modules.tileWindows = require("modules/tile_windows").init({
