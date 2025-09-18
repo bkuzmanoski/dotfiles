@@ -183,7 +183,6 @@ _add_app_to_dock "/System/Applications/Mail.app"
 _add_app_to_dock "/Applications/Google Chrome.app"
 _add_app_to_dock "/Applications/Figma.app"
 _add_app_to_dock "/Applications/Visual Studio Code.app"
-_add_app_to_dock "/Applications/Xcode.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
