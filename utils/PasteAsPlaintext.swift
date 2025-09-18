@@ -28,6 +28,7 @@ let preservedItems = pasteboardItems.map { item -> NSPasteboardItem in
       preservedItem.setData(data, forType: type)
     }
   }
+
   return preservedItem
 }
 
