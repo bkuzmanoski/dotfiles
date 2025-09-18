@@ -12,7 +12,7 @@ function module.init(config)
   for action, hotkey in pairs(config.hotkeys) do
     if hotkey.modifiers and hotkey.key then
       bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
-        local window = hs.window.focusedWindow()
+        local window = hs.window.frontmostWindow()
         if window:isFullscreen() then return end
 
         window[action](window)

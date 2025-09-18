@@ -15,7 +15,7 @@ local sizeConfigs = {
 }
 
 local function getFocusedWindowAndScreen()
-  local focusedWindow = hs.window.focusedWindow()
+  local focusedWindow = hs.window.frontmostWindow()
   if not focusedWindow or not focusedWindow:isMaximizable() or focusedWindow:isFullscreen() then
     return nil, nil
   end

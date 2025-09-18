@@ -6,7 +6,7 @@ local bindings = {}
 local targetSpace = { previousSpace = "previousSpace", nextSpace = "nextSpace" }
 
 local function getFocusedWindowAndScreen()
-  local focusedWindow = hs.window.focusedWindow()
+  local focusedWindow = hs.window.frontmostWindow()
   if not focusedWindow or not focusedWindow:isStandard() or focusedWindow:isFullscreen() then return nil, nil end
 
   return focusedWindow, focusedWindow:screen()
