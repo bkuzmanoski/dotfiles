@@ -7,14 +7,6 @@ local targetWindow = {
   right = "right"
 }
 
-local validSubroles = {
-  ["AXStandardWindow"] = true,
-  ["AXDialog"] = true,
-  ["AXSystemDialog"] = true,
-  ["AXFloatingWindow"] = true,
-  ["AXSystemFloatingWindow"] = true
-}
-
 local sortingTolerance = 8
 
 local function focusWindow(target)
@@ -23,7 +15,7 @@ local function focusWindow(target)
 
   local screen = hs.screen.mainScreen()
   local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
-    return window:screen() == screen and not window:isFullscreen() and validSubroles[window:subrole()]
+    return window:screen() == screen and not window:isFullscreen()
   end)
   if #windowsOnScreen == 0 then return end
 
