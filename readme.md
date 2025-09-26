@@ -140,3 +140,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
   - Sync settings and extensions
   - Position Command Center in center
+
+- **Xcode**
+
+  - Install [Additional Tools for Xcode](https://developer.apple.com/download/all/?q=additional%20tools)
