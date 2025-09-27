@@ -71,7 +71,9 @@ on run
         end repeat
       end tell
 
-      key code 53
+      if my isNotificationCenterOpen() then
+        key code 53
+      end if
     end tell
   on error errMsg
     return "Error: " & errMsg
