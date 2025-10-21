@@ -71,6 +71,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
     - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
   - Set up Finder sidebar favorites (see reference screenshot)
   - Mail:
+    - Add "Get Mail" item to toolbar
     - Set up Mail sidebar favorites (see reference screenshot)
     - Turn off "Show Mail Categories"
     - Settings → Junk Mail → Turn on "Enable junk mail filtering"
