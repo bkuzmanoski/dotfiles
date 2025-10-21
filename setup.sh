@@ -155,6 +155,7 @@ _defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regul
 _defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
 _defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
 _defaults_write com.apple.TextEdit RichText -bool false
+_defaults_write com.apple.TextInputMenu visible -bool false # Hide input menu in Menu Bar
 _defaults_write com.apple.universalaccess closeViewPanningMode -int 0 # Set zoomed image to move continuously with pointer
 _defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
 _defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
@@ -165,13 +166,14 @@ _defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # 
 _defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to maximize window
 _defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 _defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
-_defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show menu bar in full screen
+_defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show Menu Bar in full screen
 _defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 _defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 _defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
 _defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 _defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 _defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization of text
+_defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 _defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
 _set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 _set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
@@ -191,7 +193,7 @@ _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tool
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
-_defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide menu bar icon
+_defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide Menu Bar icon
 _defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 _defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
 _defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
@@ -200,10 +202,10 @@ _defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 _defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for keyboard shortcut 1 to ⌘
 _defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for keyboard shortcut 2 to ⌘
 _defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
-_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide menu bar icon
+_defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide Menu Bar icon
 _defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
 _defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
-_defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide menu bar icon
+_defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide Menu Bar icon
 _defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
 _defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
 _defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
