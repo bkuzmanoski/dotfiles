@@ -1,6 +1,6 @@
 local modules = {}
 local globalSettings = {
-  numberOfSpaces = 5,
+  numberOfSpaces = 3,
   screenTopOffset = -8,
   windowPadding = 8,
   splitRatios = { 0.5, 0.33, 0.67 },
