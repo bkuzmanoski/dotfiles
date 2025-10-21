@@ -47,25 +47,6 @@ modules.positionWindow = require("modules/position_window").init({
   }
 })
 
-modules.tileWindows = require("modules/tile_windows").init({
-  topOffset = globalSettings.screenTopOffset,
-  padding = globalSettings.windowPadding,
-  splitRatios = globalSettings.splitRatios,
-  initialNumberOfStackedWindows = 1,
-  hotkeys = {
-    tileLeft = { modifiers = { "option", "shift", "command" }, key = "l" },
-    tileRight = { modifiers = { "option", "shift", "command" }, key = "'" },
-    increaseStackSize = { modifiers = { "option", "shift", "command" }, key = "=" },
-    decreaseStackSize = { modifiers = { "option", "shift", "command" }, key = "-" },
-    promoteWindowToMain = { modifiers = { "option", "shift", "command" }, key = "return" },
-    promoteWindow = { modifiers = { "option", "shift", "command" }, key = "p" },
-    demoteWindow = { modifiers = { "option", "shift", "command" }, key = ";" },
-    floatWindow = { modifiers = { "option", "shift", "command" }, key = "f" },
-    stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
-  },
-  excludeApps = { "Activity Monitor", "CleanShot X", "Console", "Ghostty", "Hammerspoon", "System Settings" }
-})
-
 modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
   topOffset = globalSettings.screenTopOffset,
   padding = globalSettings.windowPadding,
