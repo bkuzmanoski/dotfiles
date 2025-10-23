@@ -7,7 +7,6 @@ local targetWindow = {
   right = "right"
 }
 
-local sortingTolerance = 8
 
 local function focusWindow(target)
   local windows = hs.window.orderedWindows()
@@ -27,6 +26,7 @@ local function focusWindow(target)
     return
   end
 
+  local sortingTolerance = 8
   table.sort(windowsOnScreen, function(windowA, windowB)
     local frameA = windowA:frame()
     local frameB = windowB:frame()
