@@ -165,11 +165,12 @@ _defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Dis
 _defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
 _defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to maximize window
 _defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
-_defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access for all controls
+_defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access
 _defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show Menu Bar in full screen
 _defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
 _defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 _defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
+_defaults_write NSGlobalDomain AppleSpacesSwitchOnActivate -bool false # Do not switch Spaces when switching to an app
 _defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 _defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 _defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization of text
