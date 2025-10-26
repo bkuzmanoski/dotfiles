@@ -58,7 +58,7 @@ struct Command {
   }
 }
 
-actor SingletonLock {
+class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case lockFileError(String)
