@@ -54,6 +54,6 @@ NSColorSampler().show { selectedColor in
   NSApplication.shared.terminate(nil)
 }
 
-let app = NSApplication.shared
-app.setActivationPolicy(.accessory)
-app.run()
+let application = NSApplication.shared
+application.setActivationPolicy(.accessory)
+application.run()

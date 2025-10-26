@@ -280,7 +280,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       try scrollZoomController.start()
     } catch {
       print("Error starting ScrollZoomController: \(error.localizedDescription)")
-      NSApp.terminate(nil)
+      NSApplication.shared.terminate(nil)
     }
 
     Task {
@@ -322,16 +322,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func terminateApp() async {
-    await NSApp.terminate(nil)
+    await NSApplication.shared.terminate(nil)
   }
 }
 
 do {
   let singletonLock = try SingletonLock()
   let delegate = AppDelegate(singletonLock: singletonLock)
-  let app = NSApplication.shared
-  app.delegate = delegate
-  app.run()
+  let application = NSApplication.shared
+  application.delegate = delegate
+  application.run()
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
 

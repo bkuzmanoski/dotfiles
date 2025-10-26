@@ -102,7 +102,7 @@ actor SingletonLock {
 }
 
 @MainActor
-class MenuBarItemController {
+class StatusItemController {
   let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() {
@@ -113,24 +113,24 @@ class MenuBarItemController {
     NSStatusBar.system.removeStatusItem(statusItem)
   }
 
-  func show() {
+  func showItem() {
     statusItem.length = NSStatusItem.variableLength
     statusItem.button?.title = Constants.menuBarItemTitle
   }
 
-  func hide() {
+  func hideItem() {
     statusItem.length = 6016
     statusItem.button?.title = ""
   }
 
   func toggle() {
-    statusItem.length == NSStatusItem.variableLength ? hide() : show()
+    statusItem.length == NSStatusItem.variableLength ? hideItem() : showItem()
   }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   private var singletonLock: SingletonLock
-  private var menuBarController: MenuBarItemController!
+  private var statusItemController: StatusItemController!
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -138,8 +138,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    menuBarController = MenuBarItemController()
-    menuBarController.hide()
+    statusItemController = StatusItemController()
+    statusItemController.hideItem()
 
     Task {
       let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
@@ -159,7 +159,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     Task {
       for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
         print("Received \(Signal.name(for: signal)), shutting down.")
-        NSApp.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -170,8 +170,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": await menuBarController.toggle()
-    case "quit": await NSApp.terminate(nil)
+    case "toggle": await statusItemController.toggle()
+    case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
   }
@@ -180,9 +180,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 do {
   let singletonLock = try SingletonLock()
   let delegate = AppDelegate(singletonLock: singletonLock)
-  let app = NSApplication.shared
-  app.delegate = delegate
-  app.run()
+  let application = NSApplication.shared
+  application.delegate = delegate
+  application.run()
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
