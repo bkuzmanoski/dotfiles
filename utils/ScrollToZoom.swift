@@ -140,10 +140,10 @@ class ScrollZoomController {
 
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
-  private var scrollZoomBegan = false
+  private var isZooming = false
 
   func start() throws {
-    guard checkPermissions() else {
+    guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionDenied
     }
 
@@ -171,11 +171,11 @@ class ScrollZoomController {
   }
 
   func stop() {
-    if let tap = self.eventTap {
-      CGEvent.tapEnable(tap: tap, enable: false)
+    if let eventTap {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
 
-      if let source = self.runLoopSource {
-        CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+      if let runLoopSource {
+        CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
       }
     }
 
@@ -183,22 +183,41 @@ class ScrollZoomController {
     self.runLoopSource = nil
   }
 
-  private func checkPermissions() -> Bool {
-    return AXIsProcessTrustedWithOptions(nil)
+  nonisolated func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    let isHotkeyDown = event.flags.contains(Constants.hotkey)
+
+    if type == .flagsChanged, !isHotkeyDown {
+      Task {
+        await endZooming()
+      }
+    }
+
+    if type == .scrollWheel {
+      if isHotkeyDown {
+        Task {
+          await beginZooming()
+
+          let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+
+          if scrollDelta != 0 {
+            await handleScrollEvent(delta: scrollDelta)
+          }
+        }
+
+        return nil
+      } else {
+        Task {
+          await endZooming()
+        }
+      }
+    }
+
+    return Unmanaged.passUnretained(event)
   }
 
-  private func postPinchGestureEvent(phase: CGSGesturePhase, magnification: Double) {
-    guard let event = CGEvent(source: nil) else { return }
-    event.type = .gesture
-    event.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.zoom.rawValue))
-    event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
-    event.setDoubleValueField(.gestureZoomValue, value: magnification)
-    event.post(tap: .cghidEventTap)
-  }
-
-  private func startZoom() async {
-    if !scrollZoomBegan {
-      scrollZoomBegan = true
+  private func beginZooming() async {
+    if !isZooming {
+      self.isZooming = true
 
       try? await Task.sleep(for: .milliseconds(10))
 
@@ -206,51 +225,33 @@ class ScrollZoomController {
     }
   }
 
-  private func endZoom() {
-    if scrollZoomBegan {
+  private func endZooming() {
+    if isZooming {
       postPinchGestureEvent(phase: .ended, magnification: 0)
-      scrollZoomBegan = false
+      self.isZooming = false
     }
   }
 
-  private func handleScroll(delta: Double) {
+  private func handleScrollEvent(delta: Double) {
     let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
     let magnification = delta * directionMultiplier * Constants.zoomSensitivity
     postPinchGestureEvent(phase: .changed, magnification: magnification)
   }
 
-  nonisolated func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-    let isHotkeyDown = event.flags.contains(Constants.hotkey)
-
-    if type == .flagsChanged, !isHotkeyDown {
-      Task { await self.endZoom() }
+  private func postPinchGestureEvent(phase: CGSGesturePhase, magnification: Double) {
+    guard let event = CGEvent(source: nil) else {
+      return
     }
 
-    if type == .scrollWheel {
-      if isHotkeyDown {
-        Task {
-          await self.startZoom()
-
-          let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-          if scrollDelta != 0 {
-            await self.handleScroll(delta: scrollDelta)
-          }
-        }
-
-        return nil
-      } else {
-        Task {
-          await self.endZoom()
-        }
-      }
-    }
-
-    return Unmanaged.passUnretained(event)
+    event.type = .gesture
+    event.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.zoom.rawValue))
+    event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
+    event.setDoubleValueField(.gestureZoomValue, value: magnification)
+    event.post(tap: .cghidEventTap)
   }
 }
 
-private func eventTapCallback(
+func eventTapCallback(
   proxy: CGEventTapProxy,
   type: CGEventType,
   event: CGEvent,
@@ -274,7 +275,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    scrollZoomController = ScrollZoomController()
+    observeSignals()
+    observeCommands()
+
+    self.scrollZoomController = ScrollZoomController()
 
     do {
       try scrollZoomController.start()
@@ -282,11 +286,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       print("Error starting ScrollZoomController: \(error.localizedDescription)")
       NSApplication.shared.terminate(nil)
     }
+  }
 
+  func applicationWillTerminate(_ notification: Notification) {
+    scrollZoomController.stop()
+  }
+
+  private func observeSignals() {
     Task {
-      let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
+      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+        print("Received \(Signal.name(for: signal)), shutting down.")
+        await NSApplication.shared.terminate(nil)
+      }
+    }
+  }
 
-      for await notification in stream {
+  private func observeCommands() {
+    Task {
+      let notificationCenter = DistributedNotificationCenter.default()
+
+      for await notification in notificationCenter.notifications(named: Constants.notificationName) {
         guard
           let userInfo = notification.userInfo,
           let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
@@ -297,17 +316,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         await handleCommand(with: arguments)
       }
     }
-
-    Task {
-      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        print("Received \(Signal.name(for: signal)), shutting down.")
-        await terminateApp()
-      }
-    }
-  }
-
-  func applicationWillTerminate(_ notification: Notification) {
-    scrollZoomController.stop()
   }
 
   private func handleCommand(with arguments: [String]) async {
@@ -316,13 +324,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "quit": await terminateApp()
+    case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
-  }
-
-  private func terminateApp() async {
-    await NSApplication.shared.terminate(nil)
   }
 }
 
