@@ -138,13 +138,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    statusItemController = StatusItemController()
+    observeSignals()
+    observeCommands()
+
+    self.statusItemController = StatusItemController()
+
     statusItemController.hideItem()
+  }
 
+  private func observeSignals() {
     Task {
-      let stream = DistributedNotificationCenter.default().notifications(named: Constants.notificationName)
+      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+        print("Received \(Signal.name(for: signal)), shutting down.")
+        await NSApplication.shared.terminate(nil)
+      }
+    }
+  }
 
-      for await notification in stream {
+  private func observeCommands() {
+    Task {
+      let notificationCenter = DistributedNotificationCenter.default()
+
+      for await notification in notificationCenter.notifications(named: Constants.notificationName) {
         guard
           let userInfo = notification.userInfo,
           let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
@@ -153,13 +168,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         await handleCommand(with: arguments)
-      }
-    }
-
-    Task {
-      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        print("Received \(Signal.name(for: signal)), shutting down.")
-        NSApplication.shared.terminate(nil)
       }
     }
   }

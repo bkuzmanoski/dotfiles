@@ -23,9 +23,10 @@ pasteKeyUp.flags = .maskCommand
 
 let preservedItems = pasteboardItems.map { item -> NSPasteboardItem in
   let preservedItem = NSPasteboardItem()
-  item.types.forEach { type in
-    if let data = item.data(forType: type) {
-      preservedItem.setData(data, forType: type)
+
+  for itemType in item.types {
+    if let data = item.data(forType: itemType) {
+      preservedItem.setData(data, forType: itemType)
     }
   }
 

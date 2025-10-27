@@ -34,10 +34,12 @@ if arguments.contains("-h") || arguments.contains("--help") {
   exit(0)
 }
 
-var outputFormat = OutputFormat.hex
+var outputFormat: OutputFormat
 
 if arguments.count > 1, let format = OutputFormat(fromArgument: arguments[1]) {
   outputFormat = format
+} else {
+  outputFormat = .hex
 }
 
 NSColorSampler().show { selectedColor in
@@ -48,9 +50,12 @@ NSColorSampler().show { selectedColor in
 
   let pasteboard = NSPasteboard.general
   let output = selectedColor.string(for: outputFormat)
+
   pasteboard.clearContents()
   pasteboard.setString(output, forType: .string)
+
   print(output)
+
   NSApplication.shared.terminate(nil)
 }
 
