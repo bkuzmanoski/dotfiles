@@ -1,0 +1,8 @@
+{
+  "name": "xcode build server",
+  "version": "0.2",
+  "bspVersion": "2.0",
+  "languages": ["swift"],
+  "argv": ["/opt/homebrew/bin/xcode-build-server"],
+  "kind": "manual"
+}
