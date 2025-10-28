@@ -14,6 +14,7 @@ cf() {
   if ! zparseopts -D -E -K {o,-output}:=output_file {h,-help}=flag_help 2>/dev/null; then
     print -u2 "Error: Invalid options provided.\n"
     _help
+
     return 1
   fi
 
@@ -22,10 +23,11 @@ cf() {
   local return_message return_code
   local -a rg_cmd=("rg" "--heading" "--line-number" "--color=never" "${@}" ".")
   local rg_output
+
   rg_output=$("${rg_cmd[@]}")
 
-
   local rg_status=$?
+
   case "${rg_status}" in
     0)
       if [[ -n "${output_file[-1]}" ]]; then
@@ -35,6 +37,7 @@ cf() {
         print -rn -- "${rg_output}" | pbcopy
         return_message="Output copied to clipboard."
       fi
+
       return_code=0
       ;;
     1)
@@ -48,8 +51,12 @@ cf() {
   esac
 
   case "${return_code}" in
-    0) print "${return_message}" ;;
-    *) print -u2 "${return_message}" ;;
+    0)
+      print "${return_message}"
+      ;;
+    *)
+      print -u2 "${return_message}"
+      ;;
   esac
 
   return ${return_code}

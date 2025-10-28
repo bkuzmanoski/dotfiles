@@ -45,6 +45,7 @@ autoload -Uz compinit; compinit
 
 source ~/.zsh/plugins.zsh
 source ~/.zsh/theme.zsh
+
 for file in ~/.zsh/utils/*.zsh; do
   source "${file}"
 done

@@ -5,12 +5,20 @@ ai() {
   fi
 
   local api_key_file="${HOME}/.config/zsh/ai_api_key"
-  local instructions="You will be given a prompt to generate a shell command for Zsh on macOS. You should output only an executable command without any additional text, explanations, or formatting. If multiple commands are needed, separate them with && or ;. If you are unable to generate a command, output \"LLM_ERROR: <brief reason>\" instead. Available third-party tools: bat, eza, fd, ffmpeg, fnm, fzf, jpegoptim, micro, oxipng, ripgrep. For everything else, use only built-in macOS or Xcode CLT commands."
+  local instructions="\
+Generate a shell command for Zsh on macOS based on the provided prompt. \
+Output the command without additional text, explanations, or formatting. \
+Ensure the command is safe to run and does not require additional context. \
+If multiple commands are needed, separate them with \`&&\` or \`;\`. \
+The following tools are available: Xcode Command Line Tools, bat, eza, fd, ffmpeg, fnm, fzf, gh, jpegoptim, micro, oxipng, ripgrep.
+If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <brief reason>\"."
 
   local api_key
   local prompt="$*"
 
-  [[ ! -d "$(dirname "${api_key_file}")" ]] && mkdir -p "$(dirname "${api_key_file}")" >/dev/null
+  if [[ ! -d "$(dirname "${api_key_file}")" ]]; then
+    mkdir -p "$(dirname "${api_key_file}")" >/dev/null
+  fi
 
   if [[ -f "${api_key_file}" ]]; then
     api_key=$(< "${api_key_file}")
@@ -24,7 +32,8 @@ ai() {
   local response=$(curl -s https://openrouter.ai/api/v1/chat/completions \
     -H "Authorization: Bearer ${api_key}" \
     -H "Content-Type: application/json" \
-    -d "$(jq -n \
+    -d "$(jq \
+      --null-input \
       --arg instructions "${instructions}" \
       --arg prompt "${prompt}" \
       '{
@@ -46,7 +55,7 @@ ai() {
     return 1
   fi
 
-  local output=$(print "${response}" | jq -r '
+  local output=$(print "${response}" | jq --raw-output '
     if .choices[0].message.content then
       .choices[0].message.content
     elif .error.message then
@@ -58,7 +67,10 @@ ai() {
 
   if [[ -z "${output}" || "${output}" == "PARSE_ERROR" ]]; then
     output=$(print "${response}" | sed -n 's/.*"content":"\(.*\)","refusal".*/\1/p')
-    [[ -z "${output}" ]] && output="PARSE_ERROR"
+
+    if [[ -z "${output}" ]]; then
+      output="PARSE_ERROR"
+    fi
   fi
 
   case "${output}" in

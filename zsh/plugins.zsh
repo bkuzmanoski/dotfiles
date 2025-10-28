@@ -1,13 +1,13 @@
 typeset -A PLUGINS=(
-  # Format: [plugin]=git_url|source_file
+  # [plugin]=git_url|source_file
   ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
   ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
   ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )
 
-UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
-UPDATE_REMINDERS=(
-  # Format: emoji|description|timestamp_file|update_command
+readonly UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
+readonly UPDATE_REMINDERS=(
+  # emoji|description|timestamp_file|update_command
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
   "📦|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
   "🧩|Zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
@@ -33,14 +33,13 @@ fnmup() {
 
   if [[ -z "${latest_version}" ]]; then
     print -u2 "No LTS versions found."
-  return 1
+    return 1
   fi
 
   if [[ "${current_version}" != "${latest_version}" ]]; then
     print "Current version: ${current_version}"
     print "Latest version: ${latest_version}"
-    print
-    print "New version available!"
+    print "\nNew version available!"
     read -r "response?Install latest version? (y/N) "
 
     if [[ "${response}" =~ ^[Yy]$ ]]; then
@@ -49,33 +48,42 @@ fnmup() {
         return 1
       }
 
-      print && read -r "default?Set as default? (y/N) "
+      print
+      read -r "default?Set as default? (y/N) "
+
       if [[ "${default}" =~ ^[Yy]$ ]]; then
         fnm default "${latest_version}" || {
           print -u2 "Failed to set Node.js ${latest_version} as default."
           return 1
         }
+
         print "Node ${latest_version} is now default."
       fi
 
-      print && read -r "cleanup?Clean up old versions? (y/N) "
+      print
+      read -r "cleanup?Clean up old versions? (y/N) "
+
       if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
         local installed_versions="$(fnm ls | grep -v "system" | grep -v "${latest_version}" | tr -d "* " | grep -o "v[0-9][0-9.]*")"
+
         if [[ -n "${installed_versions}" ]]; then
           print "The following version(s) will be removed:"
           print "${installed_versions}"
+          print
+          read -r "confirm?Proceed? (y/N) "
 
-          print && read -r "confirm?Proceed? (y/N) "
           if [[ "${confirm}" =~ ^[Yy]$ ]]; then
             print "${installed_versions}" | while read -r version; do
               if [[ -n "${version}" ]]; then
                 printf "Removing %s...\n" "${version}"
+
                 fnm uninstall "${version}" || {
                   print -u2 "Failed to remove Node ${version}."
                   return 1
                 }
               fi
             done
+
             print "\nCleanup complete."
           fi
         else
@@ -94,6 +102,7 @@ fnmup() {
 zshup() (
   for plugin in "${(k)PLUGINS[@]}"; do
     local plugin_dir="${HOME}/.zsh/${plugin}"
+
     print -P "Updating %B${plugin}%b..."
     cd "${plugin_dir}" && git pull || { print "${plugin} update failed."; exit 1 }
     print
@@ -104,16 +113,19 @@ zshup() (
 
 _source_plugins() {
   local plugins_installed=0
+
   for plugin in ${(k)PLUGINS[@]}; do
     local target_dir="${HOME}/.zsh/${plugin}"
     local git_repository=${PLUGINS[${plugin}]%%|*}
     local source_file=${PLUGINS[${plugin}]#*|}
+
     if [[ ! -d "${target_dir}" ]]; then
       print -P "Installing %B${plugin}%b..."
       git clone "${git_repository}" "${target_dir}" || { print "${plugin} installation failed.\n"; continue }
       plugins_installed=1
       print
     fi
+
     if [[ -f "${target_dir}/${source_file}" ]]; then
       source "${target_dir}/${source_file}"
     else
@@ -121,7 +133,7 @@ _source_plugins() {
     fi
   done
 
-  (( plugins_installed )) && zshup > /dev/null # Update timestamps
+  (( plugins_installed )) && zshup > /dev/null
 }
 
 _source_plugins
@@ -137,8 +149,8 @@ _check_last_update_time() {
     local description="${parts[2]}"
     local timestamp_file="${parts[3]}"
     local command="${parts[4]}"
-
     local last_update_timestamp=0
+
     if [[ -f "${timestamp_file}" ]]; then
       last_update_timestamp="$(<"${timestamp_file}")"
       [[ "${last_update_timestamp}" =~ ^[0-9]+$ ]] || last_update_timestamp=0
@@ -157,7 +169,10 @@ _check_last_update_time() {
 _check_last_update_time
 
 _update_timestamps() {
-  [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]] && mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
+  if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
+    mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
+  fi
+
   date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
   print "Update timestamp updated, next reminder in 30 days."
 }

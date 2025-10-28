@@ -34,6 +34,7 @@ cv() {
     2>/dev/null; then
     print -u2 "Error: Invalid or incomplete options provided.\n"
     _help
+
     return 1
   fi
 
@@ -42,19 +43,29 @@ cv() {
     return 0
   fi
 
-  if (( ${#opt_preset} > 0 )); then preset=${opt_preset[-1]}; fi
-  if (( ${#opt_crf} > 0 )); then crf=${opt_crf[-1]}; fi
-  if (( ${#opt_fps} > 0 )); then fps=${opt_fps[-1]}; fi
-  if (( ${#opt_audio} > 0 )); then audio_bitrate=${opt_audio[-1]}; fi
+  (( ${#opt_preset} > 0 )) && preset=${opt_preset[-1]}
+  (( ${#opt_crf} > 0 )) && crf=${opt_crf[-1]}
+  (( ${#opt_fps} > 0 )) && fps=${opt_fps[-1]}
+  (( ${#opt_audio} > 0 )) && audio_bitrate=${opt_audio[-1]}
+
   if (( ${#opt_codec} > 0 )); then
     case "${opt_codec[-1]}" in
-      h264) codec="libx264"; tag="avc1" ;;
-      h265) codec="libx265"; tag="hvc1" ;;
-      *) print -u2 "Unknown codec: ${opt_codec[-1]}"; return 1 ;;
+      h264)
+        codec="libx264"
+        tag="avc1"
+        ;;
+      h265)
+        codec="libx265"
+        tag="hvc1"
+        ;;
+      *)
+        print -u2 "Unknown codec: ${opt_codec[-1]}"; return 1
+        ;;
     esac
   fi
 
   local input_file="$1"
+
   if [[ ! -f "${input_file}" ]]; then
     print -u2 "Error: File \"${input_file}\" not found."
     return 1
@@ -62,6 +73,7 @@ cv() {
 
   local original_size=$(stat -f %z "${input_file}")
   local output_file="${input_file%.*}_compressed.mp4"
+
   ffmpeg \
     -hide_banner \
     -stats \
@@ -84,8 +96,8 @@ cv() {
 
   local compressed_size=$(stat -f %z "${output_file}")
   local size_reduction=$(( (${original_size} - ${compressed_size}) * 100 / ${original_size} ))
-
   local overwrite_notice
+
   if (( ${#flag_overwrite} > 0 )); then
     if [[ ${compressed_size} -lt ${original_size} ]]; then
       command mv "${output_file}" "${input_file}"
@@ -94,11 +106,16 @@ cv() {
       command rm "${output_file}"
       overwrite_notice="Compression did not reduce file size. Original file kept unchanged."
     fi
+
     output_file="${input_file}"
   fi
 
   printf "\n\033[1m%s\033[0m\n" "${output_file}"
-  [[ -n "${overwrite_notice}" ]] && printf "%s\n\n" "${overwrite_notice}"
+
+  if [[ -n "${overwrite_notice}" ]]; then
+    printf "%s\n\n" "${overwrite_notice}"
+  fi
+
   printf "Original size:   %.2f MB\n" "$(print "scale=2; ${original_size} / 1000000" | bc)"
   printf "Compressed size: %.2f MB\n" "$(print "scale=2; ${compressed_size} / 1000000" | bc)"
   printf "Size reduction:  %d%%\n" "${size_reduction}"
