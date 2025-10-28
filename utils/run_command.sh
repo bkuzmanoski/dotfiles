@@ -18,6 +18,7 @@ local applescript_path="${compiled_path}.scpt"
 
 compile_command() {
   local source_files=(${utils_dir}/${command}.*)
+
   if [[ "${#source_files[@]}" -eq 0 || ! -e "${source_files[1]}" ]]; then
     print -u2 "Error: Unknown command"
     return 1
