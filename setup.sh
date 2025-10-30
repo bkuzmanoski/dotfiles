@@ -194,9 +194,9 @@ _defaults_write com.colliderli.iina actionAfterLaunch -int 2
 _defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
 _defaults_write com.colliderli.iina enableOSD -bool false
 _defaults_write com.colliderli.iina oscPosition -int 2
+_defaults_write com.colliderli.iina pauseWhenOpen -bool true
 _defaults_write com.colliderli.iina quitWhenNoOpenedWindow -bool true
-_defaults_write com.colliderli.iina screenshotCopyToClipboard -bool true
-_defaults_write com.colliderli.iina screenshotSaveToFile -bool false
+_defaults_write com.colliderli.iina screenShotFolder -string "~/Downloads"
 _defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 _defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 _defaults_write com.colliderli.iina themeMaterial -int 4
