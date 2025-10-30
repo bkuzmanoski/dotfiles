@@ -190,6 +190,16 @@ _add_app_to_dock "/Applications/Visual Studio Code.app"
 _add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
+_defaults_write com.colliderli.iina actionAfterLaunch -int 2
+_defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
+_defaults_write com.colliderli.iina enableOSD -bool false
+_defaults_write com.colliderli.iina oscPosition -int 2
+_defaults_write com.colliderli.iina quitWhenNoOpenedWindow -bool true
+_defaults_write com.colliderli.iina screenshotCopyToClipboard -bool true
+_defaults_write com.colliderli.iina screenshotSaveToFile -bool false
+_defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
+_defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
+_defaults_write com.colliderli.iina themeMaterial -int 4
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 _defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
