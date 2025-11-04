@@ -11,6 +11,7 @@ brew "micro"
 brew "oxipng"
 brew "ripgrep"
 brew "sentry-cli"
+brew "watch"
 brew "xcbeautify"
 brew "xcode-build-server"
 
