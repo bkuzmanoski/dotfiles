@@ -7,7 +7,13 @@ local function focusFrontmostWindow(screen)
   if not windows or #windows == 0 then return end
 
   local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
-    return window:screen() == screen and not window:isFullscreen() and window:subrole() == "AXStandardWindow"
+    local frame = window:frame()
+    return
+        window:screen() == screen and
+        not window:isFullscreen() and
+        window:subrole() == "AXStandardWindow" and
+        frame.w > 100 and
+        frame.h > 100
   end)
   if #windowsOnScreen == 0 then return end
 

@@ -14,10 +14,13 @@ local function focusWindow(target)
 
   local screen = hs.screen.mainScreen()
   local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
+    local frame = window:frame()
     return
         window:screen() == screen and
         not window:isFullscreen() and
-        window:subrole() ~= hs.axuielement.subroles.unknown
+        window:subrole() ~= "AXUnknown" and
+        frame.w > 100 and
+        frame.h > 100
   end)
   if #windowsOnScreen == 0 then return end
 
