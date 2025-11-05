@@ -42,6 +42,14 @@ class MeasurementView: NSView {
 
   override var acceptsFirstResponder: Bool { true }
 
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+
+    DispatchQueue.main.async { [weak self] in
+      self?.updateTrackingAreas()
+    }
+  }
+
   override func updateTrackingAreas() {
     if let existingArea = trackingArea {
       removeTrackingArea(existingArea)
@@ -156,10 +164,13 @@ class MeasurementView: NSView {
       switch position {
       case .top:
         CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
+
       case .bottom:
         CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.minY - backgroundSize.height - Constants.labelMargin)
+
       case .left:
         CGPoint(x: rect.minX - backgroundSize.width - Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
+
       case .right:
         CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
       }
@@ -189,6 +200,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   private var observers: [(token: NSObjectProtocol, center: NotificationCenter)] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    NSApplication.shared.activate(ignoringOtherApps: true)
+
     self.measurementView = MeasurementView()
     self.screen =
       NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
@@ -202,8 +215,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     window.setFrame(screen.frame, display: true)
     window.makeKeyAndOrderFront(nil)
     window.makeFirstResponder(measurementView)
-
-    NSApplication.shared.activate(ignoringOtherApps: true)
 
     let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
     let activeSpaceObservationToken = workspaceNotificationCenter.addObserver(
