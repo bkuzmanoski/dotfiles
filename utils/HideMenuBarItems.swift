@@ -14,7 +14,7 @@ enum Signal {
 
     var errorDescription: String? {
       switch self {
-      case .interrupted(let signal): return "Interrupted with signal \(Signal.name(for: signal))"
+      case .interrupted(let signal): "Interrupted with signal \(Signal.name(for: signal))"
       }
     }
   }
@@ -65,8 +65,8 @@ class SingletonLock {
 
     var errorDescription: String? {
       switch self {
-      case .instanceAlreadyRunning: return "Instance already running."
-      case .lockFileError(let message): return "Failed to acquire lock: \(message)"
+      case .instanceAlreadyRunning: "Instance already running."
+      case .lockFileError(let message): "Failed to acquire lock: \(message)"
       }
     }
   }
@@ -148,8 +148,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeSignals() {
     Task {
-      for await signal in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        print("Received \(Signal.name(for: signal)), shutting down.")
+      for await _ in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
         await NSApplication.shared.terminate(nil)
       }
     }
@@ -202,6 +201,6 @@ do {
   Command(arguments: arguments).send()
   exit(0)
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
+  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)".utf8))
   exit(1)
 }
