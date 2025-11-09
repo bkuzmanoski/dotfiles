@@ -13,7 +13,8 @@ FZF_OPTS=(
 )
 
 fzf() {
-  update_theme && command fzf "${FZF_OPTS[@]}" --color "${FZF_THEME}" "$@"
+  update_theme
+  command fzf "${FZF_OPTS[@]}" --color "${FZF_THEME}" "$@"
 }
 
 fdir() {
@@ -30,7 +31,8 @@ fif() {
     return 1
   fi
 
-  local pattern="$1" && shift
+  local pattern="$1"
+  shift
 
   _select_paths "rg --files-with-matches --no-messages -- \"${pattern}\"" "$@"
 }
@@ -42,19 +44,23 @@ fh() {
 
 fk() {
   local selected_processes="$(ps -eo pid,comm | sed -E "1d; s/^([[:space:]]*)([0-9]+)/\2\1/" | fzf --multi)"
-  [[ -z "${selected_processes}" ]] && return
+
+  if [[ -z "${selected_processes}" ]]; then
+    return
+  fi
 
   local pids="$(print "${selected_processes}" | awk '{print $1}' | xargs echo)"
   print -rz -- "kill${1:+ $1} ${pids}"
 }
 
 _select_paths() {
-  local find_command="$1" && shift
+  local find_command="$1"
+  shift
+
+  local fifo="$(mktemp)"
   local find_command_pid
-  local fifo
   local selected_paths
 
-  fifo=$(mktemp)
   rm -f "${fifo}"
   mkfifo "${fifo}"
 
@@ -66,10 +72,13 @@ _select_paths() {
   ' INT TERM EXIT
 
   (eval "${find_command}" > "$fifo" &)
-  find_command_pid=$!
+  find_command_pid="$!"
 
   selected_paths=("${(@f)$(fzf --multi < "${fifo}")}")
-  [[ -z "${selected_paths[@]}" ]] && return
+
+  if [[ -z "${selected_paths[@]}" ]]; then
+    return
+  fi
 
   if [[ $# -gt 0 ]]; then
     print -rz -- "$@ ${(@q)selected_paths}"

@@ -10,7 +10,7 @@ ai() {
 Output the command without additional text, explanations, or formatting.
 Ensure the command is safe to run and does not require additional context.
 If multiple commands are needed, separate them with \`&&\` or \`;\`.
-The following tools are available: Xcode Command Line Tools, bat, eza, fd, ffmpeg, fnm, fzf, gh, jpegoptim, micro, oxipng, ripgrep.
+The following tools are available: Xcode Command Line Tools, bat, eza, fd, ffmpeg, fnm, fzf, gh, jpegoptim, micro, oxipng, ripgrep, watch.
 If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <brief reason>\".'
 
   local api_key
@@ -21,7 +21,7 @@ If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <bri
   fi
 
   if [[ -f "${api_key_file}" ]]; then
-    api_key=$(< "${api_key_file}")
+    api_key="$(< "${api_key_file}")"
   else
     print "Enter your OpenRouter API key: "
     read -rs api_key
@@ -29,7 +29,7 @@ If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <bri
     chmod 600 "${api_key_file}"
   fi
 
-  local response=$(curl -s https://openrouter.ai/api/v1/chat/completions \
+  local response="$(curl -s https://openrouter.ai/api/v1/chat/completions \
     -H "Authorization: Bearer ${api_key}" \
     -H "Content-Type: application/json" \
     -d "$(jq \
@@ -48,14 +48,17 @@ If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <bri
             "content": $prompt
           }
         ]
-      }')")
+      }'
+    )"
+  )"
 
   if [[ -z "${response}" ]]; then
+    print
     print -u2 "Error: Failed to contact API"
     return 1
   fi
 
-  local output=$(print "${response}" | jq --raw-output '
+  local output="$(print "${response}" | jq --raw-output '
     if .choices[0].message.content then
       .choices[0].message.content
     elif .error.message then
@@ -63,10 +66,10 @@ If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <bri
     else
       "PARSE_ERROR"
     end
-  ' 2>/dev/null)
+  ' 2>/dev/null)"
 
   if [[ -z "${output}" || "${output}" == "PARSE_ERROR" ]]; then
-    output=$(print "${response}" | sed -n 's/.*"content":"\(.*\)","refusal".*/\1/p')
+    output="$(print "${response}" | sed -n 's/.*"content":"\(.*\)","refusal".*/\1/p')"
 
     if [[ -z "${output}" ]]; then
       output="PARSE_ERROR"

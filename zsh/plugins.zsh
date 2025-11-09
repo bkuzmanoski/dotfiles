@@ -14,10 +14,10 @@ readonly UPDATE_REMINDERS=(
 )
 
 brewup() (
-  cd ~/.dotfiles || { print ".dotfiles directory not found."; exit 1 }
-  brew upgrade || { print "brew upgrade failed."; exit 1 }
-  brew bundle || { print "brew bundle failed."; exit 1 }
-  brew autoremove || { print "brew autoremove failed."; exit 1 }
+  cd ~/.dotfiles           || { print ".dotfiles directory not found."; exit 1 }
+  brew upgrade             || { print "brew upgrade failed."; exit 1 }
+  brew bundle              || { print "brew bundle failed."; exit 1 }
+  brew autoremove          || { print "brew autoremove failed."; exit 1 }
   brew cleanup --prune all || { print "brew cleanup failed."; exit 1 }
 
   print
@@ -26,13 +26,11 @@ brewup() (
 
 fnmup() {
   local current_version="$(fnm current)"
-  local latest_version="$(fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)" || {
-    print -u2 "Failed to fetch latest Node version."
-    return 1
-  }
+  local latest_version="$(set -o pipefail; fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)"
 
   if [[ -z "${latest_version}" ]]; then
-    print -u2 "No LTS versions found."
+    print
+    print -u2 "Failed to query latest Node LTS version."
     return 1
   fi
 
@@ -43,25 +41,29 @@ fnmup() {
     read -r "response?Install latest version? (y/N) "
 
     if [[ "${response}" =~ ^[Yy]$ ]]; then
-      fnm install "${latest_version}" || {
+      fnm install "${latest_version}"
+
+      if [[ $? -ne 0 ]]; then
+        print
         print -u2 "Failed to install Node ${latest_version}."
         return 1
-      }
+      fi
 
-      print
-      read -r "default?Set as default? (y/N) "
+      read -r "default?\nSet as default? (y/N) "
 
       if [[ "${default}" =~ ^[Yy]$ ]]; then
-        fnm default "${latest_version}" || {
-          print -u2 "Failed to set Node.js ${latest_version} as default."
+        fnm default "${latest_version}"
+
+        if [[ $? -ne 0 ]]; then
+          print
+          print -u2 "Failed to set Node ${latest_version} as default."
           return 1
-        }
+        fi
 
         print "Node ${latest_version} is now default."
       fi
 
-      print
-      read -r "cleanup?Clean up old versions? (y/N) "
+      read -r "cleanup?\nClean up old versions? (y/N) "
 
       if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
         local installed_versions="$(fnm ls | grep -v "system" | grep -v "${latest_version}" | tr -d "* " | grep -o "v[0-9][0-9.]*")"
@@ -69,18 +71,19 @@ fnmup() {
         if [[ -n "${installed_versions}" ]]; then
           print "The following version(s) will be removed:"
           print "${installed_versions}"
-          print
-          read -r "confirm?Proceed? (y/N) "
+          read -r "confirm?\nProceed? (y/N) "
 
           if [[ "${confirm}" =~ ^[Yy]$ ]]; then
             print "${installed_versions}" | while read -r version; do
               if [[ -n "${version}" ]]; then
-                printf "Removing %s...\n" "${version}"
+                print "Removing "${version}"...\n"
+                fnm uninstall "${version}"
 
-                fnm uninstall "${version}" || {
+                if [[ $? -ne 0 ]]; then
+                  print
                   print -u2 "Failed to remove Node ${version}."
                   return 1
-                }
+                fi
               fi
             done
 
@@ -103,8 +106,20 @@ zshup() (
   for plugin in "${(k)PLUGINS[@]}"; do
     local plugin_dir="${HOME}/.zsh/${plugin}"
 
-    print -P "Updating %B${plugin}%b..."
-    cd "${plugin_dir}" && git pull || { print "${plugin} update failed."; exit 1 }
+    print -P "Updating %B${plugin}%b...\n"
+
+    (
+      cd "${plugin_dir}"
+      print -nP '\e[1A\e[2K\r'
+      git pull
+    )
+
+    if [[ $? -ne 0 ]]; then
+      print
+      print -u2 "${plugin} update failed."
+      exit 1
+    fi
+
     print
   done
 
@@ -116,12 +131,20 @@ _source_plugins() {
 
   for plugin in ${(k)PLUGINS[@]}; do
     local target_dir="${HOME}/.zsh/${plugin}"
-    local git_repository=${PLUGINS[${plugin}]%%|*}
-    local source_file=${PLUGINS[${plugin}]#*|}
+    local git_repository="${PLUGINS[${plugin}]%%|*}"
+    local source_file="${PLUGINS[${plugin}]#*|}"
 
     if [[ ! -d "${target_dir}" ]]; then
       print -P "Installing %B${plugin}%b..."
-      git clone "${git_repository}" "${target_dir}" || { print "${plugin} installation failed.\n"; continue }
+      git clone "${git_repository}" "${target_dir}"
+
+      if [[ $? -ne 0 ]]; then
+        print
+        print -u2 "${plugin} installation failed."
+        print
+        continue
+      fi
+
       plugins_installed=1
       print
     fi
@@ -133,14 +156,16 @@ _source_plugins() {
     fi
   done
 
-  (( plugins_installed )) && zshup > /dev/null
+  if (( plugins_installed )); then
+    zshup > /dev/null
+  fi
 }
 
 _source_plugins
 
 _check_last_update_time() {
   local now="$(date "+%s")"
-  local frequency="$((7 * 86400))" # Weekly
+  local frequency="$(( 7 * 86400 ))"
   local updates_required=0
 
   for reminder in "${UPDATE_REMINDERS[@]}"; do
@@ -153,7 +178,10 @@ _check_last_update_time() {
 
     if [[ -f "${timestamp_file}" ]]; then
       last_update_timestamp="$(<"${timestamp_file}")"
-      [[ "${last_update_timestamp}" =~ ^[0-9]+$ ]] || last_update_timestamp=0
+
+      if [[ ! "${last_update_timestamp}" =~ ^[0-9]+$ ]]; then
+        last_update_timestamp=0
+      fi
     fi
 
     local time_diff="$((now - last_update_timestamp))"
@@ -163,7 +191,9 @@ _check_last_update_time() {
     fi
   done
 
-  (( updates_required )) && print # Print a newline before initial prompt
+  if (( updates_required )); then
+    print
+  fi
 }
 
 _check_last_update_time
