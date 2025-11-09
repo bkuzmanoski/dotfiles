@@ -186,6 +186,7 @@ defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file 
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
 defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
 defaults_write NSGlobalDomain AppleSpacesSwitchOnActivate -bool false # Do not switch Spaces when switching to an app
+defaults_write NSGlobalDomain com.apple.trackpad.forceClick -bool false # Disable Dictionary lookup with force click on Trackpad
 defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization of text
