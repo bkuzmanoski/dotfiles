@@ -24,13 +24,13 @@ cv() {
   local audio_bitrate="128k"
 
   if ! zparseopts -D -E -F \
-    "{p,-preset}":=option_preset \
-    "{q,-quality}":=option_crf \
-    "{f,-fps}":=option_fps \
-    "{c,-codec}":=option_codec \
-    "{a,-audio}":=option_audio \
-    "{o,-overwrite}"=flag_overwrite \
-    "{h,-help}"=flag_help \
+    {p,-preset}:=option_preset \
+    {q,-quality}:=option_crf \
+    {f,-fps}:=option_fps \
+    {c,-codec}:=option_codec \
+    {a,-audio}:=option_audio \
+    {o,-overwrite}=flag_overwrite \
+    {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid or incomplete options provided."
     print

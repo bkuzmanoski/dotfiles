@@ -35,9 +35,9 @@ oi() {
   local quality=""
 
   if ! zparseopts -D -E -F \
-    "{z,-zopfli}"=flag_zopfli \
-    "{q,-quality}":=option_quality \
-    "{h,-help}"=flag_help \
+    {z,-zopfli}=flag_zopfli \
+    {q,-quality}:=option_quality \
+    {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid or incomplete options provided."
     print
