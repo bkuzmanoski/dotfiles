@@ -202,6 +202,6 @@ do {
   Command(arguments: arguments).send()
   exit(0)
 } catch {
-  print("An error occurred on startup: \(error.localizedDescription)")
+  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
   exit(1)
 }

@@ -14,7 +14,7 @@ guard
   let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: true),
   let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: false)
 else {
-  print("Failed to create event source")
+  FileHandle.standardError.write(Data("Error: Failed to create event source.\n".utf8))
   exit(1)
 }
 

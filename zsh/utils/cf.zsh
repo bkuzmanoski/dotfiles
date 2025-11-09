@@ -4,29 +4,36 @@ cf() {
     return 1
   fi
 
-  _help() {
+  print_help() {
     print "Usage: cf [options] [rg options]"
     print "Options:"
     print "  -o, --output    Specify an output file to write the output to (default: copy to clipboard)"
     print "  -h, --help      Show this help message"
   }
 
-  if ! zparseopts -D -E -K {o,-output}:=output_file {h,-help}=flag_help 2>/dev/null; then
-    print -u2 "Error: Invalid options provided.\n"
-    _help
+  if ! zparseopts -D -E -K \
+    "{o,-output}":=output_file \
+    "{h,-help}"=flag_help \
+    2>/dev/null; then
+    print -u2 "Error: Invalid options provided."
+    print
+    print_help
 
     return 1
   fi
 
-  [[ -z "${flag_help}" ]] || { _help; return 0 }
+  if [[ -n "${flag_help}" ]]; then
+    print_help
+    return 0
+  fi
 
   local return_message return_code
   local -a rg_cmd=("rg" "--heading" "--line-number" "--color=never" "${@}" ".")
   local rg_output
 
-  rg_output=$("${rg_cmd[@]}")
+  rg_output="$("${rg_cmd[@]}")"
 
-  local rg_status=$?
+  local rg_status="$?"
 
   case "${rg_status}" in
     0)
@@ -51,12 +58,8 @@ cf() {
   esac
 
   case "${return_code}" in
-    0)
-      print "${return_message}"
-      ;;
-    *)
-      print -u2 "${return_message}"
-      ;;
+    0) print "${return_message}" ;;
+    *) print -u2 "${return_message}" ;;
   esac
 
   return ${return_code}
