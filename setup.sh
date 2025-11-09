@@ -17,8 +17,8 @@ log() {
 
 defaults_write() {
   zparseopts -D -E \
-    "-sudo"=use_sudo \
-    "-currenthost"=use_currenthost
+    -sudo=use_sudo \
+    -currenthost=use_currenthost
 
   local -a write_cmd=(${use_sudo:+"sudo "}"defaults""${use_currenthost:+" -currentHost"}"" write" "$@")
 

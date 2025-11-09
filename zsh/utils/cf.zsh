@@ -12,8 +12,8 @@ cf() {
   }
 
   if ! zparseopts -D -E -K \
-    "{o,-output}":=output_file \
-    "{h,-help}"=flag_help \
+    {o,-output}:=output_file \
+    {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid options provided."
     print

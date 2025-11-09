@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-zparseopts -D -E "{b,-background}"=flag_background
+zparseopts -D -E {b,-background}=flag_background
 
 if (( $# < 1 )); then
   print -u2 "Usage: ${0:t} [-b, --background] <command_or_source_file> [command_args...]"
