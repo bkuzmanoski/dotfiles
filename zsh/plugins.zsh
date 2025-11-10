@@ -19,8 +19,6 @@ brewup() (
   brew bundle              || { print "brew bundle failed."; exit 1 }
   brew autoremove          || { print "brew autoremove failed."; exit 1 }
   brew cleanup --prune all || { print "brew cleanup failed."; exit 1 }
-
-  print
   _update_timestamps "brew_last_update"
 )
 
@@ -29,7 +27,6 @@ fnmup() {
   local latest_version="$(set -o pipefail; fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)"
 
   if [[ -z "${latest_version}" ]]; then
-    print
     print -u2 "Failed to query latest Node LTS version."
     return 1
   fi
@@ -37,15 +34,13 @@ fnmup() {
   if [[ "${current_version}" != "${latest_version}" ]]; then
     print "Current version: ${current_version}"
     print "Latest version: ${latest_version}"
-    print "\nNew version available!"
-    read -r "response?Install latest version? (y/N) "
+    read -r "response?\nInstall latest version? (y/N) "
 
     if [[ "${response}" =~ ^[Yy]$ ]]; then
       fnm install "${latest_version}"
 
       if [[ $? -ne 0 ]]; then
-        print
-        print -u2 "Failed to install Node ${latest_version}."
+        print -u2 "\nFailed to install Node ${latest_version}."
         return 1
       fi
 
@@ -55,8 +50,7 @@ fnmup() {
         fnm default "${latest_version}"
 
         if [[ $? -ne 0 ]]; then
-          print
-          print -u2 "Failed to set Node ${latest_version} as default."
+          print -u2 "\nFailed to set Node ${latest_version} as default."
           return 1
         fi
 
@@ -80,8 +74,7 @@ fnmup() {
                 fnm uninstall "${version}"
 
                 if [[ $? -ne 0 ]]; then
-                  print
-                  print -u2 "Failed to remove Node ${version}."
+                  print -u2 "\nFailed to remove Node ${version}."
                   return 1
                 fi
               fi
@@ -98,12 +91,20 @@ fnmup() {
     print "Already up to date."
   fi
 
-  print
   _update_timestamps "fnm_last_update"
 }
 
 zshup() (
-  for plugin in "${(k)PLUGINS[@]}"; do
+  local plugin_keys=("${(k)PLUGINS[@]}")
+  local number_of_plugins=${#plugin_keys[@]}
+
+  if (( ${number_of_plugins} == 0 )); then
+    print "No plugins to update."
+    return 0
+  fi
+
+  for (( i=1; i<=${number_of_plugins}; i++ )); do
+    local plugin="${plugin_keys[i]}"
     local plugin_dir="${HOME}/.zsh/${plugin}"
 
     print -P "Updating %B${plugin}%b...\n"
@@ -115,12 +116,13 @@ zshup() (
     )
 
     if [[ $? -ne 0 ]]; then
-      print
-      print -u2 "${plugin} update failed."
+      print -u2 "\n${plugin} update failed."
       exit 1
     fi
 
-    print
+    if (( i < ${#plugin_keys[@]} )); then
+      print
+    fi
   done
 
   _update_timestamps "zsh_plugins_last_update"
@@ -139,8 +141,7 @@ _source_plugins() {
       git clone "${git_repository}" "${target_dir}"
 
       if [[ $? -ne 0 ]]; then
-        print
-        print -u2 "${plugin} installation failed."
+        print -u2 "\n${plugin} installation failed."
         print
         continue
       fi
@@ -152,7 +153,7 @@ _source_plugins() {
     if [[ -f "${target_dir}/${source_file}" ]]; then
       source "${target_dir}/${source_file}"
     else
-      print "Warning: Plugin file ${source_file} not found for ${plugin}"
+      print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
     fi
   done
 
@@ -204,5 +205,5 @@ _update_timestamps() {
   fi
 
   date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
-  print "Update timestamp updated, next reminder in 30 days."
+  print "\nUpdate timestamp updated, next reminder in 30 days."
 }

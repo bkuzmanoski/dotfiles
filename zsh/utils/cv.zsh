@@ -1,21 +1,23 @@
 cv() {
-  print_help() {
-    print "Usage: cv [options] <video>"
-    print "Options:"
-    print "  -p, --preset VALUE   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]"
-    print "  -q, --quality VALUE  Set quality (0-51, lower = better quality) [default: 23]"
-    print "  -f, --fps VALUE      Set frame rate [default: 30]"
-    print "  -c, --codec VALUE    Set codec (h264, h265) [default: h264]"
-    print "  -a, --audio VALUE    Set audio bitrate [default: 128k]"
-    print "  -o, --overwrite      Overwrite input file with compressed version"
-    print "  -h, --help           Show this help message"
-  }
-
   if ! which -s ffmpeg >/dev/null; then
     print -u2 -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
     return 1
   fi
 
+  local usage_info=$(cat <<- EOF
+		Usage:
+		  cv [options] <video>
+
+		Options:
+		  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
+		  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
+		  -f, --fps <value>      Set frame rate [default: 30]
+		  -c, --codec <value>    Set codec (h264, h265) [default: h264]
+		  -a, --audio <value>    Set audio bitrate [default: 128k]
+		  -o, --overwrite        Overwrite input file with compressed version
+		  -h, --help             Show this help message
+		EOF
+  )
   local preset="veryfast"
   local crf=23
   local fps=30
@@ -32,15 +34,14 @@ cv() {
     {o,-overwrite}=flag_overwrite \
     {h,-help}=flag_help \
     2>/dev/null; then
-    print -u2 "Error: Invalid or incomplete options provided."
-    print
-    print_help
+    print -u2 "Error: Invalid or incomplete options provided.\n"
+    print -u2 "${usage_info}"
 
     return 1
   fi
 
   if (( ${#flag_help} > 0 )); then
-    print_help
+    print -- "${usage_info}"
     return 0
   fi
 
@@ -92,8 +93,7 @@ cv() {
     "${output_file}"
 
   if [[ $? -ne 0 ]]; then
-    print
-    print -u2 "Failed to compress video."
+    print -u2 "\nFailed to compress video."
     return 1
   fi
 

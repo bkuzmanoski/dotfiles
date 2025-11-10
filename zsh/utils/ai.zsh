@@ -4,15 +4,16 @@ ai() {
     return 1
   fi
 
+  local instructions=$(cat <<- EOF
+		Generate a shell command for Zsh on macOS based on the provided prompt.
+		Output the command without additional text, explanations, or formatting.
+		Ensure the command is safe to run and does not require additional context.
+		If multiple commands are needed, separate them with \`&&\` or \`;\`.
+		The following tools are available: Xcode Command Line Tools, bat, eza, fd, ffmpeg, fnm, fzf, gh, jpegoptim, micro, oxipng, ripgrep, watch.
+		If the prompt is unclear or cannot be fulfilled, respond with: "LLM_ERROR: <brief reason>".
+		EOF
+  )
   local api_key_file="${HOME}/.config/zsh/ai_api_key"
-  local instructions=\
-'Generate a shell command for Zsh on macOS based on the provided prompt.
-Output the command without additional text, explanations, or formatting.
-Ensure the command is safe to run and does not require additional context.
-If multiple commands are needed, separate them with \`&&\` or \`;\`.
-The following tools are available: Xcode Command Line Tools, bat, eza, fd, ffmpeg, fnm, fzf, gh, jpegoptim, micro, oxipng, ripgrep, watch.
-If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <brief reason>\".'
-
   local api_key
   local prompt="$*"
 
@@ -53,8 +54,7 @@ If the prompt is unclear or cannot be fulfilled, respond with: \"LLM_ERROR: <bri
   )"
 
   if [[ -z "${response}" ]]; then
-    print
-    print -u2 "Error: Failed to contact API"
+    print -u2 "\nError: Failed to contact API"
     return 1
   fi
 

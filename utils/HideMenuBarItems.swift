@@ -201,6 +201,6 @@ do {
   Command(arguments: arguments).send()
   exit(0)
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)".utf8))
+  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
   exit(1)
 }

@@ -28,9 +28,10 @@ extension NSColor {
 }
 
 let arguments = CommandLine.arguments
+let programName = (arguments.first as NSString?)?.lastPathComponent ?? "SampleColor"
 
 if arguments.contains("-h") || arguments.contains("--help") {
-  print("Usage: \(arguments[0]) [--rgb | --hex]")
+  print("Usage: \(programName) [--rgb | --hex]")
   exit(0)
 }
 
