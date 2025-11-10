@@ -283,7 +283,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       try scrollZoomController.start()
     } catch {
-      print("Error starting ScrollZoomController: \(error.localizedDescription)")
+      FileHandle.standardError.write(Data("Error starting ScrollZoomController: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
     }
   }
@@ -346,6 +346,6 @@ do {
   Command(arguments: arguments).send()
   exit(0)
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)".utf8))
+  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
   exit(1)
 }

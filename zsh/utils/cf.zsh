@@ -4,26 +4,28 @@ cf() {
     return 1
   fi
 
-  print_help() {
-    print "Usage: cf [options] [rg options]"
-    print "Options:"
-    print "  -o, --output    Specify an output file to write the output to (default: copy to clipboard)"
-    print "  -h, --help      Show this help message"
-  }
+  local usage_info=$(cat <<- EOF
+		Usage:
+		  cf [options] [rg options]
+
+		Options:
+		  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
+		  -h, --help    Show this help message
+		EOF
+  )
 
   if ! zparseopts -D -E -K \
     {o,-output}:=output_file \
     {h,-help}=flag_help \
     2>/dev/null; then
-    print -u2 "Error: Invalid options provided."
-    print
-    print_help
+    print -u2 "Error: Invalid options provided.\n"
+    print -u2 "${usage_info}"
 
     return 1
   fi
 
   if [[ -n "${flag_help}" ]]; then
-    print_help
+    print -- "${usage_info}"
     return 0
   fi
 

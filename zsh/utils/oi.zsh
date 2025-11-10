@@ -1,13 +1,4 @@
 oi() {
-  print_help() {
-    print "Usage: oi [options] <image|directory> ..."
-    print "Options:"
-    print "  -z, --zopfli     Use Zopfli compression for PNGs (slower but better compression)"
-    print "  -q, --quality N  Set JPEG quality (0-100, lower = smaller file)"
-    print "  -h, --help       Show this help message"
-  }
-
-
   local missing_tools=()
   local install_instructions=()
 
@@ -31,6 +22,16 @@ oi() {
     return 1
   fi
 
+  local usage_info=$(cat <<- EOF
+		Usage:
+		  oi [options] <image|directory> ...
+
+		Options:
+		  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
+		  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
+		  -h, --help             Show this help message         Show this help message
+		EOF
+  )
   local use_zopfli=0
   local quality=""
 
@@ -39,15 +40,14 @@ oi() {
     {q,-quality}:=option_quality \
     {h,-help}=flag_help \
     2>/dev/null; then
-    print -u2 "Error: Invalid or incomplete options provided."
-    print
-    print_help
+    print -u2 "Error: Invalid or incomplete options provided.\n"
+    print -u2 "${usage_info}"
 
     return 1
   fi
 
   if (( ${#flag_help} > 0 )); then
-    print_help
+    print -- "${usage_info}"
     return 0
   fi
 
