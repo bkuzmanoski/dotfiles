@@ -1,12 +1,17 @@
+local module = {}
+
 local utils = require("utils")
 
-local module = {}
 local windowFilter
 
 function module.init(config)
-  if windowFilter then module.cleanup() end
+  if windowFilter then
+    module.cleanup()
+  end
 
-  if not config then return module end
+  if not config then
+    return module
+  end
 
   windowFilter = hs.window.filter.new()
       :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
@@ -19,7 +24,10 @@ function module.init(config)
 end
 
 function module.cleanup()
-  if windowFilter then windowFilter:unsubscribeAll() end
+  if windowFilter then
+    windowFilter:unsubscribeAll()
+  end
+
   windowFilter = nil
 end
 

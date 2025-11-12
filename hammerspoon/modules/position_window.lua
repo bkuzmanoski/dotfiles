@@ -1,10 +1,6 @@
-local utils = require("utils")
-
 local module = {}
-local bindings = {}
-local currentSplitRatio, lastDirection, lastWindow
-local topOffset, padding, splitRatios
 
+local utils = require("utils")
 local direction = { left = "left", right = "right" }
 local size = { small = "small", medium = "medium", large = "large", current = "current" }
 local sizeConfigs = {
@@ -14,8 +10,13 @@ local sizeConfigs = {
   [size.current] = { keepCurrentSize = true }
 }
 
+local bindings = {}
+local topOffset, padding, splitRatios
+local currentSplitRatio, lastDirection, lastWindow
+
 local function getFocusedWindowAndScreen()
   local focusedWindow = hs.window.frontmostWindow()
+
   if not focusedWindow or not focusedWindow:isMaximizable() or focusedWindow:isFullscreen() then
     return nil, nil
   end
@@ -24,10 +25,15 @@ local function getFocusedWindowAndScreen()
 end
 
 local function center(targetSize)
-  if not targetSize then return end
+  if not targetSize then
+    return
+  end
 
   local window, screen = getFocusedWindowAndScreen()
-  if not window or not screen then return end
+
+  if not window or not screen then
+    return
+  end
 
   local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   local windowFrame = window:frame()
@@ -44,7 +50,6 @@ local function center(targetSize)
       windowFrame.h = math.floor(screenFrame.h * config.heightRatio)
     end
 
-    -- Center
     windowFrame.x = screenFrame.x + math.floor((screenFrame.w - windowFrame.w) / 2)
     windowFrame.y = screenFrame.y + math.floor((screenFrame.h - windowFrame.h) / 2)
   end
@@ -54,7 +59,10 @@ end
 
 local function position(targetDirection)
   local window, screen = getFocusedWindowAndScreen()
-  if not window or not screen then return end
+
+  if not window or not screen then
+    return
+  end
 
   if not currentSplitRatio or window ~= lastWindow or lastDirection ~= targetDirection then
     currentSplitRatio = splitRatios[1]
@@ -68,9 +76,11 @@ local function position(targetDirection)
   screenFrame.w = screenFrame.w - padding
 
   local leftFrame = screenFrame:copy()
+  leftFrame.w = math.floor(
+    screenFrame.w * (targetDirection == direction.left and currentSplitRatio or (1 - currentSplitRatio))
+  )
+
   local rightFrame = screenFrame:copy()
-  leftFrame.w =
-      math.floor(screenFrame.w * (targetDirection == direction.left and currentSplitRatio or (1 - currentSplitRatio)))
   rightFrame.x = screenFrame.x + leftFrame.w + padding
   rightFrame.w = screenFrame.w - leftFrame.w
 
@@ -82,17 +92,32 @@ local function position(targetDirection)
 end
 
 function module.init(config)
-  if next(bindings) then module.cleanup() end
+  if next(bindings) then
+    module.cleanup()
+  end
 
   if config and config.hotkeys then
     local handlers = {
-      center = function() center(size.current) end,
-      centerSmall = function() center(size.small) end,
-      centerMedium = function() center(size.medium) end,
-      centerLarge = function() center(size.large) end,
-      left = function() position(direction.left) end,
-      right = function() position(direction.right) end
+      center = function()
+        center(size.current)
+      end,
+      centerSmall = function()
+        center(size.small)
+      end,
+      centerMedium = function()
+        center(size.medium)
+      end,
+      centerLarge = function()
+        center(size.large)
+      end,
+      left = function()
+        position(direction.left)
+      end,
+      right = function()
+        position(direction.right)
+      end
     }
+
     for action, hotkey in pairs(config.hotkeys) do
       if handlers[action] then
         bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
@@ -110,7 +135,10 @@ function module.init(config)
 end
 
 function module.cleanup()
-  for _, binding in pairs(bindings) do binding:delete() end
+  for _, binding in pairs(bindings) do
+    binding:delete()
+  end
+
   bindings = {}
 end
 
