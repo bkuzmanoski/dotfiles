@@ -1,19 +1,27 @@
+local module = {}
+
 local utils = require("utils")
 
-local module = {}
 local bindings = {}
 local topOffset, padding
 
 function module.init(config)
-  if next(bindings) then module.cleanup() end
+  if next(bindings) then
+    module.cleanup()
+  end
 
-  if not config or not config.hotkeys then return module end
+  if not config or not config.hotkeys then
+    return module
+  end
 
   for action, hotkey in pairs(config.hotkeys) do
     if hotkey.modifiers and hotkey.key then
       bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
         local window = hs.window.frontmostWindow()
-        if window:isFullscreen() then return end
+
+        if window:isFullscreen() then
+          return
+        end
 
         window[action](window)
         utils.adjustWindowFrame(window, topOffset, padding)
@@ -30,7 +38,10 @@ function module.init(config)
 end
 
 function module.cleanup()
-  for _, binding in pairs(bindings) do binding:delete() end
+  for _, binding in pairs(bindings) do
+    binding:delete()
+  end
+
   bindings = {}
 end
 
