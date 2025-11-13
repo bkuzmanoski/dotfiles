@@ -1,19 +1,5 @@
 local module = {}
 
-function module.cycleNext(array, after)
-  if not after then
-    return array[1]
-  end
-
-  for i, value in ipairs(array) do
-    if value == after then
-      return array[(i % #array) + 1]
-    end
-  end
-
-  return array[1]
-end
-
 function module.getCurrentSpaceIndex(screen)
   if not screen then
     return nil, nil
@@ -31,9 +17,9 @@ function module.getCurrentSpaceIndex(screen)
     return nil, nil
   end
 
-  for i, spaceID in ipairs(spacesForScreen) do
+  for index, spaceID in ipairs(spacesForScreen) do
     if spaceID == activeSpaceID then
-      return i, #spacesForScreen
+      return index, #spacesForScreen
     end
   end
 
@@ -114,6 +100,37 @@ function module.getWindowUnderMouse(windows, validSubroles)
   end
 
   return nil
+end
+
+function module.cycleNext(array, afterIndex)
+  if not afterIndex then
+    return array[1]
+  end
+
+  for index, value in ipairs(array) do
+    if value == afterIndex then
+      return array[(index % #array) + 1]
+    end
+  end
+
+  return array[1]
+end
+
+function module.createSpaces(numberOfSpaces)
+  if not numberOfSpaces then
+    return
+  end
+
+  local primaryScreen = hs.screen.primaryScreen()
+  local spacesCount = #hs.spaces.spacesForScreen(primaryScreen)
+
+  if numberOfSpaces <= spacesCount then
+    return
+  end
+
+  for _ = spacesCount + 1, numberOfSpaces do
+    hs.spaces.addSpaceToScreen(primaryScreen)
+  end
 end
 
 function module.playAlert(repeatCount, soundNameOrPath)
