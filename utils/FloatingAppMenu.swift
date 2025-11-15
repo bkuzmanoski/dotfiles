@@ -229,7 +229,16 @@ class AppMenu {
       return nil
     }
 
-    return buildMenu(from: menuBarElement)
+    let appMenu = buildMenu(from: menuBarElement)
+
+    if let mainAppMenuItem = appMenu?.items.first {
+      mainAppMenuItem.attributedTitle = NSAttributedString(
+        string: mainAppMenuItem.title,
+        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+      )
+    }
+
+    return appMenu
   }
 
   private static func buildMenu(from element: AXUIElement, isSubmenu: Bool = false) -> NSMenu? {
@@ -247,7 +256,6 @@ class AppMenu {
         let menuItem = buildMenuItem(
           from: menuItemData,
           element: menuItemElement,
-          isMainAppMenu: menuItems.isEmpty && !isSubmenu,
           previousItem: menuItems.last
         )
       else {
@@ -296,7 +304,6 @@ class AppMenu {
   private static func buildMenuItem(
     from menuItemData: MenuItemData,
     element: AXUIElement,
-    isMainAppMenu: Bool,
     previousItem: NSMenuItem?
   ) -> NSMenuItem? {
     if menuItemData.title.isEmpty {
@@ -335,13 +342,6 @@ class AppMenu {
       case "-": .mixed
       default: .off
       }
-
-    if isMainAppMenu {
-      menuItem.attributedTitle = NSAttributedString(
-        string: menuItem.title,
-        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
-      )
-    }
 
     if let submenuElement = menuItemData.children?.first {
       menuItem.submenu = buildMenu(from: submenuElement, isSubmenu: true)
