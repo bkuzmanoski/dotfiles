@@ -257,8 +257,8 @@ class AppMenu {
     }
 
     let menu = NSMenu()
-    menu.minimumWidth = Constants.minimumWidth
     menu.autoenablesItems = false
+    menu.minimumWidth = Constants.minimumWidth
     menu.items = menuItems
 
     return menu
