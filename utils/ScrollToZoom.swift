@@ -1,5 +1,4 @@
 import AppKit
-import CoreGraphics
 
 enum Constants {
   static let subsystem = "industries.britown.ScrollToZoom"
@@ -64,12 +63,12 @@ struct Command {
 class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
-    case lockFileError(String)
+    case failedToAcquireLock(String)
 
     var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Instance already running."
-      case .lockFileError(let message): "Failed to acquire lock: \(message)"
+      case .failedToAcquireLock(let message): "Failed to acquire lock: \(message)"
       }
     }
   }
@@ -81,14 +80,14 @@ class SingletonLock {
     let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 
     if fd == -1 {
-      throw Error.lockFileError(String(cString: strerror(errno)))
+      throw Error.failedToAcquireLock(String(cString: strerror(errno)))
     }
 
     if flock(fd, LOCK_EX | LOCK_NB) == -1 {
       close(fd)
 
       guard errno == EWOULDBLOCK else {
-        throw Error.lockFileError("Failed to acquire lock: \(String(cString: strerror(errno)))")
+        throw Error.failedToAcquireLock("Failed to acquire lock: \(String(cString: strerror(errno)))")
       }
 
       throw Error.instanceAlreadyRunning
@@ -118,12 +117,12 @@ extension CGEventType {
 class ScrollZoomController {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
-    case eventTapCreationFailed
+    case failedToCreateEventTap
 
     var errorDescription: String? {
       switch self {
       case .accessibilityPermissionDenied: "Accessibility permission denied."
-      case .eventTapCreationFailed: "Failed to create event tap."
+      case .failedToCreateEventTap: "Failed to create event tap."
       }
     }
   }
@@ -147,36 +146,36 @@ class ScrollZoomController {
       throw Error.accessibilityPermissionDenied
     }
 
-    let eventMask = (1 << CGEventType.scrollWheel.rawValue) | (1 << CGEventType.flagsChanged.rawValue)
-    let selfPointer = Unmanaged.passUnretained(self).toOpaque()
-
     guard
-      let tap = CGEvent.tapCreate(
+      let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: CGEventMask(eventMask),
+        eventsOfInterest: (1 << CGEventType.scrollWheel.rawValue) | (1 << CGEventType.flagsChanged.rawValue),
         callback: eventTapCallback,
-        userInfo: selfPointer
+        userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      throw Error.eventTapCreationFailed
+      throw Error.failedToCreateEventTap
     }
 
-    self.eventTap = tap
-    self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+    self.eventTap = eventTap
+    self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
 
-    CFRunLoopAddSource(CFRunLoopGetMain(), self.runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: tap, enable: true)
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
   }
 
   func stop() {
     if let eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: false)
+      CFMachPortInvalidate(eventTap)
 
       if let runLoopSource {
         CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
       }
+
+      CFMachPortInvalidate(eventTap)
     }
 
     self.eventTap = nil
@@ -275,9 +274,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    observeSignals()
-    observeCommands()
-
     self.scrollZoomController = ScrollZoomController()
 
     do {
@@ -286,6 +282,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       FileHandle.standardError.write(Data("Error starting ScrollZoomController: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
     }
+
+    observeSignals()
+    observeCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {

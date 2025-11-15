@@ -61,12 +61,12 @@ struct Command {
 class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
-    case lockFileError(String)
+    case failedToAcquireLock(String)
 
     var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Instance already running."
-      case .lockFileError(let message): "Failed to acquire lock: \(message)"
+      case .failedToAcquireLock(let message): "Failed to acquire lock: \(message)"
       }
     }
   }
@@ -78,14 +78,14 @@ class SingletonLock {
     let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 
     if fd == -1 {
-      throw Error.lockFileError(String(cString: strerror(errno)))
+      throw Error.failedToAcquireLock(String(cString: strerror(errno)))
     }
 
     if flock(fd, LOCK_EX | LOCK_NB) == -1 {
       close(fd)
 
       guard errno == EWOULDBLOCK else {
-        throw Error.lockFileError("Failed to acquire lock: \(String(cString: strerror(errno)))")
+        throw Error.failedToAcquireLock("Failed to acquire lock: \(String(cString: strerror(errno)))")
       }
 
       throw Error.instanceAlreadyRunning
