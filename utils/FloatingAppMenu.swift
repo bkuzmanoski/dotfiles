@@ -369,7 +369,7 @@ class AppMenu {
 
     if !keyEquivalentModifierMask.isEmpty,
       !previousKeyEquivalentModifierMask.isEmpty,
-      keyEquivalentModifierMask != previousKeyEquivalentModifierMask
+      keyEquivalentModifierMask.isSuperset(of: previousKeyEquivalentModifierMask)
     {
       return (true, nil)
     } else if title.hasPrefix(previousTitle) {
