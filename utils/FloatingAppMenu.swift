@@ -238,6 +238,7 @@ class AppMenu {
     }
 
     var menuItems: [NSMenuItem] = []
+    menuItems.reserveCapacity(menuItemElements.count)
 
     for menuItemElement in menuItemElements {
       guard
