@@ -367,8 +367,7 @@ class AppMenu {
       return (false, nil)
     }
 
-    if !keyEquivalentModifierMask.isEmpty,
-      !previousKeyEquivalentModifierMask.isEmpty,
+    if !previousKeyEquivalentModifierMask.isEmpty,
       keyEquivalentModifierMask.isSuperset(of: previousKeyEquivalentModifierMask)
     {
       return (true, nil)
