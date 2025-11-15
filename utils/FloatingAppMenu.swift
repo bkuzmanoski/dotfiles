@@ -253,11 +253,7 @@ class AppMenu {
       guard
         let menuItemData = extractMenuItemData(from: menuItemElement),
         menuItemData.title != "Apple",
-        let menuItem = buildMenuItem(
-          from: menuItemData,
-          element: menuItemElement,
-          previousItem: menuItems.last
-        )
+        let menuItem = buildMenuItem(from: menuItemData, element: menuItemElement, previousItem: menuItems.last)
       else {
         continue
       }
