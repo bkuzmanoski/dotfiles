@@ -34,7 +34,8 @@ fnmup() {
   if [[ "${current_version}" != "${latest_version}" ]]; then
     print "Current version: ${current_version}"
     print "Latest version: ${latest_version}"
-    read -r "response?\nInstall latest version? (y/N) "
+    print
+    read -r "response?Install latest version? (y/N) "
 
     if [[ "${response}" =~ ^[Yy]$ ]]; then
       fnm install "${latest_version}"
@@ -44,7 +45,8 @@ fnmup() {
         return 1
       fi
 
-      read -r "default?\nSet as default? (y/N) "
+      print
+      read -r "default?Set as default? (y/N) "
 
       if [[ "${default}" =~ ^[Yy]$ ]]; then
         fnm default "${latest_version}"
@@ -57,7 +59,8 @@ fnmup() {
         print "Node ${latest_version} is now default."
       fi
 
-      read -r "cleanup?\nClean up old versions? (y/N) "
+      print
+      read -r "cleanup?Clean up old versions? (y/N) "
 
       if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
         local installed_versions="$(fnm ls | grep -v "system" | grep -v "${latest_version}" | tr -d "* " | grep -o "v[0-9][0-9.]*")"
@@ -65,7 +68,8 @@ fnmup() {
         if [[ -n "${installed_versions}" ]]; then
           print "The following version(s) will be removed:"
           print "${installed_versions}"
-          read -r "confirm?\nProceed? (y/N) "
+          print
+          read -r "confirm?Proceed? (y/N) "
 
           if [[ "${confirm}" =~ ^[Yy]$ ]]; then
             print "${installed_versions}" | while read -r version; do
