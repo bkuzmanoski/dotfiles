@@ -19,6 +19,7 @@ hs.shutdownCallback = function()
 end
 
 utils.createSpaces(settings.numberOfSpaces)
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 
