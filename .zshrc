@@ -15,6 +15,7 @@ setopt SHARE_HISTORY
 setopt ALWAYS_TO_END
 setopt COMPLETE_IN_WORD
 
+export HOMEBREW_NO_ENV_HINTS=1
 export EDITOR="micro"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export MANPAGER="col -bx | bat --language man --style plain"
