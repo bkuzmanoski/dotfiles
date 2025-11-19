@@ -28,8 +28,6 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   toggleLaunchpad = { modifiers = settings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = settings.hyperKey, key = "space" },
   toggleNotificationCenter = { modifiers = settings.hyperKey, key = "n" },
-  goToSpaceLeft = { modifiers = { "option", "command" }, key = "[" },
-  goToSpaceRight = { modifiers = { "option", "command" }, key = "]" },
   goToSpaceN = { modifiers = settings.hyperKey }
 })
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
@@ -76,7 +74,7 @@ modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
   excludeApps = { "Figma" }
 })
 modules.moveWindowToSpace = require("modules/move_window_to_space").init({
-  modifiers = settings.hyperKey,
+  modifiers = { "option", "command" },
   keys = { previousSpace = "left", nextSpace = "right" },
   enableNumberKeys = true,
 })
@@ -84,8 +82,8 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
   topOffset = settings.screenTopOffset,
   padding = settings.windowPadding,
   hotkeys = {
-    moveOneScreenNorth = { modifiers = settings.hyperKey, key = "up" },
-    moveOneScreenSouth = { modifiers = settings.hyperKey, key = "down" }
+    moveOneScreenNorth = { modifiers = { "option", "command" }, key = "up" },
+    moveOneScreenSouth = { modifiers = { "option", "command" }, key = "down" }
   }
 })
 modules.focusWindow = require("modules/focus_window").init({
