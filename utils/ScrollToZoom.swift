@@ -185,46 +185,35 @@ class ScrollZoomController {
   nonisolated func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
     let isHotkeyDown = event.flags.contains(Constants.hotkey)
 
-    if type == .flagsChanged, !isHotkeyDown {
-      Task {
-        await endZooming()
+    guard type == .scrollWheel, isHotkeyDown else {
+      DispatchQueue.main.async {
+        self.endZoomingIfNeeded()
+      }
+
+      return Unmanaged.passUnretained(event)
+    }
+
+    let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+
+    DispatchQueue.main.async {
+      self.beginZoomingIfNeeded()
+
+      if scrollDelta != 0 {
+        self.handleScrollEvent(delta: scrollDelta)
       }
     }
 
-    if type == .scrollWheel {
-      if isHotkeyDown {
-        Task {
-          await beginZooming()
-
-          let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-          if scrollDelta != 0 {
-            await handleScrollEvent(delta: scrollDelta)
-          }
-        }
-
-        return nil
-      } else {
-        Task {
-          await endZooming()
-        }
-      }
-    }
-
-    return Unmanaged.passUnretained(event)
+    return nil
   }
 
-  private func beginZooming() async {
+  private func beginZoomingIfNeeded() {
     if !isZooming {
       self.isZooming = true
-
-      try? await Task.sleep(for: .milliseconds(10))
-
       postPinchGestureEvent(phase: .began, magnification: 0)
     }
   }
 
-  private func endZooming() {
+  private func endZoomingIfNeeded() {
     if isZooming {
       postPinchGestureEvent(phase: .ended, magnification: 0)
       self.isZooming = false
