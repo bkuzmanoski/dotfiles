@@ -66,6 +66,7 @@ _select_paths() {
 
   trap '
     rm -f "${fifo}"
+
     if [[ -n "${find_command_pid}" ]] && kill -0 "${find_command_pid}" 2>/dev/null; then
       kill "${find_command_pid}"
     fi
