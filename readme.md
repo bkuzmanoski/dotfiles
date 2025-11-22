@@ -133,6 +133,10 @@ Not included: Google Chrome and VS Code configurations (synced via account).
   - Set "Google Web" as default search engine
   - Enable `chrome://flags/#tabstrip-combo-button`
 
+- **Homerow**
+
+  - General → Turn on "Launch on login"
+
 - **IINA**
 
   - Utilities → Select "Set IINA as the Default Application…"
