@@ -231,7 +231,7 @@ defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘" # Set hold k
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide Menu Bar icon
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
-defaults_write com.superultra.Homerow non-search-shortcut -string "⌃⌥⇧⌘/" # Set Clicking keyboard shortcut to ⌃⌥⇧⌘/
+defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" # Set Clicking keyboard shortcut to ⌥⇧␣
 defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false # Hide Menu Bar icon
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
