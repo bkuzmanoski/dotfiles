@@ -226,11 +226,14 @@ defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appear
 defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
-defaults_write com.lwouis.alt-tab-macos holdShortcut -string $'\U2318' # Set hold key for keyboard shortcut 1 to ⌘
-defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string $'\U2318' # Set hold key for keyboard shortcut 2 to ⌘
+defaults_write com.lwouis.alt-tab-macos holdShortcut -string "⌘" # Set hold key for keyboard shortcut 1 to ⌘
+defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘" # Set hold key for keyboard shortcut 2 to ⌘
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide Menu Bar icon
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
+defaults_write com.superultra.Homerow non-search-shortcut -string "⌃⌥⇧⌘/" # Set Clicking keyboard shortcut to ⌃⌥⇧⌘/
+defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
+defaults_write com.superultra.Homerow show-menubar-icon -bool false # Hide Menu Bar icon
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
 defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide Menu Bar icon
 defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
