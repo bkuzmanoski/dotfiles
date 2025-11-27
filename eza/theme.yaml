@@ -3,7 +3,7 @@ filekinds:
   socket: { is_bold: false }
   symlink: { foreground: Default }
 
-symlink_path: { foreground: Default, is_italic: true }
+symlink_path: { foreground: DarkGray }
 
 file_type:
   image: { foreground: Default }
@@ -21,6 +21,6 @@ file_type:
 size:
   number_kilo: { is_bold: false }
 
-punctuation: { is_bold: false, is_italic: true }
+punctuation: { is_bold: false }
 date: { foreground: "#8e8e8e" }
 header: { is_bold: true, is_underline: false }
