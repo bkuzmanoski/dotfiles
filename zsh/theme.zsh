@@ -1,7 +1,7 @@
 # fzf
-FZF_BASE_COLORS="gutter:-1,fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,info:5,marker:4"
-FZF_DARK_COLORS="bg+:#395263,border:8,scrollbar:8"
-FZF_LIGHT_COLORS="bg+:#b2c9d8,border:15,scrollbar:15"
+FZF_BASE_COLORS="gutter:-1,fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,marker:4"
+FZF_DARK_COLORS="bg+:#395263,info:8,spinner:8,border:8,scrollbar:8"
+FZF_LIGHT_COLORS="bg+:#b2c9d8,info:15,spinner:15,border:15,scrollbar:15"
 
 # zsh-syntax-highlighting
 ZSH_HIGHLIGHT_STYLES[alias]="fg=4,bold"
