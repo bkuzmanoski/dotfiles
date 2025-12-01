@@ -143,6 +143,8 @@ defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Po
 defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
 defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{ print $2 }')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
+defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture -int 0 # Disable three-finger swipe gesture for switching between full-screen applications
+defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGesture -int 0 # Disable three-finger swipe gesture for Mission Control and App Exposé
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
 defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
