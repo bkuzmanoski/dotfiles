@@ -224,7 +224,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     ) { _ in
       NSApplication.shared.activate(ignoringOtherApps: true)
     }
-    observers.append((activeSpaceObservationToken, workspaceNotificationCenter))
+
+    self.observers.append((activeSpaceObservationToken, workspaceNotificationCenter))
 
     let notificationCenter = NotificationCenter.default
     let screenParametersObservationToken = notificationCenter.addObserver(
@@ -238,7 +239,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
       window.setFrame(screen.frame, display: true)
     }
-    observers.append((screenParametersObservationToken, notificationCenter))
+
+    self.observers.append((screenParametersObservationToken, notificationCenter))
   }
 
   func applicationWillTerminate(_ notification: Notification) {

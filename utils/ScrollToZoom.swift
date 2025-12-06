@@ -22,11 +22,11 @@ enum Signal {
   }
 
   static func name(for signal: CInt) -> String {
-    guard let namePointer = strsignal(signal) else {
+    guard let signalName = strsignal(signal) else {
       return "Unknown signal (\(signal))"
     }
 
-    return String(cString: namePointer)
+    return String(cString: signalName)
   }
 
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
@@ -103,6 +103,16 @@ class SingletonLock {
   }
 }
 
+enum IOHIDEventType: UInt32 {
+  case zoom = 8
+}
+
+enum CGSGesturePhase: UInt8 {
+  case began = 1
+  case changed = 2
+  case ended = 4
+}
+
 extension CGEventField {
   static let gestureHIDType = CGEventField(rawValue: 110)!
   static let gestureZoomValue = CGEventField(rawValue: 113)!
@@ -113,8 +123,7 @@ extension CGEventType {
   static let gesture = CGEventType(rawValue: 29)!
 }
 
-@MainActor
-class ScrollZoomController {
+class ZoomController {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
     case failedToCreateEventTap
@@ -127,21 +136,12 @@ class ScrollZoomController {
     }
   }
 
-  private enum IOHIDEventType: UInt32 {
-    case zoom = 8
-  }
+  private(set) var eventTap: CFMachPort?
 
-  private enum CGSGesturePhase: UInt8 {
-    case began = 1
-    case changed = 2
-    case ended = 4
-  }
-
-  private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var isZooming = false
 
-  func start() throws {
+  init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionDenied
     }
@@ -166,7 +166,7 @@ class ScrollZoomController {
     CGEvent.tapEnable(tap: eventTap, enable: true)
   }
 
-  func stop() {
+  deinit {
     if let eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: false)
       CFMachPortInvalidate(eventTap)
@@ -177,53 +177,31 @@ class ScrollZoomController {
 
       CFMachPortInvalidate(eventTap)
     }
-
-    self.eventTap = nil
-    self.runLoopSource = nil
   }
 
-  nonisolated func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-    let isHotkeyDown = event.flags.contains(Constants.hotkey)
-
-    guard type == .scrollWheel, isHotkeyDown else {
-      DispatchQueue.main.async {
-        self.endZoomingIfNeeded()
-      }
-
-      return Unmanaged.passUnretained(event)
-    }
-
-    let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-    DispatchQueue.main.async {
-      self.beginZoomingIfNeeded()
-
-      if scrollDelta != 0 {
-        self.handleScrollEvent(delta: scrollDelta)
-      }
-    }
-
-    return nil
-  }
-
-  private func beginZoomingIfNeeded() {
+  func beginZoomingIfNeeded() {
     if !isZooming {
       self.isZooming = true
       postPinchGestureEvent(phase: .began, magnification: 0)
     }
   }
 
-  private func endZoomingIfNeeded() {
-    if isZooming {
-      postPinchGestureEvent(phase: .ended, magnification: 0)
-      self.isZooming = false
-    }
-  }
-
-  private func handleScrollEvent(delta: Double) {
+  func handleScrollEvent(delta: Double) {
     let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
     let magnification = delta * directionMultiplier * Constants.zoomSensitivity
+
     postPinchGestureEvent(phase: .changed, magnification: magnification)
+  }
+
+  func endZoomingIfNeeded() -> Bool {
+    guard isZooming else {
+      return false
+    }
+
+    postPinchGestureEvent(phase: .ended, magnification: 0)
+    self.isZooming = false
+
+    return true
   }
 
   private func postPinchGestureEvent(phase: CGSGesturePhase, magnification: Double) {
@@ -249,13 +227,40 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  let controller = Unmanaged<ScrollZoomController>.fromOpaque(refcon).takeUnretainedValue()
-  return controller.handleEvent(proxy: proxy, type: type, event: event)
+  let controller = Unmanaged<ZoomController>.fromOpaque(refcon).takeUnretainedValue()
+
+  guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
+    if let eventTap = controller.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+      CGEvent.tapEnable(tap: eventTap, enable: true)
+    }
+
+    return Unmanaged.passUnretained(event)
+  }
+
+  let isHotkeyDown = event.flags.contains(Constants.hotkey)
+
+  guard type == .scrollWheel, isHotkeyDown else {
+    guard controller.endZoomingIfNeeded() else {
+      return Unmanaged.passUnretained(event)
+    }
+
+    return nil
+  }
+
+  controller.beginZoomingIfNeeded()
+
+  let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+
+  if scrollDelta != 0 {
+    controller.handleScrollEvent(delta: scrollDelta)
+  }
+
+  return nil
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
   private var singletonLock: SingletonLock
-  private var scrollZoomController: ScrollZoomController!
+  private var zoomController: ZoomController!
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -263,21 +268,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    self.scrollZoomController = ScrollZoomController()
-
     do {
-      try scrollZoomController.start()
+      self.zoomController = try ZoomController()
     } catch {
-      FileHandle.standardError.write(Data("Error starting ScrollZoomController: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Error starting ZoomController: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
+
+      return
     }
 
     observeSignals()
     observeCommands()
-  }
-
-  func applicationWillTerminate(_ notification: Notification) {
-    scrollZoomController.stop()
   }
 
   private func observeSignals() {

@@ -21,11 +21,11 @@ enum Signal {
   }
 
   static func name(for signal: CInt) -> String {
-    guard let namePointer = strsignal(signal) else {
+    guard let signalName = strsignal(signal) else {
       return "Unknown signal (\(signal))"
     }
 
-    return String(cString: namePointer)
+    return String(cString: signalName)
   }
 
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
@@ -405,6 +405,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     guard AXIsProcessTrustedWithOptions(nil) else {
       FileHandle.standardError.write(Data("Error: Accessibility permission denied.\n".utf8))
       NSApplication.shared.terminate(nil)
+
       return
     }
 
@@ -420,6 +421,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     else {
       FileHandle.standardError.write(Data("Error: Failed to create event tap.\n".utf8))
       NSApplication.shared.terminate(nil)
+
       return
     }
 
@@ -492,7 +494,7 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  guard type != .tapDisabledByTimeout else {
+  guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
     let appDelegate = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
 
     if let eventTap = appDelegate.eventTap {
