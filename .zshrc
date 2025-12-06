@@ -7,13 +7,15 @@ precmd() {
 PROMPT="%F{8}[%f%~%F{8}]%f "
 
 setopt AUTO_CD
-setopt CORRECT_ALL
-setopt GLOB_DOTS
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_SPACE
-setopt SHARE_HISTORY
 setopt ALWAYS_TO_END
 setopt COMPLETE_IN_WORD
+setopt CORRECT_ALL
+setopt GLOB_DOTS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_REDUCE_BLANKS
+setopt SHARE_HISTORY
+
+HISTSIZE=50000
 
 export EDITOR="micro"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
