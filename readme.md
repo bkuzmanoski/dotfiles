@@ -1,26 +1,6 @@
 # macOS dotfiles
 
-This repository contains scripts to automate the setup of a new macOS installation with my preferred settings and apps.
-
-## What's included
-
-- **/bat**: bat themes
-- **/eza**: eza theme
-- **/fd**: fd configuration
-- **/ghostty**: Ghostty configuration
-- **/hammerspoon**: Hammerspoon configuration
-- **/micro**: micro configuration
-- **/raycast**: Raycast settings and script commands
-- **/reference**: Reference screenshots for things I couldn't automate
-- **/ripgrep**: ripgrep configuration
-- **/utils**: Utility scripts/applets
-- **/wallpapers**: Desktop wallpapers
-- **/zsh**: Zsh plugins and scripts
-- `.zprofile` and `.zshrc`: Zsh configuration
-- `Brewfile`: Bundle of apps and tools to be installed via Homebrew
-- `setup.sh`: Setup script that installs apps and configures settings
-
-Not included: Google Chrome and VS Code configurations (synced via account).
+Scripts to automate the setup of a new macOS installation with my preferred settings and apps.
 
 ## Installation
 
@@ -59,7 +39,7 @@ Not included: Google Chrome and VS Code configurations (synced via account).
 
    The setup script can be re-run if there are any errors.
 
-## Manual configuration steps
+## Manual steps
 
 - **macOS**:
 
