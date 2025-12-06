@@ -5,7 +5,7 @@ local targetWindow = {
   left = "left",
   right = "right"
 }
-local sortingTolerance = 8
+local alignmentTolerance = 8
 
 local bindings = {}
 
@@ -17,7 +17,7 @@ local function focusWindow(target)
   end
 
   local screen = hs.screen.mainScreen()
-  local windowsOnScreen = hs.fnutils.ifilter(windows, function(window)
+  local filteredWindows = hs.fnutils.ifilter(windows, function(window)
     local frame = window:frame()
     return
         window:screen() == screen and
@@ -27,28 +27,30 @@ local function focusWindow(target)
         frame.h > 100
   end)
 
-  if #windowsOnScreen == 0 then
+  if #filteredWindows == 0 then
     return
   end
 
-  if target == targetWindow.frontmost or #windowsOnScreen == 1 then
-    windowsOnScreen[1]:focus()
+  local frontmostWindow = filteredWindows[1]
+
+  if target == targetWindow.frontmost or #filteredWindows == 1 then
+    frontmostWindow:focus()
     return
   end
 
-  table.sort(windowsOnScreen, function(windowA, windowB)
+  table.sort(filteredWindows, function(windowA, windowB)
     local frameA = windowA:frame()
     local frameB = windowB:frame()
 
-    local xA = math.floor(frameA.x / sortingTolerance)
-    local xB = math.floor(frameB.x / sortingTolerance)
+    local xA = math.floor(frameA.x / alignmentTolerance)
+    local xB = math.floor(frameB.x / alignmentTolerance)
 
     if xA ~= xB then
       return xA < xB
     end
 
-    local yA = math.floor(frameA.y / sortingTolerance)
-    local yB = math.floor(frameB.y / sortingTolerance)
+    local yA = math.floor(frameA.y / alignmentTolerance)
+    local yB = math.floor(frameB.y / alignmentTolerance)
 
     if yA ~= yB then
       return yA < yB
@@ -57,17 +59,20 @@ local function focusWindow(target)
     return windowA:id() < windowB:id()
   end)
 
-  local focusedWindow = hs.window.frontmostWindow() or windowsOnScreen[1]
-  local currentIndex = hs.fnutils.indexOf(windowsOnScreen, focusedWindow) or 1
+  local focusedWindow = hs.window.focusedWindow() or frontmostWindow
+  local currentIndex =
+      hs.fnutils.indexOf(filteredWindows, focusedWindow) or
+      hs.fnutils.indexOf(filteredWindows, frontmostWindow) or
+      1
   local nextIndex
 
   if target == targetWindow.left then
-    nextIndex = ((currentIndex - 2 + #windowsOnScreen) % #windowsOnScreen) + 1
+    nextIndex = ((currentIndex - 2 + #filteredWindows) % #filteredWindows) + 1
   elseif target == targetWindow.right then
-    nextIndex = (currentIndex % #windowsOnScreen) + 1
+    nextIndex = (currentIndex % #filteredWindows) + 1
   end
 
-  windowsOnScreen[nextIndex]:focus()
+  filteredWindows[nextIndex]:focus()
 end
 
 function module.init(config)
