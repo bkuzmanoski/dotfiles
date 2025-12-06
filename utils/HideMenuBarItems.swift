@@ -20,11 +20,11 @@ enum Signal {
   }
 
   static func name(for signal: CInt) -> String {
-    guard let namePointer = strsignal(signal) else {
+    guard let signalName = strsignal(signal) else {
       return "Unknown signal (\(signal))"
     }
 
-    return String(cString: namePointer)
+    return String(cString: signalName)
   }
 
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {

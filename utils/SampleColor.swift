@@ -20,9 +20,9 @@ extension NSColor {
     let green = Int((color.greenComponent * 255).rounded())
     let blue = Int((color.blueComponent * 255).rounded())
 
-    return switch format {
-    case .hex: String(format: "#%02x%02x%02x", red, green, blue)
-    case .rgb: "rgb(\(red), \(green), \(blue))"
+    switch format {
+    case .hex: return String(format: "#%02x%02x%02x", red, green, blue)
+    case .rgb: return "rgb(\(red), \(green), \(blue))"
     }
   }
 }
