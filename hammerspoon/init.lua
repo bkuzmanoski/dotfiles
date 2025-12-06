@@ -1,8 +1,8 @@
 local utils = require("utils")
 local settings = {
   numberOfSpaces = 3,
-  screenTopOffset = -10,
-  windowPadding = 10,
+  screenTopOffset = -8,
+  windowPadding = 8,
   splitRatios = { 0.5, 0.3, 0.7 },
   hyperKey = { "control", "option", "shift", "command" }
 }
