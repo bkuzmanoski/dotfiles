@@ -63,23 +63,25 @@ end
 local function dividedRect(rect, ratio, mainEdge, margin)
   local mainRect = hs.geometry.copy(rect)
   local stackRect = hs.geometry.copy(rect)
+  local availableWidth = rect.w - margin
+  local availableHeight = rect.h - margin
 
   if mainEdge == edge.left then
-    mainRect.w = math.floor(rect.w * ratio)
+    mainRect.w = math.floor(availableWidth * ratio)
     stackRect.x = mainRect.x + mainRect.w + margin
-    stackRect.w = rect.w - mainRect.w - margin
+    stackRect.w = availableWidth - mainRect.w
   elseif mainEdge == edge.right then
-    stackRect.w = math.floor(rect.w * (1 - ratio))
+    stackRect.w = math.floor(availableWidth * (1 - ratio))
     mainRect.x = stackRect.x + stackRect.w + margin
-    mainRect.w = rect.w - stackRect.w - margin
+    mainRect.w = availableWidth - stackRect.w
   elseif mainEdge == edge.top then
-    mainRect.h = math.floor(rect.h * ratio)
+    mainRect.h = math.floor(availableHeight * ratio)
     stackRect.y = mainRect.y + mainRect.h + margin
-    stackRect.h = rect.h - mainRect.h - margin
+    stackRect.h = availableHeight - mainRect.h
   elseif mainEdge == edge.bottom then
-    stackRect.h = math.floor(rect.h * (1 - ratio))
+    stackRect.h = math.floor(availableHeight * (1 - ratio))
     mainRect.y = stackRect.y + stackRect.h + margin
-    mainRect.h = rect.h - stackRect.h - margin
+    mainRect.h = availableHeight - stackRect.h
   end
 
   return mainRect, stackRect
