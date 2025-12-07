@@ -157,7 +157,7 @@ defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot 
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true # Sort folders first
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
-defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
+defaults_write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
 defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
