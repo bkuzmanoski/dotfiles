@@ -1,9 +1,8 @@
 filekinds:
   executable: { is_bold: false }
-  socket: { is_bold: false }
-  symlink: { foreground: Default }
+  socket: { foreground: Magenta, is_bold: false }
 
-symlink_path: { foreground: DarkGray }
+symlink_path: { foreground: LightGray }
 
 file_type:
   image: { foreground: Default }
@@ -19,8 +18,14 @@ file_type:
   source: { foreground: Default, is_bold: false }
 
 size:
-  number_kilo: { is_bold: false }
+  number_kilo: { foreground: "LightGray", is_bold: false }
+  number_byte: { foreground: "LightGray" }
+  number_mega: { foreground: "LightGray" }
+  number_giga: { foreground: "LightGray" }
+  number_huge: { foreground: "LightGray" }
 
-punctuation: { is_bold: false }
-date: { foreground: "#8e8e8e" }
+punctuation: { foreground: LightGray, is_bold: false }
+
+date: { foreground: LightGray }
+
 header: { is_bold: true, is_underline: false }
