@@ -15,6 +15,16 @@ log() {
   esac
 }
 
+backup_if_needed() {
+  local target_path="$1"
+  local backup_path="${target_path}.backup"
+
+  if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
+    mv "${target_path}" "${backup_path}"
+    log --info "Backed up existing configuration: ${backup_path}"
+  fi
+}
+
 defaults_write() {
   zparseopts -D -E \
     -sudo=use_sudo \
@@ -47,6 +57,7 @@ add_app_to_dock() {
 
 if ! which -s brew >/dev/null; then
   log --info "Installing Homebrew..."
+
   (
     exec 2>&1
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -61,6 +72,7 @@ if ! which -s brew >/dev/null; then
 fi
 
 log --info "Installing Homebrew bundle..."
+
 (
   exec 2>&1
   brew bundle --file "${SCRIPT_DIR}/Brewfile"
@@ -75,7 +87,8 @@ fi
 # Link dotfiles
 # =============================================================================
 
-typeset -A configs=(
+typeset -A configuration_paths=(
+  ["aichat"]="${HOME}/.config/aichat"
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"
@@ -88,22 +101,47 @@ typeset -A configs=(
   [".zshrc"]="${HOME}/.zshrc"
 )
 
-for config in "${(k)configs[@]}"; do
-  log --info "Linking ${config}"
+for configuration_path in "${(k)configuration_paths[@]}"; do
+  log --info "Linking: ${configuration_path}"
 
-  typeset source_path="${SCRIPT_DIR}/${config}"
-  typeset target_path="${configs[${config}]}"
+  typeset source_path="${SCRIPT_DIR}/${configuration_path}"
+  typeset target_path="${configuration_paths[${configuration_path}]}"
 
-  if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
-    mv "${target_path}" "${target_path}.backup"
-    log --info "Backed up existing config at ${target_path} to ${target_path}.backup"
-  fi
+  if [[ "${configuration_path}" == *\** ]]; then
+    if [[ -e "${target_path}" && ! -d "${target_path}" ]]; then
+      log --error "Source path contains multiple files but target path is not a directory. Skipping."
+      continue
+    fi
 
-  mkdir -p "$(dirname "${target_path}")" && \
-  ln -sfh "${source_path}" "${target_path}" 2>/dev/null
+    typeset expanded_source_path="${SCRIPT_DIR}/${configuration_path}"
+    typeset -a source_files=(${~expanded_source_path})
 
-  if [[ $? -ne 0 ]]; then
-    log --error "Failed to link ${config}"
+    if [[ ${#source_files[@]} -eq 0 ]]; then
+      log --warning "No files found matching pattern: ${configuration_path}"
+      continue
+    fi
+
+    mkdir -p "${target_path}"
+
+    for source_file_path in "${source_files[@]}"; do
+      typeset file_name="$(basename "${source_file_path}")"
+      typeset target_file_path="${target_path}/${file_name}"
+
+      backup_if_needed "${target_file_path}"
+      ln -sfh "${source_file_path}" "${target_file_path}" 2>/dev/null
+
+      if [[ $? -ne 0 ]]; then
+        log --error "Failed to link file: ${source_file_path}"
+      fi
+    done
+  else
+    backup_if_needed "${target_path}"
+    mkdir -p "$(dirname "${target_path}")" && \
+    ln -sfh "${source_path}" "${target_path}" 2>/dev/null
+
+    if [[ $? -ne 0 ]]; then
+      log --error "Failed to link: ${configuration_path}"
+    fi
   fi
 done
 
