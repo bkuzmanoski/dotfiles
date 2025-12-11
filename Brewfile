@@ -1,4 +1,6 @@
+brew "aichat"
 brew "bat"
+brew "copilot-cli"
 brew "create-dmg"
 brew "eza"
 brew "fd"

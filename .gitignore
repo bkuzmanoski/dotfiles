@@ -1,7 +1,9 @@
 **/bin/
+aichat/config.yaml
 hammerspoon/Spoons/
 micro/*/
 !micro/colorschemes/
 zsh/*/
 !zsh/utils/
+!zsh/widgets/
 .DS_Store
