@@ -33,8 +33,14 @@ update_theme() {
   if [[ "${macos_mode}" == "Dark" ]]; then
     export THEME="dark"
     export FZF_THEME="${FZF_BASE_COLORS},${FZF_DARK_COLORS}"
+
+    zstyle ":zce:*" fg "fg=7,bold"
+    zstyle ":zce:*" bg "fg=15"
   else
     export THEME="light"
     export FZF_THEME="${FZF_BASE_COLORS},${FZF_LIGHT_COLORS}"
+
+    zstyle ":zce:*" fg "fg=0,bold"
+    zstyle ":zce:*" bg "fg=8"
   fi
 }

@@ -48,15 +48,15 @@ alias p2x="plutil -convert xml1 -o -"
 alias rm="rm -i"
 alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
 
-autoload -Uz compinit; compinit
+autoload -Uz compinit
+compinit
 
 source ~/.zsh/plugins.zsh
 source ~/.zsh/theme.zsh
 
-for file in ~/.zsh/utils/*.zsh; do
+for file in ~/.zsh/{utils,widgets}/*.zsh; do
   source "${file}"
 done
 
-for file in ~/.zsh/widgets/*.zsh; do
-  source "${file}"
-done
+bindkey "\ee" aichat-enhance-inline
+bindkey "\eg" zce-themed

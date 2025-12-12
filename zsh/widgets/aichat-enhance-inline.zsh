@@ -14,4 +14,3 @@ aichat-enhance-inline() {
 }
 
 zle -N aichat-enhance-inline
-bindkey "\ee" aichat-enhance-inline
