@@ -1,6 +1,7 @@
 typeset -A PLUGINS=(
   # [plugin]=git_url|source_file
   ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
+  ["zce"]="https://github.com/hchbaw/zce.zsh|zce.zsh"
   ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
   ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )
@@ -12,6 +13,82 @@ readonly UPDATE_REMINDERS=(
   "📦|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
   "🧩|Zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
 )
+
+_source_plugins() {
+  local plugins_installed=0
+
+  for plugin in ${(k)PLUGINS[@]}; do
+    local target_dir="${HOME}/.zsh/${plugin}"
+    local git_repository="${PLUGINS[${plugin}]%%|*}"
+    local source_file="${PLUGINS[${plugin}]#*|}"
+
+    if [[ ! -d "${target_dir}" ]]; then
+      print -P "Installing %B${plugin}%b..."
+      git clone "${git_repository}" "${target_dir}"
+
+      if [[ $? -ne 0 ]]; then
+        print -u2 "\n${plugin} installation failed."
+        print
+        continue
+      fi
+
+      plugins_installed=1
+      print
+    fi
+
+    if [[ -f "${target_dir}/${source_file}" ]]; then
+      source "${target_dir}/${source_file}"
+    else
+      print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
+    fi
+  done
+
+  if (( plugins_installed )); then
+    zshup > /dev/null
+  fi
+}
+
+_check_last_update_time() {
+  local now="$(date "+%s")"
+  local frequency="$(( 7 * 86400 ))"
+  local updates_required=0
+
+  for reminder in "${UPDATE_REMINDERS[@]}"; do
+    local parts=("${(@s.|.)reminder}")
+    local emoji="${parts[1]}"
+    local description="${parts[2]}"
+    local timestamp_file="${parts[3]}"
+    local command="${parts[4]}"
+    local last_update_timestamp=0
+
+    if [[ -f "${timestamp_file}" ]]; then
+      last_update_timestamp="$(<"${timestamp_file}")"
+
+      if [[ ! "${last_update_timestamp}" =~ ^[0-9]+$ ]]; then
+        last_update_timestamp=0
+      fi
+    fi
+
+    local time_diff="$((now - last_update_timestamp))"
+    if (( time_diff > frequency )); then
+      print -P "${emoji} It's been a month since the last ${description} update! Run: %B${command}%b"
+      updates_required=1
+    fi
+  done
+
+  if (( updates_required )); then
+    print
+  fi
+}
+
+_update_timestamps() {
+  if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
+    mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
+  fi
+
+  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
+  print "\nUpdate timestamp updated, next reminder in 30 days."
+}
 
 brewup() (
   cd ~/.dotfiles           || { print ".dotfiles directory not found."; exit 1 }
@@ -132,82 +209,5 @@ zshup() (
   _update_timestamps "zsh_plugins_last_update"
 )
 
-_source_plugins() {
-  local plugins_installed=0
-
-  for plugin in ${(k)PLUGINS[@]}; do
-    local target_dir="${HOME}/.zsh/${plugin}"
-    local git_repository="${PLUGINS[${plugin}]%%|*}"
-    local source_file="${PLUGINS[${plugin}]#*|}"
-
-    if [[ ! -d "${target_dir}" ]]; then
-      print -P "Installing %B${plugin}%b..."
-      git clone "${git_repository}" "${target_dir}"
-
-      if [[ $? -ne 0 ]]; then
-        print -u2 "\n${plugin} installation failed."
-        print
-        continue
-      fi
-
-      plugins_installed=1
-      print
-    fi
-
-    if [[ -f "${target_dir}/${source_file}" ]]; then
-      source "${target_dir}/${source_file}"
-    else
-      print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
-    fi
-  done
-
-  if (( plugins_installed )); then
-    zshup > /dev/null
-  fi
-}
-
 _source_plugins
-
-_check_last_update_time() {
-  local now="$(date "+%s")"
-  local frequency="$(( 7 * 86400 ))"
-  local updates_required=0
-
-  for reminder in "${UPDATE_REMINDERS[@]}"; do
-    local parts=("${(@s.|.)reminder}")
-    local emoji="${parts[1]}"
-    local description="${parts[2]}"
-    local timestamp_file="${parts[3]}"
-    local command="${parts[4]}"
-    local last_update_timestamp=0
-
-    if [[ -f "${timestamp_file}" ]]; then
-      last_update_timestamp="$(<"${timestamp_file}")"
-
-      if [[ ! "${last_update_timestamp}" =~ ^[0-9]+$ ]]; then
-        last_update_timestamp=0
-      fi
-    fi
-
-    local time_diff="$((now - last_update_timestamp))"
-    if (( time_diff > frequency )); then
-      print -P "${emoji} It's been a month since the last ${description} update! Run: %B${command}%b"
-      updates_required=1
-    fi
-  done
-
-  if (( updates_required )); then
-    print
-  fi
-}
-
 _check_last_update_time
-
-_update_timestamps() {
-  if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
-    mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
-  fi
-
-  date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
-  print "\nUpdate timestamp updated, next reminder in 30 days."
-}
