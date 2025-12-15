@@ -38,7 +38,7 @@ enum Signal {
         source.resume()
       }
 
-      continuation.onTermination = { @Sendable _ in
+      continuation.onTermination = { _ in
         sources.forEach { $0.cancel() }
       }
     }
@@ -61,12 +61,12 @@ struct Command {
 class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
-    case failedToAcquireLock(String)
+    case failedToAcquireLock(errno: Int32)
 
     var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Instance already running."
-      case .failedToAcquireLock(let message): "Failed to acquire lock: \(message)"
+      case .failedToAcquireLock(let errno): "Failed to acquire lock: \(String(cString: strerror(errno)))"
       }
     }
   }
@@ -77,15 +77,15 @@ class SingletonLock {
   init() throws {
     let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 
-    if fd == -1 {
-      throw Error.failedToAcquireLock(String(cString: strerror(errno)))
+    guard fd != -1 else {
+      throw Error.failedToAcquireLock(errno: errno)
     }
 
-    if flock(fd, LOCK_EX | LOCK_NB) == -1 {
+    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
       close(fd)
 
       guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock("Failed to acquire lock: \(String(cString: strerror(errno)))")
+        throw Error.failedToAcquireLock(errno: errno)
       }
 
       throw Error.instanceAlreadyRunning
@@ -129,8 +129,8 @@ class StatusItemController {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singletonLock: SingletonLock
-  private var statusItemController: StatusItemController!
+  private let singletonLock: SingletonLock
+  private var statusItemController: StatusItemController?
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -143,7 +143,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     self.statusItemController = StatusItemController()
 
-    statusItemController.hideItem()
+    statusItemController?.hideItem()
   }
 
   private func observeSignals() {
@@ -177,7 +177,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": await statusItemController.toggle()
+    case "toggle": await statusItemController?.toggle()
     case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
@@ -190,6 +190,7 @@ do {
   let application = NSApplication.shared
   application.delegate = delegate
   application.run()
+
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -200,6 +201,7 @@ do {
 
   Command(arguments: arguments).send()
   exit(0)
+
 } catch {
   FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
   exit(1)
