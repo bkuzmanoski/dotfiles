@@ -39,7 +39,7 @@ enum Signal {
         source.resume()
       }
 
-      continuation.onTermination = { @Sendable _ in
+      continuation.onTermination = { _ in
         sources.forEach { $0.cancel() }
       }
     }
@@ -62,12 +62,12 @@ struct Command {
 class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
-    case failedToAcquireLock(String)
+    case failedToAcquireLock(errno: Int32)
 
     var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Instance already running."
-      case .failedToAcquireLock(let message): "Failed to acquire lock: \(message)"
+      case .failedToAcquireLock(let errno): "Failed to acquire lock: \(String(cString: strerror(errno)))"
       }
     }
   }
@@ -78,15 +78,15 @@ class SingletonLock {
   init() throws {
     let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 
-    if fd == -1 {
-      throw Error.failedToAcquireLock(String(cString: strerror(errno)))
+    guard fd != -1 else {
+      throw Error.failedToAcquireLock(errno: errno)
     }
 
-    if flock(fd, LOCK_EX | LOCK_NB) == -1 {
+    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
       close(fd)
 
       guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock("Failed to acquire lock: \(String(cString: strerror(errno)))")
+        throw Error.failedToAcquireLock(errno: errno)
       }
 
       throw Error.instanceAlreadyRunning
@@ -393,7 +393,7 @@ class AppMenu {
 class AppDelegate: NSObject, NSApplicationDelegate {
   var eventTap: CFMachPort?
 
-  private var singletonLock: SingletonLock
+  private let singletonLock: SingletonLock
   private var runLoopSource: CFRunLoopSource?
 
   init(singletonLock: SingletonLock) {
@@ -438,12 +438,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationWillTerminate(_ notification: Notification) {
     if let eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: false)
-
-      if let runLoopSource {
-        CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-      }
-
       CFMachPortInvalidate(eventTap)
+    }
+
+    if let runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     }
   }
 
@@ -490,14 +489,8 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else {
-    return Unmanaged.passUnretained(event)
-  }
-
   guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    let appDelegate = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue()
-
-    if let eventTap = appDelegate.eventTap {
+    if let refcon, let eventTap = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: true)
     }
 
@@ -509,6 +502,7 @@ func eventTapCallback(
   }
 
   try? AppMenu.popUp(at: NSEvent.mouseLocation)
+
   return nil
 }
 
@@ -518,6 +512,7 @@ do {
   let application = NSApplication.shared
   application.delegate = delegate
   application.run()
+
 } catch SingletonLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -528,6 +523,7 @@ do {
 
   Command(arguments: arguments).send()
   exit(0)
+
 } catch {
   FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
   exit(1)
