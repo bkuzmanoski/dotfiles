@@ -88,7 +88,6 @@ fi
 # =============================================================================
 
 typeset -A configuration_paths=(
-  ["aichat"]="${HOME}/.config/aichat"
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"

@@ -2,6 +2,7 @@ typeset -A PLUGINS=(
   # [plugin]=git_url|source_file
   ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
   ["zce"]="https://github.com/hchbaw/zce.zsh|zce.zsh"
+  ["zsh-ai-cmd"]="https://github.com/kylesnowschwartz/zsh-ai-cmd|zsh-ai-cmd.plugin.zsh"
   ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
   ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )

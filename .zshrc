@@ -19,7 +19,6 @@ setopt SHARE_HISTORY
 export EDITOR="code"
 export MANPAGER="col -bx | bat --language man --style plain"
 
-export AICHAT_CONFIG_DIR="${HOME}/.config/aichat"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export HOMEBREW_NO_ENV_HINTS=1
 export MICRO_TRUECOLOR=1
@@ -28,7 +27,6 @@ export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 alias -- --='cd - >/dev/null'
 alias ...="cd ../.."
 alias ..="cd .."
-alias ai="aichat -e"
 alias cat="bat"
 alias cdc="cd ~/.dotfiles"
 alias cdd="cd ~/Downloads"
@@ -58,5 +56,4 @@ for file in ~/.zsh/{utils,widgets}/*.zsh; do
   source "${file}"
 done
 
-bindkey "\ee" aichat-enhance-inline
 bindkey "\eg" zce-themed

@@ -1,5 +1,4 @@
 **/bin/
-aichat/config.yaml
 hammerspoon/Spoons/
 micro/*/
 !micro/colorschemes/
