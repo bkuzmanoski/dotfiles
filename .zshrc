@@ -23,6 +23,7 @@ export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export HOMEBREW_NO_ENV_HINTS=1
 export MICRO_TRUECOLOR=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
+export ZSH_AI_CMD_KEY='\ea'
 
 alias -- --='cd - >/dev/null'
 alias ...="cd ../.."
