@@ -176,8 +176,8 @@ log --info "Setting defaults..."
 
 # macOS settings
 defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
-defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0 # Disable automatic brightness reduction on battery
-defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true # Enable automatic macOS updates
+defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0
+defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
 defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{ print $2 }')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
 defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture -int 0 # Disable three-finger swipe gesture for switching between full-screen applications
@@ -187,11 +187,11 @@ defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
-defaults_write com.apple.dock persistent-apps -array # Clear existing Dock items
+defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
 defaults_write com.apple.dock show-recents -bool false # Hide recent apps in Dock
-defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with three finger swipe down
+defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
-defaults_write com.apple.finder _FXSortFoldersFirst -bool true # Sort folders first
+defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
 defaults_write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
@@ -207,30 +207,30 @@ defaults_write com.apple.finder WarnOnEmptyTrash -bool false
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
-defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open to a blank document on launch
+defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open a blank document on launch
 defaults_write com.apple.TextEdit RichText -bool false
-defaults_write com.apple.TextInputMenu visible -bool false # Hide input menu in Menu Bar
-defaults_write com.apple.universalaccess closeViewPanningMode -int 0 # Set zoomed image to move continuously with pointer
-defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (Control)
+defaults_write com.apple.TextInputMenu visible -bool false
+defaults_write com.apple.universalaccess closeViewPanningMode -int 1 # Set zoomed image to move when the pointer reaches edge
+defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (⌃)
 defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
 defaults_write com.apple.universalaccess closeViewZoomScreenShareEnabledKey -bool true # Show zoomed image while screen sharing
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
-defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold Option to tile)
-defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold Option to tile)
-defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set double-click action to maximize window
+defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
+defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
+defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set title bar double-click action to maximize window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access
-defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true  # Show Menu Bar in full screen
-defaults_write NSGlobalDomain AppleShowAllExtensions -bool true # Show all file extensions in Finder
-defaults_write NSGlobalDomain AppleShowAllFiles -bool true # Show hidden files in Finder
-defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling" # Show scroll bars when scrolling
+defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
+defaults_write NSGlobalDomain AppleShowAllExtensions -bool true
+defaults_write NSGlobalDomain AppleShowAllFiles -bool true
+defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
 defaults_write NSGlobalDomain AppleSpacesSwitchOnActivate -bool false # Do not switch Spaces when switching to an app
 defaults_write NSGlobalDomain com.apple.trackpad.forceClick -bool false # Disable Dictionary lookup with force click on Trackpad
 defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
-defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false # Disable automatic capitalization of text
+defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
-defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Show expanded save dialog by default
+defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
 set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
 set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
@@ -259,31 +259,32 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
-defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 # Hide Menu Bar icon
+defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0
 defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
 defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
-defaults_write com.lwouis.alt-tab-macos holdShortcut -string "⌘" # Set hold key for keyboard shortcut 1 to ⌘
-defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘" # Set hold key for keyboard shortcut 2 to ⌘
-defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0 # Set window display delay to 0 ms
-defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 # Hide Menu Bar icon
+defaults_write com.lwouis.alt-tab-macos holdShortcut -string "⌘"
+defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘"
+defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
+defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" # Set Clicking keyboard shortcut to ⌥⇧␣
 defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
-defaults_write com.superultra.Homerow show-menubar-icon -bool false # Hide Menu Bar icon
-defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false # Don't send crash data
-defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false # Hide Menu Bar icon
-defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true # Enable automatic updates
-defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true # Enable automatic update checks
-defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false # Do not dim screen while recording
-defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true # Enable Do Not Disturb while recording
-defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads" # Save screenshots/recordings to Downloads folder
-defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true # Freeze screen during selection
-defaults_write pl.maketheweb.cleanshotx rememberRecordingArea -bool false # Disable remember last recording area selection
-defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3 # Set screenshot capture sound to "Subtle"
-defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true # Show keystrokes in recordings
+defaults_write com.superultra.Homerow show-menubar-icon -bool false
+defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false
+defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false
+defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true
+defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true
+defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false #
+defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true
+defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads"
+defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true
+defaults_write pl.maketheweb.cleanshotx keyboardOverlaySize -int 27
+defaults_write pl.maketheweb.cleanshotx rememberRecordingArea -bool false
+defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3
+defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
 
