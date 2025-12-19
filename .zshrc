@@ -58,3 +58,5 @@ for file in ~/.zsh/{utils,widgets}/*.zsh; do
 done
 
 bindkey "\eg" zce-themed
+bindkey "\ey" _zsh_ai_cmd_accept
+bindkey "^I" fzf-tab-complete
