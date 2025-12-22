@@ -17,10 +17,9 @@ setopt HIST_REDUCE_BLANKS
 setopt SHARE_HISTORY
 
 export EDITOR="code"
-export MANPAGER="col -bx | bat --language man --style plain"
-
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export HOMEBREW_NO_ENV_HINTS=1
+export MANPAGER="col -bx | bat --language man --style plain"
 export MICRO_TRUECOLOR=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 export ZSH_AI_CMD_KEY='\ea'
@@ -58,5 +57,3 @@ for file in ~/.zsh/{utils,widgets}/*.zsh; do
 done
 
 bindkey "\eg" zce-themed
-bindkey "\ey" _zsh_ai_cmd_accept
-bindkey "^I" fzf-tab-complete
