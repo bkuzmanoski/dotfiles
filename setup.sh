@@ -189,6 +189,7 @@ defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
 defaults_write com.apple.dock show-recents -bool false # Hide recent apps in Dock
+defaults_write com.apple.Dock showhidden -bool true # Make hidden app icons translucent in Dock
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
