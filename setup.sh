@@ -188,14 +188,16 @@ defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
-defaults_write com.apple.dock show-recents -bool false # Hide recent apps in Dock
+defaults_write com.apple.dock show-recents -bool false
 defaults_write com.apple.Dock showhidden -bool true # Make hidden app icons translucent in Dock
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
-defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false # Disable warning when changing file extensions
-defaults_write com.apple.finder FXPreferredViewStyle -string "clmv" # Set default view to column view
+defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
+defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
+defaults_write com.apple.finder ShowSidebar -bool false
+defaults_write com.apple.finder ShowPreviewPane -bool true
 defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
