@@ -186,6 +186,7 @@ defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -boo
 defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
+defaults_write com.apple.dock expose-group-apps -bool true # Group windows by application in Mission Control
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
 defaults_write com.apple.dock show-recents -bool false
