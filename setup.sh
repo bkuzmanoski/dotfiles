@@ -36,6 +36,11 @@ defaults_write() {
   ${write_cmd[@]}
 }
 
+plutil_replace() {
+  log --info "Executing: plutil -replace $*"
+  plutil -replace "$@"
+}
+
 set_system_hotkey() {
   local key="$1"
   local enabled="$2"
@@ -190,24 +195,25 @@ defaults_write com.apple.dock expose-group-apps -bool true # Group windows by ap
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
 defaults_write com.apple.dock show-recents -bool false
-defaults_write com.apple.Dock showhidden -bool true # Make hidden app icons translucent in Dock
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
+defaults_write com.apple.Dock showhidden -bool true # Make hidden app icons translucent in Dock
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
 defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
-defaults_write com.apple.finder ShowSidebar -bool false
-defaults_write com.apple.finder ShowPreviewPane -bool true
 defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false
 defaults_write com.apple.finder ShowPathbar -bool true
+defaults_write com.apple.finder ShowPreviewPane -bool true
 defaults_write com.apple.finder ShowRecentTags -bool false
 defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
+defaults_write com.apple.finder ShowSidebar -bool false
 defaults_write com.apple.finder ShowStatusBar -bool true
 defaults_write com.apple.finder WarnOnEmptyTrash -bool false
+plutil_replace DesktopViewSettings.IconViewSettings.arrangeBy -string "grid" "${HOME}/Library/Preferences/com.apple.finder.plist"
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
@@ -222,9 +228,10 @@ defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool fa
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set title bar double-click action to maximize window
-defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false # Disable swipe between pages
+defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access
 defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
+defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false # Disable press-and-hold for keys in favor of key repeat
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true
 defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
@@ -234,6 +241,7 @@ defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before k
 defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
+defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
 set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
