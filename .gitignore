@@ -1,8 +1,6 @@
 **/bin/
 hammerspoon/Spoons/
-micro/*/
-!micro/colorschemes/
-zsh/*/
-!zsh/utils/
-!zsh/widgets/
+micro/backups/
+micro/buffers/
+zsh/plugins/
 .DS_Store

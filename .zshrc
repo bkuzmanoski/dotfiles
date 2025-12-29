@@ -49,8 +49,8 @@ alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
 autoload -Uz compinit
 compinit
 
-source ~/.zsh/plugins.zsh
-source ~/.zsh/theme.zsh
+source "${HOME}/.zsh/plugins.zsh"
+source "${HOME}/.zsh/theme.zsh"
 
 for file in ~/.zsh/{utils,widgets}/*.zsh; do
   source "${file}"
