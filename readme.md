@@ -51,16 +51,11 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
   - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
   - Mail:
-    - Add "Get Mail" item to toolbar
     - Set up Mail sidebar favorites (see reference screenshot)
     - Turn off "Show Mail Categories"
     - Settings → Junk Mail → Turn on "Enable junk mail filtering"
     - Settings → Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
     - Settings → Junk Mail → Advanced → _Perform..._ "Move Message to mailbox: Junk" and "Mark as Read"
-    - Settings → Viewing → Turn on "Mark all messages as read when opening a conversation"
-    - Settings → Composing → Set "Message format" to "Plain Text"
-    - Settings → Composing → Set "Undo send delay" to "Off"
-    - Settings → Composing → Turn on "Use the same message format as the original message"
 
 - **1Password**
 
@@ -124,7 +119,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 - **VS Code**
 
   - Sync settings and extensions
-  - Position Command Center in center
+  - Position Command Center in center of window
 
 - **Xcode**
 
