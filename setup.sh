@@ -26,19 +26,40 @@ backup_if_needed() {
 }
 
 defaults_write() {
-  zparseopts -D -E \
-    -sudo=use_sudo \
-    -currenthost=use_currenthost
+  zparseopts -D -E -sudo=use_sudo -currenthost=use_currenthost
 
-  local -a write_cmd=(${use_sudo:+"sudo "}"defaults""${use_currenthost:+" -currentHost"}"" write" "$@")
+  local -a write_cmd=(${use_sudo:+"sudo"} "defaults" "${use_currenthost:+" -currentHost"}" "write" "$@")
 
   log --info "Executing: ${write_cmd[*]}"
   ${write_cmd[@]}
 }
 
-plutil_replace() {
-  log --info "Executing: plutil -replace $*"
-  plutil -replace "$@"
+plistbuddy_execute() {
+  log --info "Executing: /usr/libexec/PlistBuddy -c $*"
+
+  if [[ "$1" == "Delete"* ]]; then
+    /usr/libexec/PlistBuddy -c "$@" 2>/dev/null
+  else
+    /usr/libexec/PlistBuddy -c "$@"
+  fi
+}
+
+add_app_to_dock() {
+  local app_path="$1"
+  defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+}
+
+set_finder_preview_pane_settings() {
+  local item_type="$1"
+  local finder_plist="${HOME}/Library/Preferences/com.apple.finder.plist"
+
+  plistbuddy_execute "Delete :PreviewPaneSettings:${item_type}" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type} dict" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:showQuickActions bool false" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:options array" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:options:0 dict" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:options:0:isActive bool false" "${finder_plist}"
+  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:options:0:name string \"kPreviewOptionsItemTagAttribute\"" "${finder_plist}"
 }
 
 set_system_hotkey() {
@@ -47,13 +68,26 @@ set_system_hotkey() {
   local parameter1="$3"
   local parameter2="$4"
   local parameter3="$5"
+  local dict_value=$(cat <<- EOF
+    <dict>
+			<key>enabled</key>
+			<${enabled}/>
+			<key>value</key>
+			<dict>
+				<key>type</key>
+				<string>standard</string>
+				<key>parameters</key>
+				<array>
+					<integer>${parameter1}</integer>
+					<integer>${parameter2}</integer>
+					<integer>${parameter3}</integer>
+				</array>
+			</dict>
+		</dict>
+		EOF
+  )
 
-  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>type</key><string>standard</string><key>parameters</key><array><integer>${parameter1}</integer><integer>${parameter2}</integer><integer>${parameter3}</integer></array></dict></dict>"
-}
-
-add_app_to_dock() {
-  local app_path="$1"
-  defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${dict_value}"
 }
 
 # =============================================================================
@@ -194,10 +228,16 @@ defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock
 defaults_write com.apple.dock expose-group-apps -bool true # Group windows by application in Mission Control
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
+add_app_to_dock "/System/Applications/Mail.app"
+add_app_to_dock "/Applications/Google Chrome.app"
+add_app_to_dock "/Applications/Figma.app"
+add_app_to_dock "/Applications/Visual Studio Code.app"
+add_app_to_dock "/Applications/Ghostty.app"
 defaults_write com.apple.dock show-recents -bool false
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
-defaults_write com.apple.Dock showhidden -bool true # Make hidden app icons translucent in Dock
+defaults_write com.apple.dock showhidden -bool true # Make hidden app icons translucent in Dock
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
+defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
@@ -206,14 +246,17 @@ defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new window
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false
-defaults_write com.apple.finder ShowPathbar -bool true
 defaults_write com.apple.finder ShowPreviewPane -bool true
 defaults_write com.apple.finder ShowRecentTags -bool false
 defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 defaults_write com.apple.finder ShowSidebar -bool false
 defaults_write com.apple.finder ShowStatusBar -bool true
 defaults_write com.apple.finder WarnOnEmptyTrash -bool false
-plutil_replace DesktopViewSettings.IconViewSettings.arrangeBy -string "grid" "${HOME}/Library/Preferences/com.apple.finder.plist"
+plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifiers"' "${HOME}/Library/Preferences/com.apple.finder.plist" # Delete toolbar items key if set
+plistbuddy_execute 'Add :"NSToolbar Configuration Browser":"TB Item Identifiers" array' "${HOME}/Library/Preferences/com.apple.finder.plist" # Clear default toolbar items
+plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' "${HOME}/Library/Preferences/com.apple.finder.plist"
+set_finder_preview_pane_settings "public.folder"
+set_finder_preview_pane_settings "public.item"
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
@@ -250,13 +293,12 @@ set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to t
 set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
-add_app_to_dock "/System/Applications/Mail.app"
-add_app_to_dock "/Applications/Google Chrome.app"
-add_app_to_dock "/Applications/Figma.app"
-add_app_to_dock "/Applications/Visual Studio Code.app"
-add_app_to_dock "/Applications/Ghostty.app"
 
 # App settings
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" expandAllRows -bool false
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" keepFoldersOnTop -bool true
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 defaults_write com.colliderli.iina actionAfterLaunch -int 2
 defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
 defaults_write com.colliderli.iina enableOSD -bool false
@@ -285,6 +327,11 @@ defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set 
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" # Set Clicking keyboard shortcut to ⌥⇧␣
 defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false
+defaults_write me.damir.dropover-mac NotchDragEnabled -bool false
+defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
+defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
+defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array # Clear default keyboard shortcuts
+defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false
 defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false
 defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true

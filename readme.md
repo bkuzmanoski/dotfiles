@@ -49,7 +49,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Menu Bar → Turn off "Spotlight"
     - Displays → Turn off "Automatically adjust brightness"
     - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
-  - Set up Finder sidebar favorites (see reference screenshot)
+  - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
   - Mail:
     - Add "Get Mail" item to toolbar
     - Set up Mail sidebar favorites (see reference screenshot)
@@ -61,7 +61,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Settings → Composing → Set "Message format" to "Plain Text"
     - Settings → Composing → Set "Undo send delay" to "Off"
     - Settings → Composing → Turn on "Use the same message format as the original message"
-  - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
 
 - **1Password**
 
@@ -112,10 +111,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
   - Set "Google Web" as default search engine
   - Enable `chrome://flags/#tabstrip-combo-button`
-
-- **Homerow**
-
-  - General → Turn on "Launch on login"
 
 - **IINA**
 

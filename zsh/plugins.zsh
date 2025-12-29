@@ -16,37 +16,30 @@ readonly UPDATE_REMINDERS=(
 )
 
 _source_plugins() {
-  local plugins_installed=0
-
   for plugin in ${(k)PLUGINS[@]}; do
-    local target_dir="${HOME}/.zsh/${plugin}"
+    local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
     local git_repository="${PLUGINS[${plugin}]%%|*}"
     local source_file="${PLUGINS[${plugin}]#*|}"
 
-    if [[ ! -d "${target_dir}" ]]; then
+    if [[ ! -d "${plugin_dir}" ]]; then
+
       print -P "Installing %B${plugin}%b..."
-      git clone "${git_repository}" "${target_dir}"
+      git clone "${git_repository}" "${plugin_dir}"
 
       if [[ $? -ne 0 ]]; then
-        print -u2 "\n${plugin} installation failed."
-        print
+        print -u2 "\n${plugin} installation failed.\n"
         continue
       fi
 
-      plugins_installed=1
       print
     fi
 
-    if [[ -f "${target_dir}/${source_file}" ]]; then
-      source "${target_dir}/${source_file}"
+    if [[ -f "${plugin_dir}/${source_file}" ]]; then
+      source "${plugin_dir}/${source_file}"
     else
       print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
     fi
   done
-
-  if (( plugins_installed )); then
-    zshup > /dev/null
-  fi
 }
 
 _check_last_update_time() {
@@ -71,6 +64,7 @@ _check_last_update_time() {
     fi
 
     local time_diff="$((now - last_update_timestamp))"
+
     if (( time_diff > frequency )); then
       print -P "${emoji} It's been a month since the last ${description} update! Run: %B${command}%b"
       updates_required=1
@@ -145,8 +139,7 @@ fnmup() {
 
         if [[ -n "${installed_versions}" ]]; then
           print "The following version(s) will be removed:"
-          print "${installed_versions}"
-          print
+          print "${installed_versions}\n"
           read -r "confirm?Proceed? (y/N) "
 
           if [[ "${confirm}" =~ ^[Yy]$ ]]; then
