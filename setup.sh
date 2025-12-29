@@ -266,6 +266,10 @@ set_finder_preview_pane_settings "public.named-pipe"
 set_finder_preview_pane_settings "public.socket"
 set_finder_preview_pane_settings "public.symlink"
 set_finder_preview_pane_settings "public.text"
+defaults_write com.apple.mail AutoReplyFormat -bool true # Use the same message format as the original message when responding
+defaults_write com.apple.mail SendFormat -string "Plain"
+defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" UndoSendDelayTime -int 0
+defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" MarkAsReadBehavior -int 3 # Mark all messages as read when entering a conversation
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
