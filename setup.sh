@@ -235,6 +235,7 @@ defaults_write com.apple.dock showhidden -bool true # Make hidden app icons tran
 defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
 defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
+defaults_write com.apple.finder FK_AppCentricShowSidebar -bool false # Hide sidebar in open/save dialogs
 defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
 defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
@@ -298,7 +299,7 @@ defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
-defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
+defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Expand open/save dialog by default
 set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
 set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
