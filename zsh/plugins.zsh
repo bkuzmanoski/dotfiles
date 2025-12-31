@@ -180,7 +180,7 @@ zshup() (
 
   for (( i=1; i<=${number_of_plugins}; i++ )); do
     local plugin="${plugin_keys[i]}"
-    local plugin_dir="${HOME}/.zsh/${plugin}"
+    local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
 
     print -P "Updating %B${plugin}%b...\n"
 
