@@ -21,6 +21,7 @@ adjust-cursor-thickness = 1
 
 macos-option-as-alt = true
 keybind = command+z=text:\x18\x15
+keybind = command+shift+z=text:\x18\x12
 keybind = shift+enter=text:\\\n
 keybind = command+up=jump_to_prompt:-1
 keybind = command+down=jump_to_prompt:1
