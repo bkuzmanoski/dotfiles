@@ -299,7 +299,15 @@ defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
-defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Expand open/save dialog by default
+defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true # Expand save panel by default
+defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
+defaults_write NSGlobalDomain NavPanelFileListModeForOpenMode -int 2 # Set open panel view to list view
+defaults_write NSGlobalDomain NSNavPanelFileListModeForOpenMode2 -int 2
+defaults_write NSGlobalDomain NSNavPanelFileLastListModeForOpenModeKey -int 2
+defaults_write NSGlobalDomain NavPanelFileListModeForSaveMode -int 2 # Set save panel view to list view
+defaults_write NSGlobalDomain NSNavPanelFileListModeForSaveMode2 -int 2
+defaults_write NSGlobalDomain NSNavPanelFileLastListModeForSaveModeKey -int 2
+defaults_write NSGlobalDomain NSInitialToolTipDelay -int 300
 set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
 set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
 set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
