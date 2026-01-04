@@ -1,5 +1,4 @@
 brew "bat"
-brew "container"
 brew "create-dmg"
 brew "eza"
 brew "fastfetch"
@@ -22,7 +21,6 @@ brew "zoxide"
 
 cask "1password"
 cask "1password-cli"
-cask "affinity"
 cask "alt-tab"
 cask "apparency"
 cask "archaeology"
