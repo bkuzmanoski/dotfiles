@@ -289,6 +289,7 @@ defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access
 defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
 defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false # Disable press-and-hold for keys in favor of key repeat
+defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true # Don't tint window background with wallpaper color
 defaults_write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true
 defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
