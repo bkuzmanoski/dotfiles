@@ -47,6 +47,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Menu Bar → Turn off "Now Playing"
   - Menu Bar → Turn off "Spotlight"
   - Displays → Turn off "Automatically adjust brightness"
+  - Notifications → Turn off "Allow notifications from iPhone"
   - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
   - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
 
