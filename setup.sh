@@ -86,6 +86,21 @@ set_system_hotkey() {
   defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${dict_value}"
 }
 
+set_wallpaper() {
+  if [[ -f "$1" ]]; then
+    local escaped_path="$(print "$1" | sed 's/"/\\"/g')"
+
+    log --info "Setting wallpaper: $1"
+    osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\""
+
+    if [[ $? -ne 0 ]]; then
+      log --warning "Failed to set wallpaper."
+    fi
+  else
+    log --warning "Wallpaper file not found."
+  fi
+}
+
 # =============================================================================
 # Install Homebrew, apps, and fonts
 # =============================================================================
@@ -211,28 +226,36 @@ log --info "Setting defaults..."
 
 # macOS settings
 defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
+
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0
+
 defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
+
 defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{ print $2 }')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
+
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
+
 defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture -int 0 # Disable three-finger swipe gesture for switching between full-screen applications
 defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGesture -int 0 # Disable three-finger swipe gesture for Mission Control and App Exposé
+
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
+
 defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
 defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
 defaults_write com.apple.dock expose-group-apps -bool true # Group windows by application in Mission Control
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
+defaults_write com.apple.dock show-recents -bool false
+defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
+defaults_write com.apple.dock showhidden -bool true # Make hidden app icons translucent in Dock
+defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
 add_app_to_dock "/System/Applications/Mail.app"
 add_app_to_dock "/Applications/Google Chrome.app"
 add_app_to_dock "/Applications/Figma.app"
 add_app_to_dock "/Applications/Visual Studio Code.app"
 add_app_to_dock "/Applications/Ghostty.app"
-defaults_write com.apple.dock show-recents -bool false
-defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
-defaults_write com.apple.dock showhidden -bool true # Make hidden app icons translucent in Dock
-defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
+
 defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FK_AppCentricShowSidebar -bool false # Hide sidebar in open/save dialogs
@@ -267,23 +290,29 @@ set_finder_preview_pane_settings "public.named-pipe"
 set_finder_preview_pane_settings "public.socket"
 set_finder_preview_pane_settings "public.symlink"
 set_finder_preview_pane_settings "public.text"
+
 defaults_write com.apple.mail AutoReplyFormat -bool true # Use the same message format as the original message when responding
 defaults_write com.apple.mail SendFormat -string "Plain"
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" UndoSendDelayTime -int 0
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" MarkAsReadBehavior -int 3 # Mark all messages as read when entering a conversation
+
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
+
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13
 defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open a blank document on launch
 defaults_write com.apple.TextEdit RichText -bool false
 defaults_write com.apple.TextInputMenu visible -bool false
+
 defaults_write com.apple.universalaccess closeViewPanningMode -int 1 # Set zoomed image to move when the pointer reaches edge
 defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (⌃)
 defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
 defaults_write com.apple.universalaccess closeViewZoomScreenShareEnabledKey -bool true # Show zoomed image while screen sharing
+
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
+
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set title bar double-click action to maximize window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2 # Enable full keyboard access
@@ -317,11 +346,9 @@ set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected ar
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
 
+set_wallpaper "${SCRIPT_DIR}/wallpapers/finder-tile-precomposed.jpg"
+
 # App settings
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" expandAllRows -bool false
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" keepFoldersOnTop -bool true
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 defaults_write com.colliderli.iina actionAfterLaunch -int 2
 defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
 defaults_write com.colliderli.iina enableOSD -bool false
@@ -332,10 +359,12 @@ defaults_write com.colliderli.iina screenShotFolder -string "~/Downloads"
 defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 defaults_write com.colliderli.iina themeMaterial -int 4
+
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
+
 defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0
 defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
 defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
@@ -345,21 +374,20 @@ defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 defaults_write com.lwouis.alt-tab-macos holdShortcut -string "⌘"
 defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘"
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
+
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
+
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" # Set Clicking keyboard shortcut to ⌥⇧␣
 defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false
-defaults_write me.damir.dropover-mac NotchDragEnabled -bool false
-defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
-defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
-defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array # Clear default keyboard shortcuts
-defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
+
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false
 defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false
 defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true
 defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true
-defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false #
+
+defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false
 defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true
 defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads"
 defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true
@@ -369,6 +397,21 @@ defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3
 defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
+
+open "/Applications/Folder Preview.app"
+sleep 3
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" expandAllRows -bool false
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" keepFoldersOnTop -bool true
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
+defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
+
+open /Applications/Dropover.app
+sleep 3
+defaults_write me.damir.dropover-mac NotchDragEnabled -bool false
+defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
+defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
+defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array # Clear default keyboard shortcuts
+defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
 
 # =============================================================================
 # Finalization
