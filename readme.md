@@ -67,6 +67,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Airwave
     - Install [latest release](https://github.com/sallliisa/Airwave/releases/)
     - Set up Aggregate Device
+    - Install HRIR preset
 
   - CleanShot X
     - Complete onboarding
