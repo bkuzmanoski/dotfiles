@@ -38,7 +38,7 @@ cask "mitmproxy"
 cask "raycast"
 cask "sf-symbols"
 cask "sloth"
-cask "virtualbuddy"
+cask "utm"
 cask "visual-studio-code"
 
 mas "Aqua Swatch", id: 1565479346
