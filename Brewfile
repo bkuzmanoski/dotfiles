@@ -45,6 +45,7 @@ mas "Aqua Swatch", id: 1565479346
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "Folder Preview", id: 6698876601
+mas "Pixelmator Pro", id: 1289583905
 mas "Xcode", id: 497799835
 
 cask "font-instrument-serif"
