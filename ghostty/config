@@ -35,10 +35,11 @@ keybind = shift+command+down=jump_to_prompt:1
 keybind = command+a=csi:CommandA
 keybind = command+f=csi:CommandF
 keybind = command+g=csi:CommandG
+keybind = shift+command+g=csi:ShiftCommandG
 keybind = command+k=csi:CommandK
 keybind = command+l=csi:CommandL
 keybind = command+o=csi:CommandO
-keybind = shift+command+g=csi:ShiftCommandG
+keybind = command+x=csi:CommandX
 keybind = command+z=csi:CommandZ
 keybind = shift+command+z=csi:ShiftCommandZ
 keybind = command+minus=csi:CommandMinus

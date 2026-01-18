@@ -13,6 +13,7 @@ bindkey "\e[CommandG" zce-custom
 bindkey -s "\e[ShiftCommandG" ""
 bindkey -s "\e[CommandK" ""
 bindkey -s "\e[CommandO" ""
+bindkey -s "\e[CommandX" ""
 bindkey -s "\e[CommandMinus" ""
 bindkey -s "\e[CommandEqual" ""
 bindkey -s "\e[ShiftCommandLeftBracket" ""
