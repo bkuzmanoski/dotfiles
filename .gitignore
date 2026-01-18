@@ -1,6 +1,6 @@
-**/bin/
 hammerspoon/Spoons/
 micro/backups/
 micro/buffers/
+utils/bin/
 zsh/plugins/
 .DS_Store

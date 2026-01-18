@@ -4,7 +4,6 @@ macos-titlebar-proxy-icon = hidden
 window-padding-x = 8
 window-padding-y = 4
 window-padding-balance = true
-window-padding-color = extend
 resize-overlay = never
 unfocused-split-opacity = 1
 mouse-hide-while-typing = true
@@ -19,9 +18,35 @@ cursor-style = bar
 cursor-style-blink = true
 adjust-cursor-thickness = 1
 
+window-inherit-working-directory = false
+
+quick-terminal-position = right
+quick-terminal-size = 400px
+quick-terminal-animation-duration = 0
+quick-terminal-autohide = false
+keybind = global:shift+command+space=toggle_quick_terminal
+
 macos-option-as-alt = true
-keybind = command+z=text:\x18\x15
-keybind = command+shift+z=text:\x18\x12
-keybind = shift+enter=text:\\\n
-keybind = command+up=jump_to_prompt:-1
-keybind = command+down=jump_to_prompt:1
+keybind = all:command+q=close_window
+keybind = command+t=new_split
+keybind = shift+command+up=jump_to_prompt:-1
+keybind = shift+command+down=jump_to_prompt:1
+
+keybind = command+a=csi:CommandA
+keybind = command+f=csi:CommandF
+keybind = command+g=csi:CommandG
+keybind = command+k=csi:CommandK
+keybind = command+l=csi:CommandL
+keybind = command+o=csi:CommandO
+keybind = shift+command+g=csi:ShiftCommandG
+keybind = command+z=csi:CommandZ
+keybind = shift+command+z=csi:ShiftCommandZ
+keybind = command+minus=csi:CommandMinus
+keybind = command+equal=csi:CommandEqual
+keybind = command+delete=csi:CommandDelete
+keybind = command+backspace=csi:CommandBackspace
+keybind = shift+command+left_bracket=csi:ShiftCommandLeftBracket
+keybind = shift+command+right_bracket=csi:ShiftCommandRightBracket
+keybind = shift+enter=csi:ShiftEnter
+keybind = command+up=csi:CommandUp
+keybind = command+down=csi:CommandDown
