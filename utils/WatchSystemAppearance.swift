@@ -1,9 +1,9 @@
 import Foundation
 
-let processGroupPID = getpgrp()
-let processGroupSource = DispatchSource.makeProcessSource(identifier: processGroupPID, eventMask: .exit, queue: .main)
-processGroupSource.setEventHandler { exit(0) }
-processGroupSource.resume()
+let pgid = getpgrp()
+let processSource = DispatchSource.makeProcessSource(identifier: pgid, eventMask: .exit, queue: .main)
+processSource.setEventHandler { exit(0) }
+processSource.resume()
 
 let signals = [SIGHUP, SIGINT, SIGTERM]
 let signalSources = signals.map { signal in
