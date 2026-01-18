@@ -1,20 +1,26 @@
-FZF_OPTS=(
-  --height=100%
-  --layout=reverse
-  --prompt=""
-  --info=inline:""
-  --no-separator
-  --pointer=""
-  --marker="✓"
-  --marker-multi-line="✓  "
-  --highlight-line
-  --ellipsis="…"
-  --bind="enter:accept+abort"
-)
-
 fzf() {
-  update_theme
-  command fzf "${FZF_OPTS[@]}" --color "${FZF_THEME}" "$@"
+    local options=(
+    --height=100%
+    --layout=reverse
+    --prompt=""
+    --info=inline:""
+    --no-separator
+    --pointer=""
+    --marker="✓"
+    --marker-multi-line="✓  "
+    --highlight-line
+    --ellipsis="…"
+    --bind="enter:accept+abort"
+  )
+  local theme
+
+  if [[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" == "Dark" ]]; then
+    theme="${FZF_BASE_COLORS},${FZF_DARK_COLORS}"
+  else
+    theme="${FZF_BASE_COLORS},${FZF_LIGHT_COLORS}"
+  fi
+
+  command fzf "${options[@]}" --color "${theme}" "$@"
 }
 
 fdir() {
@@ -72,7 +78,7 @@ _select_paths() {
     fi
   ' INT TERM EXIT
 
-  (eval "${find_command}" > "$fifo" &)
+  (eval "${find_command}" > "${fifo}" &)
   find_command_pid="$!"
 
   selected_paths=("${(@f)$(fzf --multi < "${fifo}")}")

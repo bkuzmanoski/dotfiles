@@ -1,0 +1,9 @@
+#!/bin/zsh
+
+# @raycast.title Save Chrome Tabs
+# @raycast.packageName Utilities
+# @raycast.icon icons/save-chrome-tabs.png
+# @raycast.mode silent
+# @raycast.schemaVersion 1
+
+${HOME}/.dotfiles/utils/run_command.sh SaveChromeTabs "${HOME}/Library/Mobile Documents/27N4MQEA55~pro~writer/Documents/Links.md" --close-sent

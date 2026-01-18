@@ -5,6 +5,7 @@ local targetWindow = {
   left = "left",
   right = "right"
 }
+local minimumWindowSize = 100
 local alignmentTolerance = 8
 
 local bindings = {}
@@ -19,12 +20,15 @@ local function focusWindow(target)
   local screen = hs.screen.mainScreen()
   local filteredWindows = hs.fnutils.ifilter(windows, function(window)
     local frame = window:frame()
+    local subrole = window:subrole()
+
     return
         window:screen() == screen and
         not window:isFullscreen() and
-        window:subrole() ~= "AXUnknown" and
-        frame.w > 100 and
-        frame.h > 100
+        subrole ~= "AXFloatingWindow" and
+        subrole ~= "AXUnknown" and
+        frame.w > minimumWindowSize and
+        frame.h > minimumWindowSize
   end)
 
   if #filteredWindows == 0 then
