@@ -25,9 +25,13 @@ hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 
 modules.unlockSound = require("modules/unlock_sound").init()
 modules.systemHotkeys = require("modules/system_hotkeys").init({
+  focusDock = { modifiers = settings.hyperKey, key = "/" },
   toggleLaunchpad = { modifiers = settings.hyperKey, key = "l" },
   toggleMissionControl = { modifiers = settings.hyperKey, key = "space" },
+  toggleAppExpose = { modifiers = settings.hyperKey, key = "down" },
+  toggleShowDesktop = { modifiers = settings.hyperKey, key = "up" },
   toggleNotificationCenter = { modifiers = settings.hyperKey, key = "n" },
+  toggleControlCenter = { modifiers = settings.hyperKey, key = "i" },
   goToSpaceLeft = { modifiers = settings.hyperKey, key = "o" },
   goToSpaceRight = { modifiers = settings.hyperKey, key = "p" },
   goToSpaceN = { modifiers = settings.hyperKey }
@@ -90,7 +94,7 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
 })
 modules.focusWindow = require("modules/focus_window").init({
   hotkeys = {
-    frontmost = { modifiers = settings.hyperKey, key = "return" },
+    frontmost = { modifiers = { "shift", "command" }, key = "return" },
     left = { modifiers = settings.hyperKey, key = "[" },
     right = { modifiers = settings.hyperKey, key = "]" }
   }
