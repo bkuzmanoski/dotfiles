@@ -44,14 +44,17 @@ local function getCurrentWindowData(screen, spaceID)
       local app = window:application()
       local windowSpaces = hs.spaces.windowSpaces(window)
 
-      if app and not excludedApps[app:name()] and
+      if
+          app and
+          not excludedApps[app:name()] and
           window:screen() == screen and
           #windowSpaces == 1 and
           hs.fnutils.contains(windowSpaces, spaceID) and
           window:isVisible() and
           window:isStandard() and
           window:isMaximizable() and
-          not window:isFullScreen() then
+          not window:isFullScreen()
+      then
         table.insert(windowData, { id = id, window = window })
       end
     end

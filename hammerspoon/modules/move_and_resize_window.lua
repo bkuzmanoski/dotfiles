@@ -161,9 +161,11 @@ local function startOperation(operation)
   allWindows = hs.window.orderedWindows()
   activeWindow = utils.getWindowUnderMouse(allWindows, validSubroles)
 
-  if not activeWindow or
+  if
+      not activeWindow or
       excludedApps[activeWindow:application():name()] or
-      (operation == operationType.resize and not activeWindow:isMaximizable()) then
+      (operation == operationType.resize and not activeWindow:isMaximizable())
+  then
     return
   end
 
