@@ -2,7 +2,17 @@ local module = {}
 
 local utils = require("utils")
 
+local topOffset
+local padding
 local windowFilter
+
+local function adjustWindowIfNeeded(window)
+  if window:frame() == window:screen():fullFrame() then
+    return
+  end
+
+  utils.adjustWindowFrame(window, topOffset, padding)
+end
 
 function module.init(config)
   if windowFilter then
@@ -13,12 +23,11 @@ function module.init(config)
     return module
   end
 
+  topOffset = config.topOffset or 0
+  padding = config.padding or 0
   windowFilter = hs.window.filter.new()
       :setOverrideFilter({ allowRoles = { "AXStandardWindow" }, fullscreen = false, visible = true })
-      :subscribe(hs.window.filter.windowCreated, function(window)
-        if window:frame() == window:screen():fullFrame() then return end
-        utils.adjustWindowFrame(window, config.topOffset or 0, config.padding or 0)
-      end)
+      :subscribe(hs.window.filter.windowCreated, adjustWindowIfNeeded)
 
   return module
 end

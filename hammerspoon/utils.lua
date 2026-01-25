@@ -39,20 +39,16 @@ end
 function module.getAdjustedWindowFrame(adjustedScreenFrame, windowFrame)
   local adjustedWindowFrame = windowFrame:copy()
 
-  if adjustedWindowFrame.x - adjustedScreenFrame.x < 0 then
-    adjustedWindowFrame.x = adjustedScreenFrame.x
+  adjustedWindowFrame.w = math.min(adjustedWindowFrame.w, adjustedScreenFrame.w)
+  adjustedWindowFrame.h = math.min(adjustedWindowFrame.h, adjustedScreenFrame.h)
 
-    if (adjustedScreenFrame.x + adjustedScreenFrame.w) - (adjustedWindowFrame.x + adjustedWindowFrame.w) < 0 then
-      adjustedWindowFrame.w = adjustedScreenFrame.w
-    end
-  end
-  if adjustedWindowFrame.y - adjustedScreenFrame.y < 0 then
-    adjustedWindowFrame.y = adjustedScreenFrame.y
+  local minX = adjustedScreenFrame.x
+  local minY = adjustedScreenFrame.y
+  local maxX = adjustedScreenFrame.x + adjustedScreenFrame.w
+  local maxY = adjustedScreenFrame.y + adjustedScreenFrame.h
 
-    if (adjustedScreenFrame.y + adjustedScreenFrame.h) - (adjustedWindowFrame.y + adjustedWindowFrame.h) < 0 then
-      adjustedWindowFrame.h = adjustedScreenFrame.h
-    end
-  end
+  adjustedWindowFrame.x = module.clamp(adjustedWindowFrame.x, minX, maxX - adjustedWindowFrame.w)
+  adjustedWindowFrame.y = module.clamp(adjustedWindowFrame.y, minY, maxY - adjustedWindowFrame.h)
 
   return adjustedWindowFrame
 end
@@ -62,11 +58,17 @@ function module.adjustWindowFrame(window, topOffset, padding)
     return
   end
 
+  local screen = window:screen()
   local windowFrame = window:frame()
-  local adjustedScreenFrame = module.getAdjustedScreenFrame(window:screen(), topOffset, padding)
+  local adjustedScreenFrame = module.getAdjustedScreenFrame(screen, topOffset, padding)
   local adjustedWindowFrame = module.getAdjustedWindowFrame(adjustedScreenFrame, windowFrame)
 
-  if windowFrame.x ~= adjustedWindowFrame.x or windowFrame.y ~= adjustedWindowFrame.y then
+  if
+      windowFrame.x ~= adjustedWindowFrame.x or
+      windowFrame.y ~= adjustedWindowFrame.y or
+      windowFrame.w ~= adjustedWindowFrame.w or
+      windowFrame.h ~= adjustedWindowFrame.h
+  then
     window:setFrame(adjustedWindowFrame, 0)
   end
 end
@@ -100,6 +102,18 @@ function module.getWindowUnderMouse(windows, validSubroles)
   end
 
   return nil
+end
+
+function module.clamp(value, minValue, maxValue)
+  if value < minValue then
+    return minValue
+  end
+
+  if value > maxValue then
+    return maxValue
+  end
+
+  return value
 end
 
 function module.cycleNext(array, afterIndex)
