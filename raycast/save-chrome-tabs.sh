@@ -1,9 +1,9 @@
 #!/bin/zsh
 
-# @raycast.title Save Chrome Tabs
+# @raycast.title Send Chrome Tabs to Feedbin
 # @raycast.packageName Utilities
-# @raycast.icon icons/save-chrome-tabs.png
+# @raycast.icon icons/send-chrome-tabs-to-feedbin.png
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_command.sh SaveChromeTabs "${HOME}/Library/Mobile Documents/27N4MQEA55~pro~writer/Documents/Links.md" --close-sent
+${HOME}/.dotfiles/utils/run_command.sh EmailChromeTabs "bwilw@feedb.in" --close-sent

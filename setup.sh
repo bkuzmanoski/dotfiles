@@ -101,14 +101,6 @@ set_wallpaper() {
   fi
 }
 
-launch_at_login() {
-  osascript -e "tell application \"System Events\" to make login item at end of login items with properties {path:\"$1\", hidden:$2}"
-
-  if [[ $? -ne 0 ]]; then
-    log --warning "Failed to set wallpaper."
-  fi
-}
-
 # =============================================================================
 # Install Homebrew, apps, and fonts
 # =============================================================================
@@ -151,7 +143,6 @@ typeset -A configuration_paths=(
   ["fd"]="${HOME}/.config/fd"
   ["ghostty"]="${HOME}/.config/ghostty"
   ["hammerspoon"]="${HOME}/.hammerspoon"
-  ["micro"]="${HOME}/.config/micro"
   ["ripgrep"]="${HOME}/.config/ripgrep"
   ["zsh"]="${HOME}/.zsh"
   [".zprofile"]="${HOME}/.zprofile"
@@ -405,8 +396,6 @@ defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3
 defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
-
-launch_at_login "/Applications/Ghostty.app" false
 
 open "/Applications/Folder Preview.app"
 sleep 3
