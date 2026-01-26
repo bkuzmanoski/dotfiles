@@ -104,10 +104,10 @@ on run argv
   end repeat
 
   if activeOnly then
-    set messageSubject to "Tab from Mac"
+    set messageSubject to "Link from Mac"
     set tabsData to getActiveTabData(closeSent)
   else
-    set messageSubject to "Tabs from Mac"
+    set messageSubject to "Links from Mac"
     set tabsData to getAllTabsData(closeSent)
   end if
 
