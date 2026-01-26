@@ -46,7 +46,7 @@ on getAllTabsData(closeSent)
   return tabsData
 end getAllTabsData
 
-on formatLinks(tabsData)
+on formatMessageContent(tabsData)
   set messageContent to ""
 
   repeat with index from 1 to count of tabsData
@@ -55,12 +55,30 @@ on formatLinks(tabsData)
     end if
 
     set tabRecord to item index of tabsData
-    set currentEntry to tabTitle of tabRecord & return & tabURL of tabRecord
-    set messageContent to messageContent & currentEntry
+    set messageContent to messageContent & tabTitle of tabRecord & return & tabURL of tabRecord
   end repeat
 
   return messageContent
-end formatLinks
+end formatMessageContent
+
+on sendEmail(recipientAddress, messageSubject, messageContent)
+  tell application "System Events"
+    set mailWasRunning to exists processes where name is "Mail"
+  end tell
+
+  tell application "Mail"
+    set newMessage to make new outgoing message with properties {subject:messageSubject, content:messageContent}
+
+    tell newMessage
+      make new to recipient with properties {address:recipientAddress}
+      send
+    end tell
+  end tell
+
+  if not mailWasRunning then
+    do shell script "nohup zsh -c 'sleep 5 && osascript -e \"tell application \\\"Mail\\\" to quit\"' > /dev/null 2>&1 &"
+  end if
+end sendEmail
 
 on run argv
   tell application "System Events"
@@ -70,10 +88,10 @@ on run argv
   end tell
 
   if count of argv < 1 then
-    return "Target file path was not provided."
+    return "Recipient email address was not provided."
   end if
 
-  set filePath to item 1 of argv
+  set recipientEmail to item 1 of argv
   set activeOnly to false
   set closeSent to false
 
@@ -86,8 +104,10 @@ on run argv
   end repeat
 
   if activeOnly then
+    set messageSubject to "Tab from Mac"
     set tabsData to getActiveTabData(closeSent)
   else
+    set messageSubject to "Tabs from Mac"
     set tabsData to getAllTabsData(closeSent)
   end if
 
@@ -97,12 +117,12 @@ on run argv
     return
   end if
 
-  set formattedContent to formatLinks(tabsData)
-  do shell script "printf '%s\\n\\n' " & quoted form of formattedContent & " >> " & quoted form of filePath
+  set messageContent to formatMessageContent(tabsData)
+  sendEmail(recipientEmail, messageSubject, messageContent)
 
   if tabCount = 1 then
-    return "Saved tab"
+    return "Sent tab"
   else
-    return "Saved " & tabCount & " tabs"
+    return "Sent " & tabCount & " tabs"
   end if
 end run

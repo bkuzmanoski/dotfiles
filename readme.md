@@ -64,11 +64,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Turn on "Show 1Password Developer dxperience"
       - Turn on "Integrate with 1Password CLI"
 
-  - Airwave
-    - Install [latest release](https://github.com/sallliisa/Airwave/releases/)
-    - Set up Aggregate Device
-    - Install HRIR preset
-
   - CleanShot X
     - Complete onboarding
     - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"

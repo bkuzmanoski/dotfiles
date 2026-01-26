@@ -18,36 +18,9 @@ cursor-style = bar
 cursor-style-blink = true
 adjust-cursor-thickness = 1
 
-window-inherit-working-directory = false
-
-quick-terminal-position = right
-quick-terminal-size = 400px
-quick-terminal-animation-duration = 0
-quick-terminal-autohide = false
-keybind = global:shift+command+space=toggle_quick_terminal
-
 macos-option-as-alt = true
-keybind = all:command+q=close_window
-keybind = command+t=new_split
-keybind = shift+command+up=jump_to_prompt:-1
-keybind = shift+command+down=jump_to_prompt:1
-
-keybind = command+a=csi:CommandA
-keybind = command+f=csi:CommandF
-keybind = command+g=csi:CommandG
-keybind = shift+command+g=csi:ShiftCommandG
-keybind = command+k=csi:CommandK
-keybind = command+l=csi:CommandL
-keybind = command+o=csi:CommandO
-keybind = command+x=csi:CommandX
-keybind = command+z=csi:CommandZ
-keybind = shift+command+z=csi:ShiftCommandZ
-keybind = command+minus=csi:CommandMinus
-keybind = command+equal=csi:CommandEqual
-keybind = command+delete=csi:CommandDelete
-keybind = command+backspace=csi:CommandBackspace
-keybind = shift+command+left_bracket=csi:ShiftCommandLeftBracket
-keybind = shift+command+right_bracket=csi:ShiftCommandRightBracket
-keybind = shift+enter=csi:ShiftEnter
-keybind = command+up=csi:CommandUp
-keybind = command+down=csi:CommandDown
+keybind = shift+command+k=toggle_command_palette
+keybind = shift+enter=csi:13;2u
+keybind = command+z=csi:122;9u
+keybind = shift+command+z=csi:97;10u
+keybind = shift+command+up=csi:1;10A

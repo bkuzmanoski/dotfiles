@@ -8,6 +8,7 @@ typeset -A PLUGINS=(
 )
 
 readonly UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
+readonly UPDATE_REMINDER_FREQUENCY_DAYS=30
 readonly UPDATE_REMINDERS=(
   # emoji|description|timestamp_file|update_command
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
@@ -44,11 +45,11 @@ _source_plugins() {
 
 _check_last_update_time() {
   local now="$(date "+%s")"
-  local frequency="$(( 7 * 86400 ))"
+  local frequency="$((UPDATE_REMINDER_FREQUENCY_DAYS * 24 * 60 * 60))"
   local updates_required=0
 
   for reminder in "${UPDATE_REMINDERS[@]}"; do
-    local parts=("${(@s.|.)reminder}")
+    local parts=("${(@s:|:)reminder}")
     local emoji="${parts[1]}"
     local description="${parts[2]}"
     local timestamp_file="${parts[3]}"
@@ -63,9 +64,9 @@ _check_last_update_time() {
       fi
     fi
 
-    local time_diff="$((now - last_update_timestamp))"
+    local time_since_last_update="$((now - last_update_timestamp))"
 
-    if (( time_diff > frequency )); then
+    if (( time_since_last_update > frequency )); then
       print -P "${emoji} It's been a month since the last ${description} update! Run: %B${command}%b"
       updates_required=1
     fi
@@ -82,7 +83,7 @@ _update_timestamps() {
   fi
 
   date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
-  print "\nUpdate timestamp updated, next reminder in 30 days."
+  print "\nUpdate timestamp updated, next reminder in ${UPDATE_REMINDER_FREQUENCY_DAYS} days."
 }
 
 brewup() (

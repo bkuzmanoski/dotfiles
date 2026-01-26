@@ -13,11 +13,7 @@ export EDITOR="code"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export HOMEBREW_NO_ENV_HINTS=1
 export MANPAGER="col -bx | bat --language man --style plain"
-export MICRO_TRUECOLOR=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
-
-zstyle ":zce:*" prompt-char "Search for character: "
-zstyle ":zce:*" prompt-key "Target key: "
 
 autoload -Uz compinit && compinit
 autoload -Uz undo
