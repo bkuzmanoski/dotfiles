@@ -1,4 +1,4 @@
-copy-buffer-to-clipboard() {
+function copy-buffer-to-clipboard() {
   print -n "${BUFFER}" | pbcopy
   zle -M "Copied to clipboard."
 }

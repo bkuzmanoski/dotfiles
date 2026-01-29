@@ -1,4 +1,4 @@
-oi() {
+function oi() {
   local missing_tools=()
   local install_instructions=()
 
