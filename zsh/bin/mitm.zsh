@@ -1,4 +1,4 @@
-mitm() {
+function mitm() {
   local keychain="/Library/Keychains/System.keychain"
   local certificate="${HOME}/.mitmproxy/mitmproxy-ca-cert.pem"
 

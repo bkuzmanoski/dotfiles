@@ -16,7 +16,7 @@ readonly UPDATE_REMINDERS=(
   "🧩|Zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
 )
 
-_source_plugins() {
+function _source_plugins() {
   for plugin in ${(k)PLUGINS[@]}; do
     local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
     local git_repository="${PLUGINS[${plugin}]%%|*}"
@@ -43,7 +43,7 @@ _source_plugins() {
   done
 }
 
-_check_last_update_time() {
+function _check_last_update_time() {
   local now="$(date "+%s")"
   local frequency="$((UPDATE_REMINDER_FREQUENCY_DAYS * 24 * 60 * 60))"
   local updates_required=0
@@ -77,7 +77,7 @@ _check_last_update_time() {
   fi
 }
 
-_update_timestamps() {
+function _update_timestamps() {
   if [[ ! -d "${UPDATE_TIMESTAMPS_DIR}" ]]; then
     mkdir -p "${UPDATE_TIMESTAMPS_DIR}" >/dev/null
   fi
@@ -95,7 +95,7 @@ brewup() (
   _update_timestamps "brew_last_update"
 )
 
-fnmup() {
+function fnmup() {
   local current_version="$(fnm current)"
   local latest_version="$(set -o pipefail; fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)"
 

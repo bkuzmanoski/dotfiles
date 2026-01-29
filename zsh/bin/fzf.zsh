@@ -1,4 +1,4 @@
-fzf() {
+function fzf() {
     local options=(
     --height=100%
     --layout=reverse
@@ -23,15 +23,15 @@ fzf() {
   command fzf "${options[@]}" --color "${theme}" "$@"
 }
 
-fdir() {
+function fdir() {
   _select_paths "fd --type d" "$@"
 }
 
-ff() {
+function ff() {
   _select_paths "fd --type f" "$@"
 }
 
-fif() {
+function fif() {
   if [[ $# -eq 0 ]]; then
     print -u2 "Usage: fif <search_pattern> [output_command]"
     return 1
@@ -43,12 +43,12 @@ fif() {
   _select_paths "rg --files-with-matches --no-messages -- \"${pattern}\"" "$@"
 }
 
-fh() {
+function fh() {
   local selected_command="$(fc -nl 1 | tail -r | fzf --scheme history)"
   print -rz -- "${selected_command}"
 }
 
-fk() {
+function fk() {
   local selected_processes="$(ps -eo pid,comm | sed -E "1d; s/^([[:space:]]*)([0-9]+)/\2\1/" | fzf --multi)"
 
   if [[ -z "${selected_processes}" ]]; then
@@ -59,7 +59,7 @@ fk() {
   print -rz -- "kill${1:+ $1} ${pids}"
 }
 
-_select_paths() {
+function _select_paths() {
   local find_command="$1"
   shift
 

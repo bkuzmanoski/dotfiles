@@ -1,7 +1,7 @@
 zstyle ":zce:*" prompt-char "Search for character: "
 zstyle ":zce:*" prompt-key "Target key: "
 
-zce-themed() {
+function zce-themed() {
   if [[ "$(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null)" == "Dark" ]]; then
     zstyle ":zce:*" fg "fg=7,bold"
     zstyle ":zce:*" bg "fg=15"

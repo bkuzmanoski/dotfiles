@@ -1,4 +1,4 @@
-cf() {
+function cf() {
   if ! command -v rg >/dev/null 2>&1; then
     print -u2 -P "%Brg%b is not installed. Install with: brew install ripgrep"
     return 1

@@ -6,7 +6,7 @@ SCRIPT_DIR="${0:A:h}"
 # Utility Functions
 # =============================================================================
 
-log() {
+function function log() {
   case "$1" in
     "--info")    print "[INFO]    $2" ;;
     "--warning") print "[WARNING] $2" ;;
@@ -15,7 +15,7 @@ log() {
   esac
 }
 
-backup_if_needed() {
+function backup_if_needed() {
   local target_path="$1"
   local backup_path="${target_path}.backup"
 
@@ -25,7 +25,7 @@ backup_if_needed() {
   fi
 }
 
-defaults_write() {
+function defaults_write() {
   zparseopts -D -E -sudo=use_sudo -currenthost=use_currenthost
 
   local -a write_cmd=(${use_sudo:+"sudo"} "defaults" "${use_currenthost:+" -currentHost"}" "write" "$@")
@@ -34,7 +34,7 @@ defaults_write() {
   ${write_cmd[@]}
 }
 
-plistbuddy_execute() {
+function plistbuddy_execute() {
   log --info "Executing: /usr/libexec/PlistBuddy -c $*"
 
   if [[ "$1" == "Delete"* ]]; then
@@ -44,12 +44,12 @@ plistbuddy_execute() {
   fi
 }
 
-add_app_to_dock() {
+function add_app_to_dock() {
   local app_path="$1"
   defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
 }
 
-set_finder_preview_pane_settings() {
+function set_finder_preview_pane_settings() {
   local item_type="$1"
   local finder_plist="${HOME}/Library/Preferences/com.apple.finder.plist"
 
@@ -58,7 +58,7 @@ set_finder_preview_pane_settings() {
   plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:showQuickActions bool false" "${finder_plist}"
 }
 
-set_system_hotkey() {
+function set_system_hotkey() {
   local key="$1"
   local enabled="$2"
   local parameter1="$3"
@@ -86,7 +86,7 @@ set_system_hotkey() {
   defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${dict_value}"
 }
 
-set_wallpaper() {
+function set_wallpaper() {
   if [[ -f "$1" ]]; then
     local escaped_path="$(print "$1" | sed 's/"/\\"/g')"
 

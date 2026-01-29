@@ -16,7 +16,7 @@ local command="${command_name:t:r}"
 local compiled_path="${bin_dir}/${command}"
 local applescript_path="${compiled_path}.scpt"
 
-compile_command() {
+function compile_command() {
   local source_files=(${utils_dir}/${command}.*)
 
   if [[ "${#source_files[@]}" -eq 0 || ! -e "${source_files[1]}" ]]; then
@@ -51,7 +51,7 @@ compile_command() {
   return 0
 }
 
-run_and_exit() {
+function run_and_exit() {
   if (( ${#flag_background} > 0 )); then
     nohup "$@" >/dev/null 2>&1 &
     exit 0
