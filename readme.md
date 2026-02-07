@@ -57,8 +57,8 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Set "Show Quick Access" shortcut to ⌃⇧␣
     - Clear "Autofill" shortcut
     - Security settings:
-      - Set "Confirm my account password" to never
-      - Set "Auto-lock" to never
+      - Set "Confirm my account password" to "Never"
+      - Set "Auto-lock" to "Never"
       - Turn off "Lock on sleep, screensaver, or switching users"
     - Developer settings:
       - Turn on "Show 1Password Developer dxperience"
@@ -118,6 +118,15 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Settings → Junk Mail → Turn on "Enable junk mail filtering"
     - Settings → Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
     - Settings → Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
+
+  - MarkEdit
+    - Editor → Set "Font" to "JetBrains Mono Regular - 13.0"
+    - Editor → Set "Light Theme" to "Minimal (Light)"
+    - Editor → Set "Dark Theme" to "Minimal (Dark)"
+    - Assistant → Turn on "Insert final newline"
+    - Assistant → Turn on "Trim trailing whitespace"
+    - General → Set "New Window Behavior" to "New Document"
+    - Window → Set "Toolbar Mode" to "Hidden"
 
   - Raycast
     - Complete onboarding
