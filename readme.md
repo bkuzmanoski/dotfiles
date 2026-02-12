@@ -119,15 +119,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Settings → Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
     - Settings → Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
 
-  - MarkEdit
-    - Editor → Set "Font" to "JetBrains Mono Regular - 13.0"
-    - Editor → Set "Light Theme" to "Minimal (Light)"
-    - Editor → Set "Dark Theme" to "Minimal (Dark)"
-    - Assistant → Turn on "Insert final newline"
-    - Assistant → Turn on "Trim trailing whitespace"
-    - General → Set "New Window Behavior" to "New Document"
-    - Window → Set "Toolbar Mode" to "Hidden"
-
   - Raycast
     - Complete onboarding
     - Import settings file

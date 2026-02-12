@@ -25,7 +25,7 @@ function oi() {
   local usage_info=$(cat <<- EOF
 		Usage:
 		  oi [options] <image|directory> ...
-
+		
 		Options:
 		  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
 		  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)

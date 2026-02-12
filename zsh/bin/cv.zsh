@@ -7,7 +7,7 @@ function cv() {
   local usage_info=$(cat <<- EOF
 		Usage:
 		  cv [options] <video>
-
+		
 		Options:
 		  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
 		  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
