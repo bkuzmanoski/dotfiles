@@ -65,7 +65,7 @@ function set_system_hotkey() {
   local parameter2="$4"
   local parameter3="$5"
   local dict_value=$(cat <<- EOF
-    <dict>
+		<dict>
 			<key>enabled</key>
 			<${enabled}/>
 			<key>value</key>
@@ -137,7 +137,7 @@ fi
 # Link dotfiles
 # =============================================================================
 
-typeset -A configuration_paths=(
+typeset -A settings_paths=(
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"
@@ -149,47 +149,22 @@ typeset -A configuration_paths=(
   [".zshrc"]="${HOME}/.zshrc"
 )
 
-for configuration_path in "${(k)configuration_paths[@]}"; do
-  log --info "Linking: ${configuration_path}"
+for settings_path in "${(k)settings_paths[@]}"; do
+  log --info "Linking settings: ${settings_path}"
 
-  typeset source_path="${SCRIPT_DIR}/${configuration_path}"
-  typeset target_path="${configuration_paths[${configuration_path}]}"
+  typeset source_path="${SCRIPT_DIR}/${settings_path}"
+  typeset target_path="${settings_paths[${settings_path}]}"
 
-  if [[ "${configuration_path}" == *\** ]]; then
-    if [[ -e "${target_path}" && ! -d "${target_path}" ]]; then
-      log --error "Source path contains multiple files but target path is not a directory. Skipping."
-      continue
-    fi
-
-    typeset expanded_source_path="${SCRIPT_DIR}/${configuration_path}"
-    typeset -a source_files=(${~expanded_source_path})
-
-    if [[ ${#source_files[@]} -eq 0 ]]; then
-      log --warning "No files found matching pattern: ${configuration_path}"
-      continue
-    fi
-
-    mkdir -p "${target_path}"
-
-    for source_file_path in "${source_files[@]}"; do
-      typeset file_name="$(basename "${source_file_path}")"
-      typeset target_file_path="${target_path}/${file_name}"
-
-      backup_if_needed "${target_file_path}"
-      ln -sfh "${source_file_path}" "${target_file_path}" 2>/dev/null
-
-      if [[ $? -ne 0 ]]; then
-        log --error "Failed to link file: ${source_file_path}"
-      fi
-    done
-  else
+  if [[ -e "${source_path}" ]]; then
     backup_if_needed "${target_path}"
     mkdir -p "$(dirname "${target_path}")" && \
     ln -sfh "${source_path}" "${target_path}" 2>/dev/null
 
     if [[ $? -ne 0 ]]; then
-      log --error "Failed to link: ${configuration_path}"
+      log --error "Failed to link settings: ${settings_path}"
     fi
+  else
+    log --warning "Settings path not found, skipping: ${settings_path}"
   fi
 done
 
@@ -359,6 +334,9 @@ defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 defaults_write com.colliderli.iina themeMaterial -int 4
 
+defaults_write com.flyingmeat.Acorn8 showStartWindow -bool false
+defaults_write com.flyingmeat.Acorn8 autoSaveBehavior -string "off"
+
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
@@ -397,6 +375,14 @@ defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
 
+open "/Applications/Dropover.app"
+sleep 3
+defaults_write me.damir.dropover-mac NotchDragEnabled -bool false
+defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
+defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
+defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array # Clear default keyboard shortcuts
+defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
+
 open "/Applications/Folder Preview.app"
 sleep 3
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" expandAllRows -bool false
@@ -404,13 +390,20 @@ defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.Fol
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 
-open /Applications/Dropover.app
-sleep 3
-defaults_write me.damir.dropover-mac NotchDragEnabled -bool false
-defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
-defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
-defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array # Clear default keyboard shortcuts
-defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
+typeset finetune_settings_source_path="${SCRIPT_DIR}/finetune/settings.json"
+typeset finetune_settings_target_path="${HOME}/Library/Application Support/FineTune/settings.json"
+
+if [[ -f "${finetune_settings_source_path}" ]]; then
+  log --info "Copying FineTune settings."
+  mkdir -p "$(dirname "${finetune_settings_target_path}")" && \
+  cp -f "${finetune_settings_source_path}" "${finetune_settings_target_path}" 2>/dev/null
+
+  if [[ $? -ne 0 ]]; then
+    log --error "Failed to copy FineTune settings."
+  fi
+else
+  log --warning "FineTune settings file not found, skipping."
+fi
 
 # =============================================================================
 # Finalization

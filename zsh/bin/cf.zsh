@@ -7,7 +7,7 @@ function cf() {
   local usage_info=$(cat <<- EOF
 		Usage:
 		  cf [options] [rg options]
-
+		
 		Options:
 		  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
 		  -h, --help    Show this help message
