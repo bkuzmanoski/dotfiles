@@ -21,8 +21,8 @@ autoload -Uz zmv
 
 source "${HOME}/.zsh/prompt.zsh"
 source "${HOME}/.zsh/aliases.zsh"
-source "${HOME}/.zsh/plugins.zsh"
 source "${HOME}/.zsh/keybindings.zsh"
+source "${HOME}/.zsh/plugins.zsh"
 source "${HOME}/.zsh/theme.zsh"
 
 for file in ~/.zsh/{bin,widgets}/*.zsh; do
