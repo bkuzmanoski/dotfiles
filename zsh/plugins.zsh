@@ -1,10 +1,10 @@
-typeset -A PLUGINS=(
-  # [plugin]=git_url|source_file
-  ["fzf-tab"]="https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
-  ["zce"]="https://github.com/hchbaw/zce.zsh|zce.zsh"
-  ["zsh-ai-cmd"]="https://github.com/kylesnowschwartz/zsh-ai-cmd|zsh-ai-cmd.plugin.zsh"
-  ["zsh-autosuggestions"]="https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
-  ["zsh-syntax-highlighting"]="https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
+typeset -a PLUGINS=(
+  # plugin|git_url|source_file
+  "fzf-tab|https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
+  "zce|https://github.com/hchbaw/zce.zsh|zce.zsh"
+  "zsh-ai-cmd|https://github.com/kylesnowschwartz/zsh-ai-cmd|zsh-ai-cmd.plugin.zsh"
+  "zsh-autosuggestions|https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
+  "zsh-syntax-highlighting|https://github.com/zsh-users/zsh-syntax-highlighting|zsh-syntax-highlighting.zsh"
 )
 
 readonly UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
@@ -13,14 +13,16 @@ readonly UPDATE_REMINDERS=(
   # emoji|description|timestamp_file|update_command
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
   "📦|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
-  "🧩|Zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
+  "🧩|zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
 )
 
 function _source_plugins() {
-  for plugin in ${(k)PLUGINS[@]}; do
+  for plugin_entry in "${PLUGINS[@]}"; do
+    local parts=("${(@s:|:)plugin_entry}")
+    local plugin="${parts[1]}"
+    local git_repository="${parts[2]}"
+    local source_file="${parts[3]}"
     local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
-    local git_repository="${PLUGINS[${plugin}]%%|*}"
-    local source_file="${PLUGINS[${plugin}]#*|}"
 
     if [[ ! -d "${plugin_dir}" ]]; then
 
@@ -171,8 +173,7 @@ function fnmup() {
 }
 
 zshup() (
-  local plugin_keys=("${(k)PLUGINS[@]}")
-  local number_of_plugins=${#plugin_keys[@]}
+  local number_of_plugins=${#PLUGINS[@]}
 
   if (( ${number_of_plugins} == 0 )); then
     print "No plugins to update."
@@ -180,7 +181,9 @@ zshup() (
   fi
 
   for (( i=1; i<=${number_of_plugins}; i++ )); do
-    local plugin="${plugin_keys[i]}"
+    local plugin_entry="${PLUGINS[i]}"
+    local parts=("${(@s:|:)plugin_entry}")
+    local plugin="${parts[1]}"
     local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
 
     print -P "Updating %B${plugin}%b...\n"
@@ -196,7 +199,7 @@ zshup() (
       exit 1
     fi
 
-    if (( i < ${#plugin_keys[@]} )); then
+    if (( i < ${number_of_plugins} )); then
       print
     fi
   done
