@@ -3,7 +3,7 @@
 SCRIPT_DIR="${0:A:h}"
 
 # =============================================================================
-# Utility Functions
+# Utility functions
 # =============================================================================
 
 function function log() {
@@ -169,7 +169,7 @@ for settings_path in "${(k)settings_paths[@]}"; do
 done
 
 # =============================================================================
-# Set up environment
+# Set up shell environment and CLI tools
 # =============================================================================
 
 # Hide "Last login" message in terminal

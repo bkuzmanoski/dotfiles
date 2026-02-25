@@ -14,6 +14,7 @@ export EZA_CONFIG_DIR="${HOME}/.config/eza"
 export HOMEBREW_NO_ENV_HINTS=1
 export MANPAGER="col -bx | bat --language man --style plain"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
+export PATH="${HOME}/.cargo/bin":"${PATH}"
 
 autoload -Uz compinit && compinit
 autoload -Uz undo
