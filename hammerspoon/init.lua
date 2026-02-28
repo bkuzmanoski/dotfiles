@@ -36,6 +36,15 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   goToSpaceRight = { modifiers = settings.hyperKey, key = "p" },
   goToSpaceN = { modifiers = settings.hyperKey }
 })
+modules.rightCommandHotkeys = require("modules/right_command_hotkeys").init({
+  keymap = {
+    l = "left",
+    ["'"] = "right",
+    p = "up",
+    [";"] = "down",
+    ["return"] = "return"
+  }
+})
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
   topOffset = settings.screenTopOffset,
   padding = settings.windowPadding
