@@ -1,5 +1,6 @@
 brew "bat"
 brew "colima"
+brew "copilot-cli"
 brew "create-dmg"
 brew "docker-compose"
 brew "docker"
