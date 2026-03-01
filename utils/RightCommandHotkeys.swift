@@ -207,7 +207,7 @@ class HotkeyController {
     var newFlags = originalEvent.flags.rawValue
     newFlags &= ~Constants.rightCommandDeviceBit
 
-    if !(originalEvent.flags.rawValue & Constants.leftCommandDeviceBit != 0) {
+    if originalEvent.flags.rawValue & Constants.leftCommandDeviceBit == 0 {
       newFlags &= ~CGEventFlags.maskCommand.rawValue
     }
 
