@@ -144,14 +144,12 @@ class HotkeyController {
       throw Error.accessibilityPermissionDenied
     }
 
-    let eventsOfInterest: CGEventMask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
-
     guard
       let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: eventsOfInterest,
+        eventsOfInterest: (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue),
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
