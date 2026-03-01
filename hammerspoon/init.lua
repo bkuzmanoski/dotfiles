@@ -14,13 +14,16 @@ hs.logger.setGlobalLogLevel("error")
 hs.window.animationDuration = 0
 hs.shutdownCallback = function()
   for _, module in pairs(modules) do
-    if type(module.cleanup) == "function" then module.cleanup() end
+    if type(module.cleanup) == "function" then
+      module.cleanup()
+    end
   end
 end
 
 utils.createSpaces(settings.numberOfSpaces)
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 
 modules.unlockSound = require("modules/unlock_sound").init()
@@ -35,15 +38,6 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   goToSpaceLeft = { modifiers = settings.hyperKey, key = "o" },
   goToSpaceRight = { modifiers = settings.hyperKey, key = "p" },
   goToSpaceN = { modifiers = settings.hyperKey }
-})
-modules.rightCommandHotkeys = require("modules/right_command_hotkeys").init({
-  keymap = {
-    l = "left",
-    ["'"] = "right",
-    p = "up",
-    [";"] = "down",
-    ["return"] = "return"
-  }
 })
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
   topOffset = settings.screenTopOffset,
