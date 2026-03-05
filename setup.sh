@@ -323,6 +323,12 @@ set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording o
 set_wallpaper "${SCRIPT_DIR}/wallpapers/finder-tile-precomposed.jpg"
 
 # App settings
+defaults_write com.apple.dt.Xcode IDEBuildLocationStyle -string "Custom"
+defaults_write com.apple.dt.Xcode IDECustomBuildIntermediatesPath -string "Build/Intermediates.noindex"
+defaults_write com.apple.dt.Xcode IDECustomBuildLocationType -string "RelativeToDerivedData"
+defaults_write com.apple.dt.Xcode IDECustomBuildProductsPath -string "Build/Products"
+defaults_write com.apple.dt.Xcode IDECustomDerivedDataLocation -string "DerivedData"
+
 defaults_write com.colliderli.iina actionAfterLaunch -int 2
 defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
 defaults_write com.colliderli.iina enableOSD -bool false
