@@ -354,8 +354,6 @@ defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appear
 defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
-defaults_write com.lwouis.alt-tab-macos holdShortcut -string "⌘"
-defaults_write com.lwouis.alt-tab-macos holdShortcut2 -string "⌘"
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
 
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0

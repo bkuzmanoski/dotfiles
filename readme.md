@@ -64,6 +64,10 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Turn on "Show 1Password Developer dxperience"
       - Turn on "Integrate with 1Password CLI"
 
+  - AltTab
+    - Controls → Shortcut 1 → Trigger → Set "Hold" to "⌘"
+    - Controls → Shortcut 2 → Trigger → Set "Hold" to "⌘"
+
   - CleanShot X
     - Complete onboarding
     - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
