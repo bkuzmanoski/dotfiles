@@ -25,7 +25,7 @@ function oi() {
   local usage_info=$(cat <<- EOF
 		Usage:
 		  oi [options] <image|directory> ...
-		
+
 		Options:
 		  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
 		  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
@@ -98,8 +98,6 @@ function oi() {
   if [[ ${use_zopfli} -eq 1 ]]; then
     oxipng_opts+=("--zopfli")
   fi
-
-  set -e
 
   for file in "${files[@]}"; do
     printf "\n\033[1m%d/%d\033[0m\n" "$(( processed + 1 ))" "${image_count}"
