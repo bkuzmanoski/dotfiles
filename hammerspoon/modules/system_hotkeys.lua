@@ -16,7 +16,9 @@ local actions = {
     local mousePosition = hs.mouse.absolutePosition()
     hs.mouse.absolutePosition({ x = 10, y = 10 })
     hs.eventtap.keyStroke({ "fn", "ctrl" }, "up", 0)
-    hs.mouse.absolutePosition(mousePosition)
+    hs.timer.doAfter(0.05, function()
+      hs.mouse.absolutePosition(mousePosition)
+    end)
   end,
   toggleAppExpose = function()
     hs.spaces.toggleAppExpose()
