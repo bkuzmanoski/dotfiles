@@ -15,17 +15,13 @@ local actions = {
   toggleMissionControl = function()
     local mousePosition = hs.mouse.absolutePosition()
     hs.mouse.absolutePosition({ x = 10, y = 10 })
-    hs.eventtap.keyStroke({ "fn", "ctrl" }, "up", 0)
+    hs.spaces.toggleMissionControl()
     hs.timer.doAfter(0.05, function()
       hs.mouse.absolutePosition(mousePosition)
     end)
   end,
-  toggleAppExpose = function()
-    hs.spaces.toggleAppExpose()
-  end,
-  toggleShowDesktop = function()
-    hs.spaces.toggleShowDesktop()
-  end,
+  toggleAppExpose = hs.spaces.toggleAppExpose,
+  toggleShowDesktop = hs.spaces.toggleShowDesktop,
   toggleControlCenter = function()
     hs.eventtap.keyStroke({ "fn" }, "c")
   end,
