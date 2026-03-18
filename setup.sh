@@ -346,6 +346,7 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab below" "@t" # Map New tab below keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f" # Map Search Tabs… keyboard shortcut to ⇧⌘F
 
 defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0
 defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
