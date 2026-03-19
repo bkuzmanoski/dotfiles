@@ -52,6 +52,7 @@ cask "visual-studio-code"
 mas "Aqua Swatch", id: 1565479346
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
+mas "flowy", id: 6748351905
 mas "Folder Preview", id: 6698876601
 mas "Pasteboard Viewer", id: 1499215709
 mas "Xcode", id: 497799835
