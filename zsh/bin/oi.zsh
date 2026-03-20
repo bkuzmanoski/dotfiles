@@ -118,10 +118,11 @@ function oi() {
     (( total_size_after += "$(stat -f %z "${file}")" ))
   done
 
-  local size_reduction="$(( (total_size_before - total_size_after) * 100 / total_size_before ))"
+  local size_reduction="$(( total_size_before - total_size_after ))"
+  local size_reduction_percent="$(( size_reduction * 100 / total_size_before ))"
 
   printf "\n\033[1mProcessed %d image%s\033[0m\n" "${image_count}" "$([[ ${image_count} -eq 1 ]] || print "s")"
   printf "Total size before: %.2f MB\n" "$(print "scale=2; ${total_size_before} / 1000000" | bc)"
   printf "Total size after:  %.2f MB\n" "$(print "scale=2; ${total_size_after} / 1000000" | bc)"
-  printf "Size reduction:    %d%%\n" "${size_reduction}"
+  printf "Size reduction:    %.2f MB (%d%%)\n" "$(print "scale=2; ${size_reduction} / 1000000" | bc)" "${size_reduction_percent}"
 }
