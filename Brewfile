@@ -50,6 +50,7 @@ cask "utm"
 cask "visual-studio-code"
 
 mas "Aqua Swatch", id: 1565479346
+mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "flowy", id: 6748351905
