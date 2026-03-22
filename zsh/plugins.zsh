@@ -25,7 +25,6 @@ function _source_plugins() {
     local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
 
     if [[ ! -d "${plugin_dir}" ]]; then
-
       print -P "Installing %B${plugin}%b..."
       git clone "${git_repository}" "${plugin_dir}"
 
