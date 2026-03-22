@@ -1,3 +1,4 @@
+export PATH="${HOME}/.cargo/bin":"${PATH}"
+
 eval "$(/opt/homebrew/bin/brew shellenv)"
-eval "$(fnm env --use-on-cd)"
-eval "$(zoxide init zsh)"
+eval "$(fnm env)"

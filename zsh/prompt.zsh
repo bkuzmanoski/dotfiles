@@ -1,5 +1,5 @@
-precmd() {
-  precmd() {
+function precmd() {
+  function precmd() {
     print
   }
 }
