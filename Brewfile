@@ -1,4 +1,6 @@
 brew "bat"
+brew "cargo-binstall"
+brew "cargo-update"
 brew "colima"
 brew "create-dmg"
 brew "docker-compose"

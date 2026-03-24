@@ -33,3 +33,4 @@ done
 eval "$(zoxide init zsh)"
 
 fnm_use_on_cd
+check_last_update_time

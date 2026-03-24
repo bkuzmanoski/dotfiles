@@ -1,8 +1,8 @@
 export SNITCH_THEME="mono"
 
-typeset FZF_BASE_COLORS="gutter:-1,fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,marker:4"
-typeset FZF_DARK_COLORS="bg+:#395263,info:8,spinner:8,border:8,scrollbar:8"
-typeset FZF_LIGHT_COLORS="bg+:#b2c9d8,info:15,spinner:15,border:15,scrollbar:15"
+readonly FZF_BASE_COLORS="gutter:-1,fg:-1,fg+:-1,bg:-1,hl:4,hl+:4,marker:4"
+readonly FZF_DARK_COLORS="bg+:#395263,info:8,spinner:8,border:8,scrollbar:8"
+readonly FZF_LIGHT_COLORS="bg+:#b2c9d8,info:15,spinner:15,border:15,scrollbar:15"
 
 ZSH_HIGHLIGHT_STYLES[alias]="fg=4,bold"
 ZSH_HIGHLIGHT_STYLES[arg0]="fg=4,bold"
