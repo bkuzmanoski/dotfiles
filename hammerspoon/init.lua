@@ -38,8 +38,8 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
   toggleControlCenter = { modifiers = settings.hyperKey, key = "i" }
 })
 modules.switchToSpace = require("modules/switch_to_space").init({
-  left = { modifiers = settings.hyperKey, key = "o" },
-  right = { modifiers = settings.hyperKey, key = "p" },
+  left = { modifiers = settings.hyperKey, key = "[" },
+  right = { modifiers = settings.hyperKey, key = "]" },
   index = { modifiers = settings.hyperKey, maximumSpaces = settings.numberOfSpaces }
 })
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
@@ -100,9 +100,9 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
 })
 modules.focusWindow = require("modules/focus_window").init({
   hotkeys = {
-    frontmost = { modifiers = { "shift", "command" }, key = "return" },
-    left = { modifiers = settings.hyperKey, key = "[" },
-    right = { modifiers = settings.hyperKey, key = "]" }
+    frontmost = { modifiers = settings.hyperKey, key = "return" },
+    left = { modifiers = settings.hyperKey, key = "o" },
+    right = { modifiers = settings.hyperKey, key = "p" }
   }
 })
 modules.focusWindowOnScreen = require("modules/focus_window_on_screen").init()
