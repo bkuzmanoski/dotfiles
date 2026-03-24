@@ -9,24 +9,6 @@ enum Constants {
 }
 
 enum Signal {
-  enum Error: Swift.Error, LocalizedError {
-    case interrupted(CInt)
-
-    var errorDescription: String? {
-      switch self {
-      case .interrupted(let signal): "Interrupted with signal \(Signal.name(for: signal))"
-      }
-    }
-  }
-
-  static func name(for signal: CInt) -> String {
-    guard let signalName = strsignal(signal) else {
-      return "Unknown signal (\(signal))"
-    }
-
-    return String(cString: signalName)
-  }
-
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
     return AsyncStream { continuation in
       let sources = signals.map { signal in
@@ -103,7 +85,7 @@ class SingletonLock {
 
 @MainActor
 class StatusItemController {
-  let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+  private let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() {
     statusItem.button?.isEnabled = false
