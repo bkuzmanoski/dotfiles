@@ -89,9 +89,15 @@ function module.init(config)
   end
 
   local handlers = {
-    frontmost = function() focusWindow(targetWindow.frontmost) end,
-    left = function() focusWindow(targetWindow.left) end,
-    right = function() focusWindow(targetWindow.right) end
+    frontmost = function()
+      focusWindow(targetWindow.frontmost)
+    end,
+    left = function()
+      focusWindow(targetWindow.left)
+    end,
+    right = function()
+      focusWindow(targetWindow.right)
+    end
   }
 
   for action, hotkey in pairs(config.hotkeys) do

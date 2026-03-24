@@ -1,45 +1,6 @@
 local module = {}
 
-local utils = require("utils")
-
 local bindings = {}
-
-local actions = {
-  focusMenuBar = function()
-    hs.eventtap.keyStroke({ "fn", "ctrl" }, "f2")
-  end,
-  focusDock = function()
-    hs.eventtap.keyStroke({ "fn", "ctrl" }, "f3")
-  end,
-  toggleLaunchpad = hs.spaces.toggleLaunchPad,
-  toggleMissionControl = function()
-    local mousePosition = hs.mouse.absolutePosition()
-    hs.mouse.absolutePosition({ x = 10, y = 10 })
-    hs.spaces.toggleMissionControl()
-    hs.timer.doAfter(0.05, function()
-      hs.mouse.absolutePosition(mousePosition)
-    end)
-  end,
-  toggleAppExpose = hs.spaces.toggleAppExpose,
-  toggleShowDesktop = hs.spaces.toggleShowDesktop,
-  toggleControlCenter = function()
-    hs.eventtap.keyStroke({ "fn" }, "c")
-  end,
-  toggleNotificationCenter = function()
-    hs.eventtap.keyStroke({ "fn" }, "n")
-  end,
-  goToSpaceLeft = function()
-    local currentSpaceNumber, numberOfSpaces = utils.getCurrentSpaceIndex(hs.screen.mainScreen())
-    hs.eventtap.keyStroke({ "ctrl" }, tostring(((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1), 0)
-  end,
-  goToSpaceRight = function()
-    local currentSpaceNumber, numberOfSpaces = utils.getCurrentSpaceIndex(hs.screen.mainScreen())
-    hs.eventtap.keyStroke({ "ctrl" }, tostring((currentSpaceNumber % numberOfSpaces) + 1), 0)
-  end,
-  goToSpaceN = function(n)
-    hs.eventtap.keyStroke({ "ctrl" }, tostring(n), 0)
-  end
-}
 
 function module.init(config)
   if next(bindings) then
@@ -50,15 +11,35 @@ function module.init(config)
     return module
   end
 
+  local handlers = {
+    focusMenuBar = function()
+      hs.eventtap.keyStroke({ "fn", "ctrl" }, "f2")
+    end,
+    focusDock = function()
+      hs.eventtap.keyStroke({ "fn", "ctrl" }, "f3")
+    end,
+    toggleLaunchpad = hs.spaces.toggleLaunchPad,
+    toggleMissionControl = function()
+      local mousePosition = hs.mouse.absolutePosition()
+      hs.mouse.absolutePosition({ x = 10, y = 10 })
+      hs.spaces.toggleMissionControl()
+      hs.timer.doAfter(0.05, function()
+        hs.mouse.absolutePosition(mousePosition)
+      end)
+    end,
+    toggleAppExpose = hs.spaces.toggleAppExpose,
+    toggleShowDesktop = hs.spaces.toggleShowDesktop,
+    toggleControlCenter = function()
+      hs.eventtap.keyStroke({ "fn" }, "c")
+    end,
+    toggleNotificationCenter = function()
+      hs.eventtap.keyStroke({ "fn" }, "n")
+    end
+  }
+
   for action, hotkey in pairs(config) do
-    if actions[action] then
-      if action == "goToSpaceN" then
-        for n = 1, 9 do
-          bindings[action .. n] = hs.hotkey.bind(hotkey.modifiers, tostring(n), function() actions[action](n) end)
-        end
-      else
-        bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, actions[action])
-      end
+    if handlers[action] then
+      bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
     end
   end
 
