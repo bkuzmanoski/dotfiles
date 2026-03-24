@@ -162,7 +162,7 @@ class ZoomController {
   func beginZoomingIfNeeded() {
     if !isZooming {
       self.isZooming = true
-      postPinchGestureEvent(phase: .began, magnification: 0)
+      postZoomEvent(phase: .began, magnification: 0)
     }
   }
 
@@ -170,7 +170,7 @@ class ZoomController {
     let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
     let magnification = delta * directionMultiplier * Constants.zoomSensitivity
 
-    postPinchGestureEvent(phase: .changed, magnification: magnification)
+    postZoomEvent(phase: .changed, magnification: magnification)
   }
 
   func endZoomingIfNeeded() -> Bool {
@@ -178,13 +178,13 @@ class ZoomController {
       return false
     }
 
-    postPinchGestureEvent(phase: .ended, magnification: 0)
+    postZoomEvent(phase: .ended, magnification: 0)
     self.isZooming = false
 
     return true
   }
 
-  private func postPinchGestureEvent(phase: CGSGesturePhase, magnification: Double) {
+  private func postZoomEvent(phase: CGSGesturePhase, magnification: Double) {
     guard let event = CGEvent(source: nil) else {
       return
     }
