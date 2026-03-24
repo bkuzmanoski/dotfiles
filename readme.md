@@ -41,90 +41,94 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
 ## Manual steps
 
-- **System Settings**
+- **macOS**
 
-  - Menu Bar → Turn off "Wi-Fi"
-  - Menu Bar → Turn off "Now Playing"
-  - Menu Bar → Turn off "Spotlight"
-  - Displays → Turn off "Automatically adjust brightness"
-  - Notifications → Turn off "Allow notifications from iPhone"
-  - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
-  - Set up Menu Bar, Control Center, and Notification Center layout (see reference screenshots)
+  - System Settings
+    - Menu Bar → Turn off "Wi-Fi"
+    - Menu Bar → Turn off "Now Playing"
+    - Menu Bar → Turn off "Spotlight"
+    - Displays → Turn off "Automatically adjust brightness"
+    - Notifications → Turn off "Allow notifications from iPhone"
+    - Keyboard → Keyboard Shortcuts → Mission Control → Click on "Restore Defaults"
+  - Set up Menu Bar, Control Center, and Notification Center layouts (see reference screenshots)
+  - Set up Finder favorites (see reference screenshot)
 
-- **App Settings**
+- **Apps**
 
   - 1Password
-    - Set "Show Quick Access" shortcut to ⌃⇧␣
-    - Clear "Autofill" shortcut
-    - Security settings:
-      - Set "Confirm my account password" to "Never"
-      - Set "Auto-lock" to "Never"
-      - Turn off "Lock on sleep, screensaver, or switching users"
-    - Developer settings:
-      - Turn on "Show 1Password Developer dxperience"
-      - Turn on "Integrate with 1Password CLI"
+    - Settings
+      - General
+        - Set "Show Quick Access" shortcut to ⌃⇧␣
+        - Clear "Autofill" shortcut
+      - Appearance → Set "Density" to "Compact"
+      - Security → Set "App unlock preset" to "Convenient"
+      - Developer
+        - Turn on "Show 1Password Developer experience"
+        - Turn on "Integrate with 1Password CLI"
 
   - AltTab
-    - Controls → Shortcut 1 → Trigger → Set "Hold" to "⌘"
-    - Controls → Shortcut 2 → Trigger → Set "Hold" to "⌘"
+    - Settings
+      - Controls → Shortcut 1 → Trigger → Set "Hold" to "⌘"
+      - Controls → Shortcut 2 → Trigger → Set "Hold" to "⌘"
 
   - CleanShot X
-    - Complete onboarding
-    - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
-    - General → After capture → Screenshot → Turn on "Copy file to clipboard"
-    - General → After capture → Recording → Turn off "Show Quick Access Overlay"
-    - General → After capture → Recording → Turn on "Copy file to clipboard"
-    - General → After capture → Recording → Turn on "Save"
-    - Shortcuts → General → Clear "All-In-One" shortcut
-    - Shortcuts → General → Set "Open Capture History" shortcut to ⇧⌘6
-    - Shortcuts → Screenshots → Set "Capture Area" shortcut to ⇧⌘2
-    - Shortcuts → Screenshots → Set "Capture Fullscreen" shortcut to ⇧⌘1
-    - Shortcuts → Screen Recording → Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
-    - Shortcuts → OCR → Set "Capture Text" shortcut to ⇧⌘4
-    - Shortcuts → Annotate → Set "Annotate Last Screenshot" shortcut to ⇧⌘3
-    - Shortcuts → Annotate → Clear "Save" shortcut
-    - Shortcuts → Annotate → Set "Save as" shortcut to ⌘S
+    - Settings
+      - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
+      - General → After capture → Screenshot → Turn on "Copy file to clipboard"
+      - General → After capture → Recording → Turn off "Show Quick Access Overlay"
+      - General → After capture → Recording → Turn on "Copy file to clipboard"
+      - General → After capture → Recording → Turn on "Save"
+      - Shortcuts → General → Clear "All-In-One" shortcut
+      - Shortcuts → General → Set "Open Capture History" shortcut to ⇧⌘6
+      - Shortcuts → Screenshots → Set "Capture Area" shortcut to ⇧⌘2
+      - Shortcuts → Screenshots → Set "Capture Fullscreen" shortcut to ⇧⌘1
+      - Shortcuts → Screen Recording → Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
+      - Shortcuts → OCR → Set "Capture Text" shortcut to ⇧⌘4
+      - Shortcuts → Annotate → Set "Annotate Last Screenshot" shortcut to ⇧⌘3
+      - Shortcuts → Annotate → Clear "Save" shortcut
+      - Shortcuts → Annotate → Set "Save as" shortcut to ⌘S
 
   - Figma
-    - Turn off "Show Figma in Menu Bar"
-    - Turn off "Rename duplicated layers"
-    - Turn off "Flip objects while resizing"
-    - Set "Big nudge" to 8px
+    - Settings
+      - Turn off "Show Figma in Menu Bar"
+      - Turn off "Rename duplicated layers"
+      - Turn off "Flip objects while resizing"
+      - Set "Big nudge" to 8px
 
   - Folder Preview
-    - Turn on "Launch at login"
+    - Settings → Turn on "Launch at login"
     - Enable Extensions
 
   - Hammerspoon
-    - Turn on "Launch Hammerspoon at login"
+    - Settings → Turn on "Launch Hammerspoon at login"
 
   - Homerow
-    - Turn on "Launch on login"
+    - Settings → Turn on "Launch on login"
 
   - Ghostty
     - Grant Full Disk Access permission
 
   - Google Chrome
     - Grant Screen & System Audio Recording permission
-    - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
-    - Turn off "Make searches and browsing better"
-    - Turn off "Show downloads when they're complete"
-    - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
-    - Set "Google Web" as default search engine
-    - Enable `chrome://flags/#tabstrip-combo-button`
+    - Settings
+      - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
+      - Turn off "Make searches and browsing better"
+      - Turn off "Show downloads when they're complete"
+      - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
+      - Set "Google Web" as default search engine
 
   - IINA
-    - Utilities → Select "Set IINA as the Default Application…"
+    - Settings → Utilities → Select "Set IINA as the Default Application…"
 
   - Mail
-    - Set up Mail sidebar favorites: "All Inboxes", "All Sent", "All Archive"
+    - Set up sidebar favorites (see reference screenshot)
     - Turn off "Show Mail Categories"
-    - Settings → Junk Mail → Turn on "Enable junk mail filtering"
-    - Settings → Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
-    - Settings → Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
+    - Settings
+      - Junk Mail → Turn on "Enable junk mail filtering"
+      - Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
+      - Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
 
   - Raycast
-    - Complete onboarding
     - Import settings file
     - Disable unused extensions/commands
 
