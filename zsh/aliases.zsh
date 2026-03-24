@@ -19,4 +19,4 @@ alias mv="mv -i"
 alias p2j="plutil -convert json -o -"
 alias p2x="plutil -convert xml1 -o -"
 alias rm="rm -i"
-alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"'
+alias top="top -s 1 -S -stats pid,command,cpu,th,mem,purg,user,state"
