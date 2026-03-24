@@ -1,4 +1,4 @@
-readonly UPDATE_TIMESTAMPS_DIR="${HOME}/.config/zsh"
+readonly UPDATE_TIMESTAMPS_DIR="${HOME}/.local/state/zsh"
 readonly UPDATE_REMINDER_FREQUENCY_DAYS=30
 readonly UPDATE_TASKS=(
   # emoji|description|timestamp_file|update_command
