@@ -395,21 +395,6 @@ defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.Fol
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 
-typeset finetune_settings_source_path="${SCRIPT_DIR}/finetune/settings.json"
-typeset finetune_settings_target_path="${HOME}/Library/Application Support/FineTune/settings.json"
-
-if [[ -f "${finetune_settings_source_path}" ]]; then
-  log --info "Copying FineTune settings."
-  mkdir -p "$(dirname "${finetune_settings_target_path}")" && \
-  cp -f "${finetune_settings_source_path}" "${finetune_settings_target_path}" 2>/dev/null
-
-  if [[ $? -ne 0 ]]; then
-    log --error "Failed to copy FineTune settings."
-  fi
-else
-  log --warning "FineTune settings file not found, skipping."
-fi
-
 # =============================================================================
 # Finalization
 # =============================================================================
