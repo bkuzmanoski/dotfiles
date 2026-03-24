@@ -1,7 +1,6 @@
 local module = {}
 
 local utils = require("utils")
-local targetSpace = { previousSpace = "previousSpace", nextSpace = "nextSpace" }
 
 local bindings = {}
 
@@ -16,14 +15,15 @@ local function getFocusedWindowAndScreen()
 end
 
 local function moveWindowToSpace(window, spaceNumber)
-  local mousePosition = hs.mouse.absolutePosition()
   local zoomButtonRect = window:zoomButtonRect()
 
   if not zoomButtonRect then
     return
   end
 
+  local mousePosition = hs.mouse.absolutePosition()
   local windowTarget = { x = zoomButtonRect.x + zoomButtonRect.w + 5, y = zoomButtonRect.y + (zoomButtonRect.h / 2) }
+
   hs.eventtap.event.newMouseEvent(hs.eventtap.event.types.leftMouseDown, windowTarget):post()
   hs.timer.usleep(300000)
   hs.eventtap.keyStroke({ "ctrl" }, tostring(spaceNumber), 0)
@@ -39,16 +39,20 @@ local function moveFocusedWindow(space)
     return
   end
 
-  local currentSpaceNumber, numberOfSpaces = utils.getCurrentSpaceIndex(screen)
+  if space == "left" or space == "right" then
+    local currentSpaceNumber, numberOfSpaces = utils.getCurrentSpaceIndex(screen)
 
-  if not currentSpaceNumber or not numberOfSpaces then
-    return
-  end
+    if not currentSpaceNumber or not numberOfSpaces then
+      return
+    end
 
-  if space == targetSpace.previousSpace then
-    moveWindowToSpace(window, ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1)
-  elseif space == targetSpace.nextSpace then
-    moveWindowToSpace(window, (currentSpaceNumber % numberOfSpaces) + 1)
+    moveWindowToSpace(
+      window,
+      space == "left" and ((currentSpaceNumber - 2 + numberOfSpaces) % numberOfSpaces) + 1
+      or (currentSpaceNumber % numberOfSpaces) + 1
+    )
+  else
+    moveWindowToSpace(window, space)
   end
 end
 
@@ -57,38 +61,21 @@ function module.init(config)
     module.cleanup()
   end
 
-  if not config or not config.modifiers then
+  if not config then
     return module
   end
 
-  if config.keys then
-    local handlers = {
-      previousSpace = function()
-        moveFocusedWindow(targetSpace.previousSpace)
-      end,
-      nextSpace = function()
-        moveFocusedWindow(targetSpace.nextSpace)
-      end
-    }
-
-    for action, key in pairs(config.keys) do
-      if handlers[action] then
-        bindings[action] = hs.hotkey.bind(config.modifiers, key, handlers[action])
-      end
-    end
-  end
-
-  if config.enableNumberKeys then
-    for i = 1, 9 do
-      bindings[i] = hs.hotkey.bind(config.modifiers, tostring(i), function()
-        local focusedWindow = getFocusedWindowAndScreen()
-
-        if not focusedWindow then
-          return
-        end
-
-        moveWindowToSpace(focusedWindow, i)
+  for action, hotkey in pairs(config) do
+    if action == "left" or action == "right" then
+      bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
+        moveFocusedWindow(action)
       end)
+    elseif action == "index" then
+      for spaceIndex = 1, math.min(hotkey.maximumSpaces or 9, 9) do
+        bindings[action .. spaceIndex] = hs.hotkey.bind(hotkey.modifiers, tostring(spaceIndex), function()
+          moveFocusedWindow(spaceIndex)
+        end)
+      end
     end
   end
 
