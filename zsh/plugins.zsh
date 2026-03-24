@@ -32,4 +32,3 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
     print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
   fi
 done
-
