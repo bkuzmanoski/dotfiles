@@ -81,6 +81,7 @@ final class SingletonLock {
   deinit {
     flock(lockFileDescriptor, LOCK_UN)
     close(lockFileDescriptor)
+
     try? FileManager.default.removeItem(atPath: lockFilePath)
   }
 }
