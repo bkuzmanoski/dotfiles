@@ -40,7 +40,7 @@ struct Command {
   }
 }
 
-class SingletonLock {
+final class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -84,11 +84,12 @@ class SingletonLock {
 }
 
 @MainActor
-class StatusItemController {
+final class StatusItemController {
   private let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() {
     statusItem.button?.isEnabled = false
+    statusItem.behavior = .terminationOnRemoval
   }
 
   deinit {
@@ -110,7 +111,7 @@ class StatusItemController {
   }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singletonLock: SingletonLock
   private var statusItemController: StatusItemController?
 
@@ -171,6 +172,7 @@ do {
   let delegate = AppDelegate(singletonLock: singletonLock)
   let application = NSApplication.shared
   application.delegate = delegate
+  application.setActivationPolicy(.accessory)
   application.run()
 
 } catch SingletonLock.Error.instanceAlreadyRunning {

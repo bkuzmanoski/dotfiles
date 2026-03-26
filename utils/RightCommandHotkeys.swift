@@ -60,7 +60,7 @@ struct Command {
   }
 }
 
-class SingletonLock {
+final class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -103,7 +103,7 @@ class SingletonLock {
   }
 }
 
-class HotkeyController {
+final class HotkeyManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
     case failedToCreateEventTap
@@ -206,7 +206,7 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  let controller = Unmanaged<HotkeyController>.fromOpaque(refcon).takeUnretainedValue()
+  let controller = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
 
   guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
     if let eventTap = controller.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
@@ -219,9 +219,9 @@ func eventTapCallback(
   return controller.handleKeyEvent(type: type, event: event)
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singletonLock: SingletonLock
-  private var hotkeyController: HotkeyController?
+  private var hotkeyManager: HotkeyManager?
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -230,9 +230,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      self.hotkeyController = try HotkeyController()
+      self.hotkeyManager = try HotkeyManager()
     } catch {
-      FileHandle.standardError.write(Data("Error starting HotkeyController: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Error starting HotkeyManager: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
@@ -284,6 +284,7 @@ do {
   let delegate = AppDelegate(singletonLock: singletonLock)
   let application = NSApplication.shared
   application.delegate = delegate
+  application.setActivationPolicy(.prohibited)
   application.run()
 
 } catch SingletonLock.Error.instanceAlreadyRunning {

@@ -39,7 +39,7 @@ struct Command {
   }
 }
 
-class SingletonLock {
+final class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -158,7 +158,7 @@ extension NSScreen {
   }
 }
 
-class SpaceController {
+final class SpaceSwitcher {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
 
@@ -268,9 +268,9 @@ class SpaceController {
   }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singletonLock: SingletonLock
-  private var spaceController: SpaceController?
+  private var spaceSwitcher: SpaceSwitcher?
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -279,9 +279,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      self.spaceController = try SpaceController()
+      self.spaceSwitcher = try SpaceSwitcher()
     } catch {
-      FileHandle.standardError.write(Data("Error starting SpaceController: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Error starting SpaceSwitcher: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
@@ -326,14 +326,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       await NSApplication.shared.terminate(nil)
 
     case "left":
-      spaceController?.switchSpace(direction: .left)
+      spaceSwitcher?.switchSpace(direction: .left)
 
     case "right":
-      spaceController?.switchSpace(direction: .right)
+      spaceSwitcher?.switchSpace(direction: .right)
 
     default:
       if let spaceNumber = Int(command), spaceNumber > 0 {
-        spaceController?.switchToSpace(index: spaceNumber - 1)
+        spaceSwitcher?.switchToSpace(index: spaceNumber - 1)
       }
     }
   }
@@ -343,6 +343,7 @@ do {
   let singletonLock = try SingletonLock()
   let delegate = AppDelegate(singletonLock: singletonLock)
   let application = NSApplication.shared
+  application.setActivationPolicy(.prohibited)
   application.delegate = delegate
   application.run()
 

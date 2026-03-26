@@ -42,7 +42,7 @@ struct Command {
   }
 }
 
-class SingletonLock {
+final class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -105,7 +105,7 @@ extension CGEventType {
   static let gesture = CGEventType(rawValue: 29)!
 }
 
-class ZoomController {
+final class ZoomManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
     case failedToCreateEventTap
@@ -207,7 +207,7 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  let controller = Unmanaged<ZoomController>.fromOpaque(refcon).takeUnretainedValue()
+  let controller = Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue()
 
   guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
     if let eventTap = controller.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
@@ -238,9 +238,9 @@ func eventTapCallback(
   return nil
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singletonLock: SingletonLock
-  private var zoomController: ZoomController?
+  private var zoomManager: ZoomManager?
 
   init(singletonLock: SingletonLock) {
     self.singletonLock = singletonLock
@@ -249,9 +249,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      self.zoomController = try ZoomController()
+      self.zoomManager = try ZoomManager()
     } catch {
-      FileHandle.standardError.write(Data("Error starting ZoomController: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Error starting ZoomManager: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
@@ -303,6 +303,7 @@ do {
   let delegate = AppDelegate(singletonLock: singletonLock)
   let application = NSApplication.shared
   application.delegate = delegate
+  application.setActivationPolicy(.prohibited)
   application.run()
 
 } catch SingletonLock.Error.instanceAlreadyRunning {
