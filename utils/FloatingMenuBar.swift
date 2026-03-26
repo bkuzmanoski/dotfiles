@@ -41,7 +41,7 @@ struct Command {
   }
 }
 
-class SingletonLock {
+final class SingletonLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -184,7 +184,7 @@ extension NSFont {
   }
 }
 
-class AppMenu {
+final class AppMenu {
   private struct MenuItemData {
     let title: String
     let isEnabled: Bool
@@ -372,7 +372,7 @@ class AppMenu {
   }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private(set) var eventTap: CFMachPort?
 
   private let singletonLock: SingletonLock
@@ -493,6 +493,7 @@ do {
   let delegate = AppDelegate(singletonLock: singletonLock)
   let application = NSApplication.shared
   application.delegate = delegate
+  application.setActivationPolicy(.prohibited)
   application.run()
 
 } catch SingletonLock.Error.instanceAlreadyRunning {

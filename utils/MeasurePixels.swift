@@ -32,11 +32,11 @@ enum LabelPosition {
   case right
 }
 
-class OverlayWindow: NSWindow {
+final class OverlayWindow: NSWindow {
   override var canBecomeKey: Bool { true }
 }
 
-class MeasurementView: NSView {
+final class MeasurementView: NSView {
   private var trackingArea: NSTrackingArea?
   private var measurement: Measurement?
 
@@ -193,7 +193,7 @@ class MeasurementView: NSView {
   }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
   private var screen: NSScreen!
   private var window: OverlayWindow!
   private var measurementView: MeasurementView!
