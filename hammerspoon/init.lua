@@ -100,7 +100,7 @@ modules.moveWindowToScreen = require("modules/move_window_to_screen").init({
 })
 modules.focusWindow = require("modules/focus_window").init({
   hotkeys = {
-    frontmost = { modifiers = settings.hyperKey, key = "return" },
+    frontmost = { modifiers = { "shift", "command" }, key = "return" },
     left = { modifiers = settings.hyperKey, key = "o" },
     right = { modifiers = settings.hyperKey, key = "p" }
   }
