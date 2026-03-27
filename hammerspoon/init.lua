@@ -52,9 +52,9 @@ modules.positionWindow = require("modules/position_window").init({
   splitRatios = settings.splitRatios,
   hotkeys = {
     center = { modifiers = { "option", "command" }, key = "space" },
-    centerSmall = { modifiers = { "option", "command" }, key = "i" },
-    centerMedium = { modifiers = { "option", "command" }, key = "o" },
-    centerLarge = { modifiers = { "option", "command" }, key = "p" },
+    centerSmall = { modifiers = { "option", "command" }, key = "u" },
+    centerMedium = { modifiers = { "option", "command" }, key = "i" },
+    centerLarge = { modifiers = { "option", "command" }, key = "o" },
     left = { modifiers = { "option", "command" }, key = "l" },
     right = { modifiers = { "option", "command" }, key = "'" }
   }
