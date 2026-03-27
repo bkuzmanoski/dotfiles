@@ -12,6 +12,17 @@ local modules = {}
 hs.hotkey.setLogLevel("error")
 hs.logger.setGlobalLogLevel("error")
 hs.window.animationDuration = 0
+
+utils.createSpaces(settings.numberOfSpaces)
+
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh SwitchToSpace --background")
+
+hs.execute("pkill 'figma_agent'")
+
 hs.shutdownCallback = function()
   for _, module in pairs(modules) do
     if type(module.cleanup) == "function" then
@@ -19,13 +30,6 @@ hs.shutdownCallback = function()
     end
   end
 end
-
-utils.createSpaces(settings.numberOfSpaces)
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh SwitchToSpace --background")
 
 modules.unlockSound = require("modules/unlock_sound").init()
 modules.systemHotkeys = require("modules/system_hotkeys").init({
