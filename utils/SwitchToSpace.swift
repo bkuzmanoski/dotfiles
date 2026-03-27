@@ -94,12 +94,8 @@ enum IOHIDEventType: Int64 {
 }
 
 enum CGSGesturePhase: Int64 {
-  case none = 0
   case began = 1
-  case changed = 2
   case ended = 4
-  case cancelled = 8
-  case mayBegin = 128
 }
 
 enum CGGestureMotion: Int64 {
