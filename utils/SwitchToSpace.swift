@@ -84,10 +84,10 @@ final class SingletonLock {
 }
 
 @_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> CInt
+func CGSMainConnectionID() -> UInt32
 
 @_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ cid: CInt) -> Unmanaged<CFArray>?
+func CGSCopyManagedDisplaySpaces(_ cid: UInt32, _ display: CFString?) -> Unmanaged<CFArray>?
 
 enum IOHIDEventType: Int64 {
   case dockSwipe = 23
@@ -138,7 +138,10 @@ extension NSScreen {
     guard
       connectionID != 0,
       let displayIdentifier = self.displayIdentifier,
-      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(connectionID)?.takeRetainedValue() as? [[String: Any]],
+      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
+        connectionID,
+        displayIdentifier as CFString
+      )?.takeRetainedValue() as? [[String: Any]],
       let displayDict = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
       let currentSpaceDict = displayDict["Current Space"] as? [String: Any],
       let currentSpaceID = (currentSpaceDict["id64"] as? NSNumber)?.uint64Value,
