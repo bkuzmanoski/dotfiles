@@ -96,7 +96,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Set "Big nudge" to 8px
 
   - FineTune
-    - Settings → Set "Menu Bar Icon" to "Speaker"
+    - Settings
+      - Turn on "Launch at Login"
+      - Set "Menu Bar Icon" to speaker
 
   - Folder Preview
     - Settings → Turn on "Launch at login"
