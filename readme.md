@@ -95,6 +95,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Turn off "Flip objects while resizing"
       - Set "Big nudge" to 8px
 
+  - FineTune
+    - Settings → Set "Menu Bar Icon" to "Speaker"
+
   - Folder Preview
     - Settings → Turn on "Launch at login"
     - Enable Extensions
