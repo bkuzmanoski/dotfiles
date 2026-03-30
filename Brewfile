@@ -60,6 +60,7 @@ mas "Equinox", id: 1591510203
 mas "flowy", id: 6748351905
 mas "Folder Preview", id: 6698876601
 mas "Pasteboard Viewer", id: 1499215709
+mas "Pixelmator Pro", id: 1289583905
 mas "Xcode", id: 497799835
 
 cask "font-instrument-serif"
