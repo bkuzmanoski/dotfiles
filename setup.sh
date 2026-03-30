@@ -356,6 +356,9 @@ defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
 
+defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true
+defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false
+
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
 
