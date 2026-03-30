@@ -104,12 +104,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Settings → Turn on "Launch at login"
     - Enable Extensions
 
-  - Hammerspoon
-    - Settings → Turn on "Launch Hammerspoon at login"
-
-  - Homerow
-    - Settings → Turn on "Launch on login"
-
   - Ghostty
     - Grant Full Disk Access permission
 
@@ -122,6 +116,12 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
       - Set "Google Web" as default search engine
 
+  - Hammerspoon
+    - Settings → Turn on "Launch Hammerspoon at login"
+
+  - Homerow
+    - Settings → Turn on "Launch on login"
+
   - IINA
     - Settings → Utilities → Select "Set IINA as the Default Application…"
 
@@ -132,6 +132,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Junk Mail → Turn on "Enable junk mail filtering"
       - Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
       - Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
+
+  - Pixelmator Pro
+    - Settings → Workspace → Create a new workspace layout ("Custom") and relocate Tools to the bottom
 
   - Raycast
     - Import settings file
