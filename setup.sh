@@ -8,10 +8,10 @@ SCRIPT_DIR="${0:A:h}"
 
 function function log() {
   case "$1" in
-    "--info")    print "[INFO]    $2" ;;
+    "--info") print "[INFO]    $2" ;;
     "--warning") print "[WARNING] $2" ;;
-    "--error")   print "[ERROR]   $2" ;;
-    *).          print "[MESSAGE] $@" ;;
+    "--error") print "[ERROR]   $2" ;;
+    *). print "[MESSAGE] $@" ;;
   esac
 }
 
