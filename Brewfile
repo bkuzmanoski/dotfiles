@@ -30,7 +30,6 @@ brew "zoxide"
 
 cask "1password-cli"
 cask "1password"
-cask "acorn"
 cask "alt-tab"
 cask "apparency"
 cask "archaeology"
