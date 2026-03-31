@@ -338,9 +338,6 @@ defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 defaults_write com.colliderli.iina themeMaterial -int 4
 
-defaults_write com.flyingmeat.Acorn8 showStartWindow -bool false
-defaults_write com.flyingmeat.Acorn8 autoSaveBehavior -string "off"
-
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab below" "@t" # Map New tab below keyboard shortcut to ⌘T
