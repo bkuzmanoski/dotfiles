@@ -42,7 +42,7 @@ struct Command {
   }
 }
 
-final class SingletonLock {
+final class SingleInstanceLock {
   enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(errno: Int32)
@@ -240,11 +240,11 @@ func eventTapCallback(
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private let singletonLock: SingletonLock
+  private let singleInstanceLock: SingleInstanceLock
   private var zoomManager: ZoomManager?
 
-  init(singletonLock: SingletonLock) {
-    self.singletonLock = singletonLock
+  init(singleInstanceLock: SingleInstanceLock) {
+    self.singleInstanceLock = singleInstanceLock
     super.init()
   }
 
@@ -300,14 +300,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 do {
-  let singletonLock = try SingletonLock()
-  let delegate = AppDelegate(singletonLock: singletonLock)
+  let singleInstanceLock = try SingleInstanceLock()
+  let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
   let application = NSApplication.shared
   application.delegate = delegate
   application.setActivationPolicy(.prohibited)
   application.run()
 
-} catch SingletonLock.Error.instanceAlreadyRunning {
+} catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
   guard !arguments.isEmpty else {
