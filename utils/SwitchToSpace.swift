@@ -7,7 +7,7 @@ enum Constants {
   static let notificationUserInfoKey = "arguments"
 }
 
-enum Signal {
+enum ProcessSignals {
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
     return AsyncStream { continuation in
       let sources = signals.map { signal in
@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeSignals() {
     Task {
-      for await _ in Signal.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
         await NSApplication.shared.terminate(nil)
       }
     }
