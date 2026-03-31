@@ -9,6 +9,7 @@
 on getSelectedFolderPath()
 	tell application "Finder"
 		set selectedItems to selection as list
+
 		if (count of selectedItems) is 1 and class of first item of selectedItems is folder then
 			return POSIX path of (first item of selectedItems as alias)
 		else
@@ -18,6 +19,7 @@ on getSelectedFolderPath()
 end getSelectedFolderPath
 
 set currentPath to getSelectedFolderPath()
+
 do shell script "open -a Ghostty " & quoted form of currentPath
 
 return ""

@@ -36,12 +36,14 @@ function compile_command() {
         return 1
       fi
       ;;
+
     "applescript")
       if ! osacompile -o "${applescript_path}" "${source_file}"; then
         print -u2 "Error: AppleScript compilation failed for ${source_file:t}"
         return 1
       fi
       ;;
+
     *)
       print -u2 "Error: Unsupported command source type: .${extension}"
       return 1
@@ -63,8 +65,10 @@ function run_and_exit() {
 
 if [[ -x "${compiled_path}" ]]; then
   run_and_exit "${compiled_path}" "$@"
+
 elif [[ -e "${applescript_path}" ]]; then
   run_and_exit osascript "${applescript_path}" "$@"
+
 else
   if compile_command; then
     exec "${0:A}" ${flag_background:+"--background"} "${command_name}" "${@}"
