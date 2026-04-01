@@ -14,6 +14,7 @@ function _update_timestamps() {
   fi
 
   date "+%s" >"${UPDATE_TIMESTAMPS_DIR}/$1"
+
   print "\nUpdate timestamp updated, next reminder in ${UPDATE_REMINDER_FREQUENCY_DAYS} days."
 }
 
@@ -73,7 +74,9 @@ function zshup() (
 
     (
       cd "${plugin_dir}"
+
       print -nP '\e[1A\e[2K\r'
+
       git pull
     )
 
