@@ -1,5 +1,11 @@
 export EDITOR="code"
 export EZA_CONFIG_DIR="${HOME}/.config/eza"
+export FZF_NAVIGATOR_LS_FORMAT="color"
+export FZF_NAVIGATOR_LOCK_CWD=1
+export FZF_NAVIGATOR_SHOW_HIDDEN=1
+export FZF_NAVIGATOR_SHOW_IGNORED=1
+export FZF_NAVIGATOR_BINDINGS="left:go_back,right:go_forward"
+export FZF_NAVIGATOR_FILE_PREVIEW_COMMAND='if __fzf_navigator_is_binary "${full_path}"; then __fzf_navigator_default_preview_file "${full_path}"; else bat --color=always --style=numbers --theme="$([[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null) == "Dark" ]] && echo "dark" || echo "light")" "${full_path}"; fi; :'
 export HOMEBREW_NO_ENV_HINTS=1
 export MANPAGER="col -bx | bat --language man --style plain"
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"

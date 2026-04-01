@@ -1,6 +1,7 @@
 readonly -a ZSH_PLUGINS=(
   # plugin|git_url|source_file
   "fzf-tab|https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
+  "fzf-navigator|https://github.com/benward2301/fzf-navigator|fzf-navigator.sh"
   "zce|https://github.com/hchbaw/zce.zsh|zce.zsh"
   "zsh-ai-cmd|https://github.com/kylesnowschwartz/zsh-ai-cmd|zsh-ai-cmd.plugin.zsh"
   "zsh-autosuggestions|https://github.com/zsh-users/zsh-autosuggestions|zsh-autosuggestions.zsh"
@@ -16,6 +17,7 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
 
   if [[ ! -d "${plugin_dir}" ]]; then
     print -P "Installing %B${plugin}%b..."
+
     git clone "${git_repository}" "${plugin_dir}"
 
     if [[ $? -ne 0 ]]; then
