@@ -11,7 +11,7 @@ function fzf() {
     --highlight-line
     --ellipsis="…"
     --preview-border=line
-    --bind="enter:accept+abort"
+    --bind="ctrl-p:toggle-preview,enter:accept+abort"
   )
   local theme
 
