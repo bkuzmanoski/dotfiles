@@ -10,6 +10,7 @@ function fzf() {
     --marker-multi-line="✓  "
     --highlight-line
     --ellipsis="…"
+    --preview-border=line
     --bind="enter:accept+abort"
   )
   local theme
