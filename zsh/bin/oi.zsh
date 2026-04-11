@@ -2,12 +2,12 @@ function oi() {
   local missing_tools=()
   local install_instructions=()
 
-  if ! which -s oxipng >/dev/null; then
+  if ! command -v oxipng >/dev/null; then
     missing_tools+=("oxipng");
     install_instructions+=("%Boxipng%b: brew install oxipng");
   fi
 
-  if ! which -s jpegoptim >/dev/null; then
+  if ! command -v jpegoptim >/dev/null; then
     missing_tools+=("jpegoptim");
     install_instructions+=("%Bjpegoptim%b: brew install jpegoptim");
   fi

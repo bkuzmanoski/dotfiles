@@ -5,7 +5,7 @@ readonly UPDATE_TASKS=(
   "🧩|zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
   "🟢|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
-  "📦|cargo packages|${UPDATE_TIMESTAMPS_DIR}/cargo_last_update|cargoup"
+  "📦|cargo|${UPDATE_TIMESTAMPS_DIR}/cargo_last_update|cargoup"
 )
 
 function _update_timestamps() {
@@ -94,8 +94,13 @@ function zshup() (
 )
 
 function brewup() (
-  if ! cd ~/.dotfiles; then
-    print ".dotfiles directory not found."
+  if ! command -v brew >/dev/null; then
+    print -u2 -P "%Bbrew%b is not installed."
+    exit 1
+  fi
+
+  if ! cd ~/.dotfiles &>/dev/null; then
+    print -u2 -P "%B.dotfiles%b directory not found."
     exit 1
   fi
 
@@ -108,6 +113,11 @@ function brewup() (
 )
 
 function fnmup() {
+  if ! command -v fnm >/dev/null; then
+    print -u2 -P "%Bfnm%b is not installed."
+    return 1
+  fi
+
   local current_version="$(fnm current)"
   local latest_version="$(set -o pipefail; fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)"
 
@@ -187,6 +197,11 @@ function fnmup() {
 }
 
 function cargoup() {
+  if ! command -v cargo >/dev/null; then
+    print -u2 -P "%Bcargo%b is not installed."
+    return 1
+  fi
+
   if ! cargo install-update -a; then
     print "\nFailed to update cargo packages."
     return 1

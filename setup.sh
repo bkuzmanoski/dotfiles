@@ -105,7 +105,7 @@ function set_wallpaper() {
 # Install Homebrew, apps, and fonts
 # =============================================================================
 
-if ! which -s brew >/dev/null; then
+if ! command -v brew >/dev/null; then
   log --info "Installing Homebrew..."
 
   (

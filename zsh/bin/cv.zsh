@@ -1,5 +1,5 @@
 function cv() {
-  if ! which -s ffmpeg >/dev/null; then
+  if ! command -v ffmpeg >/dev/null; then
     print -u2 -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
     return 1
   fi
