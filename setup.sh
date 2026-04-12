@@ -354,6 +354,9 @@ defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
 
+open "/Applications/Pixelmator Pro.app"
+sleep 3
+killall "Pixelmator Pro"
 defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true
 defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false
 
