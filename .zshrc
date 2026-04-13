@@ -36,7 +36,7 @@ for file in ~/.zsh/{bin,hooks,widgets}/*.zsh; do
   source "${file}"
 done
 
-eval "$(zoxide init zsh)"
+eval "$(zoxide init zsh --cmd cd)"
 
 fnm_use_on_cd
 check_last_update_time
