@@ -1,3 +1,4 @@
+brew "bandwhich"
 brew "bat"
 brew "cargo-binstall"
 brew "cargo-update"
