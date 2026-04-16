@@ -36,7 +36,8 @@ for file in ~/.zsh/{bin,hooks,widgets}/*.zsh; do
   source "${file}"
 done
 
-eval "$(zoxide init zsh --no-cmd)"
+eval "$(zoxide init zsh --cmd cd)"
+unfunction cdi
 
 fnm_use_on_cd
 check_last_update_time
