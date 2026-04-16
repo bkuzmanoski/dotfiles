@@ -7,7 +7,7 @@ function cf() {
   local usage_info=$(cat <<- EOF
 		Usage:
 		  cf [options] [rg options]
-		
+
 		Options:
 		  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
 		  -h, --help    Show this help message
@@ -30,7 +30,7 @@ function cf() {
   fi
 
   local return_message return_code
-  local -a rg_cmd=("rg" "--heading" "--line-number" "--color=never" "${@}" ".")
+  local -a rg_cmd=("rg" "--heading" "--line-number" "--max-columns=0" "--color=never" "${@}" ".")
   local rg_output
 
   rg_output="$("${rg_cmd[@]}")"
