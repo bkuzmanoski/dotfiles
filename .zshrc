@@ -12,13 +12,14 @@ export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 
 HISTSIZE=100000
 
-setopt AUTO_CD
 setopt ALWAYS_TO_END
+setopt AUTO_CD
 setopt COMPLETE_IN_WORD
 setopt CORRECT_ALL
 setopt GLOB_DOTS
 setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_REDUCE_BLANKS
+setopt NO_BEEP
 setopt SHARE_HISTORY
 
 autoload -Uz add-zsh-hook
