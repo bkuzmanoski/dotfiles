@@ -41,14 +41,14 @@ function check_last_update_time() {
 
     local time_since_last_update="$((now - last_update_timestamp))"
 
-    if (( time_since_last_update > frequency )); then
+    if ((time_since_last_update > frequency)); then
       print -P "${emoji} It's been a month since the last ${description} update! Run: %B${command}%b"
       ((updates_required++))
     fi
   done
 
-  if (( updates_required )); then
-    if (( updates_required > 1 )); then
+  if ((updates_required)); then
+    if ((updates_required > 1)); then
       print -P "\nRun %Bup%b to update all."
     fi
 
@@ -59,12 +59,12 @@ function check_last_update_time() {
 function zshup() (
   local number_of_plugins=${#ZSH_PLUGINS[@]}
 
-  if (( ${number_of_plugins} == 0 )); then
+  if ((${number_of_plugins} == 0)); then
     print "No plugins to update."
     return 0
   fi
 
-  for (( i=1; i<=${number_of_plugins}; i++ )); do
+  for ((i = 1; i <= ${number_of_plugins}; i++)); do
     local plugin_entry="${ZSH_PLUGINS[i]}"
     local parts=("${(@s:|:)plugin_entry}")
     local plugin="${parts[1]}"
@@ -85,7 +85,7 @@ function zshup() (
       exit 1
     fi
 
-    if (( i < ${number_of_plugins} )); then
+    if ((i < ${number_of_plugins})); then
       print
     fi
   done
@@ -104,10 +104,25 @@ function brewup() (
     exit 1
   fi
 
-  brew upgrade || { print "\nbrew upgrade failed."; exit 1 }
-  brew bundle || { print "\nbrew bundle failed."; exit 1 }
-  brew autoremove || { print "\nbrew autoremove failed."; exit 1 }
-  brew cleanup --prune all || { print "\nbrew cleanup failed."; exit 1 }
+  brew upgrade || {
+    print "\nbrew upgrade failed."
+    exit 1
+  }
+
+  brew bundle || {
+    print "\nbrew bundle failed."
+    exit 1
+  }
+
+  brew autoremove || {
+    print "\nbrew autoremove failed."
+    exit 1
+  }
+
+  brew cleanup --prune all || {
+    print "\nbrew cleanup failed."
+    exit 1
+  }
 
   _update_timestamps "brew_last_update"
 )
@@ -119,7 +134,10 @@ function fnmup() {
   fi
 
   local current_version="$(fnm current)"
-  local latest_version="$(set -o pipefail; fnm ls-remote --lts | tail -n1 | cut -d' ' -f1)"
+  local latest_version="$(
+    set -o pipefail
+    fnm ls-remote --lts | tail -n1 | cut -d' ' -f1
+  )"
 
   if [[ -z "${latest_version}" ]]; then
     print -u2 "Failed to query latest Node LTS version."
@@ -213,7 +231,7 @@ function cargoup() {
 function up() {
   local update_task_count=${#UPDATE_TASKS[@]}
 
-  for (( i=1; i<=update_task_count; i++ )); do
+  for ((i = 1; i <= update_task_count; i++)); do
     local task="${UPDATE_TASKS[i]}"
     local parts=("${(@s:|:)task}")
     local command="${parts[4]}"
@@ -222,7 +240,7 @@ function up() {
       return 1
     fi
 
-    if (( i < update_task_count )); then
+    if ((i < update_task_count)); then
       print
     fi
   done

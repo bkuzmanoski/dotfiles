@@ -3,13 +3,13 @@ function oi() {
   local install_instructions=()
 
   if ! command -v oxipng >/dev/null; then
-    missing_tools+=("oxipng");
-    install_instructions+=("%Boxipng%b: brew install oxipng");
+    missing_tools+=("oxipng")
+    install_instructions+=("%Boxipng%b: brew install oxipng")
   fi
 
   if ! command -v jpegoptim >/dev/null; then
-    missing_tools+=("jpegoptim");
-    install_instructions+=("%Bjpegoptim%b: brew install jpegoptim");
+    missing_tools+=("jpegoptim")
+    install_instructions+=("%Bjpegoptim%b: brew install jpegoptim")
   fi
 
   if [[ ${#missing_tools[@]} -gt 0 ]]; then
@@ -22,14 +22,15 @@ function oi() {
     return 1
   fi
 
-  local usage_info=$(cat <<- EOF
-		Usage:
-		  oi [options] <image|directory> ...
+  local usage_info=$(
+    cat <<-EOF
+			Usage:
+			  oi [options] <image|directory> ...
 
-		Options:
-		  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
-		  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
-		  -h, --help             Show this help message         Show this help message
+			Options:
+			  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
+			  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
+			  -h, --help             Show this help message         Show this help message
 		EOF
   )
   local use_zopfli=0
@@ -46,16 +47,16 @@ function oi() {
     return 1
   fi
 
-  if (( ${#flag_help} > 0 )); then
+  if ((${#flag_help} > 0)); then
     print -- "${usage_info}"
     return 0
   fi
 
-  if (( ${#flag_zopfli} > 0 )); then
+  if ((${#flag_zopfli} > 0)); then
     use_zopfli=1
   fi
 
-  if (( ${#option_quality} > 0 )); then
+  if ((${#option_quality} > 0)); then
     quality="${option_quality[-1]}"
   fi
 
@@ -100,26 +101,26 @@ function oi() {
   fi
 
   for file in "${files[@]}"; do
-    printf "\n\033[1m%d/%d\033[0m\n" "$(( processed + 1 ))" "${image_count}"
+    printf "\n\033[1m%d/%d\033[0m\n" "$((processed + 1))" "${image_count}"
 
     case "${file:l}" in
-      *.jpg|*.jpeg) jpegoptim ${jpeg_opts[@]} "${file}" ;;
-      *.png)        oxipng ${oxipng_opts[@]} "${file}" ;;
+    *.jpg | *.jpeg) jpegoptim ${jpeg_opts[@]} "${file}" ;;
+    *.png) oxipng ${oxipng_opts[@]} "${file}" ;;
     esac
 
-    (( processed++ ))
+    ((processed++))
   done
 
   local total_size_before=0
   local total_size_after=0
 
   for file in "${files[@]}"; do
-    (( total_size_before += "${original_sizes[${file}]}" ))
-    (( total_size_after += "$(stat -f %z "${file}")" ))
+    ((total_size_before += "${original_sizes[${file}]}"))
+    ((total_size_after += "$(stat -f %z "${file}")"))
   done
 
-  local size_reduction="$(( total_size_before - total_size_after ))"
-  local size_reduction_percent="$(( size_reduction * 100 / total_size_before ))"
+  local size_reduction="$((total_size_before - total_size_after))"
+  local size_reduction_percent="$((size_reduction * 100 / total_size_before))"
 
   printf "\n\033[1mProcessed %d image%s\033[0m\n" "${image_count}" "$([[ ${image_count} -eq 1 ]] || print "s")"
   printf "Total size before: %.2f MB\n" "$(print "scale=2; ${total_size_before} / 1000000" | bc)"

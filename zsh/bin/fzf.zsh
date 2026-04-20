@@ -1,5 +1,5 @@
 function fzf() {
-    local options=(
+  local options=(
     --height=100%
     --layout=reverse
     --prompt=""
@@ -79,10 +79,10 @@ function _select_paths() {
     fi
   ' INT TERM EXIT
 
-  (eval "${find_command}" > "${fifo}" &)
+  (eval "${find_command}" >"${fifo}" &)
   find_command_pid="$!"
 
-  selected_paths=("${(@f)$(fzf --multi < "${fifo}")}")
+  selected_paths=("${(@f)$(fzf --multi <"${fifo}")}")
 
   if [[ -z "${selected_paths[@]}" ]]; then
     return

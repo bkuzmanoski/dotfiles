@@ -4,18 +4,19 @@ function cv() {
     return 1
   fi
 
-  local usage_info=$(cat <<- EOF
-		Usage:
-		  cv [options] <video>
-		
-		Options:
-		  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
-		  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
-		  -f, --fps <value>      Set frame rate [default: 30]
-		  -c, --codec <value>    Set codec (h264, h265) [default: h264]
-		  -a, --audio <value>    Set audio bitrate [default: 128k]
-		  -o, --overwrite        Overwrite input file with compressed version
-		  -h, --help             Show this help message
+  local usage_info=$(
+    cat <<-EOF
+			Usage:
+			  cv [options] <video>
+
+			Options:
+			  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
+			  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
+			  -f, --fps <value>      Set frame rate [default: 30]
+			  -c, --codec <value>    Set codec (h264, h265) [default: h264]
+			  -a, --audio <value>    Set audio bitrate [default: 128k]
+			  -o, --overwrite        Overwrite input file with compressed version
+			  -h, --help             Show this help message
 		EOF
   )
   local preset="veryfast"
@@ -40,30 +41,30 @@ function cv() {
     return 1
   fi
 
-  if (( ${#flag_help} > 0 )); then
+  if ((${#flag_help} > 0)); then
     print -- "${usage_info}"
     return 0
   fi
 
-  (( ${#option_preset} > 0 )) && preset="${option_preset[-1]}"
-  (( ${#option_crf} > 0 )) &&    crf="${option_crf[-1]}"
-  (( ${#option_fps} > 0 )) &&    fps="${option_fps[-1]}"
-  (( ${#option_audio} > 0 )) &&  audio_bitrate="${option_audio[-1]}"
+  ((${#option_preset} > 0)) && preset="${option_preset[-1]}"
+  ((${#option_crf} > 0)) && crf="${option_crf[-1]}"
+  ((${#option_fps} > 0)) && fps="${option_fps[-1]}"
+  ((${#option_audio} > 0)) && audio_bitrate="${option_audio[-1]}"
 
-  if (( ${#option_codec} > 0 )); then
+  if ((${#option_codec} > 0)); then
     case "${option_codec[-1]}" in
-      h264)
-        codec="libx264"
-        tag="avc1"
-        ;;
-      h265)
-        codec="libx265"
-        tag="hvc1"
-        ;;
-      *)
-        print -u2 "Unknown codec: ${option_codec[-1]}"
-        return 1
-        ;;
+    h264)
+      codec="libx264"
+      tag="avc1"
+      ;;
+    h265)
+      codec="libx265"
+      tag="hvc1"
+      ;;
+    *)
+      print -u2 "Unknown codec: ${option_codec[-1]}"
+      return 1
+      ;;
     esac
   fi
 
@@ -98,10 +99,10 @@ function cv() {
   fi
 
   local compressed_size="$(stat -f %z "${output_file}")"
-  local size_reduction="$(( (${original_size} - ${compressed_size}) * 100 / ${original_size} ))"
+  local size_reduction="$(((${original_size} - ${compressed_size}) * 100 / ${original_size}))"
   local overwrite_notice
 
-  if (( ${#flag_overwrite} > 0 )); then
+  if ((${#flag_overwrite} > 0)); then
     if [[ ${compressed_size} -lt ${original_size} ]]; then
       command mv "${output_file}" "${input_file}"
       overwrite_notice="Replaced original file with compressed version."

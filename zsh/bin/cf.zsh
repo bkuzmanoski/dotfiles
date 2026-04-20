@@ -4,13 +4,14 @@ function cf() {
     return 1
   fi
 
-  local usage_info=$(cat <<- EOF
-		Usage:
-		  cf [options] [rg options]
+  local usage_info=$(
+    cat <<-EOF
+			Usage:
+			  cf [options] [rg options]
 
-		Options:
-		  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
-		  -h, --help    Show this help message
+			Options:
+			  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
+			  -h, --help    Show this help message
 		EOF
   )
 
@@ -38,30 +39,30 @@ function cf() {
   local rg_status="$?"
 
   case "${rg_status}" in
-    0)
-      if [[ -n "${output_file[-1]}" ]]; then
-        print -r -- "${rg_output}" >| "${output_file[-1]}"
-        return_message="Output written to file: ${output_file[-1]}"
-      else
-        print -rn -- "${rg_output}" | pbcopy
-        return_message="Output copied to clipboard."
-      fi
+  0)
+    if [[ -n "${output_file[-1]}" ]]; then
+      print -r -- "${rg_output}" >|"${output_file[-1]}"
+      return_message="Output written to file: ${output_file[-1]}"
+    else
+      print -rn -- "${rg_output}" | pbcopy
+      return_message="Output copied to clipboard."
+    fi
 
-      return_code=0
-      ;;
-    1)
-      return_message="No matches found."
-      return_code=0
-      ;;
-    *)
-      return_message="\nripgrep failed with exit code: ${rg_status}"
-      return_code=1
-      ;;
+    return_code=0
+    ;;
+  1)
+    return_message="No matches found."
+    return_code=0
+    ;;
+  *)
+    return_message="\nripgrep failed with exit code: ${rg_status}"
+    return_code=1
+    ;;
   esac
 
   case "${return_code}" in
-    0) print "${return_message}" ;;
-    *) print -u2 "${return_message}" ;;
+  0) print "${return_message}" ;;
+  *) print -u2 "${return_message}" ;;
   esac
 
   return ${return_code}

@@ -2,7 +2,7 @@
 
 zparseopts -D -E {b,-background}=flag_background
 
-if (( $# < 1 )); then
+if (($# < 1)); then
   print -u2 "Usage: ${0:t} [-b, --background] <command_or_source_file> [command_args...]"
   exit 1
 fi
@@ -30,31 +30,31 @@ function compile_command() {
   mkdir -p "${bin_dir}"
 
   case "${extension}" in
-    "swift")
-      if ! swiftc -O -o "${compiled_path}" "${source_file}"; then
-        print -u2 "Error: Swift compilation failed for ${source_file:t}"
-        return 1
-      fi
-      ;;
-
-    "applescript")
-      if ! osacompile -o "${applescript_path}" "${source_file}"; then
-        print -u2 "Error: AppleScript compilation failed for ${source_file:t}"
-        return 1
-      fi
-      ;;
-
-    *)
-      print -u2 "Error: Unsupported command source type: .${extension}"
+  "swift")
+    if ! swiftc -O -o "${compiled_path}" "${source_file}"; then
+      print -u2 "Error: Swift compilation failed for ${source_file:t}"
       return 1
-      ;;
+    fi
+    ;;
+
+  "applescript")
+    if ! osacompile -o "${applescript_path}" "${source_file}"; then
+      print -u2 "Error: AppleScript compilation failed for ${source_file:t}"
+      return 1
+    fi
+    ;;
+
+  *)
+    print -u2 "Error: Unsupported command source type: .${extension}"
+    return 1
+    ;;
   esac
 
   return 0
 }
 
 function run_and_exit() {
-  if (( ${#flag_background} > 0 )); then
+  if ((${#flag_background} > 0)); then
     nohup "$@" >/dev/null 2>&1 &
     exit 0
   else

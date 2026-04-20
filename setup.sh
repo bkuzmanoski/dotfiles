@@ -8,10 +8,10 @@ SCRIPT_DIR="${0:A:h}"
 
 function function log() {
   case "$1" in
-    "--info") print "[INFO]    $2" ;;
-    "--warning") print "[WARNING] $2" ;;
-    "--error") print "[ERROR]   $2" ;;
-    *). print "[MESSAGE] $@" ;;
+  "--info") print "[INFO]    $2" ;;
+  "--warning") print "[WARNING] $2" ;;
+  "--error") print "[ERROR]   $2" ;;
+  *) print "[MESSAGE] $@" ;;
   esac
 }
 
@@ -64,22 +64,23 @@ function set_system_hotkey() {
   local parameter1="$3"
   local parameter2="$4"
   local parameter3="$5"
-  local dict_value=$(cat <<- EOF
-		<dict>
-			<key>enabled</key>
-			<${enabled}/>
-			<key>value</key>
+  local dict_value=$(
+    cat <<-EOF
 			<dict>
-				<key>type</key>
-				<string>standard</string>
-				<key>parameters</key>
-				<array>
-					<integer>${parameter1}</integer>
-					<integer>${parameter2}</integer>
-					<integer>${parameter3}</integer>
-				</array>
+				<key>enabled</key>
+				<${enabled}/>
+				<key>value</key>
+				<dict>
+					<key>type</key>
+					<string>standard</string>
+					<key>parameters</key>
+					<array>
+						<integer>${parameter1}</integer>
+						<integer>${parameter2}</integer>
+						<integer>${parameter3}</integer>
+					</array>
+				</dict>
 			</dict>
-		</dict>
 		EOF
   )
 
@@ -157,8 +158,8 @@ for settings_path in "${(k)settings_paths[@]}"; do
 
   if [[ -e "${source_path}" ]]; then
     backup_if_needed "${target_path}"
-    mkdir -p "$(dirname "${target_path}")" && \
-    ln -sfh "${source_path}" "${target_path}" 2>/dev/null
+    mkdir -p "$(dirname "${target_path}")" \
+      && ln -sfh "${source_path}" "${target_path}" 2>/dev/null
 
     if [[ $? -ne 0 ]]; then
       log --error "Failed to link settings: ${settings_path}"
