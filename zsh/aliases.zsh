@@ -5,6 +5,7 @@ alias ..="cd .."
 alias cat="bat"
 alias cdc="cd ~/.dotfiles"
 alias cdd="cd ~/Downloads"
+alias cdf='cd "$(osascript -e '\''tell application "Finder" to POSIX path of (insertion location as alias)'\'')"'
 alias cdh="cd ~"
 alias cdp="cd ~/Developer"
 alias cp="cp -i"
