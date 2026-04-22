@@ -321,7 +321,7 @@ set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected ar
 set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
 
-set_wallpaper "${SCRIPT_DIR}/wallpapers/finder-tile-precomposed.jpg"
+set_wallpaper "${SCRIPT_DIR}/wallpapers/solid-dynamic.heic"
 
 # App settings
 defaults_write com.apple.dt.Xcode IDEBuildLocationStyle -string "Custom"
