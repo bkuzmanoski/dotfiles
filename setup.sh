@@ -26,9 +26,9 @@ function backup_if_needed() {
 }
 
 function defaults_write() {
-  zparseopts -D -E -sudo=use_sudo -currenthost=use_currenthost
+  zparseopts -D -E -sudo=use_sudo -currentHost=use_currentHost
 
-  local -a write_cmd=(${use_sudo:+"sudo"} "defaults" "${use_currenthost:+" -currentHost"}" "write" "$@")
+  local -a write_cmd=(${use_sudo:+"sudo"} "defaults" "${use_currentHost:+" -currentHost"}" "write" "$@")
 
   log --info "Executing: ${write_cmd[*]}"
   ${write_cmd[@]}
@@ -215,8 +215,8 @@ defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGes
 
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
 
-defaults_write com.apple.dock autohide -bool true # Enable Dock auto-hide
-defaults_write com.apple.dock autohide-delay -float 0 # Remove delay before Dock shows
+defaults_write --currentHost com.apple.controlcenter BatteryShowPercentage -bool true
+
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
 defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
 defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
