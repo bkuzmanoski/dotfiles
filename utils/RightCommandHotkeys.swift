@@ -30,20 +30,25 @@ enum KeyCode {
 
 enum ProcessSignals {
   static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
-    return AsyncStream { continuation in
-      let sources = signals.map { signal in
-        DispatchSource.makeSignalSource(signal: signal, queue: .main)
-      }
-
-      for (signal, source) in zip(signals, sources) {
-        source.setEventHandler { continuation.yield(signal) }
-        source.resume()
-      }
-
-      continuation.onTermination = { _ in
-        sources.forEach { $0.cancel() }
-      }
+    let sources = signals.map { signal in
+      DispatchSource.makeSignalSource(signal: signal, queue: .main)
     }
+
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    for (signal, source) in zip(signals, sources) {
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.resume()
+    }
+
+    continuation.onTermination = { _ in
+      sources.forEach { $0.cancel() }
+    }
+
+    return stream
   }
 }
 
