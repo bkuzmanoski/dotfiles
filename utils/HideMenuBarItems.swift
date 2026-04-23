@@ -48,7 +48,7 @@ final class SingleInstanceLock {
     var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Instance already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock: \(String(cString: strerror(errno)))"
+      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
       }
     }
   }
