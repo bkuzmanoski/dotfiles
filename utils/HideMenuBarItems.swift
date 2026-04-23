@@ -90,7 +90,7 @@ final class SingleInstanceLock {
 }
 
 @MainActor
-final class StatusItemController {
+final class StatusItemManager {
   private let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() {
@@ -119,7 +119,7 @@ final class StatusItemController {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
-  private var statusItemController: StatusItemController?
+  private var statusItemManager: StatusItemManager?
 
   init(singleInstanceLock: SingleInstanceLock) {
     self.singleInstanceLock = singleInstanceLock
@@ -130,9 +130,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     observeSignals()
     observeCommands()
 
-    self.statusItemController = StatusItemController()
+    self.statusItemManager = StatusItemManager()
 
-    statusItemController?.hideItem()
+    statusItemManager?.hideItem()
   }
 
   private func observeSignals() {
@@ -166,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": await statusItemController?.toggle()
+    case "toggle": await statusItemManager?.toggle()
     case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
