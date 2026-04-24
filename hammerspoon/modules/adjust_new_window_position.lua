@@ -2,9 +2,7 @@ local module = {}
 
 local utils = require("utils")
 
-local topOffset
-local padding
-local windowFilter
+local topOffset, padding, windowFilter
 
 local function adjustWindowIfNeeded(window)
   if window:frame() == window:screen():fullFrame() then

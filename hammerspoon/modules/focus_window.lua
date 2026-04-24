@@ -9,6 +9,7 @@ local minimumWindowSize = 100
 local alignmentTolerance = 8
 
 local bindings = {}
+local excludedWindowTitles
 
 local function focusWindow(target)
   local windows = hs.window.orderedWindows()
@@ -25,6 +26,7 @@ local function focusWindow(target)
     return
         window:screen() == screen and
         not window:isFullscreen() and
+        not excludedWindowTitles[window:title()] and
         subrole ~= "AXFloatingWindow" and
         subrole ~= "AXUnknown" and
         frame.w > minimumWindowSize and
@@ -104,6 +106,12 @@ function module.init(config)
     if hotkey.modifiers and hotkey.key and handlers[action] then
       bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, handlers[action])
     end
+  end
+
+  excludedWindowTitles = {}
+
+  for _, windowTitle in ipairs(config.excludeWindowTitles or {}) do
+    excludedWindowTitles[windowTitle] = true
   end
 
   return module

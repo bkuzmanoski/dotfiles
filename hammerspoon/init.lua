@@ -107,7 +107,8 @@ modules.focusWindow = require("modules/focus_window").init({
     frontmost = { modifiers = { "shift", "command" }, key = "return" },
     left = { modifiers = settings.hyperKey, key = "[" },
     right = { modifiers = settings.hyperKey, key = "]" }
-  }
+  },
+  excludeWindowTitles = { "Picture-in-picture" }
 })
 modules.focusWindowOnScreen = require("modules/focus_window_on_screen").init()
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
