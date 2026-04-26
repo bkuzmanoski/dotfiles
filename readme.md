@@ -108,10 +108,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - FineTune
     - Settings → Set "Menu Bar Icon" to speaker
 
-  - Folder Preview
-    - Settings → Turn on "Launch at login"
-    - Enable Extensions
-
   - Ghostty
     - Grant Full Disk Access permission
 
