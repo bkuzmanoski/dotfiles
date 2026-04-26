@@ -68,25 +68,35 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
   - AltTab
     - Settings
-      - Controls → Shortcut 1 → Trigger → Set "Hold" to "⌘"
-      - Controls → Shortcut 2 → Trigger → Set "Hold" to "⌘"
+      - Controls
+        - Shortcut 1 → Trigger → Set "Hold" to "⌘"
+        - Shortcut 2 → Trigger → Set "Hold" to "⌘"
 
   - CleanShot X
     - Settings
-      - General → After capture → Screenshot → Turn off "Show Quick Access Overlay"
-      - General → After capture → Screenshot → Turn on "Copy file to clipboard"
-      - General → After capture → Recording → Turn off "Show Quick Access Overlay"
-      - General → After capture → Recording → Turn on "Copy file to clipboard"
-      - General → After capture → Recording → Turn on "Save"
-      - Shortcuts → General → Clear "All-In-One" shortcut
-      - Shortcuts → General → Set "Open Capture History" shortcut to ⇧⌘6
-      - Shortcuts → Screenshots → Set "Capture Area" shortcut to ⇧⌘2
-      - Shortcuts → Screenshots → Set "Capture Fullscreen" shortcut to ⇧⌘1
-      - Shortcuts → Screen Recording → Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
-      - Shortcuts → OCR → Set "Capture Text" shortcut to ⇧⌘4
-      - Shortcuts → Annotate → Set "Annotate Last Screenshot" shortcut to ⇧⌘3
-      - Shortcuts → Annotate → Clear "Save" shortcut
-      - Shortcuts → Annotate → Set "Save as" shortcut to ⌘S
+      - General → After capture
+        - Screenshot
+          - Turn off "Show Quick Access Overlay"
+          - Turn on "Copy file to clipboard"
+        -Recording
+          - Turn off "Show Quick Access Overlay"
+          - Turn on "Copy file to clipboard"
+          - Turn on "Save"
+      - Shortcuts
+        - General
+          - Clear "All-In-One" shortcut
+          - Set "Open Capture History" shortcut to ⇧⌘6
+        - Screenshots
+          - Set "Capture Area" shortcut to ⇧⌘2
+          - Set "Capture Fullscreen" shortcut to ⇧⌘1
+      - Screen Recording
+        - Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
+      - OCR
+        - Set "Capture Text" shortcut to ⇧⌘4
+      - Annotate
+        - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
+        - Clear "Save" shortcut
+        - Set "Save as" shortcut to ⌘S
 
   - Figma
     - Settings
@@ -108,11 +118,18 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Google Chrome
     - Grant Screen & System Audio Recording permission
     - Settings
-      - Turn off ads privacy settings (ad topics, site-suggested ads, and ads measurement)
-      - Turn off "Make searches and browsing better"
-      - Turn off "Show downloads when they're complete"
-      - Select "Third-party sign-in" → "Block sign-in prompts from identity services"
-      - Set "Google Web" as default search engine
+      - You and Google → Sync and Google services → Turn off "Make searches and browsing better"
+      - Privacy and security
+        - Ads privacy
+          - Turn off "Ad topics"
+          - Turn off "Site-suggested ads"
+          - Turn off "Ads measurement"
+        - Site settings → Additional content settings → Third-party sign-in → Select "Block sign-in prompts from identity services"
+      - AI innovations → Gemini in Chrome
+        - Turn off "Show Gemini at the top of the browser"
+        - Turn off "Show Gemini in Mac menu bar and turn on keyboard shortcut"
+      - Search engine → Manage search engines and site search → Set "Google Web" as default search engine
+      - Downloads → Turn off "Show downloads when they're complete"
 
   - Hammerspoon
     - Settings → Turn on "Launch Hammerspoon at login"
@@ -127,9 +144,10 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Set up sidebar favorites (see reference screenshot)
     - Turn off "Show Mail Categories"
     - Settings
-      - Junk Mail → Turn on "Enable junk mail filtering"
-      - Junk Mail → Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
-      - Junk Mail → Advanced → Perform the following actions → Add "Mark as Read"
+      - Junk Mail
+        - Turn on "Enable junk mail filtering"
+        - Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
+        - Advanced → Perform the following actions → Add "Mark as Read"
 
   - Pixelmator Pro
     - Settings → Workspace → Create a new workspace layout ("Custom") and relocate Tools to the bottom
