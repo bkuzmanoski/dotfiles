@@ -49,15 +49,6 @@ function add_app_to_dock() {
   defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
 }
 
-function set_finder_preview_pane_settings() {
-  local item_type="$1"
-  local finder_plist="${HOME}/Library/Preferences/com.apple.finder.plist"
-
-  plistbuddy_execute "Delete :PreviewPaneSettings:${item_type}" "${finder_plist}"
-  plistbuddy_execute "Add :PreviewPaneSettings:${item_type} dict" "${finder_plist}"
-  plistbuddy_execute "Add :PreviewPaneSettings:${item_type}:showQuickActions bool false" "${finder_plist}"
-}
-
 function set_system_hotkey() {
   local key="$1"
   local enabled="$2"
@@ -241,7 +232,6 @@ defaults_write com.apple.finder NSUserKeyEquivalents -dict-add "Close All" "@q"
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false
-defaults_write com.apple.finder ShowPreviewPane -bool true
 defaults_write com.apple.finder ShowRecentTags -bool false
 defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 defaults_write com.apple.finder ShowSidebar -bool false
@@ -250,21 +240,6 @@ defaults_write com.apple.finder WarnOnEmptyTrash -bool false
 plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifiers"' "${HOME}/Library/Preferences/com.apple.finder.plist" # Delete toolbar items key if set
 plistbuddy_execute 'Add :"NSToolbar Configuration Browser":"TB Item Identifiers" array' "${HOME}/Library/Preferences/com.apple.finder.plist" # Clear default toolbar items
 plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' "${HOME}/Library/Preferences/com.apple.finder.plist"
-set_finder_preview_pane_settings "com.apple.application"
-set_finder_preview_pane_settings "com.apple.disk-image"
-set_finder_preview_pane_settings "public.archive"
-set_finder_preview_pane_settings "public.audio"
-set_finder_preview_pane_settings "public.data"
-set_finder_preview_pane_settings "public.executable"
-set_finder_preview_pane_settings "public.folder"
-set_finder_preview_pane_settings "public.font"
-set_finder_preview_pane_settings "public.image"
-set_finder_preview_pane_settings "public.item"
-set_finder_preview_pane_settings "public.movie"
-set_finder_preview_pane_settings "public.named-pipe"
-set_finder_preview_pane_settings "public.socket"
-set_finder_preview_pane_settings "public.symlink"
-set_finder_preview_pane_settings "public.text"
 
 defaults_write com.apple.mail AutoReplyFormat -bool true # Use the same message format as the original message when responding
 defaults_write com.apple.mail SendFormat -string "Plain"
