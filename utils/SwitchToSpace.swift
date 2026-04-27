@@ -126,10 +126,12 @@ extension CGEventType {
 }
 
 extension NSScreen {
-  var displayIdentifier: String? {
+  private var displayIdentifier: String? {
+    let key = NSDeviceDescriptionKey("NSScreenNumber")
+
     guard
-      let screenNumber = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(CGDirectDisplayID(screenNumber.uint32Value))?.takeRetainedValue()
+      let number = deviceDescription[key] as? NSNumber,
+      let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue()
     else {
       return nil
     }
