@@ -233,7 +233,7 @@ final class SpaceMonitor {
 
     let data = data.map { Data(bytes: $0, count: Int(dataLength)) }
 
-    Task { @MainActor in
+    Task {
       switch event {
       case .packagesStatusBarSpaceChanged:
         continuation.yield(.activeScreenChanged)
