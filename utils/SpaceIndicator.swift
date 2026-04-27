@@ -513,7 +513,7 @@ struct SpaceIndicatorView: View {
       return
     }
 
-    spaceWindows[spaceID]?.remove(window)
+    self.spaceWindows[spaceID]?.remove(window)
   }
 
   private func addWindow(_ window: Window, to spaceID: SpaceID) {
