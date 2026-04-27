@@ -143,7 +143,6 @@ extension NSScreen {
     let cgsConnectionID = CGSMainConnectionID()
 
     guard
-      cgsConnectionID != 0,
       let displayIdentifier = self.displayIdentifier,
       let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
         cgsConnectionID,
@@ -154,7 +153,6 @@ extension NSScreen {
       !spacesInfo.isEmpty,
       let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
       let activeSpaceID = (activeSpaceInfo["id64"] as? NSNumber)?.uint64Value,
-      activeSpaceID != 0,
       let activeSpaceIndex = spacesInfo.firstIndex(where: { ($0["id64"] as? NSNumber)?.uint64Value == activeSpaceID })
     else {
       return nil
