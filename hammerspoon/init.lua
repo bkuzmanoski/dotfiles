@@ -19,6 +19,7 @@ hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background"
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh SpaceIndicator --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh SwitchToSpace --background")
 
 hs.timer.doAfter(5, function()
