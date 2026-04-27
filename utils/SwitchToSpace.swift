@@ -149,18 +149,18 @@ extension NSScreen {
         connectionID,
         displayIdentifier as CFString
       )?.takeRetainedValue() as? [[String: Any]],
-      let displayDict = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
-      let currentSpaceDict = displayDict["Current Space"] as? [String: Any],
-      let currentSpaceID = (currentSpaceDict["id64"] as? NSNumber)?.uint64Value,
-      currentSpaceID != 0,
-      let spacesDict = displayDict["Spaces"] as? [[String: Any]],
-      !spacesDict.isEmpty,
-      let activeSpaceIndex = spacesDict.firstIndex(where: { ($0["id64"] as? NSNumber)?.uint64Value == currentSpaceID })
+      let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
+      let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
+      !spacesInfo.isEmpty,
+      let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
+      let activeSpaceID = (activeSpaceInfo["id64"] as? NSNumber)?.uint64Value,
+      activeSpaceID != 0,
+      let activeSpaceIndex = spacesInfo.firstIndex(where: { ($0["id64"] as? NSNumber)?.uint64Value == activeSpaceID })
     else {
       return nil
     }
 
-    return (spacesDict.count, activeSpaceIndex)
+    return (spacesInfo.count, activeSpaceIndex)
   }
 }
 
