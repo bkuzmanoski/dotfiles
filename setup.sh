@@ -377,6 +377,35 @@ defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.Fol
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 
+log --info "Writing LM Studio settings"
+
+if [[ -e "${HOME}/.lmstudio/settings.json" ]]; then
+  log --warning "Existing LM Studio settings found, skipping"
+else
+  mkdir -p "${HOME}/.lmstudio"
+  cat <<-EOF >"${HOME}/.lmstudio/settings.json"
+	{
+		"chat": {
+			"useShiftEnterToSendMessage": true,
+			"doubleClickMessageToEdit": true,
+			"showTokenCountInChatListings": true
+		},
+		"developer": {
+			"showResourceConsumptionWidget": true,
+			"attemptedInstallLmsCliOnStartup": true
+		},
+		"developerMode": true,
+		"dismissedModals": [
+			"LM Link Sidebar Button Popover",
+			"Trash Deletion Onboarding"
+		],
+		"defaultContextLength": {
+			"type": "max"
+		}
+	}
+	EOF
+fi
+
 # =============================================================================
 # Finalization
 # =============================================================================
