@@ -140,13 +140,13 @@ extension NSScreen {
   }
 
   func spacesInfo() -> (spaceCount: Int, currentIndex: Int)? {
-    let connectionID = CGSMainConnectionID()
+    let cgsConnectionID = CGSMainConnectionID()
 
     guard
-      connectionID != 0,
+      cgsConnectionID != 0,
       let displayIdentifier = self.displayIdentifier,
       let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        connectionID,
+        cgsConnectionID,
         displayIdentifier as CFString
       )?.takeRetainedValue() as? [[String: Any]],
       let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
