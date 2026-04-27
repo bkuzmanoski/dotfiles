@@ -5,7 +5,6 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let appIconSize = 20.5
 }
 
 enum ProcessSignals {
@@ -164,12 +163,9 @@ struct App: Identifiable, Equatable {
       return nil
     }
 
-    let icon = runningApplication.icon ?? NSWorkspace.shared.icon(for: .applicationBundle)
-    icon.size = NSSize(width: Constants.appIconSize, height: Constants.appIconSize)
-
     self.processIdentifier = runningApplication.processIdentifier
     self.name = name
-    self.icon = icon
+    self.icon = runningApplication.icon ?? NSWorkspace.shared.icon(for: .applicationBundle)
   }
 
   static func == (lhs: App, rhs: App) -> Bool {
@@ -355,28 +351,27 @@ struct SpaceIndicatorView: View {
   }
 
   var body: some View {
-    HStack(spacing: 7) {
+    HStack(spacing: 8) {
       ForEach(activeDisplaySpaces.enumerated(), id: \.element.id) { index, space in
-        HStack(spacing: 2) {
+        HStack(spacing: 4) {
           Text("\(index + 1)")
             .font(.system(size: 11, weight: space.isActive ? .semibold : .regular))
             .foregroundStyle(.primary.opacity(space.isActive ? 1 : 0.52))
-            .frame(width: 14)
+            .frame(width: 8)
 
           if !space.apps.isEmpty {
             HStack(spacing: -8) {
               ForEach(space.apps) { app in
                 Image(nsImage: app.icon)
                   .resizable()
-                  .frame(width: Constants.appIconSize, height: Constants.appIconSize)
-                  .shadow(color: .black.opacity(0.15), radius: 0.5, x: 0, y: 0.5)
+                  .frame(width: 21, height: 21)
               }
             }
           }
         }
       }
     }
-    .padding(.horizontal, 6)
+    .padding(.horizontal, 14)
     .fixedSize()
     .onGeometryChange(for: CGFloat.self) { proxy in
       proxy.size.width
