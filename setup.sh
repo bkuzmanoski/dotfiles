@@ -86,10 +86,10 @@ function set_wallpaper() {
     osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\""
 
     if [[ $? -ne 0 ]]; then
-      log --warning "Failed to set wallpaper."
+      log --warning "Failed to set wallpaper"
     fi
   else
-    log --warning "Wallpaper file not found."
+    log --warning "Wallpaper file not found"
   fi
 }
 
@@ -106,7 +106,7 @@ if ! command -v brew >/dev/null; then
   )
 
   if [[ $? -ne 0 ]]; then
-    log --error "Homebrew installation failed, exiting."
+    log --error "Homebrew installation failed, exiting"
     exit 1
   fi
 
@@ -121,7 +121,7 @@ log --info "Installing Homebrew bundle..."
 )
 
 if [[ $? -ne 0 ]]; then
-  log --error "Homebrew bundle installation failed, exiting."
+  log --error "Homebrew bundle installation failed, exiting"
   exit 1
 fi
 
@@ -170,14 +170,14 @@ touch "${HOME}/.hushlogin"
 
 # Enable Touch ID for sudo
 if [[ ! -f /etc/pam.d/sudo_local ]]; then
-  log --info "Enabling Touch ID for sudo."
+  log --info "Enabling Touch ID for sudo"
   print "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local >/dev/null
 else
-  log --info "Touch ID for sudo already enabled."
+  log --info "Touch ID for sudo already enabled"
 fi
 
 # Enable bat to use themes in config directory
-log --info "Rebuilding bat cache."
+log --info "Rebuilding bat cache"
 bat cache --build >/dev/null
 
 if [[ $? -ne 0 ]]; then
@@ -385,23 +385,23 @@ else
   mkdir -p "${HOME}/.lmstudio"
   cat <<-EOF >"${HOME}/.lmstudio/settings.json"
 	{
-		"chat": {
-			"useShiftEnterToSendMessage": true,
-			"doubleClickMessageToEdit": true,
-			"showTokenCountInChatListings": true
-		},
-		"developer": {
-			"showResourceConsumptionWidget": true,
-			"attemptedInstallLmsCliOnStartup": true
-		},
-		"developerMode": true,
-		"dismissedModals": [
-			"LM Link Sidebar Button Popover",
-			"Trash Deletion Onboarding"
-		],
-		"defaultContextLength": {
-			"type": "max"
-		}
+	  "chat": {
+	    "useShiftEnterToSendMessage": true,
+	    "doubleClickMessageToEdit": true,
+	    "showTokenCountInChatListings": true
+	  },
+	  "developer": {
+	    "showResourceConsumptionWidget": true,
+	    "attemptedInstallLmsCliOnStartup": true
+	  },
+	  "developerMode": true,
+	  "dismissedModals": [
+	    "LM Link Sidebar Button Popover",
+	    "Trash Deletion Onboarding"
+	  ],
+	  "defaultContextLength": {
+	    "type": "max"
+	  }
 	}
 	EOF
 fi
@@ -410,5 +410,5 @@ fi
 # Finalization
 # =============================================================================
 
-log --info "Setup completed."
+log --info "Setup completed"
 print "\nRestart your computer for all changes to take effect."
