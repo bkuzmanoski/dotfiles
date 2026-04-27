@@ -517,15 +517,11 @@ struct SpaceIndicatorView: View {
   }
 
   private func addWindow(_ window: Window, to spaceID: SpaceID) {
-    guard
-      runningApps[window.processIdentifier] == nil,
-      let app = App(processIdentifier: window.processIdentifier)
-    else {
-      return
-    }
-
-    self.runningApps[app.id] = app
     self.spaceWindows[spaceID, default: []].insert(window)
+
+    if runningApps[window.processIdentifier] == nil, let app = App(processIdentifier: window.processIdentifier) {
+      self.runningApps[app.id] = app
+    }
   }
 }
 
