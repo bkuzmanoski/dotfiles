@@ -6,7 +6,7 @@ SCRIPT_DIR="${0:A:h}"
 # Utility functions
 # =============================================================================
 
-function function log() {
+function log() {
   case "$1" in
   "--info") print "[INFO]    $2" ;;
   "--warning") print "[WARNING] $2" ;;
