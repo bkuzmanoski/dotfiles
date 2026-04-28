@@ -5,7 +5,7 @@ function cf() {
   fi
 
   local usage_info=$(
-    cat <<-EOF
+    cat <<-'EOF'
 			Usage:
 			  cf [options] [rg options]
 

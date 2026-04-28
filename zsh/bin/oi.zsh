@@ -23,7 +23,7 @@ function oi() {
   fi
 
   local usage_info=$(
-    cat <<-EOF
+    cat <<-'EOF'
 			Usage:
 			  oi [options] <image|directory> ...
 

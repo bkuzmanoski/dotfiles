@@ -20,7 +20,7 @@ function backup_if_needed() {
   local backup_path="${target_path}.backup"
 
   if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
-    mv "${target_path}" "${backup_path}"
+    mv -f "${target_path}" "${backup_path}"
     log --info "Backed up existing configuration: ${backup_path}"
   fi
 }
@@ -56,7 +56,7 @@ function set_system_hotkey() {
   local parameter2="$4"
   local parameter3="$5"
   local dict_value=$(
-    cat <<-EOF
+    cat <<-'EOF'
 			<dict>
 				<key>enabled</key>
 				<${enabled}/>
@@ -90,6 +90,32 @@ function set_wallpaper() {
     fi
   else
     log --warning "Wallpaper file not found"
+  fi
+}
+
+function apply_json() {
+  local target_file="$1"
+  local json_content
+
+  if [[ -n "$2" ]]; then
+    json_content="$2"
+  else
+    json_content="$(cat)"
+  fi
+
+  if [[ -s "${target_file}" ]]; then
+    log --info "Applying JSON settings: ${target_file}"
+    
+    if jq --argjson desired "${json_content}" '. * $desired' "${target_file}" > "${target_file}.tmp" 2>/dev/null; then
+      mv -f "${target_file}.tmp" "${target_file}"
+    else
+      log --error "Failed to apply JSON, skipping: ${target_file}"
+      rm -f "${target_file}.tmp"
+    fi
+  else
+    log --info "Writing JSON settings: ${target_file}"
+  	mkdir -p "$(dirname "${target_file}")"
+    print -r -- "${json_content}" > "${target_file}"
   fi
 }
 
@@ -378,34 +404,27 @@ defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.Fol
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 
-log --info "Writing LM Studio settings"
-
-if [[ -e "${HOME}/.lmstudio/settings.json" ]]; then
-  log --warning "Existing LM Studio settings found, skipping"
-else
-  mkdir -p "${HOME}/.lmstudio"
-  cat <<-EOF >"${HOME}/.lmstudio/settings.json"
-	{
-	  "chat": {
-	    "useShiftEnterToSendMessage": true,
-	    "doubleClickMessageToEdit": true,
-	    "showTokenCountInChatListings": true
-	  },
-	  "developer": {
-	    "showResourceConsumptionWidget": true,
-	    "attemptedInstallLmsCliOnStartup": true
-	  },
-	  "developerMode": true,
-	  "dismissedModals": [
-	    "LM Link Sidebar Button Popover",
-	    "Trash Deletion Onboarding"
-	  ],
-	  "defaultContextLength": {
-	    "type": "max"
-	  }
+apply_json "${HOME}/.lmstudio/settings.json" <<-'EOF'
+{
+	"chat": {
+		"useShiftEnterToSendMessage": true,
+		"doubleClickMessageToEdit": true,
+		"showTokenCountInChatListings": true
+	},
+	"developer": {
+		"showResourceConsumptionWidget": true,
+		"attemptedInstallLmsCliOnStartup": true
+	},
+	"developerMode": true,
+	"dismissedModals": [
+		"LM Link Sidebar Button Popover",
+		"Trash Deletion Onboarding"
+	],
+	"defaultContextLength": {
+		"type": "max"
 	}
-	EOF
-fi
+}
+EOF
 
 # =============================================================================
 # Finalization

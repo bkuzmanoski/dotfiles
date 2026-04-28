@@ -5,7 +5,7 @@ function cv() {
   fi
 
   local usage_info=$(
-    cat <<-EOF
+    cat <<-'EOF'
 			Usage:
 			  cv [options] <video>
 
