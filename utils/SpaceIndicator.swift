@@ -326,6 +326,15 @@ final class SpaceMonitor {
 }
 
 struct SpaceIndicatorView: View {
+  private enum IconMetrics {
+    static let size: CGFloat = 17.0
+    static let paddingCropScale: CGFloat = 1.15
+    static let cornerRatio: CGFloat = 0.225
+    static let overlapGap: CGFloat = 1.0
+    static let cutoutMaskSize: CGFloat = size + (overlapGap * 2)
+    static let cutoutMaskCornerRadius: CGFloat = (cutoutMaskSize * cornerRatio) + (overlapGap / 2)
+  }
+
   let spaceMonitor: SpaceMonitor
   let onWidthChanged: (CGFloat) -> Void
 
@@ -351,24 +360,37 @@ struct SpaceIndicatorView: View {
   }
 
   var body: some View {
-    HStack(spacing: 8) {
+    HStack(spacing: 12) {
       ForEach(activeDisplaySpaces.enumerated(), id: \.element.id) { index, space in
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
           Text("\(index + 1)")
-            .font(.system(size: 11, weight: space.isActive ? .semibold : .regular))
-            .foregroundStyle(.primary.opacity(space.isActive ? 1 : 0.52))
+            .font(.subheadline)
+            .fontWeight(space.isActive ? .medium : .regular)
+            .foregroundStyle(Color(.textColor))
             .frame(width: 8)
 
           if !space.apps.isEmpty {
-            HStack(spacing: -8) {
+            HStack(spacing: -4) {
               ForEach(space.apps) { app in
                 Image(nsImage: app.icon)
                   .resizable()
-                  .frame(width: 21, height: 21)
+                  .scaleEffect(IconMetrics.paddingCropScale)
+                  .frame(width: IconMetrics.size, height: IconMetrics.size)
+                  .clipShape(.rect(cornerRadius: IconMetrics.size * IconMetrics.cornerRatio))
+                  .background {
+                    RoundedRectangle(cornerRadius: IconMetrics.cutoutMaskCornerRadius)
+                      .fill(.black)
+                      .frame(width: IconMetrics.cutoutMaskSize, height: IconMetrics.cutoutMaskSize)
+                      .blendMode(.destinationOut)
+                  }
               }
             }
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
           }
         }
+        .opacity(space.isActive ? 1 : 0.45)
+        .animation(.snappy(duration: 0.2), value: space.isActive)
       }
     }
     .padding(.horizontal, 14)
@@ -544,14 +566,6 @@ final class StatusItemManager {
     self.hostingView = hostingView
   }
 
-  func toggle() {
-    guard let statusItem else {
-      return
-    }
-
-    statusItem.isVisible.toggle()
-  }
-
   private func setStatusItemVisibility(to isVisible: Bool) {
     guard let statusItem, statusItem.isVisible != isVisible else {
       return
@@ -592,7 +606,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self.spaceMonitor = spaceMonitor
       self.statusItemManager = statusItemManager
     } catch {
-      FileHandle.standardError.write(Data("Error starting SpaceSwitcher: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Error starting SpaceMonitor: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
@@ -633,7 +647,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": await statusItemManager?.toggle()
     case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
@@ -652,7 +665,7 @@ do {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
   guard !arguments.isEmpty else {
-    print("Already running, specify \"toggle\" or \"quit\" as an argument.")
+    print("Already running, specify \"quit\" to stop.")
     exit(0)
   }
 
