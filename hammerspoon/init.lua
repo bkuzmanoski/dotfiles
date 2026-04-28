@@ -23,8 +23,8 @@ hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh SpaceIndicator --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh SwitchToSpace --background")
 
-hs.timer.doAfter(5, function()
-  hs.execute("pkill 'figma_agent'")
+hs.timer.doAfter(10, function()
+  hs.execute("pkill figma_agent")
 end)
 
 hs.shutdownCallback = function()
