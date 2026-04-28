@@ -257,7 +257,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.zoomManager = try ZoomManager()
     } catch {
-      FileHandle.standardError.write(Data("Error starting ZoomManager: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Failed to initialize ZoomManager: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return

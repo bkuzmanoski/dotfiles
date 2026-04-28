@@ -285,7 +285,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.spaceSwitcher = try SpaceSwitcher()
     } catch {
-      FileHandle.standardError.write(Data("Error starting SpaceSwitcher: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Failed to initialize SpaceSwitcher: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return

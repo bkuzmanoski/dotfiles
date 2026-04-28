@@ -238,7 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.hotkeyManager = try HotkeyManager()
     } catch {
-      FileHandle.standardError.write(Data("Error starting HotkeyManager: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Failed to initialize HotkeyManager: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return

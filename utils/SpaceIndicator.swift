@@ -606,7 +606,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self.spaceMonitor = spaceMonitor
       self.statusItemManager = statusItemManager
     } catch {
-      FileHandle.standardError.write(Data("Error starting SpaceMonitor: \(error.localizedDescription)\n".utf8))
+      FileHandle.standardError.write(Data("Failed to initialize SpaceMonitor: \(error.localizedDescription)\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
