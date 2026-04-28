@@ -5,7 +5,6 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let menuBarItemTitle = "􂉏"
 }
 
 enum ProcessSignals {
@@ -104,7 +103,7 @@ final class StatusItemManager {
 
   func showItem() {
     statusItem.length = NSStatusItem.variableLength
-    statusItem.button?.title = Constants.menuBarItemTitle
+    statusItem.button?.title = "􂉏"
   }
 
   func hideItem() {
