@@ -15,6 +15,7 @@ hs.window.animationDuration = 0
 
 utils.createSpaces(settings.numberOfSpaces)
 
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh ClickSoundEffects --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
