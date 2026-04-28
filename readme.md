@@ -66,6 +66,13 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn on "Show 1Password Developer experience"
         - Turn on "Integrate with 1Password CLI"
 
+  - Affinity
+    - Set up studios: "Pixel", "Colour Grading", "Retouching"
+    - Settings
+      - General → Document → Turn off "Reopen document(s) on startup"
+      - Machine Learning Models -> Segmentation -> Install
+      - Home Screen → Turn off all options
+
   - AltTab
     - Settings
       - Controls
@@ -144,9 +151,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn on "Enable junk mail filtering"
         - Set "When junk mail arrives" to "Perform custom actions (Click Advanced to configure)"
         - Advanced → Perform the following actions → Add "Mark as Read"
-
-  - Pixelmator Pro
-    - Settings → Workspace → Create a new workspace layout ("Custom") and relocate Tools to the bottom
 
   - Raycast
     - Import settings file

@@ -32,10 +32,12 @@ brew "zoxide"
 
 cask "1password-cli"
 cask "1password"
+cask "affinity"
 cask "alt-tab"
 cask "apparency"
 cask "archaeology"
 cask "asset-catalog-tinkerer"
+cask "blender"
 cask "cleanshot"
 cask "copilot-cli"
 cask "deskpad"
@@ -59,8 +61,6 @@ mas "Aqua Swatch", id: 1565479346
 mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
-mas "Pasteboard Viewer", id: 1499215709
-mas "Pixelmator Pro", id: 1289583905
 mas "Xcode", id: 497799835
 
 cargo "tetro-tui"

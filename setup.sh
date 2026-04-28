@@ -326,6 +326,9 @@ set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording o
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
 
 # App settings
+defaults_write com.canva.affinity com.canva.affinity.scheme.uimode -int 2 # Set UI mode to "Default OS"
+defaults_write com.canva.affinity com.canva.affinity.HomeScreenShowOnStartUp -bool false
+
 defaults_write com.apple.dt.Xcode IDEBuildLocationStyle -string "Custom"
 defaults_write com.apple.dt.Xcode IDECustomBuildIntermediatesPath -string "Build/Intermediates.noindex"
 defaults_write com.apple.dt.Xcode IDECustomBuildLocationType -string "RelativeToDerivedData"
@@ -357,12 +360,6 @@ defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0
-
-open "/Applications/Pixelmator Pro.app"
-sleep 3
-killall "Pixelmator Pro"
-defaults_write com.pixelmatorteam.pixelmator.x appearanceAutomaticMode -bool true
-defaults_write com.pixelmatorteam.pixelmator.x showWelcomeWindow -bool false
 
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set hotkey to ⌘␣
