@@ -16,6 +16,7 @@ hs.window.animationDuration = 0
 utils.createSpaces(settings.numberOfSpaces)
 
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
+hs.execute("${HOME}/.dotfiles/utils/run_command.sh FocusFollowsMouse --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh MouseClickSoundEffects --background")
 hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
@@ -114,7 +115,6 @@ modules.focusWindow = require("modules/focus_window").init({
   },
   excludeWindowTitles = { "Picture-in-picture" }
 })
-modules.focusWindowOnScreen = require("modules/focus_window_on_screen").init()
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
   { appName = "Figma", processToKill = "figma_agent" }
 })
