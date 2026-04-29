@@ -217,6 +217,8 @@ final class ClickMonitor {
         options: .listenOnly,
         eventsOfInterest: 1 << CGEventType.leftMouseDown.rawValue
           | 1 << CGEventType.leftMouseUp.rawValue
+          | 1 << CGEventType.otherMouseDown.rawValue
+          | 1 << CGEventType.otherMouseUp.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.rightMouseUp.rawValue,
         callback: eventTapCallback,
@@ -248,8 +250,8 @@ final class ClickMonitor {
     switch type {
     case .leftMouseDown: soundEffectManager.play(soundEffect: .leftMouseDown)
     case .leftMouseUp: soundEffectManager.play(soundEffect: .leftMouseUp)
-    case .rightMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
-    case .rightMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
+    case .rightMouseDown, .otherMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
+    case .rightMouseUp, .otherMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
     default: break
     }
   }
