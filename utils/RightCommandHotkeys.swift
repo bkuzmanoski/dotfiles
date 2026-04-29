@@ -212,17 +212,17 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  let controller = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
+  let hotkeyManager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
 
   guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    if let eventTap = controller.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+    if let eventTap = hotkeyManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
       CGEvent.tapEnable(tap: eventTap, enable: true)
     }
 
     return Unmanaged.passUnretained(event)
   }
 
-  return controller.handleKeyEvent(type: type, event: event)
+  return hotkeyManager.handleKeyEvent(type: type, event: event)
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {

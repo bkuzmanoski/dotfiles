@@ -213,10 +213,10 @@ func eventTapCallback(
     return Unmanaged.passUnretained(event)
   }
 
-  let controller = Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue()
+  let zoomManager = Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue()
 
   guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    if let eventTap = controller.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+    if let eventTap = zoomManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
       CGEvent.tapEnable(tap: eventTap, enable: true)
     }
 
@@ -226,19 +226,19 @@ func eventTapCallback(
   let isHotkeyDown = event.flags.contains(Constants.hotkey)
 
   guard type == .scrollWheel, isHotkeyDown else {
-    guard controller.endZoomingIfNeeded() else {
+    guard zoomManager.endZoomingIfNeeded() else {
       return Unmanaged.passUnretained(event)
     }
 
     return nil
   }
 
-  controller.beginZoomingIfNeeded()
+  zoomManager.beginZoomingIfNeeded()
 
   let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
 
   if scrollDelta != 0 {
-    controller.handleScrollEvent(delta: scrollDelta)
+    zoomManager.handleScrollEvent(delta: scrollDelta)
   }
 
   return nil
