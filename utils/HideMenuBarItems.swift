@@ -101,18 +101,18 @@ final class StatusItemManager {
     NSStatusBar.system.removeStatusItem(statusItem)
   }
 
-  func showItem() {
+  func showStatusItem() {
     statusItem.length = NSStatusItem.variableLength
     statusItem.button?.title = "􂉏"
   }
 
-  func hideItem() {
+  func hideStatusItem() {
     statusItem.length = 6016
     statusItem.button?.title = ""
   }
 
-  func toggle() {
-    statusItem.length == NSStatusItem.variableLength ? hideItem() : showItem()
+  func toggleStatusItemVisibility() {
+    statusItem.length == NSStatusItem.variableLength ? hideStatusItem() : showStatusItem()
   }
 }
 
@@ -131,7 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     self.statusItemManager = StatusItemManager()
 
-    statusItemManager?.hideItem()
+    statusItemManager?.hideStatusItem()
   }
 
   private func observeSignals() {
@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": await statusItemManager?.toggle()
+    case "toggle": await statusItemManager?.toggleStatusItemVisibility()
     case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
