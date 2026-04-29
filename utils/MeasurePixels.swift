@@ -156,10 +156,12 @@ final class MeasurementView: NSView {
     ]
     let string = NSAttributedString(string: text, attributes: stringAttributes)
     let stringSize = string.size()
+
     let backgroundSize = NSSize(
       width: stringSize.width + Constants.labelHorizontalPadding * 2,
       height: stringSize.height + Constants.labelVerticalPadding * 2
     )
+
     let labelOrigin =
       switch position {
       case .top:
@@ -174,6 +176,7 @@ final class MeasurementView: NSView {
       case .right:
         CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
       }
+
     let backgroundRect = NSRect(origin: labelOrigin, size: backgroundSize)
     let backgroundPath = NSBezierPath(
       roundedRect: backgroundRect,
@@ -194,20 +197,20 @@ final class MeasurementView: NSView {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var screen: NSScreen!
-  private var window: OverlayWindow!
-  private var measurementView: MeasurementView!
   private var observers: [(token: NSObjectProtocol, center: NotificationCenter)] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApplication.shared.activate(ignoringOtherApps: true)
 
-    self.measurementView = MeasurementView()
-    self.screen =
-      NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
-      ?? NSScreen.main
-      ?? NSScreen.screens.first!
-    self.window = OverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+    guard
+      let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
+    else {
+      NSApplication.shared.terminate(nil)
+      return
+    }
+
+    let measurementView = MeasurementView()
+    let window = OverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
     window.level = .screenSaver
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.backgroundColor = Constants.overlayColor
@@ -232,8 +235,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       forName: NSApplication.didChangeScreenParametersNotification,
       object: nil,
       queue: .main
-    ) { [weak self] _ in
-      guard let self else {
+    ) { _ in
+      guard
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
+      else {
         return
       }
 
