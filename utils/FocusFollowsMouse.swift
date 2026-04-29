@@ -161,11 +161,6 @@ struct SLPSEventRecord {
     case focusTransition = 0x0d
   }
 
-  enum FocusTransitionType: UInt8 {
-    case becomeKey = 0x01
-    case resignKey = 0x02
-  }
-
   enum SimulatedClickType {
     case leftMouseDown
     case leftMouseUp
@@ -178,6 +173,13 @@ struct SLPSEventRecord {
     }
   }
 
+  enum FocusTransitionType: UInt8 {
+    case becomeKey = 0x01
+    case resignKey = 0x02
+
+    var eventType: EventType { .focusTransition }
+  }
+
   var bytes: [UInt8]
 
   private init() {
@@ -187,7 +189,7 @@ struct SLPSEventRecord {
 
   static func focusTransition(windowID: CGWindowID, type focusTransitionType: FocusTransitionType) -> SLPSEventRecord {
     var eventRecord = SLPSEventRecord()
-    eventRecord.bytes[Offset.eventType] = EventType.focusTransition.rawValue
+    eventRecord.bytes[Offset.eventType] = focusTransitionType.eventType.rawValue
     eventRecord.bytes[Offset.focusTransitionType] = focusTransitionType.rawValue
     eventRecord.setWindowID(windowID)
 
