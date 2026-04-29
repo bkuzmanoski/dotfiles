@@ -2,15 +2,11 @@ import AppKit
 import AudioToolbox
 
 enum Constants {
-  static let subsystem = "industries.britown.ClickSoundEffects"
+  static let subsystem = "industries.britown.MouseClickSoundEffects"
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let soundsDirectory = "~/.dotfiles/utils/assets"
-  static let leftMouseDownSoundFile = "left-click-down.wav"
-  static let leftMouseUpSoundFile = "left-click-up.wav"
-  static let rightMouseDownSoundFile = "right-click-down.wav"
-  static let rightMouseUpSoundFile = "right-click-up.wav"
+  static let soundFileDirectory = "~/.dotfiles/utils/assets"
 }
 
 enum ProcessSignals {
@@ -94,81 +90,97 @@ final class SingleInstanceLock {
   }
 }
 
-final class SoundManager {
+enum SoundEffect: CaseIterable, CustomStringConvertible {
+  case leftMouseDown
+  case leftMouseUp
+  case rightMouseDown
+  case rightMouseUp
+
+  var fileName: String {
+    switch self {
+    case .leftMouseDown: return "left-mouse-click-down.wav"
+    case .leftMouseUp: return "left-mouse-click-up.wav"
+    case .rightMouseDown: return "right-mouse-click-down.wav"
+    case .rightMouseUp: return "right-mouse-click-up.wav"
+    }
+  }
+
+  var description: String {
+    switch self {
+    case .leftMouseDown: return "Left Mouse Click Down"
+    case .leftMouseUp: return "Left Mouse Click Up"
+    case .rightMouseDown: return "Right Mouse Click Down"
+    case .rightMouseUp: return "Right Mouse Click Up"
+    }
+  }
+}
+
+final class SoundEffectManager {
   enum Error: Swift.Error, LocalizedError {
-    case soundFileNotFound(path: String)
+    case soundFileNotFound(soundEffect: SoundEffect, path: String)
 
     var errorDescription: String? {
       switch self {
-      case .soundFileNotFound(let path): return "Sound file not found: \(path)"
+      case .soundFileNotFound(let soundEffect, let path): "Sound file for \(soundEffect) not found at path: \(path)"
       }
     }
   }
 
-  private let leftMouseDownSound: SystemSoundID
-  private let leftMouseUpSound: SystemSoundID
-  private let rightMouseDownSound: SystemSoundID
-  private let rightMouseUpSound: SystemSoundID
+  private let systemSoundIDs: [SoundEffect: SystemSoundID]
+  private var isEnabled = true
 
   init() throws {
-    let soundsDirectoryPath = NSString(string: Constants.soundsDirectory).expandingTildeInPath
-    let soundsDirectoryURL = URL(fileURLWithPath: soundsDirectoryPath, isDirectory: true)
+    let soundFileDirectoryPath = NSString(string: Constants.soundFileDirectory).expandingTildeInPath
+    let soundFileDirectoryURL = URL(fileURLWithPath: soundFileDirectoryPath, isDirectory: true)
 
-    self.leftMouseDownSound = try Self.loadSound(
-      at: soundsDirectoryURL.appendingPathComponent(Constants.leftMouseDownSoundFile)
-    )
-    self.leftMouseUpSound = try Self.loadSound(
-      at: soundsDirectoryURL.appendingPathComponent(Constants.leftMouseUpSoundFile)
-    )
-    self.rightMouseDownSound = try Self.loadSound(
-      at: soundsDirectoryURL.appendingPathComponent(Constants.rightMouseDownSoundFile)
-    )
-    self.rightMouseUpSound = try Self.loadSound(
-      at: soundsDirectoryURL.appendingPathComponent(Constants.rightMouseUpSoundFile)
-    )
+    var systemSoundIDs: [SoundEffect: SystemSoundID] = [:]
+
+    do {
+      for soundEffect in SoundEffect.allCases {
+        systemSoundIDs[soundEffect] = try Self.load(soundEffect: soundEffect, from: soundFileDirectoryURL)
+      }
+    } catch {
+      Self.dispose(systemSoundIDs: systemSoundIDs)
+      throw error
+    }
+
+    self.systemSoundIDs = systemSoundIDs
   }
 
   deinit {
-    AudioServicesDisposeSystemSoundID(leftMouseDownSound)
-    AudioServicesDisposeSystemSoundID(leftMouseUpSound)
-    AudioServicesDisposeSystemSoundID(rightMouseDownSound)
-    AudioServicesDisposeSystemSoundID(rightMouseUpSound)
+    Self.dispose(systemSoundIDs: systemSoundIDs)
   }
 
-  private static func loadSound(at url: URL) throws -> SystemSoundID {
-    var soundID: SystemSoundID = 0
-
-    guard FileManager.default.fileExists(atPath: url.path) else {
-      throw Error.soundFileNotFound(path: url.path)
-    }
-
-    AudioServicesCreateSystemSoundID(url as CFURL, &soundID)
-
-    return soundID
+  func toggleEnabled() {
+    self.isEnabled.toggle()
   }
 
-  func playLeftDown() {
-    play(soundID: leftMouseDownSound)
-  }
-
-  func playLeftUp() {
-    play(soundID: leftMouseUpSound)
-  }
-
-  func playRightDown() {
-    play(soundID: rightMouseDownSound)
-  }
-
-  func playRightUp() {
-    play(soundID: rightMouseUpSound)
-  }
-
-  private func play(soundID: SystemSoundID) {
-    guard soundID != 0 else {
+  func play(soundEffect: SoundEffect) {
+    guard isEnabled, let soundID = systemSoundIDs[soundEffect] else {
       return
     }
 
     AudioServicesPlaySystemSound(soundID)
+  }
+
+  private static func load(soundEffect: SoundEffect, from soundFileDirectoryURL: URL) throws -> SystemSoundID {
+    let soundURL = soundFileDirectoryURL.appendingPathComponent(soundEffect.fileName)
+
+    guard FileManager.default.fileExists(atPath: soundURL.path) else {
+      throw Error.soundFileNotFound(soundEffect: soundEffect, path: soundURL.path)
+    }
+
+    var soundID: SystemSoundID = 0
+
+    AudioServicesCreateSystemSoundID(soundURL as CFURL, &soundID)
+
+    return soundID
+  }
+
+  private static func dispose(systemSoundIDs: [SoundEffect: SystemSoundID]) {
+    for soundID in systemSoundIDs.values {
+      AudioServicesDisposeSystemSoundID(soundID)
+    }
   }
 }
 
@@ -187,11 +199,11 @@ final class ClickMonitor {
 
   private(set) var eventTap: CFMachPort?
 
+  private let soundEffectManager: SoundEffectManager
   private var runLoopSource: CFRunLoopSource?
-  private let soundManager: SoundManager
 
-  init(soundManager: SoundManager) throws {
-    self.soundManager = soundManager
+  init(soundEffectManager: SoundEffectManager) throws {
+    self.soundEffectManager = soundEffectManager
 
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionDenied
@@ -233,10 +245,10 @@ final class ClickMonitor {
 
   func handleEvent(type: CGEventType) {
     switch type {
-    case .leftMouseDown: soundManager.playLeftDown()
-    case .leftMouseUp: soundManager.playLeftUp()
-    case .rightMouseDown: soundManager.playRightDown()
-    case .rightMouseUp: soundManager.playRightUp()
+    case .leftMouseDown: soundEffectManager.play(soundEffect: .leftMouseDown)
+    case .leftMouseUp: soundEffectManager.play(soundEffect: .leftMouseUp)
+    case .rightMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
+    case .rightMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
     default: break
     }
   }
@@ -269,7 +281,7 @@ func eventTapCallback(
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
-  private var soundManager: SoundManager?
+  private var soundEffectManager: SoundEffectManager?
   private var clickMonitor: ClickMonitor?
 
   init(singleInstanceLock: SingleInstanceLock) {
@@ -279,10 +291,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let soundManager = try SoundManager()
-      let clickMonitor = try ClickMonitor(soundManager: soundManager)
+      let soundEffectManager = try SoundEffectManager()
+      let clickMonitor = try ClickMonitor(soundEffectManager: soundEffectManager)
 
-      self.soundManager = soundManager
+      self.soundEffectManager = soundEffectManager
       self.clickMonitor = clickMonitor
     } catch {
       FileHandle.standardError.write(Data("Failed to initialize: \(error.localizedDescription)\n".utf8))
@@ -326,6 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
+    case "toggle": soundEffectManager?.toggleEnabled()
     case "quit": await NSApplication.shared.terminate(nil)
     default: return
     }
@@ -344,7 +357,7 @@ do {
   let arguments = Array(CommandLine.arguments.dropFirst())
 
   guard !arguments.isEmpty else {
-    print("Already running, specify \"quit\" to stop.")
+    print("Already running, specify \"toggle\" or \"quit\" as an argument.")
     exit(0)
   }
 
