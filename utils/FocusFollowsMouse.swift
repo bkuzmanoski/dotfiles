@@ -6,6 +6,7 @@ enum Constants {
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
   static let hoverDelay: DispatchTimeInterval = .milliseconds(150)
+  static let jitterThresholdSquared: CGFloat = 3 * 3
 }
 
 enum ProcessSignals {
@@ -196,7 +197,11 @@ struct SLPSEventRecord {
   static func simulatedClick(windowID: CGWindowID, type simulatedClickType: SimulatedClickType) -> SLPSEventRecord {
     var eventRecord = SLPSEventRecord()
     eventRecord.bytes[Offset.eventType] = simulatedClickType.eventType.rawValue
-    eventRecord.bytes.replaceSubrange(Offset.mask..<Offset.mask + 0x10, with: repeatElement(0xff, count: 0x10))
+
+    for i in 0..<0x10 {
+      eventRecord.bytes[Offset.mask + i] = 0xff
+    }
+
     eventRecord.bytes[Offset.activationFlag] = 0x10
     eventRecord.setWindowID(windowID)
 
@@ -204,8 +209,13 @@ struct SLPSEventRecord {
   }
 
   private mutating func setWindowID(_ windowID: CGWindowID) {
-    let idBytes = withUnsafeBytes(of: windowID) { Array($0) }
-    self.bytes.replaceSubrange(Offset.windowID..<Offset.windowID + 4, with: idBytes)
+    var windowID = windowID
+
+    withUnsafeBytes(of: &windowID) { idBytes in
+      for i in 0..<4 {
+        self.bytes[Offset.windowID + i] = idBytes[i]
+      }
+    }
   }
 }
 
@@ -277,6 +287,22 @@ final class FocusManager {
     }
   }
 
+  private static nonisolated let ignoredRoles: Set<String> = [
+    kAXMenuBarRole,
+    kAXMenuBarItemRole,
+    kAXMenuRole,
+    kAXMenuItemRole,
+    kAXPopoverRole,
+    kAXHelpTagRole,
+    kAXDockItemRole
+  ]
+
+  private static nonisolated let ignoredSubroles: Set<String> = [
+    kAXFloatingWindowSubrole,
+    kAXSystemFloatingWindowSubrole,
+    kAXUnknownSubrole
+  ]
+
   private(set) var eventTap: CFMachPort?
   private(set) var isEnabled = true
 
@@ -286,6 +312,7 @@ final class FocusManager {
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isTimerPending = false
+  private var activeFocusTask: Task<Void, Never>?
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
@@ -300,7 +327,10 @@ final class FocusManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .listenOnly,
-        eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue,
+        eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue
+          | 1 << CGEventType.leftMouseDown.rawValue
+          | 1 << CGEventType.otherMouseDown.rawValue
+          | 1 << CGEventType.rightMouseDown.rawValue,
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
@@ -322,6 +352,7 @@ final class FocusManager {
 
   deinit {
     debounceTimer.cancel()
+    activeFocusTask?.cancel()
 
     if let eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: false)
@@ -344,7 +375,14 @@ final class FocusManager {
   }
 
   func handleMouseMoved(to point: CGPoint) {
-    guard isEnabled, point != lastMouseLocation else {
+    guard isEnabled else {
+      return
+    }
+
+    let deltaX = point.x - lastMouseLocation.x
+    let deltaY = point.y - lastMouseLocation.y
+
+    guard (deltaX * deltaX) + (deltaY * deltaY) > Constants.jitterThresholdSquared else {
       return
     }
 
@@ -357,8 +395,15 @@ final class FocusManager {
     }
   }
 
+  func cancelPendingFocus() {
+    activeFocusTask?.cancel()
+
+    self.isTimerPending = false
+    self.activeFocusTask = nil
+  }
+
   private func handleTimerEvent() {
-    guard self.isEnabled else {
+    guard isEnabled, isTimerPending else {
       return
     }
 
@@ -367,7 +412,8 @@ final class FocusManager {
     if DispatchTime.now() >= targetTime {
       self.isTimerPending = false
 
-      Task { [weak self, lastMouseLocation] in
+      activeFocusTask?.cancel()
+      self.activeFocusTask = Task { [weak self, lastMouseLocation] in
         await self?.focusWindow(at: lastMouseLocation)
       }
     } else {
@@ -375,20 +421,15 @@ final class FocusManager {
     }
   }
 
-  private func focusWindow(at point: CGPoint) async {
-    guard let hoveredElement = AXUIElement.element(at: point) else {
+  private nonisolated func focusWindow(at point: CGPoint) async {
+    guard let hoveredElement = AXUIElement.element(at: point), !isIgnored(hoveredElement) else {
       return
-    }
-
-    if let role = hoveredElement.value(for: .role, as: String.self) {
-      guard role != kAXMenuBarRole && role != kAXDockItemRole else {
-        return
-      }
     }
 
     let targetWindow = hoveredElement.value(for: .window) ?? hoveredElement
 
     guard
+      !isIgnored(targetWindow),
       let targetWindowID = targetWindow.windowID,
       let targetWindowPID = targetWindow.pid
     else {
@@ -420,6 +461,10 @@ final class FocusManager {
           if skyLightProxy.postEventRecordTo(&focusedWindowPSN, &resignKeyEvent) == .success {
             try? await Task.sleep(for: .milliseconds(10))
 
+            guard !Task.isCancelled else {
+              return
+            }
+
             var becomeKeyEvent = SLPSEventRecord.focusTransition(windowID: targetWindowID, type: .becomeKey)
 
             skyLightProxy.postEventRecordTo(&windowPSN, &becomeKeyEvent)
@@ -428,7 +473,10 @@ final class FocusManager {
       }
     }
 
-    guard skyLightProxy.setFrontProcessWithOptions(&windowPSN, targetWindowID, kCPSUserGenerated) == .success else {
+    guard
+      !Task.isCancelled,
+      skyLightProxy.setFrontProcessWithOptions(&windowPSN, targetWindowID, kCPSUserGenerated) == .success
+    else {
       return
     }
 
@@ -441,6 +489,18 @@ final class FocusManager {
     var leftMouseUpEvent = SLPSEventRecord.simulatedClick(windowID: targetWindowID, type: .leftMouseUp)
 
     skyLightProxy.postEventRecordTo(&windowPSN, &leftMouseUpEvent)
+  }
+
+  private nonisolated func isIgnored(_ element: AXUIElement) -> Bool {
+    if let role = element.value(for: .role, as: String.self), Self.ignoredRoles.contains(role) {
+      return true
+    }
+
+    if let subrole = element.value(for: .subrole, as: String.self), Self.ignoredSubroles.contains(subrole) {
+      return true
+    }
+
+    return false
   }
 }
 
@@ -460,6 +520,9 @@ func eventTapCallback(
     switch type {
     case .mouseMoved:
       focusManager.handleMouseMoved(to: event.location)
+
+    case .leftMouseDown, .otherMouseDown, .rightMouseDown:
+      focusManager.cancelPendingFocus()
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
       if focusManager.isEnabled, let eventTap = focusManager.eventTap {
