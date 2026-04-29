@@ -76,7 +76,7 @@ on sendEmail(recipientAddress, messageSubject, messageContent)
   end tell
 
   if not mailWasRunning then
-    do shell script "nohup zsh -c 'sleep 5 && osascript -e \"tell application \\\"Mail\\\" to quit\"' > /dev/null 2>&1 &"
+    do shell script "nohup zsh -c 'sleep 5 && osascript -e \"tell application \\\"Mail\\\" to quit\"' >/dev/null 2>&1 &"
   end if
 end sendEmail
 
