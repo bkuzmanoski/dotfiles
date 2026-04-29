@@ -214,10 +214,10 @@ final class ClickMonitor {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .listenOnly,
-        eventsOfInterest: (1 << CGEventType.leftMouseDown.rawValue)
-          | (1 << CGEventType.leftMouseUp.rawValue)
-          | (1 << CGEventType.rightMouseDown.rawValue)
-          | (1 << CGEventType.rightMouseUp.rawValue),
+        eventsOfInterest: 1 << CGEventType.leftMouseDown.rawValue
+          | 1 << CGEventType.leftMouseUp.rawValue
+          | 1 << CGEventType.rightMouseDown.rawValue
+          | 1 << CGEventType.rightMouseUp.rawValue,
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )

@@ -139,7 +139,7 @@ final class ZoomManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: (1 << CGEventType.scrollWheel.rawValue) | (1 << CGEventType.flagsChanged.rawValue),
+        eventsOfInterest: 1 << CGEventType.scrollWheel.rawValue | 1 << CGEventType.flagsChanged.rawValue,
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )

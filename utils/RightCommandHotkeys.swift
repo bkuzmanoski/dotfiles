@@ -137,7 +137,7 @@ final class HotkeyManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue),
+        eventsOfInterest: 1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue,
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
