@@ -7,7 +7,7 @@ local appWatcher
 local function killHelpers(targetAppName)
   hs.fnutils.each(appProcessPairs, function(pair)
     if not targetAppName or pair.appName == targetAppName then
-      hs.execute("pkill -x '" .. pair.processToKill .. ")' >/dev/null 2>&1")
+      hs.execute("pkill -x '" .. pair.processToKill .. "' >/dev/null 2>&1")
     end
   end)
 end
