@@ -60,7 +60,7 @@ final class SingleInstanceLock {
     }
   }
 
-  private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
   private var lockFileDescriptor: CInt
 
   init() throws {
@@ -111,6 +111,7 @@ extension CGEventType {
   static let gesture = CGEventType(rawValue: 29)!
 }
 
+@MainActor
 final class ZoomManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
@@ -215,35 +216,35 @@ func eventTapCallback(
 
   let zoomManager = Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue()
 
-  guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    if let eventTap = zoomManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+  return MainActor.assumeIsolated {
+    switch type {
+    case .scrollWheel where event.flags.contains(Constants.hotkey):
+      zoomManager.beginZoomingIfNeeded()
+
+      let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+
+      if scrollDelta != 0 {
+        zoomManager.handleScrollEvent(delta: scrollDelta)
+      }
+
+      return nil
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if let eventTap = zoomManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+    default:
+      if zoomManager.endZoomingIfNeeded() {
+        return nil
+      }
     }
 
     return Unmanaged.passUnretained(event)
   }
-
-  let isHotkeyDown = event.flags.contains(Constants.hotkey)
-
-  guard type == .scrollWheel, isHotkeyDown else {
-    guard zoomManager.endZoomingIfNeeded() else {
-      return Unmanaged.passUnretained(event)
-    }
-
-    return nil
-  }
-
-  zoomManager.beginZoomingIfNeeded()
-
-  let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-  if scrollDelta != 0 {
-    zoomManager.handleScrollEvent(delta: scrollDelta)
-  }
-
-  return nil
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
   private var zoomManager: ZoomManager?
@@ -270,7 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func observeSignals() {
     Task {
       for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        await NSApplication.shared.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -287,30 +288,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           continue
         }
 
-        await handleCommand(with: arguments)
+        handleCommand(with: arguments)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) async {
+  private func handleCommand(with arguments: [String]) {
     guard let command = arguments.first else {
       return
     }
 
     switch command {
-    case "quit": await NSApplication.shared.terminate(nil)
+    case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
   }
 }
 
 do {
-  let singleInstanceLock = try SingleInstanceLock()
-  let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-  let application = NSApplication.shared
-  application.delegate = delegate
-  application.setActivationPolicy(.prohibited)
-  application.run()
+  try MainActor.assumeIsolated {
+    let singleInstanceLock = try SingleInstanceLock()
+    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
+    let application = NSApplication.shared
+    application.delegate = delegate
+    application.setActivationPolicy(.prohibited)
+    application.run()
+  }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())

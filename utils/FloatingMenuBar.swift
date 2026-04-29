@@ -59,7 +59,7 @@ final class SingleInstanceLock {
     }
   }
 
-  private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
   private var lockFileDescriptor: CInt
 
   init() throws {
@@ -95,55 +95,38 @@ extension AXUIElement {
 
   var children: [AXUIElement]? {
     var valuesRef: CFArray?
-
-    guard
-      AXUIElementCopyAttributeValues(
-        self,
-        NSAccessibility.Attribute.children.rawValue as CFString,
-        0,
-        Int.max,
-        &valuesRef
-      ) == .success
-    else {
-      return nil
-    }
-
-    return valuesRef as? [AXUIElement]
+    return AXUIElementCopyAttributeValues(
+      self,
+      NSAccessibility.Attribute.children.rawValue as CFString,
+      0,
+      Int.max,
+      &valuesRef
+    ) == .success
+      ? valuesRef as? [AXUIElement]
+      : nil
   }
 
   static func element(for pid: pid_t) -> AXUIElement {
     return AXUIElementCreateApplication(pid)
   }
 
-  func value<T>(for attribute: NSAccessibility.Attribute) -> T? {
+  func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) -> T? {
     var rawValue: CFTypeRef?
-
-    guard
-      AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue) == .success,
-      let rawValue
-    else {
-      return nil
-    }
-
-    return rawValue as? T
+    return AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue) == .success
+      ? rawValue as? T
+      : nil
   }
 
   func values(for attributes: [NSAccessibility.Attribute]) -> [NSAccessibility.Attribute: Any]? {
     var rawValues: CFArray?
-
-    guard
-      AXUIElementCopyMultipleAttributeValues(
-        self,
-        attributes.map { $0.rawValue as CFString } as CFArray,
-        AXCopyMultipleAttributeOptions(rawValue: 0),
-        &rawValues
-      ) == .success,
-      let rawValues
-    else {
-      return nil
-    }
-
-    return Dictionary(uniqueKeysWithValues: zip(attributes, rawValues as [AnyObject]).map { ($0, $1) })
+    return AXUIElementCopyMultipleAttributeValues(
+      self,
+      attributes.map { $0.rawValue as CFString } as CFArray,
+      AXCopyMultipleAttributeOptions(rawValue: 0),
+      &rawValues
+    ) == .success
+      ? (rawValues as? [AnyObject]).map { Dictionary(uniqueKeysWithValues: zip(attributes, $0)) }
+      : nil
   }
 
   @discardableResult
@@ -378,6 +361,7 @@ final class AppMenu {
   }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private(set) var eventTap: CFMachPort?
 
@@ -437,7 +421,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func observeSignals() {
     Task {
       for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        await NSApplication.shared.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -454,18 +438,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           continue
         }
 
-        await handleCommand(with: arguments)
+        handleCommand(with: arguments)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) async {
+  private func handleCommand(with arguments: [String]) {
     guard let command = arguments.first else {
       return
     }
 
     switch command {
-    case "quit": await NSApplication.shared.terminate(nil)
+    case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
   }
@@ -477,30 +461,36 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    if let refcon, let eventTap = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().eventTap {
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+  return MainActor.assumeIsolated {
+    switch type {
+    case .rightMouseDown:
+      if CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) {
+        try? AppMenu.popUp(at: NSEvent.mouseLocation)
+        return nil
+      }
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if let refcon, let eventTap = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().eventTap {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+    default:
+      break
     }
 
     return Unmanaged.passUnretained(event)
   }
-
-  guard CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) else {
-    return Unmanaged.passUnretained(event)
-  }
-
-  try? AppMenu.popUp(at: NSEvent.mouseLocation)
-
-  return nil
 }
 
 do {
-  let singleInstanceLock = try SingleInstanceLock()
-  let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-  let application = NSApplication.shared
-  application.delegate = delegate
-  application.setActivationPolicy(.prohibited)
-  application.run()
+  try MainActor.assumeIsolated {
+    let singleInstanceLock = try SingleInstanceLock()
+    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
+    let application = NSApplication.shared
+    application.delegate = delegate
+    application.setActivationPolicy(.prohibited)
+    application.run()
+  }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())

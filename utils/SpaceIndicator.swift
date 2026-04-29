@@ -57,7 +57,7 @@ final class SingleInstanceLock {
     }
   }
 
-  private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
   private var lockFileDescriptor: CInt
 
   init() throws {
@@ -588,6 +588,7 @@ final class StatusItemManager {
   }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singletonLock: SingleInstanceLock
   private var spaceMonitor: SpaceMonitor?
@@ -619,7 +620,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func observeSignals() {
     Task {
       for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        await NSApplication.shared.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -636,30 +637,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           continue
         }
 
-        await handleCommand(with: arguments)
+        handleCommand(with: arguments)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) async {
+  private func handleCommand(with arguments: [String]) {
     guard let command = arguments.first else {
       return
     }
 
     switch command {
-    case "quit": await NSApplication.shared.terminate(nil)
+    case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
   }
 }
 
 do {
-  let singletonLock = try SingleInstanceLock()
-  let delegate = AppDelegate(singletonLock: singletonLock)
-  let application = NSApplication.shared
-  application.setActivationPolicy(.accessory)
-  application.delegate = delegate
-  application.run()
+  try MainActor.assumeIsolated {
+    let singletonLock = try SingleInstanceLock()
+    let delegate = AppDelegate(singletonLock: singletonLock)
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+    application.delegate = delegate
+    application.run()
+  }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())

@@ -78,7 +78,7 @@ final class SingleInstanceLock {
     }
   }
 
-  private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
   private var lockFileDescriptor: CInt
 
   init() throws {
@@ -109,6 +109,7 @@ final class SingleInstanceLock {
   }
 }
 
+@MainActor
 final class HotkeyManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
@@ -214,17 +215,20 @@ func eventTapCallback(
 
   let hotkeyManager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
 
-  guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-    if let eventTap = hotkeyManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+  return MainActor.assumeIsolated {
+    guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
+      if let eventTap = hotkeyManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      return Unmanaged.passUnretained(event)
     }
 
-    return Unmanaged.passUnretained(event)
+    return hotkeyManager.handleKeyEvent(type: type, event: event)
   }
-
-  return hotkeyManager.handleKeyEvent(type: type, event: event)
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
   private var hotkeyManager: HotkeyManager?
@@ -251,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func observeSignals() {
     Task {
       for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        await NSApplication.shared.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -268,30 +272,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           continue
         }
 
-        await handleCommand(with: arguments)
+        handleCommand(with: arguments)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) async {
+  private func handleCommand(with arguments: [String]) {
     guard let command = arguments.first else {
       return
     }
 
     switch command {
-    case "quit": await NSApplication.shared.terminate(nil)
+    case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
   }
 }
 
 do {
-  let singleInstanceLock = try SingleInstanceLock()
-  let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-  let application = NSApplication.shared
-  application.delegate = delegate
-  application.setActivationPolicy(.prohibited)
-  application.run()
+  try MainActor.assumeIsolated {
+    let singleInstanceLock = try SingleInstanceLock()
+    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
+    let application = NSApplication.shared
+    application.delegate = delegate
+    application.setActivationPolicy(.prohibited)
+    application.run()
+  }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())

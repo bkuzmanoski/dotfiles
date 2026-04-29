@@ -57,7 +57,7 @@ final class SingleInstanceLock {
     }
   }
 
-  private let lockFilePath = NSTemporaryDirectory().appending(Constants.lockFileName)
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
   private var lockFileDescriptor: CInt
 
   init() throws {
@@ -272,6 +272,7 @@ final class SpaceSwitcher {
   }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
   private var spaceSwitcher: SpaceSwitcher?
@@ -298,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func observeSignals() {
     Task {
       for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        await NSApplication.shared.terminate(nil)
+        NSApplication.shared.terminate(nil)
       }
     }
   }
@@ -315,19 +316,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           continue
         }
 
-        await handleCommand(with: arguments)
+        handleCommand(with: arguments)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) async {
+  private func handleCommand(with arguments: [String]) {
     guard let command = arguments.first?.lowercased() else {
       return
     }
 
     switch command {
     case "quit":
-      await NSApplication.shared.terminate(nil)
+      NSApplication.shared.terminate(nil)
 
     case "left":
       spaceSwitcher?.switchSpace(direction: .left)
@@ -344,12 +345,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 do {
-  let singleInstanceLock = try SingleInstanceLock()
-  let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-  let application = NSApplication.shared
-  application.setActivationPolicy(.prohibited)
-  application.delegate = delegate
-  application.run()
+  try MainActor.assumeIsolated {
+    let singleInstanceLock = try SingleInstanceLock()
+    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
+    let application = NSApplication.shared
+    application.setActivationPolicy(.prohibited)
+    application.delegate = delegate
+    application.run()
+  }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = Array(CommandLine.arguments.dropFirst())
