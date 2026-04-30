@@ -1,11 +1,6 @@
 function cv() {
-  if ! command -v ffmpeg >/dev/null; then
-    print -u2 -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
-    return 1
-  fi
-
-  local usage_info=$(
-    cat <<-'EOF'
+  function print_usage() {
+    command cat <<-'EOF'
 			Usage:
 			  cv [options] <video>
 
@@ -18,7 +13,13 @@ function cv() {
 			  -o, --overwrite        Overwrite input file with compressed version
 			  -h, --help             Show this help message
 		EOF
-  )
+  }
+
+  if ! command -v ffmpeg >/dev/null; then
+    print -u2 -P "%Bffmpeg%b is not installed. Install with: brew install ffmpeg"
+    return 1
+  fi
+
   local preset="veryfast"
   local crf=23
   local fps=30
@@ -36,13 +37,13 @@ function cv() {
     {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid or incomplete options provided.\n"
-    print -u2 "${usage_info}"
+    print_usage >&2
 
     return 1
   fi
 
   if ((${#flag_help} > 0)); then
-    print -- "${usage_info}"
+    print_usage
     return 0
   fi
 

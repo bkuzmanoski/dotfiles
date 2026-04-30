@@ -1,11 +1,6 @@
 function cf() {
-  if ! command -v rg >/dev/null; then
-    print -u2 -P "%Brg%b is not installed. Install with: brew install ripgrep"
-    return 1
-  fi
-
-  local usage_info=$(
-    cat <<-'EOF'
+  function print_usage() {
+    command cat <<-'EOF'
 			Usage:
 			  cf [options] [rg options]
 
@@ -13,20 +8,25 @@ function cf() {
 			  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
 			  -h, --help    Show this help message
 		EOF
-  )
+  }
+
+  if ! command -v rg >/dev/null; then
+    print -u2 -P "%Brg%b is not installed. Install with: brew install ripgrep"
+    return 1
+  fi
 
   if ! zparseopts -D -E -K \
     {o,-output}:=output_file \
     {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid options provided.\n"
-    print -u2 "${usage_info}"
+    print_usage >&2
 
     return 1
   fi
 
   if [[ -n "${flag_help}" ]]; then
-    print -- "${usage_info}"
+    print_usage
     return 0
   fi
 
