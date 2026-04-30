@@ -403,25 +403,25 @@ defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.Fol
 defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
 
 apply_json "${HOME}/.lmstudio/settings.json" <<-'EOF'
-{
-	"chat": {
-		"useShiftEnterToSendMessage": true,
-		"doubleClickMessageToEdit": true,
-		"showTokenCountInChatListings": true
-	},
-	"developer": {
-		"showResourceConsumptionWidget": true,
-		"attemptedInstallLmsCliOnStartup": true
-	},
-	"developerMode": true,
-	"dismissedModals": [
-		"LM Link Sidebar Button Popover",
-		"Trash Deletion Onboarding"
-	],
-	"defaultContextLength": {
-		"type": "max"
+	{
+	  "chat": {
+	    "useShiftEnterToSendMessage": true,
+	    "doubleClickMessageToEdit": true,
+	    "showTokenCountInChatListings": true
+	  },
+	  "developer": {
+	    "showResourceConsumptionWidget": true,
+	    "attemptedInstallLmsCliOnStartup": true
+	  },
+	  "developerMode": true,
+	  "dismissedModals": [
+	    "LM Link Sidebar Button Popover",
+	    "Trash Deletion Onboarding"
+	  ],
+	  "defaultContextLength": {
+	    "type": "max"
+	  }
 	}
-}
 EOF
 
 # =============================================================================
