@@ -328,8 +328,8 @@ final class SpaceMonitor {
 struct SpaceIndicatorView: View {
   private enum IconMetrics {
     static let size: CGFloat = 17.0
-    static let paddingCropScale: CGFloat = 1.15
-    static let cornerRatio: CGFloat = 0.225
+    static let paddingCropScale: CGFloat = 32 / 28
+    static let cornerRatio: CGFloat = 7 / 28
     static let overlapGap: CGFloat = 1.0
     static let cutoutMaskSize: CGFloat = size + (overlapGap * 2)
     static let cutoutMaskCornerRadius: CGFloat = (cutoutMaskSize * cornerRatio) + (overlapGap / 2)
