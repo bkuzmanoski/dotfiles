@@ -105,8 +105,8 @@ function apply_json() {
 
   if [[ -s "${target_file}" ]]; then
     log --info "Applying JSON settings: ${target_file}"
-    
-    if jq --argjson desired "${json_content}" '. * $desired' "${target_file}" > "${target_file}.tmp" 2>/dev/null; then
+
+    if jq --argjson desired "${json_content}" '. * $desired' "${target_file}" >"${target_file}.tmp" 2>/dev/null; then
       mv -f "${target_file}.tmp" "${target_file}"
     else
       log --error "Failed to apply JSON, skipping: ${target_file}"
@@ -114,8 +114,8 @@ function apply_json() {
     fi
   else
     log --info "Writing JSON settings: ${target_file}"
-  	mkdir -p "$(dirname "${target_file}")"
-    print -r -- "${json_content}" > "${target_file}"
+    mkdir -p "$(dirname "${target_file}")"
+    print -r -- "${json_content}" >"${target_file}"
   fi
 }
 
@@ -161,6 +161,7 @@ typeset -A settings_paths=(
   ["fd"]="${HOME}/.config/fd"
   ["ghostty"]="${HOME}/.config/ghostty"
   ["hammerspoon"]="${HOME}/.hammerspoon"
+  ["http-prompt"]="${HOME}/.config/http-prompt"
   ["ripgrep"]="${HOME}/.config/ripgrep"
   ["zsh"]="${HOME}/.zsh"
   [".zprofile"]="${HOME}/.zprofile"
@@ -228,20 +229,20 @@ defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Us
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
 
 defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGesture -int 0 # Disable three-finger swipe gesture for switching between full-screen applications
-defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGesture -int 0 # Disable three-finger swipe gesture for Mission Control and App Exposé
+defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGesture -int 0  # Disable three-finger swipe gesture for Mission Control and App Exposé
 
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
 
 defaults_write --currentHost com.apple.controlcenter BatteryShowPercentage -bool true
 
 defaults_write com.apple.dock autohide-time-modifier -float 0.15 # Increase Dock show/hide animation speed
-defaults_write com.apple.dock mineffect -string "scale" # Set minimize/maximize window effect to "scale"
-defaults_write com.apple.dock mru-spaces -bool false # Disable automatic rearranging of Spaces based on most recent use
-defaults_write com.apple.dock persistent-apps -array # Clear default Dock items
+defaults_write com.apple.dock mineffect -string "scale"          # Set minimize/maximize window effect to "scale"
+defaults_write com.apple.dock mru-spaces -bool false             # Disable automatic rearranging of Spaces based on most recent use
+defaults_write com.apple.dock persistent-apps -array             # Clear default Dock items
 defaults_write com.apple.dock show-recents -bool false
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
-defaults_write com.apple.dock showhidden -bool true # Make hidden app icons translucent in Dock
-defaults_write com.apple.dock wvous-br-corner -int 1 # Disable bottom-right hot corner (default is Quick Note)
+defaults_write com.apple.dock showhidden -bool true                  # Make hidden app icons translucent in Dock
+defaults_write com.apple.dock wvous-br-corner -int 1                 # Disable bottom-right hot corner (default is Quick Note)
 add_app_to_dock "/System/Applications/Mail.app"
 add_app_to_dock "/Applications/Google Chrome.app"
 add_app_to_dock "/Applications/Figma.app"
@@ -251,10 +252,10 @@ add_app_to_dock "/Applications/Ghostty.app"
 defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true
 defaults_write com.apple.finder _FXSortFoldersFirst -bool true
 defaults_write com.apple.finder FK_AppCentricShowSidebar -bool false # Hide sidebar in open/save dialogs
-defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf" # Set default search scope to current folder
+defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf"  # Set default search scope to current folder
 defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false
 defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv" # Set default view to list view
-defaults_write com.apple.finder NewWindowTarget -string "PfHm" # Open new windows in Home folder
+defaults_write com.apple.finder NewWindowTarget -string "PfHm"      # Open new windows in Home folder
 defaults_write com.apple.finder NSUserKeyEquivalents -dict-add "Close All" "@q"
 defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false
@@ -264,7 +265,7 @@ defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false
 defaults_write com.apple.finder ShowSidebar -bool false
 defaults_write com.apple.finder ShowStatusBar -bool true
 defaults_write com.apple.finder WarnOnEmptyTrash -bool false
-plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifiers"' "${HOME}/Library/Preferences/com.apple.finder.plist" # Delete toolbar items key if set
+plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifiers"' "${HOME}/Library/Preferences/com.apple.finder.plist"    # Delete toolbar items key if set
 plistbuddy_execute 'Add :"NSToolbar Configuration Browser":"TB Item Identifiers" array' "${HOME}/Library/Preferences/com.apple.finder.plist" # Clear default toolbar items
 plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' "${HOME}/Library/Preferences/com.apple.finder.plist"
 
@@ -281,13 +282,13 @@ defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile
 defaults_write com.apple.TextEdit RichText -bool false
 defaults_write com.apple.TextInputMenu visible -bool false
 
-defaults_write com.apple.universalaccess closeViewPanningMode -int 1 # Set zoomed image to move when the pointer reaches edge
-defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true # Enable zoom with scroll wheel modifier (⌃)
-defaults_write com.apple.universalaccess closeViewSmoothImages -bool false # Disable smooth images when zooming
+defaults_write com.apple.universalaccess closeViewPanningMode -int 1                   # Set zoomed image to move when the pointer reaches edge
+defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true         # Enable zoom with scroll wheel modifier (⌃)
+defaults_write com.apple.universalaccess closeViewSmoothImages -bool false             # Disable smooth images when zooming
 defaults_write com.apple.universalaccess closeViewZoomScreenShareEnabledKey -bool true # Show zoomed image while screen sharing
 
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false
-defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
+defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false    # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
 
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill" # Set title bar double-click action to maximize window
@@ -300,8 +301,8 @@ defaults_write NSGlobalDomain AppleShowAllExtensions -bool true
 defaults_write NSGlobalDomain AppleShowAllFiles -bool true
 defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
 defaults_write NSGlobalDomain com.apple.trackpad.forceClick -bool false # Disable Dictionary lookup with force click on Trackpad
-defaults_write NSGlobalDomain InitialKeyRepeat -int 15 # Decrease delay before key starts repeating
-defaults_write NSGlobalDomain KeyRepeat -int 2 # Increase key repeat rate
+defaults_write NSGlobalDomain InitialKeyRepeat -int 15                  # Decrease delay before key starts repeating
+defaults_write NSGlobalDomain KeyRepeat -int 2                          # Increase key repeat rate
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false
@@ -315,12 +316,12 @@ defaults_write NSGlobalDomain NavPanelFileListModeForSaveMode -int 2 # Set save 
 defaults_write NSGlobalDomain NSNavPanelFileListModeForSaveMode2 -int 2
 defaults_write NSGlobalDomain NSNavPanelFileLastListModeForSaveModeKey -int 2
 defaults_write NSGlobalDomain NSInitialToolTipDelay -int 300
-set_system_hotkey 64 "false" 32 49 1048576 # Disable Show Spotlight search
-set_system_hotkey 65 "false" 32 49 1572864 # Disable Show Finder search window
-set_system_hotkey 28 "false" 51 20 1179648 # Disable Save picture of screen as a file
-set_system_hotkey 29 "false" 51 20 1441792 # Disable Copy picture of screen to the clipboard
-set_system_hotkey 30 "false" 52 21 1179648 # Disable Save picture of selected area as a file
-set_system_hotkey 31 "false" 52 21 1441792 # Disable Copy picture of selected area to the clipboard
+set_system_hotkey 64 "false" 32 49 1048576  # Disable Show Spotlight search
+set_system_hotkey 65 "false" 32 49 1572864  # Disable Show Finder search window
+set_system_hotkey 28 "false" 51 20 1179648  # Disable Save picture of screen as a file
+set_system_hotkey 29 "false" 51 20 1441792  # Disable Copy picture of screen to the clipboard
+set_system_hotkey 30 "false" 52 21 1179648  # Disable Save picture of selected area as a file
+set_system_hotkey 31 "false" 52 21 1441792  # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648 # Disable Screenshot and recording options
 
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
@@ -346,15 +347,15 @@ defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 defaults_write com.colliderli.iina themeMaterial -int 4
 
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i" # Map Developer Tools keyboard shortcut to ⇧⌘I
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000" # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab below" "@t" # Map New tab below keyboard shortcut to ⌘T
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i"    # Map Developer Tools keyboard shortcut to ⇧⌘I
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000"       # Remove keyboard shortcut for Email Link (conflicts with ⇧⌘I)
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab below" "@t"        # Map New tab below keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map New Tab to the Right keyboard shortcut to ⌘T
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000" # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f" # Map Search Tabs… keyboard shortcut to ⇧⌘F
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000"          # Remove keyboard shortcut for New Tab (conflicts with ⌘T)
+defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f"       # Map Search Tabs… keyboard shortcut to ⇧⌘F
 
 defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0
-defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2 # Set appearance to "Titles"
+defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2      # Set appearance to "Titles"
 defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1 # Set appearance visibility to "High"
 defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true
@@ -367,7 +368,7 @@ defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49" # Set 
 defaults_write com.superultra.Homerow auto-activate-mission-control -bool false
 defaults_write com.superultra.Homerow enableSoundEffects -bool false
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" # Set Clicking keyboard shortcut to ⌥⇧␣
-defaults_write com.superultra.Homerow scroll-shortcut -string "" # Disable Scrolling keyboard shortcut
+defaults_write com.superultra.Homerow scroll-shortcut -string ""            # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false
 
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false
