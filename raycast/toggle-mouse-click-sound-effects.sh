@@ -6,4 +6,4 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_command.sh MouseClickSoundEffects --background toggle
+${HOME}/.dotfiles/utils/run_util.sh --background MouseClickSoundEffects toggle

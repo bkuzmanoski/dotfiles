@@ -15,14 +15,14 @@ hs.window.animationDuration = 0
 
 utils.createSpaces(settings.numberOfSpaces)
 
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh FloatingMenuBar --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh FocusFollowsMouse --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh HideMenuBarItems --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh MouseClickSoundEffects --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh RightCommandHotkeys --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh ScrollToZoom --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh SpaceIndicator --background")
-hs.execute("${HOME}/.dotfiles/utils/run_command.sh SwitchToSpace --background")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FloatingMenuBar")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FocusFollowsMouse")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background HideMenuBarItems")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background MouseClickSoundEffects")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background RightCommandHotkeys")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background ScrollToZoom")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SwitchToSpace")
 
 hs.shutdownCallback = function()
   for _, module in pairs(modules) do

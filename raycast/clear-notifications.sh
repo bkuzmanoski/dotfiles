@@ -6,4 +6,4 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_command.sh ClearNotifications
+${HOME}/.dotfiles/utils/run_util.sh ClearNotifications

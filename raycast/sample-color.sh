@@ -7,4 +7,4 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_command.sh SampleColor "$@"
+${HOME}/.dotfiles/utils/run_util.sh SampleColor "$@"

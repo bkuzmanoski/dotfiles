@@ -6,4 +6,4 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_command.sh SendChromeTabs "bwilw@feedb.in" --active-only --close-sent
+${HOME}/.dotfiles/utils/run_util.sh SendChromeTabs "bwilw@feedb.in" --active-only --close-sent
