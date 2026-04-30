@@ -5,7 +5,7 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let hoverDelay: DispatchTimeInterval = .milliseconds(150)
+  static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let jitterThresholdSquared: CGFloat = 3 * 3
 }
 
