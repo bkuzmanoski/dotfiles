@@ -250,8 +250,8 @@ final class ClickMonitor {
     switch type {
     case .leftMouseDown: soundEffectManager.play(soundEffect: .leftMouseDown)
     case .leftMouseUp: soundEffectManager.play(soundEffect: .leftMouseUp)
-    case .rightMouseDown, .otherMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
-    case .rightMouseUp, .otherMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
+    case .otherMouseDown, .rightMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
+    case .otherMouseUp, .rightMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
     default: break
     }
   }
