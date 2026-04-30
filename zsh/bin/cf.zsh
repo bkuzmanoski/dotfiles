@@ -19,7 +19,7 @@ function cf() {
     {o,-output}:=output_file \
     {h,-help}=flag_help \
     2>/dev/null; then
-    print -u2 "Error: Invalid options provided.\n"
+    print -u2 "Error: Invalid option(s).\n"
     print_usage >&2
 
     return 1

@@ -36,7 +36,7 @@ function cv() {
     {o,-overwrite}=flag_overwrite \
     {h,-help}=flag_help \
     2>/dev/null; then
-    print -u2 "Error: Invalid or incomplete options provided.\n"
+    print -u2 "Error: Invalid or missing option(s).\n"
     print_usage >&2
 
     return 1
