@@ -212,11 +212,11 @@ struct Window: Hashable {
 
 final class SpaceMonitor {
   enum Error: Swift.Error, LocalizedError {
-    case eventNotificationRegistrationFailed(eventType: CGSEventType, code: CGError)
+    case failedToRegisterForEventNotifications(eventType: CGSEventType, code: CGError)
 
     var errorDescription: String? {
       switch self {
-      case .eventNotificationRegistrationFailed(let eventType, let code):
+      case .failedToRegisterForEventNotifications(let eventType, let code):
         "Failed to register for \(eventType) notifications (\(code))."
       }
     }
@@ -300,7 +300,7 @@ final class SpaceMonitor {
 
       guard result == .success else {
         stop()
-        throw Error.eventNotificationRegistrationFailed(eventType: eventType, code: result)
+        throw Error.failedToRegisterForEventNotifications(eventType: eventType, code: result)
       }
 
       self.observedEventTypes.append(eventType)
