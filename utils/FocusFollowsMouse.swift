@@ -354,7 +354,7 @@ final class FocusManager {
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var isTimerPending = false
+  private var isFocusPending = false
   private var activeFocusTask: Task<Void, Never>?
 
   init() throws {
@@ -435,8 +435,8 @@ final class FocusManager {
       self.lastMouseLocation = event.location
       self.lastMouseMoveTime = .now()
 
-      if !isTimerPending {
-        self.isTimerPending = true
+      if !isFocusPending {
+        self.isFocusPending = true
         debounceTimer.schedule(deadline: lastMouseMoveTime + Constants.hoverDelay)
       }
 
@@ -463,21 +463,21 @@ final class FocusManager {
   }
 
   private func handleTimerEvent() {
-    guard isEnabled, isTimerPending, !isCommandKeyPressed else {
+    guard isEnabled, isFocusPending, !isCommandKeyPressed else {
       return
     }
 
-    let targetTime = lastMouseMoveTime + Constants.hoverDelay
+    let focusDeadline = lastMouseMoveTime + Constants.hoverDelay
 
-    if DispatchTime.now() >= targetTime {
+    if DispatchTime.now() >= focusDeadline {
       activeFocusTask?.cancel()
 
-      self.isTimerPending = false
+      self.isFocusPending = false
       self.activeFocusTask = Task { [weak self, lastMouseLocation] in
         await self?.focusWindow(at: lastMouseLocation)
       }
     } else {
-      debounceTimer.schedule(deadline: targetTime)
+      debounceTimer.schedule(deadline: focusDeadline)
     }
   }
 
@@ -530,7 +530,7 @@ final class FocusManager {
   private func cancelPendingFocus() {
     activeFocusTask?.cancel()
 
-    self.isTimerPending = false
+    self.isFocusPending = false
     self.activeFocusTask = nil
   }
 }
