@@ -243,7 +243,7 @@ struct SkyLightProxy {
     @convention(c) (
       _ psn: UnsafeMutableRawPointer,
       _ wid: CGWindowID,
-      _ mode: UInt32
+      _ mode: CPSSetFrontProcessOptions.RawValue
     ) -> CGError
   private typealias SLPSPostEventRecordTo =
     @convention(c) (
