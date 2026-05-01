@@ -353,6 +353,7 @@ final class FocusManager {
   private var runLoopSource: CFRunLoopSource?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
+  private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
   private var isFocusPending = false
   private var activeFocusTask: Task<Void, Never>?
@@ -372,6 +373,7 @@ final class FocusManager {
         options: .listenOnly,
         eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue
           | 1 << CGEventType.leftMouseDown.rawValue
+          | 1 << CGEventType.leftMouseUp.rawValue
           | 1 << CGEventType.otherMouseDown.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.flagsChanged.rawValue,
@@ -421,7 +423,7 @@ final class FocusManager {
   func handleEvent(_ event: CGEvent) -> Bool {
     switch event.type {
     case .mouseMoved:
-      guard isEnabled, !isCommandKeyPressed else {
+      guard isEnabled, !isLeftMouseDown, !isCommandKeyPressed else {
         break
       }
 
@@ -441,7 +443,14 @@ final class FocusManager {
       }
 
     case .leftMouseDown, .otherMouseDown, .rightMouseDown:
+      if event.type == .leftMouseDown {
+        self.isLeftMouseDown = true
+      }
+
       cancelPendingFocus()
+
+    case .leftMouseUp:
+      self.isLeftMouseDown = false
 
     case .flagsChanged:
       self.isCommandKeyPressed = event.flags.contains(.maskCommand)
