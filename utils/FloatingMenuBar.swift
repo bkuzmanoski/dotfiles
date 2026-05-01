@@ -26,7 +26,9 @@ enum ProcessSignals {
     }
 
     continuation.onTermination = { _ in
-      sources.forEach { $0.cancel() }
+      sources.forEach { source in
+        source.cancel()
+      }
     }
 
     return stream
