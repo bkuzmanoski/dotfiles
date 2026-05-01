@@ -5,7 +5,7 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
+  static let hoverDelay: DispatchTimeInterval = .milliseconds(150)
   static let jitterThresholdSquared: CGFloat = 3 * 3
 }
 
@@ -26,7 +26,9 @@ enum ProcessSignals {
     }
 
     continuation.onTermination = { _ in
-      sources.forEach { $0.cancel() }
+      sources.forEach { source in
+        source.cancel()
+      }
     }
 
     return stream
@@ -111,26 +113,9 @@ func _AXUIElementGetWindow(_ element: AXUIElement, _ wid: UnsafeMutablePointer<C
 extension AXUIElement {
   static var systemWide: AXUIElement { AXUIElementCreateSystemWide() }
 
-  var pid: pid_t? {
-    var pid: pid_t = 0
-    return AXUIElementGetPid(self, &pid) == .success ? pid : nil
-  }
-
   var windowID: CGWindowID? {
     var windowID: CGWindowID = kCGNullWindowID
     return _AXUIElementGetWindow(self, &windowID) == .success ? windowID : nil
-  }
-
-  static func element(at point: CGPoint) -> AXUIElement? {
-    var element: AXUIElement?
-    return AXUIElementCopyElementAtPosition(
-      AXUIElement.systemWide,
-      Float(point.x),
-      Float(point.y),
-      &element
-    ) == .success
-      ? element
-      : nil
   }
 
   func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) -> T? {
@@ -141,7 +126,13 @@ extension AXUIElement {
   }
 }
 
-let kCPSUserGenerated: UInt32 = 0x200
+struct CPSSetFrontProcessOptions: OptionSet {
+  let rawValue: UInt32
+
+  static let allWindows = CPSSetFrontProcessOptions(rawValue: 0x100)
+  static let userGenerated = CPSSetFrontProcessOptions(rawValue: 0x200)
+  static let noWindows = CPSSetFrontProcessOptions(rawValue: 0x400)
+}
 
 struct SLPSEventRecord {
   private static let size = 0xf8
@@ -234,44 +225,113 @@ struct SkyLightProxy {
     }
   }
 
-  private typealias SLPSPostEventRecordTo = @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer) -> CGError
+  private typealias SLSConnectionID = UInt32
+  private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
+  private typealias SLSFindWindowByGeometry =
+    @convention(c) (
+      _ cid: SLSConnectionID,
+      _ filterWindowID: CGWindowID,
+      _ flags: Int32,
+      _ reserved: Int32,
+      _ screenPoint: UnsafePointer<CGPoint>,
+      _ outWindowPoint: UnsafeMutablePointer<CGPoint>,
+      _ outWindowID: UnsafeMutablePointer<CGWindowID>,
+      _ outWindowCID: UnsafeMutablePointer<SLSConnectionID>
+    ) -> CGError
+  private typealias _SLPSGetFrontProcess = @convention(c) (_ psn: UnsafeMutableRawPointer) -> CGError
   private typealias _SLPSSetFrontProcessWithOptions =
     @convention(c) (
-      UnsafeMutableRawPointer,
-      CGWindowID,
-      UInt32
+      _ psn: UnsafeMutableRawPointer,
+      _ wid: CGWindowID,
+      _ mode: UInt32
+    ) -> CGError
+  private typealias SLPSPostEventRecordTo =
+    @convention(c) (
+      _ psn: UnsafeMutableRawPointer,
+      _ bytes: UnsafeMutablePointer<UInt8>
     ) -> CGError
 
-  private let slpsPostEventRecordTo: SLPSPostEventRecordTo
+  private let slsMainConnectionID: SLSMainConnectionID
+  private let slsFindWindowByGeometry: SLSFindWindowByGeometry
+  private let _slpsGetFrontProcess: _SLPSGetFrontProcess
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
+  private let slpsPostEventRecordTo: SLPSPostEventRecordTo
+
+  private let mainConnectionID: SLSConnectionID
 
   init() throws {
     guard let skyLightHandle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_NOW) else {
       throw Error.frameworkNotFound
     }
 
-    guard let slpsPostEventRecordToSymbol = dlsym(skyLightHandle, "SLPSPostEventRecordTo") else {
-      throw Error.symbolNotFound("SLPSPostEventRecordTo")
+    guard let slsMainConnectionIDSymbol = dlsym(skyLightHandle, "SLSMainConnectionID") else {
+      throw Error.symbolNotFound("SLSMainConnectionID")
+    }
+
+    guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
+      throw Error.symbolNotFound("SLSFindWindowByGeometry")
+    }
+
+    guard let _slpsGetFrontProcessSymbol = dlsym(skyLightHandle, "_SLPSGetFrontProcess") else {
+      throw Error.symbolNotFound("_SLPSGetFrontProcess")
     }
 
     guard let _slpsSetFrontProcessWithOptionsSymbol = dlsym(skyLightHandle, "_SLPSSetFrontProcessWithOptions") else {
       throw Error.symbolNotFound("_SLPSSetFrontProcessWithOptions")
     }
 
-    self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
+    guard let slpsPostEventRecordToSymbol = dlsym(skyLightHandle, "SLPSPostEventRecordTo") else {
+      throw Error.symbolNotFound("SLPSPostEventRecordTo")
+    }
+
+    self.slsMainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)
+    self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
+    self._slpsGetFrontProcess = unsafeBitCast(_slpsGetFrontProcessSymbol, to: _SLPSGetFrontProcess.self)
     self._slpsSetFrontProcessWithOptions = unsafeBitCast(
       _slpsSetFrontProcessWithOptionsSymbol,
       to: _SLPSSetFrontProcessWithOptions.self
     )
+    self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
+
+    self.mainConnectionID = slsMainConnectionID()
+  }
+
+  func findWindow(at point: CGPoint) -> CGWindowID? {
+    var screenPoint = point
+    var windowPoint = CGPoint.zero
+    var windowID: CGWindowID = 0
+    var windowCID: SLSConnectionID = 0
+
+    return
+      slsFindWindowByGeometry(mainConnectionID, 0, 1, 0, &screenPoint, &windowPoint, &windowID, &windowCID) == .success
+      && windowID != 0
+      ? windowID
+      : nil
+  }
+
+  func getFrontProcess() -> ProcessSerialNumber? {
+    var processSerialNumber = ProcessSerialNumber()
+    return _slpsGetFrontProcess(&processSerialNumber) == .success ? processSerialNumber : nil
   }
 
   @discardableResult
-  func postEventRecordTo(_ psn: inout ProcessSerialNumber, _ record: inout SLPSEventRecord) -> CGError {
-    return record.bytes.withUnsafeMutableBufferPointer { slpsPostEventRecordTo(&psn, $0.baseAddress!) }
+  func setFrontProcess(
+    _ processSerialNumber: ProcessSerialNumber,
+    windowID: CGWindowID,
+    options: CPSSetFrontProcessOptions
+  ) -> Bool {
+    var processSerialNumber = processSerialNumber
+    return _slpsSetFrontProcessWithOptions(&processSerialNumber, windowID, options.rawValue) == .success
   }
 
-  func setFrontProcessWithOptions(_ psn: inout ProcessSerialNumber, _ wid: CGWindowID, _ mode: UInt32) -> CGError {
-    return _slpsSetFrontProcessWithOptions(&psn, wid, mode)
+  @discardableResult
+  func postEvent(_ eventRecord: SLPSEventRecord, to processSerialNumber: ProcessSerialNumber) -> Bool {
+    var eventRecord = eventRecord
+    var processSerialNumber = processSerialNumber
+
+    return eventRecord.bytes.withUnsafeMutableBufferPointer { buffer in
+      slpsPostEventRecordTo(&processSerialNumber, buffer.baseAddress!) == .success
+    }
   }
 }
 
@@ -289,22 +349,6 @@ final class FocusManager {
     }
   }
 
-  private static nonisolated let ignoredRoles: Set<String> = [
-    kAXMenuBarRole,
-    kAXMenuBarItemRole,
-    kAXMenuRole,
-    kAXMenuItemRole,
-    kAXPopoverRole,
-    kAXHelpTagRole,
-    kAXDockItemRole
-  ]
-
-  private static nonisolated let ignoredSubroles: Set<String> = [
-    kAXFloatingWindowSubrole,
-    kAXSystemFloatingWindowSubrole,
-    kAXUnknownSubrole
-  ]
-
   private(set) var eventTap: CFMachPort?
   private(set) var isEnabled = true
 
@@ -313,6 +357,7 @@ final class FocusManager {
   private var runLoopSource: CFRunLoopSource?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
+  private var isCommandKeyPressed = false
   private var isTimerPending = false
   private var activeFocusTask: Task<Void, Never>?
 
@@ -332,7 +377,8 @@ final class FocusManager {
         eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue
           | 1 << CGEventType.leftMouseDown.rawValue
           | 1 << CGEventType.otherMouseDown.rawValue
-          | 1 << CGEventType.rightMouseDown.rawValue,
+          | 1 << CGEventType.rightMouseDown.rawValue
+          | 1 << CGEventType.flagsChanged.rawValue,
         callback: eventTapCallback,
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
@@ -376,45 +422,61 @@ final class FocusManager {
     CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
   }
 
-  func handleMouseMoved(to point: CGPoint) {
-    guard isEnabled else {
-      return
+  func handleEvent(_ event: CGEvent) -> Bool {
+    switch event.type {
+    case .mouseMoved:
+      guard isEnabled, !isCommandKeyPressed else {
+        break
+      }
+
+      let deltaX = event.location.x - lastMouseLocation.x
+      let deltaY = event.location.y - lastMouseLocation.y
+
+      guard (deltaX * deltaX) + (deltaY * deltaY) > Constants.jitterThresholdSquared else {
+        break
+      }
+
+      self.lastMouseLocation = event.location
+      self.lastMouseMoveTime = .now()
+
+      if !isTimerPending {
+        self.isTimerPending = true
+        debounceTimer.schedule(deadline: lastMouseMoveTime + Constants.hoverDelay)
+      }
+
+    case .leftMouseDown, .otherMouseDown, .rightMouseDown:
+      cancelPendingFocus()
+
+    case .flagsChanged:
+      self.isCommandKeyPressed = event.flags.contains(.maskCommand)
+
+      if isCommandKeyPressed {
+        cancelPendingFocus()
+      }
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if isEnabled, let eventTap = eventTap {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+    default:
+      break
     }
 
-    let deltaX = point.x - lastMouseLocation.x
-    let deltaY = point.y - lastMouseLocation.y
-
-    guard (deltaX * deltaX) + (deltaY * deltaY) > Constants.jitterThresholdSquared else {
-      return
-    }
-
-    self.lastMouseLocation = point
-    self.lastMouseMoveTime = .now()
-
-    if !isTimerPending {
-      self.isTimerPending = true
-      debounceTimer.schedule(deadline: lastMouseMoveTime + Constants.hoverDelay)
-    }
-  }
-
-  func cancelPendingFocus() {
-    activeFocusTask?.cancel()
-
-    self.isTimerPending = false
-    self.activeFocusTask = nil
+    return false
   }
 
   private func handleTimerEvent() {
-    guard isEnabled, isTimerPending else {
+    guard isEnabled, isTimerPending, !isCommandKeyPressed else {
       return
     }
 
     let targetTime = lastMouseMoveTime + Constants.hoverDelay
 
     if DispatchTime.now() >= targetTime {
-      self.isTimerPending = false
-
       activeFocusTask?.cancel()
+
+      self.isTimerPending = false
       self.activeFocusTask = Task { [weak self, lastMouseLocation] in
         await self?.focusWindow(at: lastMouseLocation)
       }
@@ -423,86 +485,57 @@ final class FocusManager {
     }
   }
 
-  private nonisolated func focusWindow(at point: CGPoint) async {
-    guard let hoveredElement = AXUIElement.element(at: point), !isIgnored(hoveredElement) else {
-      return
-    }
-
-    let targetWindow = hoveredElement.value(for: .window) ?? hoveredElement
-
+  @concurrent
+  private func focusWindow(at point: CGPoint) async {
     guard
-      !isIgnored(targetWindow),
-      let targetWindowID = targetWindow.windowID,
-      let targetWindowPID = targetWindow.pid
+      let targetWindowID = skyLightProxy.findWindow(at: point),
+      let windowsInfo = CGWindowListCopyWindowInfo([.optionIncludingWindow], targetWindowID) as? [[String: Any]],
+      let windowInfo = windowsInfo.first,
+      let targetPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+      windowInfo[kCGWindowLayer as String] as? Int32 == kCGNormalWindowLevel,
+      !Task.isCancelled
     else {
       return
     }
 
-    let focusedElement = AXUIElement.systemWide.value(for: .focusedUIElement, as: AXUIElement.self)
-    let focusedWindow = focusedElement?.value(for: .window) ?? focusedElement
+    var targetPSN = ProcessSerialNumber()
+    var isSameProcess: DarwinBoolean = false
 
-    if let focusedWindowID = focusedWindow?.windowID, targetWindowID == focusedWindowID {
-      return
-    }
+    if GetProcessForPID(targetPID, &targetPSN) == noErr,
+      var focusedPSN = skyLightProxy.getFrontProcess(),
+      SameProcess(&targetPSN, &focusedPSN, &isSameProcess) == noErr,
+      isSameProcess.boolValue,
+      let focusedWindowID = AXUIElementCreateApplication(targetPID)
+        .value(for: .focusedWindow, as: AXUIElement.self)?
+        .windowID
+    {
+      guard focusedWindowID != targetWindowID, !Task.isCancelled else {
+        return
+      }
 
-    var windowPSN = ProcessSerialNumber()
-
-    guard GetProcessForPID(targetWindowPID, &windowPSN) == noErr else {
-      return
-    }
-
-    if let focusedWindowID = focusedWindow?.windowID, let focusedWindowPID = focusedWindow?.pid {
-      var focusedWindowPSN = ProcessSerialNumber()
-
-      if GetProcessForPID(focusedWindowPID, &focusedWindowPSN) == noErr {
-        var isSameProcess: DarwinBoolean = false
-
-        if SameProcess(&windowPSN, &focusedWindowPSN, &isSameProcess) == noErr, isSameProcess.boolValue {
-          var resignKeyEvent = SLPSEventRecord.focusTransition(windowID: focusedWindowID, type: .resignKey)
-
-          if skyLightProxy.postEventRecordTo(&focusedWindowPSN, &resignKeyEvent) == .success {
-            try? await Task.sleep(for: .milliseconds(10))
-
-            guard !Task.isCancelled else {
-              return
-            }
-
-            var becomeKeyEvent = SLPSEventRecord.focusTransition(windowID: targetWindowID, type: .becomeKey)
-
-            skyLightProxy.postEventRecordTo(&windowPSN, &becomeKeyEvent)
-          }
-        }
+      if skyLightProxy.postEvent(.focusTransition(windowID: focusedWindowID, type: .resignKey), to: focusedPSN),
+        (try? await Task.sleep(for: .milliseconds(50))) != nil
+      {
+        skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
       }
     }
 
     guard
       !Task.isCancelled,
-      skyLightProxy.setFrontProcessWithOptions(&windowPSN, targetWindowID, kCPSUserGenerated) == .success
+      skyLightProxy.setFrontProcess(targetPSN, windowID: targetWindowID, options: .userGenerated),
+      skyLightProxy.postEvent(.simulatedClick(windowID: targetWindowID, type: .leftMouseDown), to: targetPSN)
     else {
       return
     }
 
-    var leftMouseDownEvent = SLPSEventRecord.simulatedClick(windowID: targetWindowID, type: .leftMouseDown)
-
-    guard skyLightProxy.postEventRecordTo(&windowPSN, &leftMouseDownEvent) == .success else {
-      return
-    }
-
-    var leftMouseUpEvent = SLPSEventRecord.simulatedClick(windowID: targetWindowID, type: .leftMouseUp)
-
-    skyLightProxy.postEventRecordTo(&windowPSN, &leftMouseUpEvent)
+    skyLightProxy.postEvent(.simulatedClick(windowID: targetWindowID, type: .leftMouseUp), to: targetPSN)
   }
 
-  private nonisolated func isIgnored(_ element: AXUIElement) -> Bool {
-    if let role = element.value(for: .role, as: String.self), Self.ignoredRoles.contains(role) {
-      return true
-    }
+  private func cancelPendingFocus() {
+    activeFocusTask?.cancel()
 
-    if let subrole = element.value(for: .subrole, as: String.self), Self.ignoredSubroles.contains(subrole) {
-      return true
-    }
-
-    return false
+    self.isTimerPending = false
+    self.activeFocusTask = nil
   }
 }
 
@@ -512,30 +545,10 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else {
-    return Unmanaged.passUnretained(event)
-  }
-
-  let focusManager = Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue()
-
   return MainActor.assumeIsolated {
-    switch type {
-    case .mouseMoved:
-      focusManager.handleMouseMoved(to: event.location)
-
-    case .leftMouseDown, .otherMouseDown, .rightMouseDown:
-      focusManager.cancelPendingFocus()
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if focusManager.isEnabled, let eventTap = focusManager.eventTap {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-    default:
-      break
-    }
-
-    return Unmanaged.passUnretained(event)
+    refcon.map { Unmanaged<FocusManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+      ? nil
+      : Unmanaged.passUnretained(event)
   }
 }
 
