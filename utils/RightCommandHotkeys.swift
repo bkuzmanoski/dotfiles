@@ -164,18 +164,27 @@ final class HotkeyManager {
     }
   }
 
-  func handleKeyEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+  func handleEvent(_ event: CGEvent) -> Bool {
+    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
+      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      return false
+    }
+
     let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-    let isKeyDown = type == .keyDown
+    let isKeyDown = event.type == .keyDown
 
     if !isKeyDown, let mappedCode = activeHotkeys[keyCode] {
       activeHotkeys[keyCode] = nil
       postKeyEvent(keyCode: mappedCode, isKeyDown: false, originalEvent: event)
-      return nil
+
+      return true
     }
 
     guard event.flags.rawValue & Constants.rightCommandDeviceBit != 0, let mappedCode = Constants.keymap[keyCode] else {
-      return Unmanaged.passUnretained(event)
+      return false
     }
 
     if isKeyDown {
@@ -183,7 +192,7 @@ final class HotkeyManager {
       postKeyEvent(keyCode: mappedCode, isKeyDown: true, originalEvent: event)
     }
 
-    return nil
+    return true
   }
 
   private func postKeyEvent(keyCode: CGKeyCode, isKeyDown: Bool, originalEvent: CGEvent) {
@@ -192,6 +201,7 @@ final class HotkeyManager {
     }
 
     var newFlags = originalEvent.flags.rawValue
+
     newFlags &= ~Constants.rightCommandDeviceBit
 
     if originalEvent.flags.rawValue & Constants.leftCommandDeviceBit == 0 {
@@ -209,22 +219,10 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else {
-    return Unmanaged.passUnretained(event)
-  }
-
-  let hotkeyManager = Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue()
-
   return MainActor.assumeIsolated {
-    guard type != .tapDisabledByTimeout, type != .tapDisabledByUserInput else {
-      if let eventTap = hotkeyManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-      return Unmanaged.passUnretained(event)
-    }
-
-    return hotkeyManager.handleKeyEvent(type: type, event: event)
+    refcon.map { Unmanaged<HotkeyManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+      ? nil
+      : Unmanaged.passUnretained(event)
   }
 }
 

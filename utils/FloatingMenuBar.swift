@@ -173,6 +173,7 @@ extension NSFont {
   }
 }
 
+@MainActor
 final class AppMenu {
   private struct MenuItemData {
     let title: String
@@ -426,6 +427,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  func handleEvent(ofType type: CGEventType) -> Bool {
+    switch type {
+    case .rightMouseDown:
+      if CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) {
+        try? AppMenu.popUp(at: NSEvent.mouseLocation)
+        return true
+      }
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+    default:
+      break
+    }
+
+    return false
+  }
+
   private func observeCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
@@ -462,23 +483,9 @@ func eventTapCallback(
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
   return MainActor.assumeIsolated {
-    switch type {
-    case .rightMouseDown:
-      if CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) {
-        try? AppMenu.popUp(at: NSEvent.mouseLocation)
-        return nil
-      }
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if let refcon, let eventTap = Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().eventTap {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-    default:
-      break
-    }
-
-    return Unmanaged.passUnretained(event)
+    refcon.map { Unmanaged<AppDelegate>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
+      ? nil
+      : Unmanaged.passUnretained(event)
   }
 }
 

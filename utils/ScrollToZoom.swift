@@ -166,29 +166,43 @@ final class ZoomManager {
     }
   }
 
-  func beginZoomingIfNeeded() {
-    if !isZooming {
-      self.isZooming = true
-      postZoomEvent(phase: .began, magnification: 0)
-    }
-  }
+  func handleEvent(_ event: CGEvent) -> Bool {
+    switch event.type {
+    case .scrollWheel where event.flags.contains(Constants.hotkey):
+      if !isZooming {
+        self.isZooming = true
+        postZoomEvent(phase: .began, magnification: 0)
+      }
 
-  func handleScrollEvent(delta: Double) {
-    let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
-    let magnification = delta * directionMultiplier * Constants.zoomSensitivity
+      let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
 
-    postZoomEvent(phase: .changed, magnification: magnification)
-  }
+      if scrollDelta != 0 {
+        let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
+        let magnification = scrollDelta * directionMultiplier * Constants.zoomSensitivity
 
-  func endZoomingIfNeeded() -> Bool {
-    guard isZooming else {
+        postZoomEvent(phase: .changed, magnification: magnification)
+      }
+
+      return true
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
       return false
+
+    default:
+      guard isZooming else {
+        return false
+      }
+
+      postZoomEvent(phase: .ended, magnification: 0)
+
+      self.isZooming = false
+
+      return true
     }
-
-    postZoomEvent(phase: .ended, magnification: 0)
-    self.isZooming = false
-
-    return true
   }
 
   private func postZoomEvent(phase: CGSGesturePhase, magnification: Double) {
@@ -210,37 +224,10 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else {
-    return Unmanaged.passUnretained(event)
-  }
-
-  let zoomManager = Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue()
-
   return MainActor.assumeIsolated {
-    switch type {
-    case .scrollWheel where event.flags.contains(Constants.hotkey):
-      zoomManager.beginZoomingIfNeeded()
-
-      let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-      if scrollDelta != 0 {
-        zoomManager.handleScrollEvent(delta: scrollDelta)
-      }
-
-      return nil
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if let eventTap = zoomManager.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-    default:
-      if zoomManager.endZoomingIfNeeded() {
-        return nil
-      }
-    }
-
-    return Unmanaged.passUnretained(event)
+    refcon.map { Unmanaged<ZoomManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+      ? nil
+      : Unmanaged.passUnretained(event)
   }
 }
 

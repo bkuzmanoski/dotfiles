@@ -246,14 +246,30 @@ final class ClickMonitor {
     }
   }
 
-  func handleEvent(type: CGEventType) {
+  func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
-    case .leftMouseDown: soundEffectManager.play(soundEffect: .leftMouseDown)
-    case .leftMouseUp: soundEffectManager.play(soundEffect: .leftMouseUp)
-    case .otherMouseDown, .rightMouseDown: soundEffectManager.play(soundEffect: .rightMouseDown)
-    case .otherMouseUp, .rightMouseUp: soundEffectManager.play(soundEffect: .rightMouseUp)
-    default: break
+    case .leftMouseDown:
+      soundEffectManager.play(soundEffect: .leftMouseDown)
+
+    case .leftMouseUp:
+      soundEffectManager.play(soundEffect: .leftMouseUp)
+
+    case .otherMouseDown, .rightMouseDown:
+      soundEffectManager.play(soundEffect: .rightMouseDown)
+
+    case .otherMouseUp, .rightMouseUp:
+      soundEffectManager.play(soundEffect: .rightMouseUp)
+
+    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+    default:
+      break
     }
+
+    return false
   }
 }
 
@@ -263,22 +279,10 @@ func eventTapCallback(
   event: CGEvent,
   refcon: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-  guard let refcon else {
-    return Unmanaged.passUnretained(event)
-  }
-
-  let clickMonitor = Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue()
-
   return MainActor.assumeIsolated {
-    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-      if let eventTap = clickMonitor.eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-    } else {
-      clickMonitor.handleEvent(type: type)
-    }
-
-    return Unmanaged.passUnretained(event)
+    refcon.map { Unmanaged<ClickMonitor>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
+      ? nil
+      : Unmanaged.passUnretained(event)
   }
 }
 
