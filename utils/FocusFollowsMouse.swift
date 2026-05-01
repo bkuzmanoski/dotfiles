@@ -251,13 +251,11 @@ struct SkyLightProxy {
       _ bytes: UnsafeMutablePointer<UInt8>
     ) -> CGError
 
-  private let slsMainConnectionID: SLSMainConnectionID
+  private let mainConnectionID: SLSConnectionID
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
   private let slpsPostEventRecordTo: SLPSPostEventRecordTo
-
-  private let mainConnectionID: SLSConnectionID
 
   init() throws {
     guard let skyLightHandle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_NOW) else {
@@ -284,7 +282,7 @@ struct SkyLightProxy {
       throw Error.symbolNotFound("SLPSPostEventRecordTo")
     }
 
-    self.slsMainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)
+    self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
     self._slpsGetFrontProcess = unsafeBitCast(_slpsGetFrontProcessSymbol, to: _SLPSGetFrontProcess.self)
     self._slpsSetFrontProcessWithOptions = unsafeBitCast(
@@ -292,8 +290,6 @@ struct SkyLightProxy {
       to: _SLPSSetFrontProcessWithOptions.self
     )
     self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
-
-    self.mainConnectionID = slsMainConnectionID()
   }
 
   func findWindow(at point: CGPoint) -> CGWindowID? {
