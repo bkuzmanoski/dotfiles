@@ -113,8 +113,6 @@ func CGSRegisterNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData
 @discardableResult
 func CGSRemoveNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData: UnsafeMutableRawPointer?) -> CGError
 
-let kCGSAllSpacesMask: CInt = 7
-
 enum CGSEventType: UInt32, CaseIterable {
   case packagesStatusBarSpaceChanged = 1308
   case spaceWindowCreated = 1325
@@ -122,6 +120,20 @@ enum CGSEventType: UInt32, CaseIterable {
   case spaceCreated = 1327
   case spaceDestroyed = 1328
   case spaceCurrentChanged = 1329
+}
+
+struct CGSSpaceMask: OptionSet {
+  let rawValue: CInt
+
+  static let includesCurrent = CGSSpaceMask(rawValue: 1 << 0)
+  static let includesOthers = CGSSpaceMask(rawValue: 1 << 1)
+  static let includesUser = CGSSpaceMask(rawValue: 1 << 2)
+  static let visible = CGSSpaceMask(rawValue: 1 << 16)
+
+  static let currentSpace: CGSSpaceMask = [.includesUser, .includesCurrent]
+  static let otherSpaces: CGSSpaceMask = [.includesOthers, .includesCurrent]
+  static let allSpaces: CGSSpaceMask = [.includesUser, .includesOthers, .includesCurrent]
+  static let allVisibleSpaces: CGSSpaceMask = [.visible, .allSpaces]
 }
 
 typealias DisplayIdentifier = String
@@ -464,7 +476,7 @@ struct SpaceIndicatorView: View {
         let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
         let spacesForWindow = CGSCopySpacesForWindows(
           cgsConnectionID,
-          kCGSAllSpacesMask,
+          CGSSpaceMask.allSpaces.rawValue,
           [windowID] as CFArray
         )?.takeRetainedValue() as? [NSNumber],
         spacesForWindow.count == 1,
