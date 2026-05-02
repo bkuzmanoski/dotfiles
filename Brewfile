@@ -29,6 +29,7 @@ brew "watchexec"
 brew "websocat"
 brew "xcbeautify"
 brew "xcode-build-server"
+brew "xcodegen"
 brew "zoxide"
 
 cask "1password-cli"
