@@ -1,7 +1,7 @@
 import AppKit
 
 enum Constants {
-  static let subsystem = "industries.britown.MenuBarItemHider"
+  static let subsystem = "industries.britown.HideMenuBarItems"
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
