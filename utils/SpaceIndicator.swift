@@ -297,7 +297,7 @@ final class SpaceMonitor {
         continuation.yield(.activeScreenChanged)
 
       case .spaceCurrentChanged:
-        guard let data, data.count >= 8 else {
+        guard let data, data.count >= 9 else {
           return
         }
 
