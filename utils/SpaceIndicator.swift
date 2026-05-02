@@ -230,13 +230,13 @@ final class SpaceMonitor {
     case windowRemoved(windowID: WindowID, spaceID: SpaceID)
   }
 
-  private static let cgsNotifyProc: CGSNotifyProcPtr = { eventType, data, dataLength, userData in
+  private let cgsNotifyProc: CGSNotifyProcPtr = { eventType, data, dataLength, userData in
     guard let event = CGSEventType(rawValue: eventType), let userData else {
       return
     }
 
     Unmanaged<SpaceMonitor>.fromOpaque(userData).takeUnretainedValue().handleEvent(
-      event: event,
+      event,
       data: data,
       dataLength: dataLength
     )
@@ -248,7 +248,7 @@ final class SpaceMonitor {
   init() throws {
     for eventType in CGSEventType.allCases {
       let error = CGSRegisterNotifyProc(
-        Self.cgsNotifyProc,
+        cgsNotifyProc,
         eventType.rawValue,
         Unmanaged.passUnretained(self).toOpaque()
       )
@@ -277,7 +277,7 @@ final class SpaceMonitor {
     return stream
   }
 
-  private func handleEvent(event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
+  private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
     guard let continuation else {
       return
     }
@@ -331,7 +331,7 @@ final class SpaceMonitor {
 
   private func unregisterNotifyProc() {
     for eventType in observedEventTypes {
-      CGSRemoveNotifyProc(Self.cgsNotifyProc, eventType.rawValue, Unmanaged.passUnretained(self).toOpaque())
+      CGSRemoveNotifyProc(cgsNotifyProc, eventType.rawValue, Unmanaged.passUnretained(self).toOpaque())
     }
 
     self.observedEventTypes.removeAll()
