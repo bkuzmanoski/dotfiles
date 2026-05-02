@@ -110,13 +110,8 @@ func SameProcess(
 @_silgen_name("_AXUIElementGetWindow")
 func _AXUIElementGetWindow(_ element: AXUIElement, _ wid: UnsafeMutablePointer<CGWindowID>) -> AXError
 
-let kAXExposeShowAllWindows = "AXExposeShowAllWindows"
-let kAXExposeShowFrontWindows = "AXExposeShowFrontWindows"
-let kAXExposeShowDesktop = "AXExposeShowDesktop"
-let kAXExposeExit = "AXExposeExit"
-
 extension AXUIElement {
-  static var systemWide: AXUIElement { AXUIElementCreateSystemWide() }
+  static let systemWideElement = AXUIElementCreateSystemWide()
 
   var windowID: CGWindowID? {
     var windowID: CGWindowID = kCGNullWindowID
@@ -129,6 +124,13 @@ extension AXUIElement {
       ? rawValue as? T
       : nil
   }
+}
+
+extension NSAccessibility.Notification {
+  static let exposeShowAllWindows = Self(rawValue: "AXExposeShowAllWindows")
+  static let exposeShowFrontWindows = Self(rawValue: "AXExposeShowFrontWindows")
+  static let exposeShowDesktop = Self(rawValue: "AXExposeShowDesktop")
+  static let exposeExit = Self(rawValue: "AXExposeExit")
 }
 
 struct CPSSetFrontProcessOptions: OptionSet {
@@ -341,7 +343,7 @@ final class MissionControlMonitor {
     case accessibilityPermissionDenied
     case failedToFindDockProcess
     case failedToCreateObserver
-    case failedToAddNotification(notification: String, code: AXError)
+    case failedToAddNotification(notification: NSAccessibility.Notification, code: AXError)
 
     var errorDescription: String? {
       switch self {
@@ -367,7 +369,7 @@ final class MissionControlMonitor {
 
   private var dockElement: AXUIElement?
   private var axObserver: AXObserver?
-  private var observedNotifications = Set<String>()
+  private var observedNotifications = Set<NSAccessibility.Notification>()
   private var runLoopSource: CFRunLoopSource?
   private var dockRestartObservationTask: Task<Void, Never>?
   private var continuation: AsyncStream<Event>.Continuation?
@@ -426,7 +428,7 @@ final class MissionControlMonitor {
       }
 
       Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleAXNotification(
-        notification as String
+        NSAccessibility.Notification(rawValue: notification as String)
       )
     }
 
@@ -438,7 +440,12 @@ final class MissionControlMonitor {
 
     let selfPointer = Unmanaged.passUnretained(self).toOpaque()
 
-    for notification in [kAXExposeShowAllWindows, kAXExposeShowFrontWindows, kAXExposeShowDesktop, kAXExposeExit] {
+    for notification in [
+      NSAccessibility.Notification.exposeShowAllWindows,
+      NSAccessibility.Notification.exposeShowFrontWindows,
+      NSAccessibility.Notification.exposeShowDesktop,
+      NSAccessibility.Notification.exposeExit
+    ] {
       let error = AXObserverAddNotification(axObserver, dockElement, notification as CFString, selfPointer)
 
       guard error == .success else {
@@ -458,14 +465,14 @@ final class MissionControlMonitor {
     self.runLoopSource = runLoopSource
   }
 
-  private func handleAXNotification(_ notification: String) {
+  private func handleAXNotification(_ notification: NSAccessibility.Notification) {
     guard let continuation else {
       return
     }
 
     switch notification {
-    case kAXExposeShowAllWindows, kAXExposeShowFrontWindows, kAXExposeShowDesktop: continuation.yield(.activated)
-    case kAXExposeExit: continuation.yield(.deactivated)
+    case .exposeShowAllWindows, .exposeShowFrontWindows, .exposeShowDesktop: continuation.yield(.activated)
+    case .exposeExit: continuation.yield(.deactivated)
     default: break
     }
   }

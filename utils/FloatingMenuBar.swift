@@ -93,8 +93,6 @@ final class SingleInstanceLock {
 }
 
 extension AXUIElement {
-  static var systemWideElement: AXUIElement { AXUIElementCreateSystemWide() }
-
   var children: [AXUIElement]? {
     var valuesRef: CFArray?
     return AXUIElementCopyAttributeValues(
