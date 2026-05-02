@@ -223,7 +223,11 @@ final class ClickMonitor {
           | 1 << CGEventType.otherMouseUp.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.rightMouseUp.rawValue,
-        callback: eventTapCallback,
+        callback: { proxy, type, event, refcon in
+          refcon.map { Unmanaged<ClickMonitor>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
@@ -272,19 +276,6 @@ final class ClickMonitor {
     }
 
     return false
-  }
-}
-
-func eventTapCallback(
-  proxy: CGEventTapProxy,
-  type: CGEventType,
-  event: CGEvent,
-  refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-  return MainActor.assumeIsolated {
-    refcon.map { Unmanaged<ClickMonitor>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
-      ? nil
-      : Unmanaged.passUnretained(event)
   }
 }
 

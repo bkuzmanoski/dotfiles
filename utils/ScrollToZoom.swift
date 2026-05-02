@@ -143,7 +143,11 @@ final class ZoomManager {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.scrollWheel.rawValue | 1 << CGEventType.flagsChanged.rawValue,
-        callback: eventTapCallback,
+        callback: { proxy, type, event, refcon in
+          refcon.map { Unmanaged<ZoomManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
@@ -217,19 +221,6 @@ final class ZoomManager {
     event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
     event.setDoubleValueField(.gestureZoomValue, value: magnification)
     event.post(tap: .cghidEventTap)
-  }
-}
-
-func eventTapCallback(
-  proxy: CGEventTapProxy,
-  type: CGEventType,
-  event: CGEvent,
-  refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-  return MainActor.assumeIsolated {
-    refcon.map { Unmanaged<ZoomManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
-      ? nil
-      : Unmanaged.passUnretained(event)
   }
 }
 

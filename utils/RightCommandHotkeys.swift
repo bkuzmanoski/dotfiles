@@ -141,7 +141,11 @@ final class HotkeyManager {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue,
-        callback: eventTapCallback,
+        callback: { proxy, type, event, refcon in
+          refcon.map { Unmanaged<HotkeyManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
@@ -212,19 +216,6 @@ final class HotkeyManager {
 
     newEvent.flags = CGEventFlags(rawValue: newFlags)
     newEvent.post(tap: .cghidEventTap)
-  }
-}
-
-func eventTapCallback(
-  proxy: CGEventTapProxy,
-  type: CGEventType,
-  event: CGEvent,
-  refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-  return MainActor.assumeIsolated {
-    refcon.map { Unmanaged<HotkeyManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
-      ? nil
-      : Unmanaged.passUnretained(event)
   }
 }
 

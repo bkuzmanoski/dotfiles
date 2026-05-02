@@ -390,7 +390,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.rightMouseDown.rawValue,
-        callback: eventTapCallback,
+        callback: { proxy, type, event, refcon in
+          refcon.map { Unmanaged<AppDelegate>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
@@ -475,19 +479,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
-  }
-}
-
-func eventTapCallback(
-  proxy: CGEventTapProxy,
-  type: CGEventType,
-  event: CGEvent,
-  refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-  return MainActor.assumeIsolated {
-    refcon.map { Unmanaged<AppDelegate>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
-      ? nil
-      : Unmanaged.passUnretained(event)
   }
 }
 
