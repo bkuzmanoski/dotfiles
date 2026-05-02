@@ -115,7 +115,7 @@ func CGSRegisterNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData
 @discardableResult
 func CGSRemoveNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData: UnsafeMutableRawPointer?) -> CGError
 
-enum CGSEventType: UInt32, CaseIterable {
+enum CGSEventType: UInt32 {
   case packagesStatusBarSpaceChanged = 1308
   case spaceWindowCreated = 1325
   case spaceWindowDestroyed = 1326
@@ -246,7 +246,14 @@ final class SpaceMonitor {
   private var continuation: AsyncStream<Event>.Continuation?
 
   init() throws {
-    for eventType in CGSEventType.allCases {
+    for eventType: CGSEventType in [
+      .packagesStatusBarSpaceChanged,
+      .spaceWindowCreated,
+      .spaceWindowDestroyed,
+      .spaceCreated,
+      .spaceDestroyed,
+      .spaceCurrentChanged
+    ] {
       let error = CGSRegisterNotifyProc(
         cgsNotifyProc,
         eventType.rawValue,
