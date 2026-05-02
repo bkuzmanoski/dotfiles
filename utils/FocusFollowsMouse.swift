@@ -111,8 +111,6 @@ func SameProcess(
 func _AXUIElementGetWindow(_ element: AXUIElement, _ wid: UnsafeMutablePointer<CGWindowID>) -> AXError
 
 extension AXUIElement {
-  static let systemWideElement = AXUIElementCreateSystemWide()
-
   var windowID: CGWindowID? {
     var windowID: CGWindowID = kCGNullWindowID
     return _AXUIElementGetWindow(self, &windowID) == .success ? windowID : nil
@@ -392,6 +390,7 @@ struct SkyLightProxy {
   }
 }
 
+@MainActor
 final class WindowMonitor {
   enum Error: Swift.Error, LocalizedError {
     case failedToRegisterForNotifications(eventType: CGSEventType, code: CGError)
@@ -445,7 +444,7 @@ final class WindowMonitor {
     }
   }
 
-  deinit {
+  isolated deinit {
     continuation?.finish()
     unregisterNotifyProc()
   }
@@ -461,21 +460,15 @@ final class WindowMonitor {
   }
 
   private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
-    guard
-      let continuation,
-      let windowID =
-        data
-        .map({ Data(bytes: $0, count: Int(dataLength)) })?
-        .withUnsafeBytes({ $0.load(fromByteOffset: 8, as: CGWindowID.self) })
-    else {
+    guard let continuation, let data, dataLength >= 12 else {
       return
     }
 
-    Task {
-      switch event {
-      case .spaceWindowCreated: continuation.yield(.windowAdded(windowID: windowID))
-      case .spaceWindowDestroyed: continuation.yield(.windowRemoved(windowID: windowID))
-      }
+    let windowID = data.advanced(by: 8).load(as: CGWindowID.self)
+
+    switch event {
+    case .spaceWindowCreated: continuation.yield(.windowAdded(windowID: windowID))
+    case .spaceWindowDestroyed: continuation.yield(.windowRemoved(windowID: windowID))
     }
   }
 
@@ -493,6 +486,7 @@ final class WindowMonitor {
   }
 }
 
+@MainActor
 final class MissionControlMonitor {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionDenied
@@ -547,7 +541,7 @@ final class MissionControlMonitor {
     self.dockRestartObservationTask = dockRestartObservationTask
   }
 
-  deinit {
+  isolated deinit {
     dockRestartObservationTask?.cancel()
     continuation?.finish()
     stopAXObserverIfNeeded()
@@ -595,11 +589,11 @@ final class MissionControlMonitor {
 
     let selfPointer = Unmanaged.passUnretained(self).toOpaque()
 
-    for notification in [
-      NSAccessibility.Notification.exposeShowAllWindows,
-      NSAccessibility.Notification.exposeShowFrontWindows,
-      NSAccessibility.Notification.exposeShowDesktop,
-      NSAccessibility.Notification.exposeExit
+    for notification: NSAccessibility.Notification in [
+      .exposeShowAllWindows,
+      .exposeShowFrontWindows,
+      .exposeShowDesktop,
+      .exposeExit
     ] {
       let error = AXObserverAddNotification(axObserver, dockElement, notification as CFString, selfPointer)
 
@@ -677,14 +671,14 @@ final class FocusManager {
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
-  private var floatingWindows = Set<CGWindowID>()
+  private var modalWindows = Set<CGWindowID>()
   private var isMissionControlActive = false
   private var isSystemSleeping = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
-    isLeftMouseDown || isCommandKeyPressed || !floatingWindows.isEmpty || isMissionControlActive || isSystemSleeping
+    isLeftMouseDown || isCommandKeyPressed || !modalWindows.isEmpty || isMissionControlActive || isSystemSleeping
   }
 
   init() throws {
@@ -855,13 +849,14 @@ final class FocusManager {
         let windowInfo = windowsInfo.first,
         let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
         windowLayer > kCGNormalWindowLevel,
-        windowLayer <= kCGScreenSaverWindowLevel
+        windowLayer <= kCGScreenSaverWindowLevel,
+        windowLayer != kCGFloatingWindowLevel
       {
-        floatingWindows.insert(windowID)
+        modalWindows.insert(windowID)
       }
 
     case .windowRemoved(let windowID):
-      floatingWindows.remove(windowID)
+      modalWindows.remove(windowID)
     }
   }
 
