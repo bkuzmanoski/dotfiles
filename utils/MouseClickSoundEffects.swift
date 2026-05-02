@@ -200,9 +200,8 @@ final class ClickMonitor {
     }
   }
 
-  private(set) var eventTap: CFMachPort?
-
   private let soundEffectManager: SoundEffectManager
+  private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
   init(soundEffectManager: SoundEffectManager) throws {

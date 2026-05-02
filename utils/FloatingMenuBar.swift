@@ -364,9 +364,8 @@ final class AppMenu {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private(set) var eventTap: CFMachPort?
-
   private let singleInstanceLock: SingleInstanceLock
+  private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
   init(singleInstanceLock: SingleInstanceLock) {

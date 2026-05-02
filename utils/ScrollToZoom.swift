@@ -127,8 +127,7 @@ final class ZoomManager {
     }
   }
 
-  private(set) var eventTap: CFMachPort?
-
+  private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var isZooming = false
 

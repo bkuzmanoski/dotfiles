@@ -125,8 +125,7 @@ final class HotkeyManager {
     }
   }
 
-  private(set) var eventTap: CFMachPort?
-
+  private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var activeHotkeys: [CGKeyCode: CGKeyCode] = [:]
 
