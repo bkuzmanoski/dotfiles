@@ -110,6 +110,11 @@ func SameProcess(
 @_silgen_name("_AXUIElementGetWindow")
 func _AXUIElementGetWindow(_ element: AXUIElement, _ wid: UnsafeMutablePointer<CGWindowID>) -> AXError
 
+let kAXExposeShowAllWindows = "AXExposeShowAllWindows"
+let kAXExposeShowFrontWindows = "AXExposeShowFrontWindows"
+let kAXExposeShowDesktop = "AXExposeShowDesktop"
+let kAXExposeExit = "AXExposeExit"
+
 extension AXUIElement {
   static var systemWide: AXUIElement { AXUIElementCreateSystemWide() }
 
@@ -331,6 +336,158 @@ struct SkyLightProxy {
   }
 }
 
+final class MissionControlMonitor {
+  enum Error: Swift.Error, LocalizedError {
+    case accessibilityPermissionDenied
+    case failedToFindDockProcess
+    case failedToCreateObserver
+    case failedToAddNotification(notification: String, code: AXError)
+
+    var errorDescription: String? {
+      switch self {
+      case .accessibilityPermissionDenied:
+        "Accessibility permission denied."
+
+      case .failedToFindDockProcess:
+        "Failed to find Dock process."
+
+      case .failedToCreateObserver:
+        "Failed to create observer for Dock process."
+
+      case .failedToAddNotification(let notification, let code):
+        "Failed to observe \(notification) notifications (\(code.rawValue))."
+      }
+    }
+  }
+
+  enum Event {
+    case activated
+    case deactivated
+  }
+
+  private var dockElement: AXUIElement?
+  private var axObserver: AXObserver?
+  private var observedNotifications = Set<String>()
+  private var runLoopSource: CFRunLoopSource?
+  private var dockRestartObservationTask: Task<Void, Never>?
+  private var continuation: AsyncStream<Event>.Continuation?
+
+  init() throws {
+    guard AXIsProcessTrustedWithOptions(nil) else {
+      throw Error.accessibilityPermissionDenied
+    }
+
+    try startAXObserver()
+
+    let dockRestartObservationTask = Task { [weak self] in
+      for await _ in NotificationCenter.default.notifications(
+        named: Notification.Name("NSApplicationDockDidRestartNotification")
+      ) {
+        try? self?.startAXObserver()
+      }
+    }
+
+    self.dockRestartObservationTask = dockRestartObservationTask
+  }
+
+  deinit {
+    dockRestartObservationTask?.cancel()
+    continuation?.finish()
+    stopAXObserverIfNeeded()
+  }
+
+  func events() -> AsyncStream<Event> {
+    continuation?.finish()
+
+    let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
+
+    self.continuation = continuation
+
+    return stream
+  }
+
+  private func startAXObserver() throws {
+    stopAXObserverIfNeeded()
+
+    guard
+      let dockPID =
+        NSRunningApplication
+        .runningApplications(withBundleIdentifier: "com.apple.dock")
+        .first?
+        .processIdentifier
+    else {
+      throw Error.failedToFindDockProcess
+    }
+
+    let dockElement = AXUIElementCreateApplication(dockPID)
+    let callback: AXObserverCallback = { _, _, notification, refcon in
+      guard let refcon else {
+        return
+      }
+
+      Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleAXNotification(
+        notification as String
+      )
+    }
+
+    var axObserver: AXObserver?
+
+    guard AXObserverCreate(dockPID, callback, &axObserver) == .success, let axObserver else {
+      throw Error.failedToCreateObserver
+    }
+
+    let selfPointer = Unmanaged.passUnretained(self).toOpaque()
+
+    for notification in [kAXExposeShowAllWindows, kAXExposeShowFrontWindows, kAXExposeShowDesktop, kAXExposeExit] {
+      let error = AXObserverAddNotification(axObserver, dockElement, notification as CFString, selfPointer)
+
+      guard error == .success else {
+        stopAXObserverIfNeeded()
+        throw Error.failedToAddNotification(notification: notification, code: error)
+      }
+
+      self.observedNotifications.insert(notification)
+    }
+
+    let runLoopSource = AXObserverGetRunLoopSource(axObserver)
+
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+
+    self.axObserver = axObserver
+    self.dockElement = dockElement
+    self.runLoopSource = runLoopSource
+  }
+
+  private func handleAXNotification(_ notification: String) {
+    guard let continuation else {
+      return
+    }
+
+    switch notification {
+    case kAXExposeShowAllWindows, kAXExposeShowFrontWindows, kAXExposeShowDesktop: continuation.yield(.activated)
+    case kAXExposeExit: continuation.yield(.deactivated)
+    default: break
+    }
+  }
+
+  private func stopAXObserverIfNeeded() {
+    if let axObserver, let dockElement {
+      observedNotifications.forEach { notification in
+        AXObserverRemoveNotification(axObserver, dockElement, notification as CFString)
+      }
+    }
+
+    if let runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    }
+
+    self.axObserver = nil
+    self.dockElement = nil
+    self.observedNotifications.removeAll()
+    self.runLoopSource = nil
+  }
+}
+
 @MainActor
 final class FocusManager {
   enum Error: Swift.Error, LocalizedError {
@@ -349,14 +506,19 @@ final class FocusManager {
   private(set) var isEnabled = true
 
   private let skyLightProxy: SkyLightProxy
+  private let missionControlMonitor: MissionControlMonitor
   private let debounceTimer: DispatchSourceTimer
   private var runLoopSource: CFRunLoopSource?
+  private var missionControlStateObservationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
+  private var isMissionControlActive = false
   private var isFocusPending = false
   private var activeFocusTask: Task<Void, Never>?
+
+  var isSuspended: Bool { isLeftMouseDown || isCommandKeyPressed || isMissionControlActive }
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
@@ -364,6 +526,7 @@ final class FocusManager {
     }
 
     self.skyLightProxy = try SkyLightProxy()
+    self.missionControlMonitor = try MissionControlMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
 
     guard
@@ -377,27 +540,42 @@ final class FocusManager {
           | 1 << CGEventType.otherMouseDown.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.flagsChanged.rawValue,
-        callback: eventTapCallback,
+        callback: { proxy, type, event, refcon in
+          refcon.map { Unmanaged<FocusManager>.fromOpaque($0).takeUnretainedValue() }?.handleCGEvent(event) == true
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
       throw Error.failedToCreateEventTap
     }
 
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: tap, enable: true)
+
+    let missionControlStateObservationTask = Task {
+      for await event in missionControlMonitor.events() {
+        handleMissionControlStateChange(event)
+      }
+    }
+
     debounceTimer.setEventHandler { [weak self] in
       self?.handleTimerEvent()
     }
 
-    self.eventTap = tap
-    self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-
     debounceTimer.resume()
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: tap, enable: true)
+
+    self.eventTap = tap
+    self.runLoopSource = runLoopSource
+    self.missionControlStateObservationTask = missionControlStateObservationTask
   }
 
   deinit {
     debounceTimer.cancel()
+    missionControlStateObservationTask?.cancel()
     activeFocusTask?.cancel()
 
     if let eventTap {
@@ -420,10 +598,10 @@ final class FocusManager {
     CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
   }
 
-  func handleEvent(_ event: CGEvent) -> Bool {
+  private func handleCGEvent(_ event: CGEvent) -> Bool {
     switch event.type {
     case .mouseMoved:
-      guard isEnabled, !isLeftMouseDown, !isCommandKeyPressed else {
+      guard isEnabled, !isSuspended else {
         break
       }
 
@@ -471,8 +649,24 @@ final class FocusManager {
     return false
   }
 
+  private func handleMissionControlStateChange(_ event: MissionControlMonitor.Event) {
+    switch event {
+    case .activated:
+      self.isMissionControlActive = true
+      cancelPendingFocus()
+
+    case .deactivated:
+      self.isMissionControlActive = false
+    }
+  }
+
   private func handleTimerEvent() {
-    guard isEnabled, isFocusPending, !isCommandKeyPressed else {
+    guard isFocusPending else {
+      return
+    }
+
+    guard isEnabled, !isSuspended else {
+      cancelPendingFocus()
       return
     }
 
@@ -541,19 +735,6 @@ final class FocusManager {
 
     self.isFocusPending = false
     self.activeFocusTask = nil
-  }
-}
-
-func eventTapCallback(
-  proxy: CGEventTapProxy,
-  type: CGEventType,
-  event: CGEvent,
-  refcon: UnsafeMutableRawPointer?
-) -> Unmanaged<CGEvent>? {
-  return MainActor.assumeIsolated {
-    refcon.map { Unmanaged<FocusManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
-      ? nil
-      : Unmanaged.passUnretained(event)
   }
 }
 
