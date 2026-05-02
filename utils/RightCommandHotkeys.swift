@@ -141,8 +141,12 @@ final class HotkeyManager {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue,
-        callback: { proxy, type, event, refcon in
-          refcon.map { Unmanaged<HotkeyManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+        callback: { _, _, event, refcon in
+          guard let refcon else {
+            return Unmanaged.passUnretained(event)
+          }
+
+          return Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },

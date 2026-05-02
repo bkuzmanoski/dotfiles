@@ -223,10 +223,12 @@ final class ClickMonitor {
           | 1 << CGEventType.otherMouseUp.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.rightMouseUp.rawValue,
-        callback: { proxy, type, event, refcon in
-          refcon.map { Unmanaged<ClickMonitor>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
-            ? nil
-            : Unmanaged.passUnretained(event)
+        callback: { _, type, event, refcon in
+          if let refcon {
+            Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
+          }
+
+          return Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
@@ -254,7 +256,7 @@ final class ClickMonitor {
     }
   }
 
-  private func handleEvent(ofType type: CGEventType) -> Bool {
+  private func handleEvent(ofType type: CGEventType) {
     switch type {
     case .leftMouseDown:
       soundEffectManager.play(soundEffect: .leftMouseDown)
@@ -276,8 +278,6 @@ final class ClickMonitor {
     default:
       break
     }
-
-    return false
   }
 }
 

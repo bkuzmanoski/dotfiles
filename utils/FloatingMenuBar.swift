@@ -390,8 +390,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.rightMouseDown.rawValue,
-        callback: { proxy, type, event, refcon in
-          refcon.map { Unmanaged<AppDelegate>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(ofType: type) == true
+        callback: { _, type, event, refcon in
+          guard let refcon else {
+            return Unmanaged.passUnretained(event)
+          }
+
+          return Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
             ? nil
             : Unmanaged.passUnretained(event)
         },

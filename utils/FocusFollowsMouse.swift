@@ -540,10 +540,12 @@ final class FocusManager {
           | 1 << CGEventType.otherMouseDown.rawValue
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.flagsChanged.rawValue,
-        callback: { proxy, type, event, refcon in
-          refcon.map { Unmanaged<FocusManager>.fromOpaque($0).takeUnretainedValue() }?.handleCGEvent(event) == true
-            ? nil
-            : Unmanaged.passUnretained(event)
+        callback: { _, _, event, refcon in
+          if let refcon {
+            Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
+          }
+
+          return Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
@@ -598,7 +600,7 @@ final class FocusManager {
     CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
   }
 
-  private func handleCGEvent(_ event: CGEvent) -> Bool {
+  private func handleCGEvent(_ event: CGEvent) {
     switch event.type {
     case .mouseMoved:
       guard isEnabled, !isSuspended else {
@@ -645,8 +647,6 @@ final class FocusManager {
     default:
       break
     }
-
-    return false
   }
 
   private func handleMissionControlStateChange(_ event: MissionControlMonitor.Event) {

@@ -143,8 +143,12 @@ final class ZoomManager {
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.scrollWheel.rawValue | 1 << CGEventType.flagsChanged.rawValue,
-        callback: { proxy, type, event, refcon in
-          refcon.map { Unmanaged<ZoomManager>.fromOpaque($0).takeUnretainedValue() }?.handleEvent(event) == true
+        callback: { _, _, event, refcon in
+          guard let refcon else {
+            return Unmanaged.passUnretained(event)
+          }
+
+          return Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
