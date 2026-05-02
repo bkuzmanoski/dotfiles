@@ -465,18 +465,6 @@ final class MissionControlMonitor {
     self.runLoopSource = runLoopSource
   }
 
-  private func handleAXNotification(_ notification: NSAccessibility.Notification) {
-    guard let continuation else {
-      return
-    }
-
-    switch notification {
-    case .exposeShowAllWindows, .exposeShowFrontWindows, .exposeShowDesktop: continuation.yield(.activated)
-    case .exposeExit: continuation.yield(.deactivated)
-    default: break
-    }
-  }
-
   private func stopAXObserverIfNeeded() {
     if let axObserver, let dockElement {
       observedNotifications.forEach { notification in
@@ -492,6 +480,18 @@ final class MissionControlMonitor {
     self.dockElement = nil
     self.observedNotifications.removeAll()
     self.runLoopSource = nil
+  }
+
+  private func handleAXNotification(_ notification: NSAccessibility.Notification) {
+    guard let continuation else {
+      return
+    }
+
+    switch notification {
+    case .exposeShowAllWindows, .exposeShowFrontWindows, .exposeShowDesktop: continuation.yield(.activated)
+    case .exposeExit: continuation.yield(.deactivated)
+    default: break
+    }
   }
 }
 
