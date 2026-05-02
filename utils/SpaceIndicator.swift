@@ -242,7 +242,7 @@ final class SpaceMonitor {
     )
   }
 
-  private var observedEventTypes: [CGSEventType] = []
+  private var registeredEventTypes: [CGSEventType] = []
   private var continuation: AsyncStream<Event>.Continuation?
 
   init() throws {
@@ -258,7 +258,7 @@ final class SpaceMonitor {
         throw Error.failedToRegisterForNotifications(eventType: eventType, code: error)
       }
 
-      self.observedEventTypes.append(eventType)
+      self.registeredEventTypes.append(eventType)
     }
   }
 
@@ -330,11 +330,11 @@ final class SpaceMonitor {
   }
 
   private func unregisterNotifyProc() {
-    for eventType in observedEventTypes {
+    for eventType in registeredEventTypes {
       CGSRemoveNotifyProc(cgsNotifyProc, eventType.rawValue, Unmanaged.passUnretained(self).toOpaque())
     }
 
-    self.observedEventTypes.removeAll()
+    self.registeredEventTypes.removeAll()
     self.continuation = nil
   }
 }
