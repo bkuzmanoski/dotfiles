@@ -132,8 +132,8 @@ extension NSScreen {
     let key = NSDeviceDescriptionKey("NSScreenNumber")
 
     guard
-      let number = deviceDescription[key] as? NSNumber,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue()
+      let directDisplayID = deviceDescription[key] as? CGDirectDisplayID,
+      let uuid = CGDisplayCreateUUIDFromDisplayID(directDisplayID)?.takeRetainedValue()
     else {
       return nil
     }
@@ -154,8 +154,8 @@ extension NSScreen {
       let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
       !spacesInfo.isEmpty,
       let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-      let activeSpaceID = (activeSpaceInfo["id64"] as? NSNumber)?.uint64Value,
-      let activeSpaceIndex = spacesInfo.firstIndex(where: { ($0["id64"] as? NSNumber)?.uint64Value == activeSpaceID })
+      let activeSpaceID = activeSpaceInfo["id64"] as? UInt64,
+      let activeSpaceIndex = spacesInfo.firstIndex(where: { $0["id64"] as? UInt64 == activeSpaceID })
     else {
       return nil
     }

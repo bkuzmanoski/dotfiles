@@ -145,8 +145,8 @@ extension NSScreen {
     let key = NSDeviceDescriptionKey("NSScreenNumber")
 
     guard
-      let number = deviceDescription[key] as? NSNumber,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue()
+      let directDisplayID = deviceDescription[key] as? CGDirectDisplayID,
+      let uuid = CGDisplayCreateUUIDFromDisplayID(directDisplayID)?.takeRetainedValue()
     else {
       return nil
     }
@@ -196,10 +196,10 @@ struct Window: Hashable {
 
   init?(windowInfo: [String: Any], spaceID: SpaceID) {
     guard
-      let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
-      let processIdentifier = (windowInfo[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
-      (windowInfo[kCGWindowLayer as String] as? NSNumber)?.int32Value == kCGNormalWindowLevel,
-      (windowInfo[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1.0 > 0.0
+      let windowID = windowInfo[kCGWindowNumber as String] as? WindowID,
+      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
+      windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 > 0.0
     else {
       return nil
     }
@@ -448,10 +448,10 @@ struct SpaceIndicatorView: View {
         continue
       }
 
-      newDisplaySpaces[displayIdentifier] = spacesInfo.compactMap { ($0["id64"] as? NSNumber)?.uint64Value }
+      newDisplaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
 
       if let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-        let activeSpaceID = (activeSpaceInfo["id64"] as? NSNumber)?.uint64Value
+        let activeSpaceID = activeSpaceInfo["id64"] as? SpaceID
       {
         newActiveSpaceIDs[displayIdentifier] = activeSpaceID
       }
@@ -475,14 +475,14 @@ struct SpaceIndicatorView: View {
 
     for windowInfo in windowsInfo {
       guard
-        let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
+        let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
         let spacesForWindow = CGSCopySpacesForWindows(
           cgsConnectionID,
           CGSSpaceMask.allSpaces.rawValue,
           [windowID] as CFArray
-        )?.takeRetainedValue() as? [NSNumber],
+        )?.takeRetainedValue() as? [SpaceID],
         spacesForWindow.count == 1,
-        let spaceID = spacesForWindow.first?.uint64Value,
+        let spaceID = spacesForWindow.first,
         let window = Window(windowInfo: windowInfo, spaceID: spaceID)
       else {
         continue
