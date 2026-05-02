@@ -849,7 +849,7 @@ final class FocusManager {
     switch event {
     case .windowAdded(let windowID):
       if let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionIncludingWindow, .excludeDesktopElements, .optionOnScreenOnly],
+        [.optionIncludingWindow, .excludeDesktopElements],
         windowID
       ) as? [[String: Any]],
         let windowInfo = windowsInfo.first,
