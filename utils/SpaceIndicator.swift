@@ -289,50 +289,46 @@ final class SpaceMonitor {
       return
     }
 
-    let data = data.map { Data(bytes: $0, count: Int(dataLength)) }
+    switch event {
+    case .packagesStatusBarSpaceChanged:
+      continuation.yield(.activeScreenChanged)
 
-    Task {
-      switch event {
-      case .packagesStatusBarSpaceChanged:
-        continuation.yield(.activeScreenChanged)
-
-      case .spaceCurrentChanged:
-        guard let data, data.count >= 9 else {
-          return
-        }
-
-        let spaceID = data.withUnsafeBytes { $0.load(fromByteOffset: 0, as: SpaceID.self) }
-        let isCurrentFlag = data.withUnsafeBytes { $0.load(fromByteOffset: 8, as: UInt8.self) }
-
-        guard isCurrentFlag != 0 else {
-          return
-        }
-
-        continuation.yield(.activeSpaceChanged(spaceID: spaceID))
-
-      case .spaceCreated, .spaceDestroyed:
-        continuation.yield(.spacesChanged)
-
-      case .spaceWindowCreated:
-        guard let data, data.count >= 12 else {
-          return
-        }
-
-        let spaceID = data.withUnsafeBytes { $0.load(fromByteOffset: 0, as: SpaceID.self) }
-        let windowID = data.withUnsafeBytes { $0.load(fromByteOffset: 8, as: WindowID.self) }
-
-        continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
-
-      case .spaceWindowDestroyed:
-        guard let data, data.count >= 12 else {
-          return
-        }
-
-        let spaceID = data.withUnsafeBytes { $0.load(fromByteOffset: 0, as: SpaceID.self) }
-        let windowID = data.withUnsafeBytes { $0.load(fromByteOffset: 8, as: WindowID.self) }
-
-        continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
+    case .spaceCurrentChanged:
+      guard let data, dataLength >= 9 else {
+        return
       }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
+
+      guard isCurrentFlag != 0 else {
+        return
+      }
+
+      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
+
+    case .spaceCreated, .spaceDestroyed:
+      continuation.yield(.spacesChanged)
+
+    case .spaceWindowCreated:
+      guard let data, dataLength >= 12 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let windowID = data.load(fromByteOffset: 8, as: WindowID.self)
+
+      continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
+
+    case .spaceWindowDestroyed:
+      guard let data, dataLength >= 12 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let windowID = data.load(fromByteOffset: 8, as: WindowID.self)
+
+      continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
     }
   }
 
