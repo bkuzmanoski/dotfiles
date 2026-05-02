@@ -425,15 +425,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func observeSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  func handleEvent(ofType type: CGEventType) -> Bool {
+  private func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
     case .rightMouseDown:
       if CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) {
@@ -451,6 +443,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     return false
+  }
+
+  private func observeSignals() {
+    Task {
+      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+        NSApplication.shared.terminate(nil)
+      }
+    }
   }
 
   private func observeCommands() {

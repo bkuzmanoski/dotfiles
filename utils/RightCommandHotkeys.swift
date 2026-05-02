@@ -170,7 +170,7 @@ final class HotkeyManager {
     }
   }
 
-  func handleEvent(_ event: CGEvent) -> Bool {
+  private func handleEvent(_ event: CGEvent) -> Bool {
     guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
       if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: true)

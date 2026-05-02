@@ -252,7 +252,7 @@ final class ClickMonitor {
     }
   }
 
-  func handleEvent(ofType type: CGEventType) -> Bool {
+  private func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
     case .leftMouseDown:
       soundEffectManager.play(soundEffect: .leftMouseDown)

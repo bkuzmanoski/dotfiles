@@ -172,7 +172,7 @@ final class ZoomManager {
     }
   }
 
-  func handleEvent(_ event: CGEvent) -> Bool {
+  private func handleEvent(_ event: CGEvent) -> Bool {
     switch event.type {
     case .scrollWheel where event.flags.contains(Constants.hotkey):
       if !isZooming {
