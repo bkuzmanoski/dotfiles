@@ -404,14 +404,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return
     }
 
-    self.eventTap = eventTap
-    self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
 
     observeSignals()
     observeCommands()
+
+    self.eventTap = eventTap
+    self.runLoopSource = runLoopSource
   }
 
   func applicationWillTerminate(_ notification: Notification) {

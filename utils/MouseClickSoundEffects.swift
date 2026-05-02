@@ -234,11 +234,13 @@ final class ClickMonitor {
       throw Error.failedToCreateEventTap
     }
 
-    self.eventTap = eventTap
-    self.runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
+
+    self.eventTap = eventTap
+    self.runLoopSource = runLoopSource
   }
 
   deinit {
