@@ -516,15 +516,17 @@ final class FocusManager {
   private let debounceTimer: DispatchSourceTimer
   private var runLoopSource: CFRunLoopSource?
   private var missionControlStateObservationTask: Task<Void, Never>?
+  private var sleepWakeObservationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
   private var isMissionControlActive = false
+  private var isSystemSleeping = false
   private var isFocusPending = false
-  private var activeFocusTask: Task<Void, Never>?
+  private var focusTask: Task<Void, Never>?
 
-  var isSuspended: Bool { isLeftMouseDown || isCommandKeyPressed || isMissionControlActive }
+  var isSuspended: Bool { isLeftMouseDown || isCommandKeyPressed || isMissionControlActive || isSystemSleeping }
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
@@ -570,6 +572,13 @@ final class FocusManager {
       }
     }
 
+    let sleepWakeObservationTask = Task { [weak self] in
+      await withDiscardingTaskGroup { group in
+        group.addTask { await self?.monitorSystemSleep() }
+        group.addTask { await self?.monitorSystemWake() }
+      }
+    }
+
     debounceTimer.setEventHandler { [weak self] in
       self?.handleTimerEvent()
     }
@@ -579,12 +588,14 @@ final class FocusManager {
     self.eventTap = tap
     self.runLoopSource = runLoopSource
     self.missionControlStateObservationTask = missionControlStateObservationTask
+    self.sleepWakeObservationTask = sleepWakeObservationTask
   }
 
   deinit {
     debounceTimer.cancel()
     missionControlStateObservationTask?.cancel()
-    activeFocusTask?.cancel()
+    sleepWakeObservationTask?.cancel()
+    focusTask?.cancel()
 
     if let eventTap {
       CGEvent.tapEnable(tap: eventTap, enable: false)
@@ -666,6 +677,19 @@ final class FocusManager {
     }
   }
 
+  private func monitorSystemSleep() async {
+    for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.willSleepNotification) {
+      self.isSystemSleeping = true
+      cancelPendingFocus()
+    }
+  }
+
+  private func monitorSystemWake() async {
+    for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.didWakeNotification) {
+      self.isSystemSleeping = false
+    }
+  }
+
   private func handleTimerEvent() {
     guard isFocusPending, isEnabled, !isSuspended else {
       cancelPendingFocus()
@@ -679,10 +703,10 @@ final class FocusManager {
       return
     }
 
-    activeFocusTask?.cancel()
+    focusTask?.cancel()
 
     self.isFocusPending = false
-    self.activeFocusTask = Task { [weak self, lastMouseLocation] in
+    self.focusTask = Task { [weak self, lastMouseLocation] in
       await self?.focusWindow(at: lastMouseLocation)
     }
   }
@@ -694,7 +718,10 @@ final class FocusManager {
       let windowsInfo = CGWindowListCopyWindowInfo([.optionIncludingWindow], targetWindowID) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
       let targetPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
+      let windowLevel = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
+      windowLevel >= kCGNormalWindowLevel && windowLevel < kCGDockWindowLevel
+        || windowLevel == kCGStatusWindowLevel
+        || windowLevel == kCGScreenSaverWindowLevel,
       !Task.isCancelled
     else {
       return
@@ -734,10 +761,10 @@ final class FocusManager {
   }
 
   private func cancelPendingFocus() {
-    activeFocusTask?.cancel()
+    focusTask?.cancel()
 
     self.isFocusPending = false
-    self.activeFocusTask = nil
+    self.focusTask = nil
   }
 }
 
