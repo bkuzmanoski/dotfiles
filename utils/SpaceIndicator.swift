@@ -210,6 +210,7 @@ struct Window: Hashable {
   }
 }
 
+@MainActor
 final class SpaceMonitor {
   enum Error: Swift.Error, LocalizedError {
     case failedToRegisterForNotifications(eventType: CGSEventType, code: CGError)
@@ -269,7 +270,7 @@ final class SpaceMonitor {
     }
   }
 
-  deinit {
+  isolated deinit {
     continuation?.finish()
     unregisterNotifyProc()
   }
