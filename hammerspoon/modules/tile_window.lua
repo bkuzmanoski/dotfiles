@@ -171,8 +171,8 @@ local function applyLayout(screen, tilingState)
     local stackWindows = {}
     local endIndex = math.min(tilingState.numberOfStackedWindows + 1, #managedWindows)
 
-    for i = 2, endIndex do
-      table.insert(stackWindows, managedWindows[i].window)
+    for index = 2, endIndex do
+      table.insert(stackWindows, managedWindows[index].window)
     end
 
     if #stackWindows > 0 then
@@ -189,8 +189,8 @@ local function applyLayout(screen, tilingState)
     setFrameWithConstraints(windowState.window, windowState.frame, screenFrame)
   end)
 
-  for i = #newWindowStates + 1, #managedWindows do
-    local windowData = managedWindows[i]
+  for index = #newWindowStates + 1, #managedWindows do
+    local windowData = managedWindows[index]
     windowData.window:setFrame(windowData.originalFrame)
   end
 end
@@ -267,8 +267,8 @@ local function updateManagedWindows()
 
   local tiledWindowCount = math.min(tilingState.numberOfStackedWindows + 1, #tilingState.managedWindows)
 
-  for i = tiledWindowCount + 1, #tilingState.managedWindows do
-    local windowData = tilingState.managedWindows[i]
+  for index = tiledWindowCount + 1, #tilingState.managedWindows do
+    local windowData = tilingState.managedWindows[index]
     windowData.originalFrame = windowData.window:frame()
   end
 

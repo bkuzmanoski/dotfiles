@@ -526,7 +526,10 @@ struct SpaceIndicatorView: View {
 
   private func handleWindowAdded(windowID: WindowID, spaceID: SpaceID) {
     guard
-      let windowsInfo = CGWindowListCopyWindowInfo([.optionIncludingWindow], windowID) as? [[String: Any]],
+      let windowsInfo = CGWindowListCopyWindowInfo(
+        [.optionIncludingWindow, .excludeDesktopElements],
+        windowID
+      ) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
       let window = Window(windowInfo: windowInfo, spaceID: spaceID)
     else {
