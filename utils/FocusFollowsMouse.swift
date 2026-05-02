@@ -661,26 +661,23 @@ final class FocusManager {
   }
 
   private func handleTimerEvent() {
-    guard isFocusPending else {
-      return
-    }
-
-    guard isEnabled, !isSuspended else {
+    guard isFocusPending, isEnabled, !isSuspended else {
       cancelPendingFocus()
       return
     }
 
     let focusDeadline = lastMouseMoveTime + Constants.hoverDelay
 
-    if DispatchTime.now() >= focusDeadline {
-      activeFocusTask?.cancel()
-
-      self.isFocusPending = false
-      self.activeFocusTask = Task { [weak self, lastMouseLocation] in
-        await self?.focusWindow(at: lastMouseLocation)
-      }
-    } else {
+    guard DispatchTime.now() >= focusDeadline else {
       debounceTimer.schedule(deadline: focusDeadline)
+      return
+    }
+
+    activeFocusTask?.cancel()
+
+    self.isFocusPending = false
+    self.activeFocusTask = Task { [weak self, lastMouseLocation] in
+      await self?.focusWindow(at: lastMouseLocation)
     }
   }
 
