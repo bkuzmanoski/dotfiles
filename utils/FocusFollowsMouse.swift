@@ -232,18 +232,17 @@ struct SkyLightProxy {
     }
   }
 
-  private typealias SLSConnectionID = UInt32
-  private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
+  private typealias SLSMainConnectionID = @convention(c) () -> UInt32
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
-      _ cid: SLSConnectionID,
+      _ cid: UInt32,
       _ filterWindowID: CGWindowID,
       _ flags: Int32,
       _ reserved: Int32,
       _ screenPoint: UnsafePointer<CGPoint>,
       _ outWindowPoint: UnsafeMutablePointer<CGPoint>,
       _ outWindowID: UnsafeMutablePointer<CGWindowID>,
-      _ outWindowCID: UnsafeMutablePointer<SLSConnectionID>
+      _ outWindowCID: UnsafeMutablePointer<UInt32>
     ) -> CGError
   private typealias _SLPSGetFrontProcess = @convention(c) (_ psn: UnsafeMutableRawPointer) -> CGError
   private typealias _SLPSSetFrontProcessWithOptions =
@@ -258,7 +257,7 @@ struct SkyLightProxy {
       _ bytes: UnsafeMutablePointer<UInt8>
     ) -> CGError
 
-  private let mainConnectionID: SLSConnectionID
+  private let mainConnectionID: UInt32
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
@@ -303,7 +302,7 @@ struct SkyLightProxy {
     var screenPoint = point
     var windowPoint = CGPoint.zero
     var windowID: CGWindowID = 0
-    var windowCID: SLSConnectionID = 0
+    var windowCID: UInt32 = 0
 
     return
       slsFindWindowByGeometry(mainConnectionID, 0, 1, 0, &screenPoint, &windowPoint, &windowID, &windowCID) == .success
@@ -647,7 +646,7 @@ final class FocusManager {
       }
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if isEnabled, let eventTap = eventTap {
+      if isEnabled, let eventTap {
         CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
@@ -695,7 +694,7 @@ final class FocusManager {
       let windowsInfo = CGWindowListCopyWindowInfo([.optionIncludingWindow], targetWindowID) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
       let targetPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      windowInfo[kCGWindowLayer as String] as? Int32 == kCGNormalWindowLevel,
+      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       !Task.isCancelled
     else {
       return
