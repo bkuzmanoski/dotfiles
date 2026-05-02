@@ -212,11 +212,11 @@ struct Window: Hashable {
 
 final class SpaceMonitor {
   enum Error: Swift.Error, LocalizedError {
-    case failedToRegisterForEventNotifications(eventType: CGSEventType, code: CGError)
+    case failedToRegisterForNotifications(eventType: CGSEventType, code: CGError)
 
     var errorDescription: String? {
       switch self {
-      case .failedToRegisterForEventNotifications(let eventType, let code):
+      case .failedToRegisterForNotifications(let eventType, let code):
         "Failed to register for \(eventType) notifications (\(code))."
       }
     }
@@ -235,9 +235,50 @@ final class SpaceMonitor {
       return
     }
 
-    let observer = Unmanaged<SpaceMonitor>.fromOpaque(userData).takeUnretainedValue()
+    Unmanaged<SpaceMonitor>.fromOpaque(userData).takeUnretainedValue().handleEvent(
+      event: event,
+      data: data,
+      dataLength: dataLength
+    )
+  }
 
-    guard let continuation = observer.continuation else {
+  private var observedEventTypes: [CGSEventType] = []
+  private var continuation: AsyncStream<Event>.Continuation?
+
+  init() throws {
+    for eventType in CGSEventType.allCases {
+      let error = CGSRegisterNotifyProc(
+        Self.cgsNotifyProc,
+        eventType.rawValue,
+        Unmanaged.passUnretained(self).toOpaque()
+      )
+
+      guard error == .success else {
+        unregisterNotifyProc()
+        throw Error.failedToRegisterForNotifications(eventType: eventType, code: error)
+      }
+
+      self.observedEventTypes.append(eventType)
+    }
+  }
+
+  deinit {
+    continuation?.finish()
+    unregisterNotifyProc()
+  }
+
+  func events() -> AsyncStream<Event> {
+    continuation?.finish()
+
+    let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
+
+    self.continuation = continuation
+
+    return stream
+  }
+
+  private func handleEvent(event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
+    guard let continuation else {
       return
     }
 
@@ -288,48 +329,7 @@ final class SpaceMonitor {
     }
   }
 
-  private var observedEventTypes: [CGSEventType] = []
-  private var continuation: AsyncStream<Event>.Continuation?
-
-  init() throws {
-    for eventType in CGSEventType.allCases {
-      let result = CGSRegisterNotifyProc(
-        Self.cgsNotifyProc, eventType.rawValue,
-        Unmanaged.passUnretained(self).toOpaque()
-      )
-
-      guard result == .success else {
-        stop()
-        throw Error.failedToRegisterForEventNotifications(eventType: eventType, code: result)
-      }
-
-      self.observedEventTypes.append(eventType)
-    }
-  }
-
-  deinit {
-    stop()
-  }
-
-  func start() -> AsyncStream<Event> {
-    if continuation != nil {
-      stop()
-    }
-
-    let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
-
-    continuation.onTermination = { [weak self] _ in
-      self?.stop()
-    }
-
-    self.continuation = continuation
-
-    return stream
-  }
-
-  private func stop() {
-    continuation?.finish()
-
+  private func unregisterNotifyProc() {
     for eventType in observedEventTypes {
       CGSRemoveNotifyProc(Self.cgsNotifyProc, eventType.rawValue, Unmanaged.passUnretained(self).toOpaque())
     }
@@ -493,7 +493,7 @@ struct SpaceIndicatorView: View {
   }
 
   private func monitorSpaces(cgsConnectionID: UInt32) async {
-    for await event in spaceMonitor.start() {
+    for await event in spaceMonitor.events() {
       switch event {
       case .spacesChanged: syncSpaces(cgsConnectionID: cgsConnectionID)
       case .activeScreenChanged: self.activeDisplayIdentifier = NSScreen.main?.displayIdentifier
