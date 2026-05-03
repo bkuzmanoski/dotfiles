@@ -671,7 +671,7 @@ final class FocusManager {
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
-  private var modalWindows = Set<CGWindowID>()
+  private var modalWindows: [CGWindowID: Int] = [:]
   private var isMissionControlActive = false
   private var isSystemSleeping = false
   private var isFocusPending = false
@@ -842,6 +842,11 @@ final class FocusManager {
   private func handleWindowEvent(_ event: WindowMonitor.Event) {
     switch event {
     case .windowAdded(let windowID):
+      if let currentCount = modalWindows[windowID] {
+        modalWindows[windowID] = currentCount + 1
+        return
+      }
+
       if let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionIncludingWindow, .excludeDesktopElements],
         windowID
@@ -852,11 +857,19 @@ final class FocusManager {
         windowLayer <= kCGScreenSaverWindowLevel,
         windowLayer != kCGFloatingWindowLevel
       {
-        modalWindows.insert(windowID)
+        modalWindows[windowID] = 1
       }
 
     case .windowRemoved(let windowID):
-      modalWindows.remove(windowID)
+      guard let currentCount = modalWindows[windowID] else {
+        return
+      }
+
+      if currentCount > 1 {
+        modalWindows[windowID] = currentCount - 1
+      } else {
+        modalWindows.removeValue(forKey: windowID)
+      }
     }
   }
 
