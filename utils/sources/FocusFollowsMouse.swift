@@ -940,7 +940,7 @@ final class FocusManager {
         .focusTransition(windowID: focusedWindowID, type: .resignKey),
         to: focusedPSN
       ) == .success,
-        (try? await Task.sleep(for: .milliseconds(50))) != nil
+        (try? await Task.sleep(for: .milliseconds(10))) != nil
       {
         skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
       }
