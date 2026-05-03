@@ -43,7 +43,7 @@ fi
 local util_name="${1:t:r}"
 shift
 
-local utils_dir="${0:A:h}"
+local utils_dir="${0:A:h}/sources"
 local bin_dir="${utils_dir}/bin"
 local -a candidate_source_files=(${utils_dir}/${util_name}.*(N.))
 
