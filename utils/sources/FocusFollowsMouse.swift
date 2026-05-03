@@ -939,9 +939,13 @@ final class FocusManager {
       if skyLightProxy.postEvent(
         .focusTransition(windowID: focusedWindowID, type: .resignKey),
         to: focusedPSN
-      ) == .success,
-        (try? await Task.sleep(for: .milliseconds(10))) != nil
-      {
+      ) == .success {
+        try? await Task.sleep(for: .milliseconds(10))
+
+        guard !Task.isCancelled else {
+          return
+        }
+
         skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
       }
     }
