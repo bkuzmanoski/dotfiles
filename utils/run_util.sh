@@ -43,9 +43,9 @@ fi
 local util_name="${1:t:r}"
 shift
 
-local utils_dir="${0:A:h}/sources"
+local sources_dir="${0:A:h}/sources"
 local bin_dir="${0:A:h}/bin"
-local -a candidate_source_files=(${utils_dir}/${util_name}.*(N.))
+local -a candidate_source_files=(${sources_dir}/${util_name}.*(N.))
 
 if ((${#candidate_source_files[@]} == 0)); then
   die "Missing source file for utility."
