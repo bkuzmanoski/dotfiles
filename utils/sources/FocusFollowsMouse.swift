@@ -855,7 +855,8 @@ final class FocusManager {
         let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
         windowLayer > kCGNormalWindowLevel,
         windowLayer <= kCGScreenSaverWindowLevel,
-        windowLayer != kCGFloatingWindowLevel
+        windowLayer != kCGFloatingWindowLevel,
+        windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 == 1.0
       {
         modalWindows[windowID] = 1
       }
