@@ -1,6 +1,6 @@
 function cf() {
   function print_usage() {
-    command cat <<-'EOF'
+    command cat <<-"EOF"
 			Usage:
 			  cf [options] [rg options]
 

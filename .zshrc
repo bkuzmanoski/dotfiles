@@ -33,7 +33,7 @@ source "${HOME}/.zsh/keybindings.zsh"
 source "${HOME}/.zsh/plugins.zsh"
 source "${HOME}/.zsh/theme.zsh"
 
-for file in ~/.zsh/{bin,hooks,widgets}/*.zsh; do
+for file in ~/.zsh/{hooks,utils,widgets}/*.zsh; do
   source "${file}"
 done
 

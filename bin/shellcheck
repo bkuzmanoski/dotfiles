@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+export SHUCK_SHELLCHECK_COMPAT=1
+exec shuck "$@"

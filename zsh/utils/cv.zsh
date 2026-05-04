@@ -1,6 +1,6 @@
 function cv() {
   function print_usage() {
-    command cat <<-'EOF'
+    command cat <<-"EOF"
 			Usage:
 			  cv [options] <video>
 
@@ -121,7 +121,7 @@ function cv() {
     printf "%s\n\n" "${overwrite_notice}"
   fi
 
-  printf "Original size:   %.2f MB\n" "$(print "scale=2; ${original_size} / 1000000" | bc)"
-  printf "Compressed size: %.2f MB\n" "$(print "scale=2; ${compressed_size} / 1000000" | bc)"
+  printf "Original size:   %.2f MB\n" $((original_size / 1000000.0))
+  printf "Compressed size: %.2f MB\n" $((compressed_size / 1000000.0))
   printf "Size reduction:  %d%%\n" "${size_reduction}"
 }

@@ -29,7 +29,7 @@ if ! zparseopts -D -F \
   exit 1
 fi
 
-if ((${#flag_help} > 0)); then
+if (($#flag_help)); then
   print_usage
   exit 0
 fi
@@ -45,7 +45,7 @@ shift
 
 local sources_dir="${0:A:h}/sources"
 local bin_dir="${0:A:h}/bin"
-local -a candidate_source_files=(${sources_dir}/${util_name}.*(N.))
+local -a candidate_source_files=("${sources_dir}/${util_name}".*(N.))
 
 if ((${#candidate_source_files[@]} == 0)); then
   die "Missing source file for utility."
@@ -85,7 +85,7 @@ function compile_util() {
 }
 
 function run_and_exit() {
-  if ((${#flag_background} > 0)); then
+  if (($#flag_background)); then
     nohup "$@" >/dev/null 2>&1 &
     exit 0
   else
@@ -97,7 +97,7 @@ if [[ ! -e "${bin_path}" || "${source_file}" -nt "${bin_path}" ]]; then
   compile_util
 fi
 
-if ((${#flag_build_only} > 0)); then
+if (($#flag_build_only)); then
   exit 0
 fi
 

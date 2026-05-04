@@ -1,6 +1,6 @@
 function oi() {
   function print_usage() {
-    command cat <<-'EOF'
+    command cat <<-"EOF"
 			Usage:
 			  oi [options] <image|directory> ...
 
@@ -90,7 +90,7 @@ function oi() {
   local -a oxipng_opts=("--strip" "safe")
 
   for file in "${files[@]}"; do
-    original_sizes[${file}]="$(stat -f %z "${file}")"
+    original_sizes["${file}"]="$(stat -f %z "${file}")"
   done
 
   if [[ -n "${quality}" ]]; then
@@ -116,7 +116,7 @@ function oi() {
   local total_size_after=0
 
   for file in "${files[@]}"; do
-    ((total_size_before += "${original_sizes[${file}]}"))
+    ((total_size_before += original_sizes["${file}"]))
     ((total_size_after += "$(stat -f %z "${file}")"))
   done
 
@@ -124,7 +124,7 @@ function oi() {
   local size_reduction_percent="$((size_reduction * 100 / total_size_before))"
 
   printf "\n\033[1mProcessed %d image%s\033[0m\n" "${image_count}" "$([[ ${image_count} -eq 1 ]] || print "s")"
-  printf "Total size before: %.2f MB\n" "$(print "scale=2; ${total_size_before} / 1000000" | bc)"
-  printf "Total size after:  %.2f MB\n" "$(print "scale=2; ${total_size_after} / 1000000" | bc)"
-  printf "Size reduction:    %.2f MB (%d%%)\n" "$(print "scale=2; ${size_reduction} / 1000000" | bc)" "${size_reduction_percent}"
+  printf "Total size before: %.2f MB\n" $((total_size_before / 1000000.0))
+  printf "Total size after:  %.2f MB\n" $((total_size_after / 1000000.0))
+  printf "Size reduction:    %.2f MB (%d%%)\n" $((size_reduction / 1000000.0)) "${size_reduction_percent}"
 }
