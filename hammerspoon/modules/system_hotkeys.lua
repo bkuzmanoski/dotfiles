@@ -21,6 +21,7 @@ function module.init(config)
     toggleLaunchpad = hs.spaces.toggleLaunchPad,
     toggleMissionControl = function()
       local mousePosition = hs.mouse.absolutePosition()
+
       hs.mouse.absolutePosition({ x = 10, y = 10 })
       hs.spaces.toggleMissionControl()
       hs.timer.doAfter(0.05, function()

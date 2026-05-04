@@ -45,7 +45,7 @@ modules.systemHotkeys = require("modules/system_hotkeys").init({
 modules.switchToSpace = require("modules/switch_to_space").init({
   left = { modifiers = settings.hyperKey, key = "o" },
   right = { modifiers = settings.hyperKey, key = "p" },
-  index = { modifiers = settings.hyperKey, maximumSpaces = settings.numberOfSpaces }
+  index = { modifiers = settings.hyperKey, maximumSpaces = 9 }
 })
 modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
   topOffset = settings.screenTopOffset,
