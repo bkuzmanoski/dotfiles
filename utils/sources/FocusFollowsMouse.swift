@@ -818,6 +818,7 @@ final class FocusManager {
       }
 
       cancelPendingFocus()
+      removeStaleModalWindows()
 
     case .leftMouseUp:
       self.isLeftMouseDown = false
@@ -828,6 +829,8 @@ final class FocusManager {
       if isCommandKeyPressed {
         cancelPendingFocus()
       }
+
+      removeStaleModalWindows()
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
       if isEnabled, let cgEventTap {
@@ -970,6 +973,24 @@ final class FocusManager {
 
     self.isFocusPending = false
     self.focusTask = nil
+  }
+
+  private func removeStaleModalWindows() {
+    guard !modalWindows.isEmpty else {
+      return
+    }
+
+    guard
+      let descriptions = CGWindowListCreateDescriptionFromArray(Array(modalWindows.keys) as CFArray) as? [[String: Any]]
+    else {
+      modalWindows.removeAll()
+      return
+    }
+
+    let validWindowIDs = Set(descriptions.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
+    let windowIDsToKeep = Set(modalWindows.keys).intersection(validWindowIDs)
+
+    self.modalWindows = modalWindows.filter { windowIDsToKeep.contains($0.key) }
   }
 }
 
