@@ -712,7 +712,6 @@ final class FocusManager {
   private var observationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
-  private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
   private var activeSpaceID: SpaceID
   private var floatingWindows: [SpaceID: Set<CGWindowID>] = [:]
@@ -722,8 +721,7 @@ final class FocusManager {
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
-    isLeftMouseDown
-      || isCommandKeyPressed
+    isCommandKeyPressed
       || !floatingWindows[activeSpaceID, default: []].isEmpty
       || isMissionControlActive
       || isSystemSleeping
@@ -746,10 +744,8 @@ final class FocusManager {
         place: .headInsertEventTap,
         options: .listenOnly,
         eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue
-          | 1 << CGEventType.leftMouseDown.rawValue
-          | 1 << CGEventType.leftMouseUp.rawValue
-          | 1 << CGEventType.otherMouseDown.rawValue
-          | 1 << CGEventType.rightMouseDown.rawValue
+          | 1 << CGEventType.leftMouseDragged.rawValue
+          | 1 << CGEventType.rightMouseDragged.rawValue
           | 1 << CGEventType.flagsChanged.rawValue,
         callback: { _, _, event, refcon in
           if let refcon {
@@ -875,15 +871,8 @@ final class FocusManager {
         debounceTimer.schedule(deadline: lastMouseMoveTime + Constants.hoverDelay)
       }
 
-    case .leftMouseDown, .otherMouseDown, .rightMouseDown:
-      if event.type == .leftMouseDown {
-        self.isLeftMouseDown = true
-      }
-
+    case .leftMouseDragged, .rightMouseDragged:
       cancelPendingFocus()
-
-    case .leftMouseUp:
-      self.isLeftMouseDown = false
 
     case .flagsChanged:
       self.isCommandKeyPressed = event.flags.contains(.maskCommand)
