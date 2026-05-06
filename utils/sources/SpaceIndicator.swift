@@ -292,23 +292,6 @@ final class SpaceMonitor {
     case .packagesStatusBarSpaceChanged:
       continuation.yield(.activeScreenChanged)
 
-    case .spaceCurrentChanged:
-      guard let data, dataLength >= 9 else {
-        return
-      }
-
-      let spaceID = data.load(as: SpaceID.self)
-      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
-
-      guard isCurrentFlag != 0 else {
-        return
-      }
-
-      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
-
-    case .spaceCreated, .spaceDestroyed:
-      continuation.yield(.spacesChanged)
-
     case .spaceWindowCreated:
       guard let data, dataLength >= 12 else {
         return
@@ -328,6 +311,23 @@ final class SpaceMonitor {
       let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
 
       continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
+
+    case .spaceCreated, .spaceDestroyed:
+      continuation.yield(.spacesChanged)
+
+    case .spaceCurrentChanged:
+      guard let data, dataLength >= 9 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
+
+      guard isCurrentFlag != 0 else {
+        return
+      }
+
+      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
     }
   }
 
