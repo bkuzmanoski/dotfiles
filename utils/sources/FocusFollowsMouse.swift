@@ -108,7 +108,7 @@ func SameProcess(
 ) -> OSStatus
 
 @_silgen_name("_AXUIElementGetWindow")
-func _AXUIElementGetWindow(_ element: AXUIElement, _ wid: UnsafeMutablePointer<CGWindowID>) -> AXError
+func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
 
 extension AXUIElement {
   var windowID: CGWindowID? {
@@ -235,44 +235,45 @@ struct SkyLightProxy {
     }
   }
 
-  typealias SLSNotifyProcPtr =
+  typealias SLSNotifyProc =
     @convention(c) (
       _ eventType: CGSEventType.RawValue,
       _ data: UnsafeMutableRawPointer?,
       _ dataLength: UInt32,
-      _ userData: UnsafeMutableRawPointer?
+      _ context: UnsafeMutableRawPointer?
     ) -> Void
 
-  private typealias SLSMainConnectionID = @convention(c) () -> UInt32
+  private typealias SLSConnectionID = UInt32
+  private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
-      _ cid: UInt32,
+      _ connectionID: SLSConnectionID,
       _ filterWindowID: CGWindowID,
       _ flags: Int32,
       _ reserved: Int32,
       _ screenPoint: UnsafePointer<CGPoint>,
       _ outWindowPoint: UnsafeMutablePointer<CGPoint>,
       _ outWindowID: UnsafeMutablePointer<CGWindowID>,
-      _ outWindowCID: UnsafeMutablePointer<UInt32>
+      _ outWindowConnectionID: UnsafeMutablePointer<SLSConnectionID>
     ) -> CGError
   private typealias SLSRegisterNotifyProc =
     @convention(c) (
-      _ proc: SLSNotifyProcPtr,
-      _ event: CGSEventType.RawValue,
-      _ userData: UnsafeMutableRawPointer?
+      _ proc: SLSNotifyProc,
+      _ eventType: CGSEventType.RawValue,
+      _ context: UnsafeMutableRawPointer?
     ) -> CGError
   private typealias SLSRemoveNotifyProc =
     @convention(c) (
-      _ proc: SLSNotifyProcPtr,
-      _ event: CGSEventType.RawValue,
-      _ userData: UnsafeMutableRawPointer?
+      _ proc: SLSNotifyProc,
+      _ eventType: CGSEventType.RawValue,
+      _ context: UnsafeMutableRawPointer?
     ) -> CGError
   private typealias _SLPSGetFrontProcess = @convention(c) (_ psn: UnsafeMutableRawPointer) -> CGError
   private typealias _SLPSSetFrontProcessWithOptions =
     @convention(c) (
       _ psn: UnsafeMutableRawPointer,
-      _ wid: CGWindowID,
-      _ mode: CPSSetFrontProcessOptions.RawValue
+      _ windowID: CGWindowID,
+      _ options: CPSSetFrontProcessOptions.RawValue
     ) -> CGError
   private typealias SLPSPostEventRecordTo =
     @convention(c) (
@@ -353,20 +354,20 @@ struct SkyLightProxy {
 
   @discardableResult
   func registerNotificationCallback(
-    _ callback: SLSNotifyProcPtr,
-    for event: CGSEventType,
-    userData: UnsafeMutableRawPointer?,
+    _ callback: SLSNotifyProc,
+    for eventType: CGSEventType,
+    context: UnsafeMutableRawPointer?,
   ) -> CGError {
-    return slsRegisterNotifyProc(callback, event.rawValue, userData)
+    return slsRegisterNotifyProc(callback, eventType.rawValue, context)
   }
 
   @discardableResult
   func removeNotificationCallback(
-    _ callback: SLSNotifyProcPtr,
-    for event: CGSEventType,
-    userData: UnsafeMutableRawPointer?,
+    _ callback: SLSNotifyProc,
+    for eventType: CGSEventType,
+    context: UnsafeMutableRawPointer?,
   ) -> CGError {
-    return slsRemoveNotifyProc(callback, event.rawValue, userData)
+    return slsRemoveNotifyProc(callback, eventType.rawValue, context)
   }
 
   @discardableResult
@@ -410,12 +411,12 @@ final class WindowMonitor {
 
   private let skyLightProxy: SkyLightProxy
 
-  private let slsNotifyProc: SkyLightProxy.SLSNotifyProcPtr = { eventType, data, dataLength, userData in
-    guard let event = CGSEventType(rawValue: eventType), let userData else {
+  private let slsNotifyProc: SkyLightProxy.SLSNotifyProc = { eventType, data, dataLength, context in
+    guard let event = CGSEventType(rawValue: eventType), let context else {
       return
     }
 
-    Unmanaged<WindowMonitor>.fromOpaque(userData).takeUnretainedValue().handleEvent(
+    Unmanaged<WindowMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
       event,
       data: data,
       dataLength: dataLength
@@ -432,7 +433,7 @@ final class WindowMonitor {
       let error = skyLightProxy.registerNotificationCallback(
         slsNotifyProc,
         for: eventType,
-        userData: Unmanaged.passUnretained(self).toOpaque()
+        context: Unmanaged.passUnretained(self).toOpaque()
       )
 
       guard error == .success else {
@@ -477,7 +478,7 @@ final class WindowMonitor {
       skyLightProxy.removeNotificationCallback(
         slsNotifyProc,
         for: eventType,
-        userData: Unmanaged.passUnretained(self).toOpaque()
+        context: Unmanaged.passUnretained(self).toOpaque()
       )
     }
 
@@ -724,8 +725,6 @@ final class FocusManager {
       await withDiscardingTaskGroup { group in
         group.addTask { await self?.monitorWindows() }
         group.addTask { await self?.monitorMissionControlState() }
-        group.addTask { await self?.monitorSystemSleep() }
-        group.addTask { await self?.monitorSystemWake() }
       }
     }
 
@@ -777,19 +776,6 @@ final class FocusManager {
     }
   }
 
-  private func monitorSystemSleep() async {
-    for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.willSleepNotification) {
-      self.isSystemSleeping = true
-      cancelPendingFocus()
-    }
-  }
-
-  private func monitorSystemWake() async {
-    for await _ in NSWorkspace.shared.notificationCenter.notifications(named: NSWorkspace.didWakeNotification) {
-      self.isSystemSleeping = false
-    }
-  }
-
   private func handleCGEvent(_ event: CGEvent) {
     switch event.type {
     case .mouseMoved:
@@ -818,7 +804,6 @@ final class FocusManager {
       }
 
       cancelPendingFocus()
-      removeStaleModalWindows()
 
     case .leftMouseUp:
       self.isLeftMouseDown = false
@@ -829,8 +814,6 @@ final class FocusManager {
       if isCommandKeyPressed {
         cancelPendingFocus()
       }
-
-      removeStaleModalWindows()
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
       if isEnabled, let cgEventTap {
@@ -973,24 +956,6 @@ final class FocusManager {
 
     self.isFocusPending = false
     self.focusTask = nil
-  }
-
-  private func removeStaleModalWindows() {
-    guard !modalWindows.isEmpty else {
-      return
-    }
-
-    guard
-      let descriptions = CGWindowListCreateDescriptionFromArray(Array(modalWindows.keys) as CFArray) as? [[String: Any]]
-    else {
-      modalWindows.removeAll()
-      return
-    }
-
-    let validWindowIDs = Set(descriptions.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
-    let windowIDsToKeep = Set(modalWindows.keys).intersection(validWindowIDs)
-
-    self.modalWindows = modalWindows.filter { windowIDsToKeep.contains($0.key) }
   }
 }
 
