@@ -187,16 +187,14 @@ struct App: Identifiable, Equatable {
   }
 }
 
-typealias WindowID = UInt32
-
 struct Window: Hashable {
-  let id: WindowID
+  let id: CGWindowID
   let processIdentifier: pid_t
   let spaceID: SpaceID
 
   init?(windowInfo: [String: Any], spaceID: SpaceID) {
     guard
-      let windowID = windowInfo[kCGWindowNumber as String] as? WindowID,
+      let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
       let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
       windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 > 0.0
@@ -227,8 +225,8 @@ final class SpaceMonitor {
     case spacesChanged
     case activeScreenChanged
     case activeSpaceChanged(spaceID: SpaceID)
-    case windowAdded(windowID: WindowID, spaceID: SpaceID)
-    case windowRemoved(windowID: WindowID, spaceID: SpaceID)
+    case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
+    case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
   }
 
   private let cgsNotifyProc: CGSNotifyProc = { eventType, data, dataLength, context in
@@ -317,7 +315,7 @@ final class SpaceMonitor {
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: WindowID.self)
+      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
 
       continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
 
@@ -327,7 +325,7 @@ final class SpaceMonitor {
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: WindowID.self)
+      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
 
       continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
     }
@@ -528,7 +526,7 @@ struct SpaceIndicatorView: View {
     self.activeSpaceIDs[displayIdentifier] = spaceID
   }
 
-  private func handleWindowAdded(windowID: WindowID, spaceID: SpaceID) {
+  private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {
     guard
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionIncludingWindow, .excludeDesktopElements],
@@ -543,7 +541,7 @@ struct SpaceIndicatorView: View {
     addWindow(window, to: spaceID)
   }
 
-  private func handleWindowRemoved(windowID: WindowID, spaceID: SpaceID) {
+  private func handleWindowRemoved(windowID: CGWindowID, spaceID: SpaceID) {
     guard
       let windowsOnSpace = spaceWindows[spaceID],
       let window = windowsOnSpace.first(where: { $0.id == windowID })
