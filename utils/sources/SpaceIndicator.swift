@@ -90,30 +90,30 @@ final class SingleInstanceLock {
   }
 }
 
-typealias CGSNotifyProcPtr =
+typealias CGSNotifyProc =
   @convention(c) (
     _ eventType: UInt32,
     _ data: UnsafeMutableRawPointer?,
     _ dataLength: UInt32,
-    _ userData: UnsafeMutableRawPointer?
+    _ context: UnsafeMutableRawPointer?
   ) -> Void
 
 @_silgen_name("CGSMainConnectionID")
 func CGSMainConnectionID() -> UInt32
 
 @_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ cid: UInt32, _ display: CFString?) -> Unmanaged<CFArray>?
+func CGSCopyManagedDisplaySpaces(_ connectionID: UInt32, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
 @_silgen_name("CGSCopySpacesForWindows")
-func CGSCopySpacesForWindows(_ cid: UInt32, _ mask: CInt, _ windows: CFArray) -> Unmanaged<CFArray>?
+func CGSCopySpacesForWindows(_ connectionID: UInt32, _ spaceMask: CInt, _ windowsIDs: CFArray) -> Unmanaged<CFArray>?
 
 @_silgen_name("CGSRegisterNotifyProc")
 @discardableResult
-func CGSRegisterNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData: UnsafeMutableRawPointer?) -> CGError
+func CGSRegisterNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
 
 @_silgen_name("CGSRemoveNotifyProc")
 @discardableResult
-func CGSRemoveNotifyProc(_ proc: CGSNotifyProcPtr, _ event: UInt32, _ userData: UnsafeMutableRawPointer?) -> CGError
+func CGSRemoveNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
 
 enum CGSEventType: UInt32 {
   case packagesStatusBarSpaceChanged = 1308
@@ -231,12 +231,12 @@ final class SpaceMonitor {
     case windowRemoved(windowID: WindowID, spaceID: SpaceID)
   }
 
-  private let cgsNotifyProc: CGSNotifyProcPtr = { eventType, data, dataLength, userData in
-    guard let event = CGSEventType(rawValue: eventType), let userData else {
+  private let cgsNotifyProc: CGSNotifyProc = { eventType, data, dataLength, context in
+    guard let event = CGSEventType(rawValue: eventType), let context else {
       return
     }
 
-    Unmanaged<SpaceMonitor>.fromOpaque(userData).takeUnretainedValue().handleEvent(
+    Unmanaged<SpaceMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
       event,
       data: data,
       dataLength: dataLength
