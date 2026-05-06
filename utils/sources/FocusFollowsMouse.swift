@@ -131,9 +131,12 @@ extension NSAccessibility.Notification {
   static let exposeExit = Self(rawValue: "AXExposeExit")
 }
 
+typealias SpaceID = UInt64
+
 enum CGSEventType: UInt32 {
   case spaceWindowCreated = 1325
   case spaceWindowDestroyed = 1326
+  case spaceCurrentChanged = 1329
 }
 
 struct CPSSetFrontProcessOptions: OptionSet {
@@ -245,6 +248,7 @@ struct SkyLightProxy {
 
   private typealias SLSConnectionID = UInt32
   private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
+  private typealias SLSGetActiveSpace = @convention(c) (_ connectionID: SLSConnectionID) -> SpaceID
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
       _ connectionID: SLSConnectionID,
@@ -282,12 +286,15 @@ struct SkyLightProxy {
     ) -> CGError
 
   private let mainConnectionID: UInt32
+  private let slsGetActiveSpace: SLSGetActiveSpace
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
   private let slsRegisterNotifyProc: SLSRegisterNotifyProc
   private let slsRemoveNotifyProc: SLSRemoveNotifyProc
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
   private let slpsPostEventRecordTo: SLPSPostEventRecordTo
+
+  var activeSpaceID: SpaceID { slsGetActiveSpace(mainConnectionID) }
 
   var frontProcess: ProcessSerialNumber? {
     var processSerialNumber = ProcessSerialNumber()
@@ -301,6 +308,10 @@ struct SkyLightProxy {
 
     guard let slsMainConnectionIDSymbol = dlsym(skyLightHandle, "SLSMainConnectionID") else {
       throw Error.symbolNotFound("SLSMainConnectionID")
+    }
+
+    guard let slsGetActiveSpaceSymbol = dlsym(skyLightHandle, "SLSGetActiveSpace") else {
+      throw Error.symbolNotFound("SLSGetActiveSpace")
     }
 
     guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
@@ -328,6 +339,7 @@ struct SkyLightProxy {
     }
 
     self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
+    self.slsGetActiveSpace = unsafeBitCast(slsGetActiveSpaceSymbol, to: SLSGetActiveSpace.self)
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
     self.slsRegisterNotifyProc = unsafeBitCast(slsRegisterNotifyProcSymbol, to: SLSRegisterNotifyProc.self)
     self.slsRemoveNotifyProc = unsafeBitCast(slsRemoveNotifyProcSymbol, to: SLSRemoveNotifyProc.self)
@@ -392,7 +404,7 @@ struct SkyLightProxy {
 }
 
 @MainActor
-final class WindowMonitor {
+final class WorkspaceMonitor {
   enum Error: Swift.Error, LocalizedError {
     case failedToRegisterForNotifications(eventType: CGSEventType, code: CGError)
 
@@ -405,8 +417,9 @@ final class WindowMonitor {
   }
 
   enum Event {
-    case windowAdded(windowID: CGWindowID)
-    case windowRemoved(windowID: CGWindowID)
+    case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
+    case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
+    case activeSpaceChanged(spaceID: SpaceID)
   }
 
   private let skyLightProxy: SkyLightProxy
@@ -416,7 +429,7 @@ final class WindowMonitor {
       return
     }
 
-    Unmanaged<WindowMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
+    Unmanaged<WorkspaceMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
       event,
       data: data,
       dataLength: dataLength
@@ -429,7 +442,7 @@ final class WindowMonitor {
   init(skyLightProxy: SkyLightProxy) throws {
     self.skyLightProxy = skyLightProxy
 
-    for eventType: CGSEventType in [.spaceWindowCreated, .spaceWindowDestroyed] {
+    for eventType: CGSEventType in [.spaceWindowCreated, .spaceWindowDestroyed, .spaceCurrentChanged] {
       let error = skyLightProxy.registerNotificationCallback(
         slsNotifyProc,
         for: eventType,
@@ -461,15 +474,44 @@ final class WindowMonitor {
   }
 
   private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
-    guard let continuation, let data, dataLength >= 12 else {
+    guard let continuation, let data else {
       return
     }
 
-    let windowID = data.advanced(by: 8).load(as: CGWindowID.self)
-
     switch event {
-    case .spaceWindowCreated: continuation.yield(.windowAdded(windowID: windowID))
-    case .spaceWindowDestroyed: continuation.yield(.windowRemoved(windowID: windowID))
+    case .spaceWindowCreated:
+      guard dataLength >= 12 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+
+      continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
+
+    case .spaceWindowDestroyed:
+      guard dataLength >= 12 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+
+      continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
+
+    case .spaceCurrentChanged:
+      guard dataLength >= 9 else {
+        return
+      }
+
+      let spaceID = data.load(as: SpaceID.self)
+      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
+
+      guard isCurrentFlag != 0 else {
+        return
+      }
+
+      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
     }
   }
 
@@ -662,7 +704,7 @@ final class FocusManager {
   private(set) var isEnabled = true
 
   private let skyLightProxy: SkyLightProxy
-  private let windowMonitor: WindowMonitor
+  private let workspaceMonitor: WorkspaceMonitor
   private let missionControlMonitor: MissionControlMonitor
   private let debounceTimer: DispatchSourceTimer
   private var cgEventTap: CFMachPort?
@@ -672,14 +714,19 @@ final class FocusManager {
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isLeftMouseDown = false
   private var isCommandKeyPressed = false
-  private var modalWindows: [CGWindowID: Int] = [:]
+  private var activeSpaceID: SpaceID
+  private var floatingWindows: [SpaceID: Set<CGWindowID>] = [:]
   private var isMissionControlActive = false
   private var isSystemSleeping = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
-    isLeftMouseDown || isCommandKeyPressed || !modalWindows.isEmpty || isMissionControlActive || isSystemSleeping
+    isLeftMouseDown
+      || isCommandKeyPressed
+      || !floatingWindows[activeSpaceID, default: []].isEmpty
+      || isMissionControlActive
+      || isSystemSleeping
   }
 
   init() throws {
@@ -688,9 +735,10 @@ final class FocusManager {
     }
 
     self.skyLightProxy = try SkyLightProxy()
-    self.windowMonitor = try WindowMonitor(skyLightProxy: skyLightProxy)
+    self.workspaceMonitor = try WorkspaceMonitor(skyLightProxy: skyLightProxy)
     self.missionControlMonitor = try MissionControlMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
+    self.activeSpaceID = skyLightProxy.activeSpaceID
 
     guard
       let cgEventTap = CGEvent.tapCreate(
@@ -723,8 +771,8 @@ final class FocusManager {
 
     let observationTask = Task { [weak self] in
       await withDiscardingTaskGroup { group in
-        group.addTask { await self?.monitorWindows() }
-        group.addTask { await self?.monitorMissionControlState() }
+        group.addTask { await self?.monitorWorkspace() }
+        group.addTask { await self?.monitorMissionControl() }
       }
     }
 
@@ -764,15 +812,44 @@ final class FocusManager {
     CGEvent.tapEnable(tap: cgEventTap, enable: isEnabled)
   }
 
-  private func monitorWindows() async {
-    for await event in windowMonitor.events() {
-      handleWindowEvent(event)
+  private func monitorWorkspace() async {
+    for await event in workspaceMonitor.events() {
+      switch event {
+      case .windowAdded(let windowID, let spaceID):
+        if let windowsInfo = CGWindowListCopyWindowInfo(
+          [.optionIncludingWindow, .excludeDesktopElements],
+          windowID
+        ) as? [[String: Any]],
+          let windowInfo = windowsInfo.first,
+          let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
+          windowLayer > kCGNormalWindowLevel,
+          windowLayer <= kCGScreenSaverWindowLevel,
+          windowLayer != kCGFloatingWindowLevel,
+          windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 == 1.0
+        {
+          floatingWindows[spaceID, default: []].insert(windowID)
+        }
+
+      case .windowRemoved(let windowID, let spaceID):
+        floatingWindows[spaceID]?.remove(windowID)
+
+      case .activeSpaceChanged(let spaceID):
+        self.activeSpaceID = spaceID
+        cancelPendingFocus()
+      }
     }
   }
 
-  private func monitorMissionControlState() async {
+  private func monitorMissionControl() async {
     for await event in missionControlMonitor.events() {
-      handleMissionControlStateChange(event)
+      switch event {
+      case .activated:
+        self.isMissionControlActive = true
+        cancelPendingFocus()
+
+      case .deactivated:
+        self.isMissionControlActive = false
+      }
     }
   }
 
@@ -822,52 +899,6 @@ final class FocusManager {
 
     default:
       break
-    }
-  }
-
-  private func handleWindowEvent(_ event: WindowMonitor.Event) {
-    switch event {
-    case .windowAdded(let windowID):
-      if let currentCount = modalWindows[windowID] {
-        modalWindows[windowID] = currentCount + 1
-        return
-      }
-
-      if let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionIncludingWindow, .excludeDesktopElements],
-        windowID
-      ) as? [[String: Any]],
-        let windowInfo = windowsInfo.first,
-        let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
-        windowLayer > kCGNormalWindowLevel,
-        windowLayer <= kCGScreenSaverWindowLevel,
-        windowLayer != kCGFloatingWindowLevel,
-        windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 == 1.0
-      {
-        modalWindows[windowID] = 1
-      }
-
-    case .windowRemoved(let windowID):
-      guard let currentCount = modalWindows[windowID] else {
-        return
-      }
-
-      if currentCount > 1 {
-        modalWindows[windowID] = currentCount - 1
-      } else {
-        modalWindows.removeValue(forKey: windowID)
-      }
-    }
-  }
-
-  private func handleMissionControlStateChange(_ event: MissionControlMonitor.Event) {
-    switch event {
-    case .activated:
-      self.isMissionControlActive = true
-      cancelPendingFocus()
-
-    case .deactivated:
-      self.isMissionControlActive = false
     }
   }
 
