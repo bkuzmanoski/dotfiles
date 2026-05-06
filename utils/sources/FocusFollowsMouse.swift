@@ -926,6 +926,8 @@ final class FocusManager {
   @concurrent
   private func focusWindow(at point: CGPoint) async {
     guard
+      let sessionInfo = CGSessionCopyCurrentDictionary() as? [String: Any],
+      sessionInfo["CGSSessionScreenIsLocked"] == nil,
       let targetWindowID = skyLightProxy.findWindow(at: point),
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionIncludingWindow, .excludeDesktopElements],
