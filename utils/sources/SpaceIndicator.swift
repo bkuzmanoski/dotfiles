@@ -192,17 +192,29 @@ struct Window: Hashable {
   let processIdentifier: pid_t
   let spaceID: SpaceID
 
-  init?(windowInfo: [String: Any], spaceID: SpaceID) {
+  init(id: CGWindowID, processIdentifier: pid_t, spaceID: SpaceID) {
+    self.id = id
+    self.processIdentifier = processIdentifier
+    self.spaceID = spaceID
+  }
+
+  init?(info windowInfo: [String: Any], cgsConnectionID: UInt32) {
     guard
+      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t
+      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+      let spacesForWindow = CGSCopySpacesForWindows(
+        cgsConnectionID,
+        CGSSpaceMask.allSpaces.rawValue,
+        [windowID] as CFArray
+      )?.takeRetainedValue() as? [SpaceID],
+      spacesForWindow.count == 1,
+      let spaceID = spacesForWindow.first
     else {
       return nil
     }
 
-    self.id = windowID
-    self.processIdentifier = processIdentifier
-    self.spaceID = spaceID
+    self = Window(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
   }
 }
 
@@ -486,22 +498,11 @@ struct SpaceIndicatorView: View {
     self.spaceWindows.removeAll()
 
     for windowInfo in windowsInfo {
-      guard
-        windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-        let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-        let spacesForWindow = CGSCopySpacesForWindows(
-          cgsConnectionID,
-          CGSSpaceMask.allSpaces.rawValue,
-          [windowID] as CFArray
-        )?.takeRetainedValue() as? [SpaceID],
-        spacesForWindow.count == 1,
-        let spaceID = spacesForWindow.first,
-        let window = Window(windowInfo: windowInfo, spaceID: spaceID)
-      else {
+      guard let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
         continue
       }
 
-      addWindow(window, toSpace: spaceID)
+      trackWindow(window)
     }
   }
 
@@ -548,13 +549,13 @@ struct SpaceIndicatorView: View {
         windowID
       ) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
-      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-      let window = Window(windowInfo: windowInfo, spaceID: spaceID)
+      let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID),
+      window.spaceID == spaceID
     else {
       return
     }
 
-    addWindow(window, toSpace: spaceID)
+    trackWindow(window)
   }
 
   private func handleWindowRemoved(windowID: CGWindowID, spaceID: SpaceID) {
@@ -569,8 +570,8 @@ struct SpaceIndicatorView: View {
     self.spaceWindows[spaceID]?.remove(window)
   }
 
-  private func addWindow(_ window: Window, toSpace spaceID: SpaceID) {
-    self.spaceWindows[spaceID, default: []].insert(window)
+  private func trackWindow(_ window: Window) {
+    self.spaceWindows[window.spaceID, default: []].insert(window)
 
     if runningApps[window.processIdentifier] == nil, let app = App(processIdentifier: window.processIdentifier) {
       self.runningApps[app.id] = app
