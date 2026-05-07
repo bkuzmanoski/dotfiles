@@ -133,11 +133,35 @@ extension NSAccessibility.Notification {
 
 typealias SpaceID = UInt64
 
+enum CGSSpaceType: CInt {
+  case user = 0
+  case system = 2
+  case fullscreen = 4
+  case unknown = -1
+
+  init(rawValue: CInt) {
+    switch rawValue {
+    case 0: self = .user
+    case 2: self = .system
+    case 4: self = .fullscreen
+    default: self = .unknown
+    }
+  }
+}
+
 enum CGSEventType: UInt32 {
   case spaceWindowCreated = 1325
   case spaceWindowDestroyed = 1326
   case spaceCurrentChanged = 1329
 }
+
+typealias SLSNotifyProc =
+  @convention(c) (
+    _ eventType: CGSEventType.RawValue,
+    _ data: UnsafeMutableRawPointer?,
+    _ dataLength: UInt32,
+    _ context: UnsafeMutableRawPointer?
+  ) -> Void
 
 struct CPSSetFrontProcessOptions: OptionSet {
   let rawValue: UInt32
@@ -238,17 +262,14 @@ struct SkyLightProxy {
     }
   }
 
-  typealias SLSNotifyProc =
-    @convention(c) (
-      _ eventType: CGSEventType.RawValue,
-      _ data: UnsafeMutableRawPointer?,
-      _ dataLength: UInt32,
-      _ context: UnsafeMutableRawPointer?
-    ) -> Void
-
   private typealias SLSConnectionID = UInt32
   private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
   private typealias SLSGetActiveSpace = @convention(c) (_ connectionID: SLSConnectionID) -> SpaceID
+  private typealias SLSSpaceGetType =
+    @convention(c) (
+      _ connectionID: SLSConnectionID,
+      _ spaceID: SpaceID
+    ) -> CGSSpaceType.RawValue
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
       _ connectionID: SLSConnectionID,
@@ -287,6 +308,7 @@ struct SkyLightProxy {
 
   private let mainConnectionID: UInt32
   private let slsGetActiveSpace: SLSGetActiveSpace
+  private let slsSpaceGetType: SLSSpaceGetType
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
   private let slsRegisterNotifyProc: SLSRegisterNotifyProc
   private let slsRemoveNotifyProc: SLSRemoveNotifyProc
@@ -312,6 +334,10 @@ struct SkyLightProxy {
 
     guard let slsGetActiveSpaceSymbol = dlsym(skyLightHandle, "SLSGetActiveSpace") else {
       throw Error.symbolNotFound("SLSGetActiveSpace")
+    }
+
+    guard let slsSpaceGetTypeSymbol = dlsym(skyLightHandle, "SLSSpaceGetType") else {
+      throw Error.symbolNotFound("SLSSpaceGetType")
     }
 
     guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
@@ -340,6 +366,7 @@ struct SkyLightProxy {
 
     self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
     self.slsGetActiveSpace = unsafeBitCast(slsGetActiveSpaceSymbol, to: SLSGetActiveSpace.self)
+    self.slsSpaceGetType = unsafeBitCast(slsSpaceGetTypeSymbol, to: SLSSpaceGetType.self)
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
     self.slsRegisterNotifyProc = unsafeBitCast(slsRegisterNotifyProcSymbol, to: SLSRegisterNotifyProc.self)
     self.slsRemoveNotifyProc = unsafeBitCast(slsRemoveNotifyProcSymbol, to: SLSRemoveNotifyProc.self)
@@ -349,6 +376,10 @@ struct SkyLightProxy {
       to: _SLPSSetFrontProcessWithOptions.self
     )
     self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
+  }
+
+  func spaceType(for spaceID: SpaceID) -> CGSSpaceType {
+    return CGSSpaceType(rawValue: slsSpaceGetType(mainConnectionID, spaceID))
   }
 
   func findWindow(at point: CGPoint) -> CGWindowID? {
@@ -403,6 +434,11 @@ struct SkyLightProxy {
   }
 }
 
+struct Space {
+  let id: SpaceID
+  let type: CGSSpaceType
+}
+
 @MainActor
 final class WorkspaceMonitor {
   enum Error: Swift.Error, LocalizedError {
@@ -424,7 +460,7 @@ final class WorkspaceMonitor {
 
   private let skyLightProxy: SkyLightProxy
 
-  private let slsNotifyProc: SkyLightProxy.SLSNotifyProc = { eventType, data, dataLength, context in
+  private let slsNotifyProc: SLSNotifyProc = { eventType, data, dataLength, context in
     guard let event = CGSEventType(rawValue: eventType), let context else {
       return
     }
@@ -713,18 +749,17 @@ final class FocusManager {
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var activeSpaceID: SpaceID
+  private var activeSpace: Space
   private var floatingWindows: [SpaceID: Set<CGWindowID>] = [:]
   private var isMissionControlActive = false
-  private var isSystemSleeping = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
     isCommandKeyPressed
-      || !floatingWindows[activeSpaceID, default: []].isEmpty
       || isMissionControlActive
-      || isSystemSleeping
+      || activeSpace.type != .user
+      || !floatingWindows[activeSpace.id, default: []].isEmpty
   }
 
   init() throws {
@@ -736,7 +771,10 @@ final class FocusManager {
     self.workspaceMonitor = try WorkspaceMonitor(skyLightProxy: skyLightProxy)
     self.missionControlMonitor = try MissionControlMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
-    self.activeSpaceID = skyLightProxy.activeSpaceID
+    self.activeSpace = Space(
+      id: skyLightProxy.activeSpaceID,
+      type: skyLightProxy.spaceType(for: skyLightProxy.activeSpaceID)
+    )
 
     guard
       let cgEventTap = CGEvent.tapCreate(
@@ -821,7 +859,7 @@ final class FocusManager {
           windowLayer > kCGNormalWindowLevel,
           windowLayer <= kCGScreenSaverWindowLevel,
           windowLayer != kCGFloatingWindowLevel,
-          windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 == 1.0
+          windowInfo[kCGWindowIsOnscreen as String] as? Bool == true
         {
           floatingWindows[spaceID, default: []].insert(windowID)
         }
@@ -830,7 +868,7 @@ final class FocusManager {
         floatingWindows[spaceID]?.remove(windowID)
 
       case .activeSpaceChanged(let spaceID):
-        self.activeSpaceID = spaceID
+        self.activeSpace = Space(id: spaceID, type: skyLightProxy.spaceType(for: spaceID))
         cancelPendingFocus()
       }
     }
