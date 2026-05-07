@@ -129,7 +129,6 @@ final class SoundEffectManager {
   }
 
   private let systemSoundIDs: [SoundEffect: SystemSoundID]
-  private var isEnabled = true
 
   init() throws {
     let soundFileDirectoryPath = NSString(string: Constants.soundFileDirectory).expandingTildeInPath
@@ -153,12 +152,8 @@ final class SoundEffectManager {
     Self.dispose(systemSoundIDs: systemSoundIDs)
   }
 
-  func toggleEnabled() {
-    self.isEnabled.toggle()
-  }
-
   func play(soundEffect: SoundEffect) {
-    guard isEnabled, let soundID = systemSoundIDs[soundEffect] else {
+    guard let soundID = systemSoundIDs[soundEffect] else {
       return
     }
 
@@ -200,12 +195,16 @@ final class ClickMonitor {
     }
   }
 
+  private(set) var isEnabled = true
+  private(set) var isSuspended: Bool
+
   private let soundEffectManager: SoundEffectManager
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
-  init(soundEffectManager: SoundEffectManager) throws {
+  init(soundEffectManager: SoundEffectManager, isSuspended: Bool) throws {
     self.soundEffectManager = soundEffectManager
+    self.isSuspended = isSuspended
 
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionDenied
@@ -238,21 +237,54 @@ final class ClickMonitor {
     let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: eventTap, enable: true)
 
     self.eventTap = eventTap
     self.runLoopSource = runLoopSource
+
+    updateEventTapState()
   }
 
   deinit {
     if let eventTap {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
+      if CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: false)
+      }
+
       CFMachPortInvalidate(eventTap)
     }
 
     if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     }
+  }
+
+  func toggleEnabled() {
+    self.isEnabled.toggle()
+    updateEventTapState()
+  }
+
+  func setSuspended(_ isSuspended: Bool) {
+    guard self.isSuspended != isSuspended else {
+      return
+    }
+
+    self.isSuspended = isSuspended
+
+    updateEventTapState()
+  }
+
+  private func updateEventTapState() {
+    guard let eventTap else {
+      return
+    }
+
+    let shouldEnable = isEnabled && !isSuspended
+
+    guard CGEvent.tapIsEnabled(tap: eventTap) != shouldEnable else {
+      return
+    }
+
+    CGEvent.tapEnable(tap: eventTap, enable: shouldEnable)
   }
 
   private func handleEvent(ofType type: CGEventType) {
@@ -270,9 +302,7 @@ final class ClickMonitor {
       soundEffectManager.play(soundEffect: .rightMouseUp)
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
+      updateEventTapState()
 
     default:
       break
@@ -280,10 +310,135 @@ final class ClickMonitor {
   }
 }
 
+typealias AudioDeviceTransportType = UInt32
+
+extension AudioDeviceTransportType {
+  var isBluetooth: Bool { self == kAudioDeviceTransportTypeBluetooth || self == kAudioDeviceTransportTypeBluetoothLE }
+}
+
+final class OutputDeviceObserver {
+  enum Error: Swift.Error, LocalizedError {
+    case failedToDetermineOutputDevice(status: OSStatus)
+    case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
+    case failedToObserveOutputDeviceChanges(status: OSStatus)
+
+    var errorDescription: String? {
+      switch self {
+      case .failedToDetermineOutputDevice(let status):
+        "Failed to determine the output audio device (\(status))."
+
+      case .failedToDetermineDeviceTransportType(let deviceID, let status):
+        "Failed to determine the transport type for device \(deviceID) (\(status))."
+
+      case .failedToObserveOutputDeviceChanges(let status):
+        "Failed to observe output device changes (\(status))."
+      }
+    }
+  }
+
+  private let systemObjectID = AudioObjectID(kAudioObjectSystemObject)
+  private let defaultSystemOutputDevicePropertyAddress = AudioObjectPropertyAddress(
+    mSelector: kAudioHardwarePropertyDefaultSystemOutputDevice,
+    mScope: kAudioObjectPropertyScopeGlobal,
+    mElement: kAudioObjectPropertyElementMain
+  )
+  private let transportTypePropertyAddress = AudioObjectPropertyAddress(
+    mSelector: kAudioDevicePropertyTransportType,
+    mScope: kAudioObjectPropertyScopeGlobal,
+    mElement: kAudioObjectPropertyElementMain
+  )
+  private let onTransportTypeChanged: (AudioDeviceTransportType) -> Void
+  private lazy var defaultSystemOutputDevicePropertyListenerBlock: AudioObjectPropertyListenerBlock =
+    { [weak self] _, _ in
+      self?.handleOutputDeviceChanged()
+    }
+
+  init(onTransportTypeChanged: @escaping (AudioDeviceTransportType) -> Void) throws {
+    self.onTransportTypeChanged = onTransportTypeChanged
+
+    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
+
+    let status = AudioObjectAddPropertyListenerBlock(
+      systemObjectID,
+      &defaultSystemOutputDevicePropertyAddress,
+      .main,
+      defaultSystemOutputDevicePropertyListenerBlock
+    )
+
+    guard status == kAudioHardwareNoError else {
+      throw Error.failedToObserveOutputDeviceChanges(status: status)
+    }
+  }
+
+  deinit {
+    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
+    AudioObjectRemovePropertyListenerBlock(
+      systemObjectID,
+      &defaultSystemOutputDevicePropertyAddress,
+      .main,
+      defaultSystemOutputDevicePropertyListenerBlock
+    )
+  }
+
+  func currentDeviceTransportType() throws -> AudioDeviceTransportType {
+    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
+    var defaultSystemOutputDeviceID = kAudioObjectUnknown
+    var defaultSystemOutputDevicePropertyDataSize = UInt32(MemoryLayout.size(ofValue: defaultSystemOutputDeviceID))
+
+    let getDefaultSystemOutputDevicePropertyStatus = AudioObjectGetPropertyData(
+      systemObjectID,
+      &defaultSystemOutputDevicePropertyAddress,
+      0,
+      nil,
+      &defaultSystemOutputDevicePropertyDataSize,
+      &defaultSystemOutputDeviceID
+    )
+
+    guard
+      getDefaultSystemOutputDevicePropertyStatus == kAudioHardwareNoError,
+      defaultSystemOutputDeviceID != kAudioObjectUnknown
+    else {
+      throw Error.failedToDetermineOutputDevice(status: getDefaultSystemOutputDevicePropertyStatus)
+    }
+
+    var transportTypePropertyAddress = transportTypePropertyAddress
+
+    guard AudioObjectHasProperty(defaultSystemOutputDeviceID, &transportTypePropertyAddress) else {
+      return kAudioDeviceTransportTypeUnknown
+    }
+
+    var transportType = kAudioDeviceTransportTypeUnknown
+    var transportTypePropertyDataSize = UInt32(MemoryLayout.size(ofValue: transportType))
+
+    let getTransportTypePropertyStatus = AudioObjectGetPropertyData(
+      defaultSystemOutputDeviceID,
+      &transportTypePropertyAddress,
+      0,
+      nil,
+      &transportTypePropertyDataSize,
+      &transportType
+    )
+
+    guard getTransportTypePropertyStatus == kAudioHardwareNoError else {
+      throw Error.failedToDetermineDeviceTransportType(
+        deviceID: defaultSystemOutputDeviceID,
+        status: getTransportTypePropertyStatus
+      )
+    }
+
+    return transportType
+  }
+
+  private func handleOutputDeviceChanged() {
+    let transportType = (try? currentDeviceTransportType()) ?? kAudioDeviceTransportTypeUnknown
+    onTransportTypeChanged(transportType)
+  }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
-  private var soundEffectManager: SoundEffectManager?
+  private var outputDeviceObserver: OutputDeviceObserver?
   private var clickMonitor: ClickMonitor?
 
   init(singleInstanceLock: SingleInstanceLock) {
@@ -293,10 +448,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let soundEffectManager = try SoundEffectManager()
-      let clickMonitor = try ClickMonitor(soundEffectManager: soundEffectManager)
+      let outputDeviceObserver = try OutputDeviceObserver { [weak self] transportType in
+        self?.clickMonitor?.setSuspended(transportType.isBluetooth)
+      }
 
-      self.soundEffectManager = soundEffectManager
+      let soundEffectManager = try SoundEffectManager()
+      let currentOutputDeviceTransportType = try outputDeviceObserver.currentDeviceTransportType()
+      let clickMonitor = try ClickMonitor(
+        soundEffectManager: soundEffectManager,
+        isSuspended: currentOutputDeviceTransportType.isBluetooth
+      )
+
+      self.outputDeviceObserver = outputDeviceObserver
       self.clickMonitor = clickMonitor
     } catch {
       FileHandle.standardError.write(Data("Failed to initialize: \(error.localizedDescription)\n".utf8))
@@ -340,7 +503,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
-    case "toggle": soundEffectManager?.toggleEnabled()
+    case "toggle": clickMonitor?.toggleEnabled()
     case "quit": NSApplication.shared.terminate(nil)
     default: return
     }
