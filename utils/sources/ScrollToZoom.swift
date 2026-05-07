@@ -178,45 +178,44 @@ final class ZoomManager {
   }
 
   private func handleEvent(_ event: CGEvent) -> Bool {
-    switch event.type {
-    case .scrollWheel where event.flags.contains(Constants.hotkey):
-      if !isZooming {
-        self.isZooming = true
-        postZoomEvent(phase: .began, magnification: 0)
-      }
-
-      let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-      if scrollDelta != 0 {
-        let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
-        let magnification = scrollDelta * directionMultiplier * Constants.zoomSensitivity
-
-        postZoomEvent(phase: .changed, magnification: magnification)
-      }
-
-      return true
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
+    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
       if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
       return false
+    }
 
-    default:
+    guard event.type == .scrollWheel, event.flags.contains(Constants.hotkey) else {
       guard isZooming else {
         return false
       }
 
-      postZoomEvent(phase: .ended, magnification: 0)
+      performZoomGesture(phase: .ended, magnification: 0.0)
 
       self.isZooming = false
 
       return true
     }
+
+    if !isZooming {
+      self.isZooming = true
+      performZoomGesture(phase: .began, magnification: 0.0)
+    }
+
+    let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+
+    if scrollDelta != 0.0 {
+      let directionMultiplier = Constants.reverseZoomDirection ? -1.0 : 1.0
+      let magnification = scrollDelta * directionMultiplier * Constants.zoomSensitivity
+
+      performZoomGesture(phase: .changed, magnification: magnification)
+    }
+
+    return true
   }
 
-  private func postZoomEvent(phase: CGSGesturePhase, magnification: Double) {
+  private func performZoomGesture(phase: CGSGesturePhase, magnification: Double) {
     guard let event = CGEvent(source: nil) else {
       return
     }

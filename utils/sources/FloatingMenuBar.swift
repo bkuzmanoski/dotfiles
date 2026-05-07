@@ -430,22 +430,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
-    case .rightMouseDown:
-      if CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey) {
-        try? AppMenu.popUp(at: NSEvent.mouseLocation)
-        return true
-      }
+    case .rightMouseDown where CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey):
+      try? AppMenu.popUp(at: NSEvent.mouseLocation)
+      return true
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
       if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
-    default:
-      break
-    }
+      return false
 
-    return false
+    default:
+      return false
+    }
   }
 
   private func observeSignals() {

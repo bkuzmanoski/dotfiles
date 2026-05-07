@@ -5,27 +5,13 @@ enum Constants {
   static let lockFileName = "\(subsystem).lock"
   static let notificationName = Notification.Name("\(subsystem).command")
   static let notificationUserInfoKey = "arguments"
-  static let rightCommandDeviceBit: UInt64 = 0x10
-  static let leftCommandDeviceBit: UInt64 = 0x08
-  static let keymap: [CGKeyCode: CGKeyCode] = [
-    KeyCode.l: KeyCode.leftArrow,
-    KeyCode.quote: KeyCode.rightArrow,
-    KeyCode.p: KeyCode.upArrow,
-    KeyCode.semicolon: KeyCode.downArrow,
-    KeyCode.returnKey: KeyCode.returnKey
+  static let keymap = [
+    CGKeyCode.l: CGKeyCode.leftArrow,
+    CGKeyCode.quote: CGKeyCode.rightArrow,
+    CGKeyCode.p: CGKeyCode.upArrow,
+    CGKeyCode.semicolon: CGKeyCode.downArrow,
+    CGKeyCode.returnKey: CGKeyCode.returnKey
   ]
-}
-
-enum KeyCode {
-  static let l: CGKeyCode = 37
-  static let quote: CGKeyCode = 39
-  static let p: CGKeyCode = 35
-  static let semicolon: CGKeyCode = 41
-  static let returnKey: CGKeyCode = 36
-  static let leftArrow: CGKeyCode = 123
-  static let rightArrow: CGKeyCode = 124
-  static let upArrow: CGKeyCode = 126
-  static let downArrow: CGKeyCode = 125
 }
 
 enum ProcessSignals {
@@ -111,6 +97,23 @@ final class SingleInstanceLock {
   }
 }
 
+extension CGKeyCode {
+  static let l: CGKeyCode = 37
+  static let quote: CGKeyCode = 39
+  static let p: CGKeyCode = 35
+  static let semicolon: CGKeyCode = 41
+  static let returnKey: CGKeyCode = 36
+  static let leftArrow: CGKeyCode = 123
+  static let rightArrow: CGKeyCode = 124
+  static let upArrow: CGKeyCode = 126
+  static let downArrow: CGKeyCode = 125
+}
+
+extension CGEventFlags {
+  static let maskLeftCommand = CGEventFlags(rawValue: 0x08)
+  static let maskRightCommand = CGEventFlags(rawValue: 0x10)
+}
+
 @MainActor
 final class HotkeyManager {
   enum Error: Swift.Error, LocalizedError {
@@ -145,7 +148,7 @@ final class HotkeyManager {
             return Unmanaged.passUnretained(event)
           }
 
-          return Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
+          return Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleKeyboardEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -175,7 +178,7 @@ final class HotkeyManager {
     }
   }
 
-  private func handleEvent(_ event: CGEvent) -> Bool {
+  private func handleKeyboardEvent(_ event: CGEvent) -> Bool {
     guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
       if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: true)
@@ -187,40 +190,36 @@ final class HotkeyManager {
     let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
     let isKeyDown = event.type == .keyDown
 
-    if !isKeyDown, let mappedCode = activeHotkeys[keyCode] {
+    let mappedKeyCode: CGKeyCode
+
+    if !isKeyDown, let activeHotkey = activeHotkeys[keyCode] {
       activeHotkeys[keyCode] = nil
-      postKeyEvent(keyCode: mappedCode, isKeyDown: false, originalEvent: event)
+      mappedKeyCode = activeHotkey
 
-      return true
-    }
+    } else if isKeyDown, event.flags.contains(.maskRightCommand), let mappedCode = Constants.keymap[keyCode] {
+      activeHotkeys[keyCode] = mappedCode
+      mappedKeyCode = mappedCode
 
-    guard event.flags.rawValue & Constants.rightCommandDeviceBit != 0, let mappedCode = Constants.keymap[keyCode] else {
+    } else {
       return false
     }
 
-    if isKeyDown {
-      activeHotkeys[keyCode] = mappedCode
-      postKeyEvent(keyCode: mappedCode, isKeyDown: true, originalEvent: event)
+    guard let mappedEvent = CGEvent(keyboardEventSource: nil, virtualKey: mappedKeyCode, keyDown: isKeyDown) else {
+      return false
     }
+
+    var mappedFlags = event.flags
+
+    mappedFlags.remove(.maskRightCommand)
+
+    if !event.flags.contains(.maskLeftCommand) {
+      mappedFlags.remove(.maskCommand)
+    }
+
+    mappedEvent.flags = mappedFlags
+    mappedEvent.post(tap: .cghidEventTap)
 
     return true
-  }
-
-  private func postKeyEvent(keyCode: CGKeyCode, isKeyDown: Bool, originalEvent: CGEvent) {
-    guard let newEvent = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: isKeyDown) else {
-      return
-    }
-
-    var newFlags = originalEvent.flags.rawValue
-
-    newFlags &= ~Constants.rightCommandDeviceBit
-
-    if originalEvent.flags.rawValue & Constants.leftCommandDeviceBit == 0 {
-      newFlags &= ~CGEventFlags.maskCommand.rawValue
-    }
-
-    newEvent.flags = CGEventFlags(rawValue: newFlags)
-    newEvent.post(tap: .cghidEventTap)
   }
 }
 

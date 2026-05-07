@@ -216,22 +216,17 @@ final class SpaceSwitcher {
     let steps = direction == .right ? (targetIndex - spacesInfo.currentIndex) : (spacesInfo.currentIndex - targetIndex)
 
     for _ in 0..<steps {
-      if !postDockControlEvent(direction: direction) {
+      if !performSpaceSwitchGesture(direction: direction) {
         return
       }
     }
   }
 
   @discardableResult
-  private func postDockControlEvent(direction: Direction) -> Bool {
+  private func performSpaceSwitchGesture(direction: Direction) -> Bool {
     guard
-      postDockControlEvent(.began, direction: direction, progress: 0, velocityX: 0),
-      postDockControlEvent(
-        .ended,
-        direction: direction,
-        progress: direction == .right ? 2.0 : -2.0,
-        velocityX: direction == .right ? 400.0 : -400.0
-      )
+      performSpaceSwitchGesture(phase: .began, direction: direction),
+      performSpaceSwitchGesture(phase: .ended, direction: direction)
     else {
       return false
     }
@@ -239,12 +234,7 @@ final class SpaceSwitcher {
     return true
   }
 
-  private func postDockControlEvent(
-    _ phase: CGSGesturePhase,
-    direction: Direction,
-    progress: Double,
-    velocityX: Double
-  ) -> Bool {
+  private func performSpaceSwitchGesture(phase: CGSGesturePhase, direction: Direction) -> Bool {
     guard let dockControlEvent = CGEvent(source: nil), let gestureEvent = CGEvent(source: nil) else {
       return false
     }
@@ -255,13 +245,13 @@ final class SpaceSwitcher {
     dockControlEvent.setIntegerValueField(.gesturePhase, value: phase.rawValue)
     dockControlEvent.setIntegerValueField(.scrollGestureFlagBits, value: direction == .right ? 1 : 0)
     dockControlEvent.setIntegerValueField(.gestureSwipeMotion, value: CGGestureMotion.horizontal.rawValue)
-    dockControlEvent.setDoubleValueField(.gestureScrollY, value: 0)
-    dockControlEvent.setDoubleValueField(.gestureZoomDeltaX, value: Double(Float.leastNonzeroMagnitude))
+    dockControlEvent.setDoubleValueField(.gestureScrollY, value: 0.0)
+    dockControlEvent.setDoubleValueField(.gestureZoomDeltaX, value: Double.leastNonzeroMagnitude)
 
     if phase == .ended {
-      dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: progress)
-      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityX, value: velocityX)
-      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityY, value: 0)
+      dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: direction == .right ? 2.0 : -2.0)
+      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityX, value: direction == .right ? 400.0 : -400.0)
+      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityY, value: 0.0)
     }
 
     gestureEvent.type = .gesture
