@@ -865,6 +865,12 @@ final class FocusManager {
     CGEvent.tapEnable(tap: cgEventTap, enable: isEnabled)
   }
 
+  func debug() {
+    print("Active Space: \(activeSpace.id) (Type: \(activeSpace.type))")
+    print("Floating Windows in Active Space: \(floatingWindows[activeSpace.id, default: []])")
+    print("Mission Control Active: \(isMissionControlActive)")
+  }
+
   private func monitorWorkspace() async {
     for await event in workspaceMonitor.events() {
       switch event {
@@ -874,7 +880,6 @@ final class FocusManager {
           windowID
         ) as? [[String: Any]],
           let windowInfo = windowsInfo.first,
-          windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 > 0.0,
           windowInfo[kCGWindowIsOnscreen as String] as? Bool == true,
           let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
           windowLayer > kCGNormalWindowLevel,
@@ -1098,6 +1103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     switch command {
+    case "debug": focusManager?.debug()
     case "toggle": focusManager?.toggleEnabled()
     case "quit": NSApplication.shared.terminate(nil)
     default: return
