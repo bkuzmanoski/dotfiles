@@ -246,7 +246,7 @@ final class SpaceSwitcher {
     dockControlEvent.setIntegerValueField(.scrollGestureFlagBits, value: direction == .right ? 1 : 0)
     dockControlEvent.setIntegerValueField(.gestureSwipeMotion, value: CGGestureMotion.horizontal.rawValue)
     dockControlEvent.setDoubleValueField(.gestureScrollY, value: 0.0)
-    dockControlEvent.setDoubleValueField(.gestureZoomDeltaX, value: Double.leastNonzeroMagnitude)
+    dockControlEvent.setDoubleValueField(.gestureZoomDeltaX, value: Double(Float.leastNonzeroMagnitude))
 
     if phase == .ended {
       dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: direction == .right ? 2.0 : -2.0)
