@@ -371,7 +371,7 @@ struct SpaceIndicatorView: View {
   @State private var activeDisplayIdentifier = NSScreen.main?.displayIdentifier
   @State private var activeSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
   @State private var spacesChangedEpoch: UInt64 = 0
-  @State private var isResyncPending = true
+  @State private var isRefreshPending = true
 
   private var activeDisplaySpaces: [Space] {
     guard let activeDisplayIdentifier, let spacesOnDisplay = displaySpaces[activeDisplayIdentifier] else {
@@ -430,7 +430,7 @@ struct SpaceIndicatorView: View {
       onWidthChanged(newWidth)
     }
     .task(id: spacesChangedEpoch) {
-      self.isResyncPending = true
+      self.isRefreshPending = true
 
       try? await Task.sleep(for: .milliseconds(100))
 
@@ -438,10 +438,10 @@ struct SpaceIndicatorView: View {
         return
       }
 
-      syncSpaces()
-      syncWindows()
+      refreshSpaces()
+      refreshWindows()
 
-      self.isResyncPending = false
+      self.isRefreshPending = false
     }
     .task {
       await withDiscardingTaskGroup { group in
@@ -451,7 +451,7 @@ struct SpaceIndicatorView: View {
     }
   }
 
-  private func syncSpaces() {
+  private func refreshSpaces() {
     guard
       let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
         cgsConnectionID,
@@ -485,7 +485,7 @@ struct SpaceIndicatorView: View {
     self.activeSpaceIDs = newActiveSpaceIDs
   }
 
-  private func syncWindows() {
+  private func refreshWindows() {
     guard
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionAll, .excludeDesktopElements],
@@ -532,7 +532,7 @@ struct SpaceIndicatorView: View {
 
   private func handleActiveSpaceChanged(spaceID: SpaceID) {
     guard
-      !isResyncPending,
+      !isRefreshPending,
       let displayIdentifier = displaySpaces.first(where: { $0.value.contains(spaceID) })?.key
     else {
       return
@@ -543,7 +543,7 @@ struct SpaceIndicatorView: View {
 
   private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {
     guard
-      !isResyncPending,
+      !isRefreshPending,
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionIncludingWindow, .excludeDesktopElements],
         windowID
@@ -560,7 +560,7 @@ struct SpaceIndicatorView: View {
 
   private func handleWindowRemoved(windowID: CGWindowID, spaceID: SpaceID) {
     guard
-      !isResyncPending,
+      !isRefreshPending,
       let windowsOnSpace = spaceWindows[spaceID],
       let window = windowsOnSpace.first(where: { $0.id == windowID })
     else {
