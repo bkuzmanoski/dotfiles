@@ -195,9 +195,7 @@ struct Window: Hashable {
   init?(windowInfo: [String: Any], spaceID: SpaceID) {
     guard
       let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-      windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 > 0.0
+      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t
     else {
       return nil
     }
@@ -354,11 +352,14 @@ struct SpaceIndicatorView: View {
   let spaceMonitor: SpaceMonitor
   let onWidthChanged: (CGFloat) -> Void
 
+  @State private var cgsConnectionID = CGSMainConnectionID()
   @State private var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
   @State private var runningApps: [pid_t: App] = [:]
   @State private var spaceWindows: [SpaceID: Set<Window>] = [:]
   @State private var activeDisplayIdentifier = NSScreen.main?.displayIdentifier
   @State private var activeSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
+  @State private var spacesChangedEpoch: UInt64 = 0
+  @State private var isResyncPending = true
 
   private var activeDisplaySpaces: [Space] {
     guard let activeDisplayIdentifier, let spacesOnDisplay = displaySpaces[activeDisplayIdentifier] else {
@@ -416,12 +417,21 @@ struct SpaceIndicatorView: View {
     } action: { newWidth in
       onWidthChanged(newWidth)
     }
+    .task(id: spacesChangedEpoch) {
+      self.isResyncPending = true
+
+      try? await Task.sleep(for: .milliseconds(100))
+
+      guard !Task.isCancelled else {
+        return
+      }
+
+      syncSpaces()
+      syncWindows()
+
+      self.isResyncPending = false
+    }
     .task {
-      let cgsConnectionID = CGSMainConnectionID()
-
-      syncSpaces(cgsConnectionID: cgsConnectionID)
-      syncWindows(cgsConnectionID: cgsConnectionID)
-
       await withDiscardingTaskGroup { group in
         group.addTask { await monitorSpaces(cgsConnectionID: cgsConnectionID) }
         group.addTask { await monitorAppTerminations() }
@@ -429,7 +439,7 @@ struct SpaceIndicatorView: View {
     }
   }
 
-  private func syncSpaces(cgsConnectionID: UInt32) {
+  private func syncSpaces() {
     guard
       let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
         cgsConnectionID,
@@ -463,7 +473,7 @@ struct SpaceIndicatorView: View {
     self.activeSpaceIDs = newActiveSpaceIDs
   }
 
-  private func syncWindows(cgsConnectionID: UInt32) {
+  private func syncWindows() {
     guard
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionAll, .excludeDesktopElements],
@@ -477,6 +487,7 @@ struct SpaceIndicatorView: View {
 
     for windowInfo in windowsInfo {
       guard
+        windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
         let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
         let spacesForWindow = CGSCopySpacesForWindows(
           cgsConnectionID,
@@ -490,14 +501,14 @@ struct SpaceIndicatorView: View {
         continue
       }
 
-      addWindow(window, to: spaceID)
+      addWindow(window, toSpace: spaceID)
     }
   }
 
   private func monitorSpaces(cgsConnectionID: UInt32) async {
     for await event in spaceMonitor.events() {
       switch event {
-      case .spacesChanged: syncSpaces(cgsConnectionID: cgsConnectionID)
+      case .spacesChanged: self.spacesChangedEpoch += 1
       case .activeScreenChanged: self.activeDisplayIdentifier = NSScreen.main?.displayIdentifier
       case .activeSpaceChanged(let spaceID): handleActiveSpaceChanged(spaceID: spaceID)
       case .windowAdded(let windowID, let spaceID): handleWindowAdded(windowID: windowID, spaceID: spaceID)
@@ -519,7 +530,10 @@ struct SpaceIndicatorView: View {
   }
 
   private func handleActiveSpaceChanged(spaceID: SpaceID) {
-    guard let displayIdentifier = displaySpaces.first(where: { $0.value.contains(spaceID) })?.key else {
+    guard
+      !isResyncPending,
+      let displayIdentifier = displaySpaces.first(where: { $0.value.contains(spaceID) })?.key
+    else {
       return
     }
 
@@ -528,21 +542,24 @@ struct SpaceIndicatorView: View {
 
   private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {
     guard
+      !isResyncPending,
       let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionIncludingWindow, .excludeDesktopElements],
         windowID
       ) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
+      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       let window = Window(windowInfo: windowInfo, spaceID: spaceID)
     else {
       return
     }
 
-    addWindow(window, to: spaceID)
+    addWindow(window, toSpace: spaceID)
   }
 
   private func handleWindowRemoved(windowID: CGWindowID, spaceID: SpaceID) {
     guard
+      !isResyncPending,
       let windowsOnSpace = spaceWindows[spaceID],
       let window = windowsOnSpace.first(where: { $0.id == windowID })
     else {
@@ -552,7 +569,7 @@ struct SpaceIndicatorView: View {
     self.spaceWindows[spaceID]?.remove(window)
   }
 
-  private func addWindow(_ window: Window, to spaceID: SpaceID) {
+  private func addWindow(_ window: Window, toSpace spaceID: SpaceID) {
     self.spaceWindows[spaceID, default: []].insert(window)
 
     if runningApps[window.processIdentifier] == nil, let app = App(processIdentifier: window.processIdentifier) {
