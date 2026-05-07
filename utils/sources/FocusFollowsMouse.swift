@@ -281,6 +281,11 @@ struct SkyLightProxy {
       _ outWindowID: UnsafeMutablePointer<CGWindowID>,
       _ outWindowConnectionID: UnsafeMutablePointer<SLSConnectionID>
     ) -> CGError
+  private typealias SLSCopyAssociatedWindows =
+    @convention(c) (
+      _ connectionID: SLSConnectionID,
+      _ windowID: CGWindowID
+    ) -> CFArray
   private typealias SLSRegisterNotifyProc =
     @convention(c) (
       _ proc: SLSNotifyProc,
@@ -310,6 +315,7 @@ struct SkyLightProxy {
   private let slsGetActiveSpace: SLSGetActiveSpace
   private let slsSpaceGetType: SLSSpaceGetType
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
+  private let slsCopyAssociatedWindows: SLSCopyAssociatedWindows
   private let slsRegisterNotifyProc: SLSRegisterNotifyProc
   private let slsRemoveNotifyProc: SLSRemoveNotifyProc
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
@@ -344,6 +350,10 @@ struct SkyLightProxy {
       throw Error.symbolNotFound("SLSFindWindowByGeometry")
     }
 
+    guard let slsCopyAssociatedWindowsSymbol = dlsym(skyLightHandle, "SLSCopyAssociatedWindows") else {
+      throw Error.symbolNotFound("SLSCopyAssociatedWindows")
+    }
+
     guard let slsRegisterNotifyProcSymbol = dlsym(skyLightHandle, "SLSRegisterNotifyProc") else {
       throw Error.symbolNotFound("SLSRegisterNotifyProc")
     }
@@ -368,6 +378,7 @@ struct SkyLightProxy {
     self.slsGetActiveSpace = unsafeBitCast(slsGetActiveSpaceSymbol, to: SLSGetActiveSpace.self)
     self.slsSpaceGetType = unsafeBitCast(slsSpaceGetTypeSymbol, to: SLSSpaceGetType.self)
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
+    self.slsCopyAssociatedWindows = unsafeBitCast(slsCopyAssociatedWindowsSymbol, to: SLSCopyAssociatedWindows.self)
     self.slsRegisterNotifyProc = unsafeBitCast(slsRegisterNotifyProcSymbol, to: SLSRegisterNotifyProc.self)
     self.slsRemoveNotifyProc = unsafeBitCast(slsRemoveNotifyProcSymbol, to: SLSRemoveNotifyProc.self)
     self._slpsGetFrontProcess = unsafeBitCast(_slpsGetFrontProcessSymbol, to: _SLPSGetFrontProcess.self)
@@ -393,6 +404,14 @@ struct SkyLightProxy {
       && windowID != 0
       ? windowID
       : nil
+  }
+
+  func associatedWindows(for windowID: CGWindowID) -> [CGWindowID] {
+    guard let windowIDs = slsCopyAssociatedWindows(mainConnectionID, windowID) as? [CGWindowID] else {
+      return []
+    }
+
+    return windowIDs.filter { $0 != windowID }
   }
 
   @discardableResult
@@ -979,7 +998,11 @@ final class FocusManager {
         .value(for: .focusedWindow, as: AXUIElement.self)?
         .windowID
     {
-      guard focusedWindowID != targetWindowID, !Task.isCancelled else {
+      guard
+        focusedWindowID != targetWindowID,
+        !skyLightProxy.associatedWindows(for: focusedWindowID).contains(targetWindowID),
+        !Task.isCancelled
+      else {
         return
       }
 
