@@ -874,11 +874,12 @@ final class FocusManager {
           windowID
         ) as? [[String: Any]],
           let windowInfo = windowsInfo.first,
+          windowInfo[kCGWindowAlpha as String] as? CGFloat ?? 1.0 > 0.0,
+          windowInfo[kCGWindowIsOnscreen as String] as? Bool == true,
           let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
           windowLayer > kCGNormalWindowLevel,
           windowLayer <= kCGScreenSaverWindowLevel,
-          windowLayer != kCGFloatingWindowLevel,
-          windowInfo[kCGWindowIsOnscreen as String] as? Bool == true
+          windowLayer != kCGFloatingWindowLevel
         {
           floatingWindows[spaceID, default: []].insert(windowID)
         }
