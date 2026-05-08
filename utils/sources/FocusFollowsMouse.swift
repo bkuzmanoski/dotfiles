@@ -878,7 +878,8 @@ final class FocusManager {
           let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
           windowLayer > kCGNormalWindowLevel,
           windowLayer <= kCGScreenSaverWindowLevel,
-          windowLayer != kCGFloatingWindowLevel
+          windowLayer != kCGFloatingWindowLevel,
+          windowLayer != kCGOverlayWindowLevel + 1
         {
           floatingWindows[spaceID, default: []].insert(windowID)
         }
@@ -888,7 +889,9 @@ final class FocusManager {
 
       case .activeSpaceChanged(let spaceID):
         self.activeSpace = Space(id: spaceID, type: skyLightProxy.spaceType(for: spaceID))
+
         cancelPendingFocus()
+        pruneRemovedFloatingWindows()
       }
     }
   }
@@ -1039,6 +1042,24 @@ final class FocusManager {
 
     self.isFocusPending = false
     self.focusTask = nil
+  }
+
+  private func pruneRemovedFloatingWindows() {
+    let trackedWindowIDs = floatingWindows[activeSpace.id, default: []]
+
+    guard
+      !trackedWindowIDs.isEmpty,
+      let windowListInfo = CGWindowListCopyWindowInfo(
+        [.optionOnScreenOnly, .excludeDesktopElements],
+        kCGNullWindowID
+      ) as? [[String: Any]]
+    else {
+      return
+    }
+
+    let onScreenWindowIDs = Set(windowListInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
+
+    self.floatingWindows[activeSpace.id] = trackedWindowIDs.intersection(onScreenWindowIDs)
   }
 }
 
