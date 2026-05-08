@@ -133,6 +133,8 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn off "Show Gemini in Mac menu bar and turn on keyboard shortcut"
       - Search engine → Manage search engines and site search → Set "Google Web" as default search engine
       - Downloads → Turn off "Show downloads when they're complete"
+    - Flags
+      - [#lens-overlay-optimization-filter](chrome://flags/#lens-overlay-optimization-filter) → Set to "Disabled" → Set to "Enabled"
 
   - Hammerspoon
     - Settings → Turn on "Launch Hammerspoon at login"
