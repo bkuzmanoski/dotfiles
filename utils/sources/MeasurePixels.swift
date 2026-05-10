@@ -14,6 +14,10 @@ struct Constants {
   static let labelForegroundColor: NSColor = .white
 }
 
+extension NSRunningApplication {
+  var standardizedExecutableURL: URL? { executableURL?.resolvingSymlinksInPath().standardizedFileURL }
+}
+
 extension NSScreen {
   static var current: NSScreen? { screens.first(where: { $0.containsMouse }) ?? main }
 
@@ -209,6 +213,27 @@ final class MeasurementView: NSView {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private var observers: [(token: NSObjectProtocol, notificationCenter: NotificationCenter)] = []
+
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    let currentExecutableURL = NSRunningApplication.current.standardizedExecutableURL
+    let currentProcessIdentifier = NSRunningApplication.current.processIdentifier
+    let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
+      guard
+        !runningApplication.isTerminated,
+        runningApplication.processIdentifier != currentProcessIdentifier,
+        let executableURL = runningApplication.standardizedExecutableURL
+      else {
+        return false
+      }
+
+      return executableURL == currentExecutableURL
+    }
+
+    if let existingInstance {
+      existingInstance.activate()
+      NSApplication.shared.terminate(nil)
+    }
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApplication.shared.activate(ignoringOtherApps: true)
