@@ -1,13 +1,13 @@
+local modules = {}
+
 local utils = require("utils")
 local settings = {
-  numberOfSpaces = 5,
+  numberOfSpaces = 3,
   screenTopOffset = -8,
   windowPadding = 8,
   splitRatios = { 0.5, 0.3, 0.7 },
   hyperKey = { "control", "option", "shift", "command" }
 }
-
-local modules = {}
 
 hs.hotkey.setLogLevel("error")
 hs.logger.setGlobalLogLevel("error")
@@ -24,13 +24,7 @@ hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background ScrollToZoom")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SwitchToSpace")
 
-hs.shutdownCallback = function()
-  for _, module in pairs(modules) do
-    if type(module.cleanup) == "function" then
-      module.cleanup()
-    end
-  end
-end
+utils.triggerSpaceSwitch(settings.numberOfSpaces)
 
 modules.unlockSound = require("modules/unlock_sound").init()
 modules.systemHotkeys = require("modules/system_hotkeys").init({
@@ -114,5 +108,13 @@ modules.focusWindow = require("modules/focus_window").init({
 modules.killHelpersOnQuit = require("modules/kill_helpers_on_quit").init({
   { appName = "Figma", processToKill = "figma_agent" }
 })
+
+hs.shutdownCallback = function()
+  for _, module in pairs(modules) do
+    if type(module.cleanup) == "function" then
+      module.cleanup()
+    end
+  end
+end
 
 utils.playAlert(1, "Blow")

@@ -147,6 +147,14 @@ function module.createSpaces(numberOfSpaces)
   end
 end
 
+function module.triggerSpaceSwitch(argument)
+  hs.distributednotifications.post(
+    "industries.britown.SwitchToSpace.command",
+    nil,
+    { arguments = { tostring(argument) } }
+  )
+end
+
 function module.playAlert(repeatCount, soundNameOrPath)
   if not soundNameOrPath then
     soundNameOrPath = "Tink"

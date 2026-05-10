@@ -1,14 +1,8 @@
 local module = {}
 
-local bindings = {}
+local utils = require("utils")
 
-local function triggerSpaceSwitch(argument)
-  hs.distributednotifications.post(
-    "industries.britown.SwitchToSpace.command",
-    nil,
-    { arguments = { tostring(argument) } }
-  )
-end
+local bindings = {}
 
 function module.init(config)
   if next(bindings) then
@@ -22,12 +16,12 @@ function module.init(config)
   for action, hotkey in pairs(config) do
     if action == "left" or action == "right" then
       bindings[action] = hs.hotkey.bind(hotkey.modifiers, hotkey.key, function()
-        triggerSpaceSwitch(action)
+        utils.triggerSpaceSwitch(action)
       end)
     elseif action == "index" then
       for spaceIndex = 1, math.min(hotkey.maximumSpaces or 9, 9) do
         bindings[action .. spaceIndex] = hs.hotkey.bind(hotkey.modifiers, tostring(spaceIndex), function()
-          triggerSpaceSwitch(spaceIndex)
+          utils.triggerSpaceSwitch(spaceIndex)
         end)
       end
     end
