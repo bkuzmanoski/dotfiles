@@ -24,8 +24,6 @@ hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background ScrollToZoom")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SwitchToSpace")
 
-utils.triggerSpaceSwitch(settings.numberOfSpaces)
-
 modules.unlockSound = require("modules/unlock_sound").init()
 modules.systemHotkeys = require("modules/system_hotkeys").init({
   focusDock = { modifiers = settings.hyperKey, key = "/" },
