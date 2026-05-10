@@ -14,6 +14,12 @@ struct Constants {
   static let labelForegroundColor: NSColor = .white
 }
 
+extension NSScreen {
+  static var current: NSScreen? { screens.first(where: { $0.containsMouse }) ?? main }
+
+  var containsMouse: Bool { frame.contains(NSEvent.mouseLocation) }
+}
+
 struct Measurement {
   let startPoint: NSPoint
   let endPoint: NSPoint
@@ -26,10 +32,10 @@ struct Measurement {
 }
 
 enum LabelPosition {
+  case leading
+  case trailing
   case top
   case bottom
-  case left
-  case right
 }
 
 final class OverlayWindow: NSWindow {
@@ -51,20 +57,20 @@ final class MeasurementView: NSView {
   }
 
   override func updateTrackingAreas() {
-    if let existingArea = trackingArea {
-      removeTrackingArea(existingArea)
+    if let trackingArea {
+      removeTrackingArea(trackingArea)
     }
 
-    let newArea = NSTrackingArea(
+    let newTrackingArea = NSTrackingArea(
       rect: bounds,
       options: [.activeAlways, .mouseMoved, .inVisibleRect, .cursorUpdate],
       owner: self,
       userInfo: nil
     )
 
-    self.trackingArea = newArea
+    self.trackingArea = newTrackingArea
 
-    addTrackingArea(newArea)
+    addTrackingArea(newTrackingArea)
   }
 
   override func cursorUpdate(with event: NSEvent) {
@@ -91,22 +97,24 @@ final class MeasurementView: NSView {
   }
 
   override func mouseMoved(with event: NSEvent) {
-    guard let existingMeasurement = measurement else {
+    guard let measurement else {
       return
     }
 
-    self.measurement = Measurement(startPoint: existingMeasurement.startPoint, endPoint: event.locationInWindow)
+    self.measurement = Measurement(startPoint: measurement.startPoint, endPoint: event.locationInWindow)
     self.needsDisplay = true
   }
 
   override func keyDown(with event: NSEvent) {
-    if event.keyCode == 53 {
-      if measurement != nil {
-        self.measurement = nil
-        self.needsDisplay = true
-      } else {
-        NSApplication.shared.terminate(nil)
-      }
+    guard event.keyCode == 53 else {
+      return
+    }
+
+    if measurement != nil {
+      self.measurement = nil
+      self.needsDisplay = true
+    } else {
+      NSApplication.shared.terminate(nil)
     }
   }
 
@@ -137,45 +145,45 @@ final class MeasurementView: NSView {
     Constants.guideColor.setStroke()
     guidePath.stroke()
 
-    drawLabel(
-      text: String(Int(selectionRect.width)),
-      at: selectionRect,
-      position: isMeasuringUp ? .bottom : .top
-    )
-    drawLabel(
-      text: String(Int(selectionRect.height)),
-      at: selectionRect,
-      position: isMeasuringRight ? .left : .right
-    )
+    drawLabel(String(Int(selectionRect.width)), for: selectionRect, alignment: isMeasuringUp ? .bottom : .top)
+    drawLabel(String(Int(selectionRect.height)), for: selectionRect, alignment: isMeasuringRight ? .leading : .trailing)
   }
 
-  private func drawLabel(text: String, at rect: NSRect, position: LabelPosition) {
-    let stringAttributes: [NSAttributedString.Key: Any] = [
-      .font: NSFont.systemFont(ofSize: Constants.labelFontSize, weight: Constants.labelFontWeight),
-      .foregroundColor: Constants.labelForegroundColor
-    ]
-    let string = NSAttributedString(string: text, attributes: stringAttributes)
-    let stringSize = string.size()
-
+  private func drawLabel(_ text: String, for rect: NSRect, alignment: LabelPosition) {
+    let attributedString = NSAttributedString(
+      string: text,
+      attributes: [
+        .font: NSFont.systemFont(ofSize: Constants.labelFontSize, weight: Constants.labelFontWeight),
+        .foregroundColor: Constants.labelForegroundColor
+      ]
+    )
+    let attributedStringSize = attributedString.size()
     let backgroundSize = NSSize(
-      width: stringSize.width + Constants.labelHorizontalPadding * 2,
-      height: stringSize.height + Constants.labelVerticalPadding * 2
+      width: attributedStringSize.width + Constants.labelHorizontalPadding * 2,
+      height: attributedStringSize.height + Constants.labelVerticalPadding * 2
     )
 
-    let labelOrigin =
-      switch position {
-      case .top:
-        CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
+    let labelOrigin: CGPoint
 
-      case .bottom:
-        CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.minY - backgroundSize.height - Constants.labelMargin)
+    switch alignment {
+    case .leading:
+      labelOrigin = CGPoint(
+        x: rect.minX - backgroundSize.width - Constants.labelMargin,
+        y: rect.midY - backgroundSize.height / 2
+      )
 
-      case .left:
-        CGPoint(x: rect.minX - backgroundSize.width - Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
+    case .trailing:
+      labelOrigin = CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
 
-      case .right:
-        CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
-      }
+    case .top:
+      labelOrigin = CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
+
+    case .bottom:
+      labelOrigin = CGPoint(
+        x: rect.midX - backgroundSize.width / 2,
+        y: rect.minY - backgroundSize.height - Constants.labelMargin
+      )
+    }
 
     let backgroundRect = NSRect(origin: labelOrigin, size: backgroundSize)
     let backgroundPath = NSBezierPath(
@@ -187,7 +195,7 @@ final class MeasurementView: NSView {
     Constants.labelBackgroundColor.setFill()
     backgroundPath.fill()
 
-    string.draw(
+    attributedString.draw(
       at: NSPoint(
         x: backgroundRect.minX + Constants.labelHorizontalPadding,
         y: backgroundRect.minY + Constants.labelVerticalPadding
@@ -196,28 +204,27 @@ final class MeasurementView: NSView {
   }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var observers: [(token: NSObjectProtocol, center: NotificationCenter)] = []
+  private var observers: [(token: NSObjectProtocol, notificationCenter: NotificationCenter)] = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApplication.shared.activate(ignoringOtherApps: true)
 
-    guard
-      let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
-    else {
+    guard let screenScreen = NSScreen.current else {
+      FileHandle.standardError.write(Data("No screen detected.\n".utf8))
       NSApplication.shared.terminate(nil)
+
       return
     }
 
-    let measurementView = MeasurementView()
     let window = OverlayWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
     window.level = .screenSaver
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.backgroundColor = Constants.overlayColor
-    window.contentView = measurementView
-    window.setFrame(screen.frame, display: true)
+    window.contentView = MeasurementView()
+    window.setFrame(screenScreen.frame, display: true)
     window.makeKeyAndOrderFront(nil)
-    window.makeFirstResponder(measurementView)
 
     let workspaceNotificationCenter = NSWorkspace.shared.notificationCenter
     let activeSpaceObservationToken = workspaceNotificationCenter.addObserver(
@@ -236,13 +243,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       object: nil,
       queue: .main
     ) { _ in
-      guard
-        let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
-      else {
+      guard let currentScreen = NSScreen.current, window.frame != currentScreen.frame else {
         return
       }
 
-      window.setFrame(screen.frame, display: true)
+      window.setFrame(currentScreen.frame, display: true)
     }
 
     self.observers.append((screenParametersObservationToken, notificationCenter))
@@ -250,13 +255,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     for observer in observers {
-      observer.center.removeObserver(observer.token)
+      observer.notificationCenter.removeObserver(observer.token)
     }
   }
 }
 
-let delegate = AppDelegate()
-let application = NSApplication.shared
-application.delegate = delegate
-application.setActivationPolicy(.accessory)
-application.run()
+MainActor.assumeIsolated {
+  let delegate = AppDelegate()
+  let application = NSApplication.shared
+  application.delegate = delegate
+  application.setActivationPolicy(.accessory)
+  application.run()
+}
