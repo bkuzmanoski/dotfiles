@@ -144,11 +144,11 @@ final class MeasurementView: NSView {
     Constants.guideColor.setStroke()
     guidePath.stroke()
 
-    drawLabel(String(Int(selectionRect.width)), for: selectionRect, alignment: isMeasuringUp ? .bottom : .top)
-    drawLabel(String(Int(selectionRect.height)), for: selectionRect, alignment: isMeasuringRight ? .leading : .trailing)
+    drawLabel(String(Int(selectionRect.width)), for: selectionRect, position: isMeasuringUp ? .bottom : .top)
+    drawLabel(String(Int(selectionRect.height)), for: selectionRect, position: isMeasuringRight ? .leading : .trailing)
   }
 
-  private func drawLabel(_ text: String, for rect: NSRect, alignment: LabelPosition) {
+  private func drawLabel(_ text: String, for rect: NSRect, position: LabelPosition) {
     let attributedString = NSAttributedString(
       string: text,
       attributes: [
@@ -164,7 +164,7 @@ final class MeasurementView: NSView {
 
     let labelOrigin: CGPoint
 
-    switch alignment {
+    switch position {
     case .leading:
       labelOrigin = CGPoint(
         x: rect.minX - backgroundSize.width - Constants.labelMargin,
