@@ -134,10 +134,13 @@ final class MeasurementView: NSView {
       x: isMeasuringRight ? guideRect.minX : guideRect.maxX,
       y: isMeasuringUp ? guideRect.minY : guideRect.maxY
     )
+
     let guidePath = NSBezierPath()
     guidePath.lineWidth = 1
+
     guidePath.move(to: NSPoint(x: selectionRect.minX, y: guideOrigin.y))
     guidePath.line(to: NSPoint(x: selectionRect.maxX, y: guideOrigin.y))
+
     guidePath.move(to: NSPoint(x: guideOrigin.x, y: selectionRect.minY))
     guidePath.line(to: NSPoint(x: guideOrigin.x, y: selectionRect.maxY))
 
