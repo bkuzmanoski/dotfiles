@@ -130,7 +130,7 @@ final class MeasurementView: NSView {
     selectionRect.fill()
 
     let guideRect = selectionRect.insetBy(dx: 0.5, dy: 0.5)
-    let guideOrigin = CGPoint(
+    let guideOrigin = NSPoint(
       x: isMeasuringRight ? guideRect.minX : guideRect.maxX,
       y: isMeasuringUp ? guideRect.minY : guideRect.maxY
     )
@@ -165,23 +165,23 @@ final class MeasurementView: NSView {
       height: attributedStringSize.height + Constants.labelVerticalPadding * 2
     )
 
-    let labelOrigin: CGPoint
+    let labelOrigin: NSPoint
 
     switch position {
     case .leading:
-      labelOrigin = CGPoint(
+      labelOrigin = NSPoint(
         x: rect.minX - backgroundSize.width - Constants.labelMargin,
         y: rect.midY - backgroundSize.height / 2
       )
 
     case .trailing:
-      labelOrigin = CGPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
+      labelOrigin = NSPoint(x: rect.maxX + Constants.labelMargin, y: rect.midY - backgroundSize.height / 2)
 
     case .top:
-      labelOrigin = CGPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
+      labelOrigin = NSPoint(x: rect.midX - backgroundSize.width / 2, y: rect.maxY + Constants.labelMargin)
 
     case .bottom:
-      labelOrigin = CGPoint(
+      labelOrigin = NSPoint(
         x: rect.midX - backgroundSize.width / 2,
         y: rect.minY - backgroundSize.height - Constants.labelMargin
       )
