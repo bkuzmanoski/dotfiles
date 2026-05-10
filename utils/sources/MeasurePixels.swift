@@ -26,7 +26,6 @@ struct Measurement {
 
   var selection: NSRect {
     NSRect(x: startPoint.x, y: startPoint.y, width: endPoint.x - startPoint.x, height: endPoint.y - startPoint.y)
-      .offsetBy(dx: -1, dy: 0)
       .integral
   }
 }
