@@ -215,8 +215,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var observers: [(token: NSObjectProtocol, notificationCenter: NotificationCenter)] = []
 
   func applicationWillFinishLaunching(_ notification: Notification) {
-    let currentExecutableURL = NSRunningApplication.current.standardizedExecutableURL
     let currentProcessIdentifier = NSRunningApplication.current.processIdentifier
+    let currentExecutableURL = NSRunningApplication.current.standardizedExecutableURL
     let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
       guard
         !runningApplication.isTerminated,
