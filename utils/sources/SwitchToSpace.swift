@@ -116,10 +116,11 @@ extension CGEventType {
   static let dockControl = CGEventType(rawValue: 30)!
 }
 
+typealias DisplayIdentifier = String
 typealias SpaceID = UInt64
 
 extension NSScreen {
-  private var displayIdentifier: String? {
+  private var displayIdentifier: DisplayIdentifier? {
     let key = NSDeviceDescriptionKey("NSScreenNumber")
 
     guard
@@ -141,7 +142,9 @@ extension NSScreen {
         cgsConnectionID,
         displayIdentifier as CFString
       )?.takeRetainedValue() as? [[String: Any]],
-      let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
+      let displayInfo = managedDisplaySpaces.first(where: {
+        $0["Display Identifier"] as? DisplayIdentifier == displayIdentifier
+      }),
       let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
       !spacesInfo.isEmpty,
       let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
