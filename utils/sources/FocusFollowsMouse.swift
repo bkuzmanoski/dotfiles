@@ -472,9 +472,9 @@ final class WorkspaceMonitor {
   }
 
   enum Event {
+    case currentSpaceChanged
     case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
     case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
-    case activeSpaceChanged(spaceID: SpaceID)
   }
 
   private let skyLightProxy: SkyLightProxy
@@ -559,14 +559,13 @@ final class WorkspaceMonitor {
         return
       }
 
-      let spaceID = data.load(as: SpaceID.self)
       let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
 
       guard isCurrentFlag != 0 else {
         return
       }
 
-      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
+      continuation.yield(.currentSpaceChanged)
     }
   }
 
@@ -868,6 +867,17 @@ final class FocusManager {
   private func monitorWorkspace() async {
     for await event in workspaceMonitor.events() {
       switch event {
+      case .currentSpaceChanged:
+        let activeSpaceID = skyLightProxy.activeSpaceID
+
+        if self.activeSpace.id != activeSpaceID {
+          cancelPendingFocus()
+
+          self.activeSpace = Space(id: activeSpaceID, type: skyLightProxy.spaceType(for: activeSpaceID))
+
+          pruneRemovedFloatingWindowsInActiveSpace()
+        }
+
       case .windowAdded(let windowID, let spaceID):
         if let windowsInfo = CGWindowListCopyWindowInfo(
           [.optionIncludingWindow, .excludeDesktopElements],
@@ -887,11 +897,6 @@ final class FocusManager {
       case .windowRemoved(let windowID, let spaceID):
         floatingWindows[spaceID]?.remove(windowID)
 
-      case .activeSpaceChanged(let spaceID):
-        self.activeSpace = Space(id: spaceID, type: skyLightProxy.spaceType(for: spaceID))
-
-        cancelPendingFocus()
-        pruneRemovedFloatingWindows()
       }
     }
   }
@@ -1044,7 +1049,7 @@ final class FocusManager {
     self.focusTask = nil
   }
 
-  private func pruneRemovedFloatingWindows() {
+  private func pruneRemovedFloatingWindowsInActiveSpace() {
     let trackedWindowIDs = floatingWindows[activeSpace.id, default: []]
 
     guard
