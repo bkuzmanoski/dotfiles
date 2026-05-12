@@ -157,7 +157,7 @@ extension NSScreen {
       return nil
     }
 
-    return CFUUIDCreateString(nil, uuid) as String
+    return CFUUIDCreateString(nil, uuid) as DisplayIdentifier
   }
 }
 
