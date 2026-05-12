@@ -90,6 +90,8 @@ final class SingleInstanceLock {
   }
 }
 
+typealias CGSConnectionID = UInt32
+
 typealias CGSNotifyProc =
   @convention(c) (
     _ eventType: UInt32,
@@ -99,13 +101,17 @@ typealias CGSNotifyProc =
   ) -> Void
 
 @_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> UInt32
+func CGSMainConnectionID() -> CGSConnectionID
 
 @_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ connectionID: UInt32, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
+func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
 @_silgen_name("CGSCopySpacesForWindows")
-func CGSCopySpacesForWindows(_ connectionID: UInt32, _ spaceMask: CInt, _ windowsIDs: CFArray) -> Unmanaged<CFArray>?
+func CGSCopySpacesForWindows(
+  _ connectionID: CGSConnectionID,
+  _ spaceMask: CInt,
+  _ windowsIDs: CFArray
+) -> Unmanaged<CFArray>?
 
 @_silgen_name("CGSRegisterNotifyProc")
 @discardableResult
@@ -159,7 +165,7 @@ typealias SpaceID = UInt64
 
 struct Space: Identifiable, Equatable {
   let id: SpaceID
-  var isActive: Bool
+  var isCurrent: Bool
   var apps: [App]
 }
 
@@ -198,7 +204,7 @@ struct Window: Hashable {
     self.spaceID = spaceID
   }
 
-  init?(info windowInfo: [String: Any], cgsConnectionID: UInt32) {
+  init?(info windowInfo: [String: Any], cgsConnectionID: CGSConnectionID) {
     guard
       windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
@@ -233,8 +239,8 @@ final class SpaceMonitor {
 
   enum Event {
     case spacesChanged
-    case activeScreenChanged
-    case activeSpaceChanged(spaceID: SpaceID)
+    case mainScreenChanged
+    case currentSpaceChanged(spaceID: SpaceID)
     case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
     case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
   }
@@ -300,7 +306,7 @@ final class SpaceMonitor {
 
     switch event {
     case .packagesStatusBarSpaceChanged:
-      continuation.yield(.activeScreenChanged)
+      continuation.yield(.mainScreenChanged)
 
     case .spaceWindowCreated:
       guard let data, dataLength >= 12 else {
@@ -337,7 +343,7 @@ final class SpaceMonitor {
         return
       }
 
-      continuation.yield(.activeSpaceChanged(spaceID: spaceID))
+      continuation.yield(.currentSpaceChanged(spaceID: spaceID))
     }
   }
 
@@ -368,33 +374,33 @@ struct SpaceIndicatorView: View {
   @State private var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
   @State private var runningApps: [pid_t: App] = [:]
   @State private var spaceWindows: [SpaceID: Set<Window>] = [:]
-  @State private var activeDisplayIdentifier = NSScreen.main?.displayIdentifier
-  @State private var activeSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
+  @State private var mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
+  @State private var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
   @State private var spacesChangedEpoch: UInt64 = 0
   @State private var isRefreshPending = true
 
-  private var activeDisplaySpaces: [Space] {
-    guard let activeDisplayIdentifier, let spacesOnDisplay = displaySpaces[activeDisplayIdentifier] else {
+  private var mainScreenSpaces: [Space] {
+    guard let mainScreenDisplayIdentifier else {
       return []
     }
 
-    return spacesOnDisplay.map { spaceID in
-      let isActive = spaceID == activeSpaceIDs[activeDisplayIdentifier]
+    return displaySpaces[mainScreenDisplayIdentifier, default: []].map { spaceID in
+      let isCurrent = spaceID == currentSpaceIDs[mainScreenDisplayIdentifier]
       let windowsOnSpace = spaceWindows[spaceID] ?? []
       let processIdentifiers = Set(windowsOnSpace.compactMap { $0.processIdentifier })
       let apps = processIdentifiers.compactMap { runningApps[$0] }.sorted { $0.name.lexicographicallyPrecedes($1.name) }
 
-      return Space(id: spaceID, isActive: isActive, apps: apps)
+      return Space(id: spaceID, isCurrent: isCurrent, apps: apps)
     }
   }
 
   var body: some View {
     HStack(spacing: 12) {
-      ForEach(activeDisplaySpaces.enumerated(), id: \.element.id) { index, space in
+      ForEach(mainScreenSpaces.enumerated(), id: \.element.id) { index, space in
         HStack(spacing: 6) {
           Text("\(index + 1)")
             .font(.subheadline)
-            .fontWeight(space.isActive ? .medium : .regular)
+            .fontWeight(space.isCurrent ? .medium : .regular)
             .foregroundStyle(Color(.textColor))
             .frame(width: 8)
 
@@ -418,8 +424,8 @@ struct SpaceIndicatorView: View {
             .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
           }
         }
-        .opacity(space.isActive ? 1 : 0.45)
-        .animation(.snappy(duration: 0.2), value: space.isActive)
+        .opacity(space.isCurrent ? 1 : 0.45)
+        .animation(.snappy(duration: 0.2), value: space.isCurrent)
       }
     }
     .padding(.horizontal, 14)
@@ -445,7 +451,7 @@ struct SpaceIndicatorView: View {
     }
     .task {
       await withDiscardingTaskGroup { group in
-        group.addTask { await monitorSpaces(cgsConnectionID: cgsConnectionID) }
+        group.addTask { await monitorSpaces() }
         group.addTask { await monitorAppTerminations() }
       }
     }
@@ -461,8 +467,8 @@ struct SpaceIndicatorView: View {
       return
     }
 
-    var newDisplaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
-    var newActiveSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
+    var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
+    var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
 
     for displayInfo in managedDisplaySpaces {
       guard
@@ -472,17 +478,17 @@ struct SpaceIndicatorView: View {
         continue
       }
 
-      newDisplaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
+      displaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
 
-      if let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-        let activeSpaceID = activeSpaceInfo["id64"] as? SpaceID
+      if let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
+        let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID
       {
-        newActiveSpaceIDs[displayIdentifier] = activeSpaceID
+        currentSpaceIDs[displayIdentifier] = currentSpaceID
       }
     }
 
-    self.displaySpaces = newDisplaySpaces
-    self.activeSpaceIDs = newActiveSpaceIDs
+    self.displaySpaces = displaySpaces
+    self.currentSpaceIDs = currentSpaceIDs
   }
 
   private func refreshWindows() {
@@ -506,12 +512,12 @@ struct SpaceIndicatorView: View {
     }
   }
 
-  private func monitorSpaces(cgsConnectionID: UInt32) async {
+  private func monitorSpaces() async {
     for await event in spaceMonitor.events() {
       switch event {
       case .spacesChanged: self.spacesChangedEpoch += 1
-      case .activeScreenChanged: self.activeDisplayIdentifier = NSScreen.main?.displayIdentifier
-      case .activeSpaceChanged(let spaceID): handleActiveSpaceChanged(spaceID: spaceID)
+      case .mainScreenChanged: self.mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
+      case .currentSpaceChanged(let spaceID): handleCurrentSpaceChanged(spaceID: spaceID)
       case .windowAdded(let windowID, let spaceID): handleWindowAdded(windowID: windowID, spaceID: spaceID)
       case .windowRemoved(let windowID, let spaceID): handleWindowRemoved(windowID: windowID, spaceID: spaceID)
       }
@@ -530,7 +536,7 @@ struct SpaceIndicatorView: View {
     }
   }
 
-  private func handleActiveSpaceChanged(spaceID: SpaceID) {
+  private func handleCurrentSpaceChanged(spaceID: SpaceID) {
     guard
       !isRefreshPending,
       let displayIdentifier = displaySpaces.first(where: { $0.value.contains(spaceID) })?.key
@@ -538,7 +544,7 @@ struct SpaceIndicatorView: View {
       return
     }
 
-    self.activeSpaceIDs[displayIdentifier] = spaceID
+    self.currentSpaceIDs[displayIdentifier] = spaceID
   }
 
   private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {

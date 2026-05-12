@@ -90,11 +90,13 @@ final class SingleInstanceLock {
   }
 }
 
+typealias CGSConnectionID = UInt32
+
 @_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> UInt32
+func CGSMainConnectionID() -> CGSConnectionID
 
 @_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ cid: UInt32, _ display: CFString?) -> Unmanaged<CFArray>?
+func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
 enum IOHIDEventType: Int64 {
   case dockSwipe = 23
@@ -127,6 +129,8 @@ extension CGEventType {
   static let dockControl = CGEventType(rawValue: 30)!
 }
 
+typealias SpaceID = UInt64
+
 extension NSScreen {
   private var displayIdentifier: String? {
     let key = NSDeviceDescriptionKey("NSScreenNumber")
@@ -153,14 +157,14 @@ extension NSScreen {
       let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
       let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
       !spacesInfo.isEmpty,
-      let activeSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-      let activeSpaceID = activeSpaceInfo["id64"] as? UInt64,
-      let activeSpaceIndex = spacesInfo.firstIndex(where: { $0["id64"] as? UInt64 == activeSpaceID })
+      let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
+      let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID,
+      let currentSpaceIndex = spacesInfo.firstIndex(where: { $0["id64"] as? SpaceID == currentSpaceID })
     else {
       return nil
     }
 
-    return (spacesInfo.count, activeSpaceIndex)
+    return (spacesInfo.count, currentSpaceIndex)
   }
 }
 
