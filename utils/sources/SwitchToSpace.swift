@@ -98,19 +98,6 @@ func CGSMainConnectionID() -> CGSConnectionID
 @_silgen_name("CGSCopyManagedDisplaySpaces")
 func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
-enum IOHIDEventType: Int64 {
-  case dockSwipe = 23
-}
-
-enum CGSGesturePhase: Int64 {
-  case began = 1
-  case ended = 4
-}
-
-enum CGGestureMotion: Int64 {
-  case horizontal = 1
-}
-
 extension CGEventField {
   static let cgsEventType = CGEventField(rawValue: 55)!
   static let gestureHIDType = CGEventField(rawValue: 110)!
@@ -166,6 +153,19 @@ extension NSScreen {
 
     return (spacesInfo.count, currentSpaceIndex)
   }
+}
+
+enum IOHIDEventType: Int64 {
+  case dockSwipe = 23
+}
+
+enum CGSGesturePhase: Int64 {
+  case began = 1
+  case ended = 4
+}
+
+enum CGGestureMotion: Int64 {
+  case horizontal = 1
 }
 
 final class SpaceSwitcher {
