@@ -49,11 +49,10 @@ NSColorSampler().show { selectedColor in
     return
   }
 
-  let pasteboard = NSPasteboard.general
   let output = selectedColor.string(for: outputFormat)
 
-  pasteboard.clearContents()
-  pasteboard.setString(output, forType: .string)
+  NSPasteboard.general.clearContents()
+  NSPasteboard.general.setString(output, forType: .string)
 
   print(output)
 
