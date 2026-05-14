@@ -148,11 +148,9 @@ typealias DisplayIdentifier = String
 
 extension NSScreen {
   var displayIdentifier: DisplayIdentifier? {
-    let key = NSDeviceDescriptionKey("NSScreenNumber")
-
     guard
-      let directDisplayID = deviceDescription[key] as? CGDirectDisplayID,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(directDisplayID)?.takeRetainedValue()
+      let cgDirectDisplayID,
+      let uuid = CGDisplayCreateUUIDFromDisplayID(cgDirectDisplayID)?.takeRetainedValue()
     else {
       return nil
     }
