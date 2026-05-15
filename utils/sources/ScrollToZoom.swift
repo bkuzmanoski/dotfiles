@@ -116,12 +116,12 @@ extension CGEventType {
 @MainActor
 final class ZoomManager {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionDenied
+    case accessibilityPermissionNotGranted
     case failedToCreateEventTap
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionDenied: "Accessibility permission denied."
+      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .failedToCreateEventTap: "Failed to create event tap."
       }
     }
@@ -133,7 +133,7 @@ final class ZoomManager {
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionDenied
+      throw Error.accessibilityPermissionNotGranted
     }
 
     guard

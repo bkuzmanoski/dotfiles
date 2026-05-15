@@ -586,15 +586,15 @@ final class WorkspaceMonitor {
 @MainActor
 final class MissionControlMonitor {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionDenied
+    case accessibilityPermissionNotGranted
     case failedToFindDockProcess
     case failedToCreateObserver
     case failedToAddNotification(notification: NSAccessibility.Notification, code: AXError)
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionDenied:
-        "Accessibility permission denied."
+      case .accessibilityPermissionNotGranted:
+        "Accessibility permission not granted."
 
       case .failedToFindDockProcess:
         "Failed to find Dock process."
@@ -622,7 +622,7 @@ final class MissionControlMonitor {
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionDenied
+      throw Error.accessibilityPermissionNotGranted
     }
 
     try startAXObserver()
@@ -744,12 +744,12 @@ final class MissionControlMonitor {
 @MainActor
 final class FocusManager {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionDenied
+    case accessibilityPermissionNotGranted
     case failedToCreateEventTap
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionDenied: return "Accessibility permission denied."
+      case .accessibilityPermissionNotGranted: return "Accessibility permission not granted."
       case .failedToCreateEventTap: return "Failed to create event tap."
       }
     }
@@ -782,7 +782,7 @@ final class FocusManager {
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionDenied
+      throw Error.accessibilityPermissionNotGranted
     }
 
     self.skyLightProxy = try SkyLightProxy()

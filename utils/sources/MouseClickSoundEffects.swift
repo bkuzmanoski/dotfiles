@@ -184,12 +184,12 @@ final class SoundEffectManager {
 @MainActor
 final class ClickMonitor {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionDenied
+    case accessibilityPermissionNotGranted
     case failedToCreateEventTap
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionDenied: return "Accessibility permission denied."
+      case .accessibilityPermissionNotGranted: return "Accessibility permission not granted."
       case .failedToCreateEventTap: return "Failed to create event tap."
       }
     }
@@ -207,7 +207,7 @@ final class ClickMonitor {
     self.isSuspended = isSuspended
 
     guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionDenied
+      throw Error.accessibilityPermissionNotGranted
     }
 
     guard

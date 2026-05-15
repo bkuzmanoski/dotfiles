@@ -171,11 +171,11 @@ enum CGGestureMotion: Int64 {
 
 final class SpaceSwitcher {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionDenied
+    case accessibilityPermissionNotGranted
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionDenied: "Accessibility permission denied."
+      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       }
     }
   }
@@ -187,7 +187,7 @@ final class SpaceSwitcher {
 
   init() throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionDenied
+      throw Error.accessibilityPermissionNotGranted
     }
   }
 

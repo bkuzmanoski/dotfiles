@@ -375,7 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      FileHandle.standardError.write(Data("Error: Accessibility permission denied.\n".utf8))
+      FileHandle.standardError.write(Data("Error: Accessibility permission not granted.\n".utf8))
       NSApplication.shared.terminate(nil)
 
       return
