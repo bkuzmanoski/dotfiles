@@ -94,7 +94,7 @@ function set_wallpaper() {
   fi
 }
 
-function apply_json() {
+function apply_json_values() {
   local target_file="$1"
   local json_content
 
@@ -389,15 +389,9 @@ defaults_write me.damir.dropover-mac OnlineFeaturesDisabled -bool true
 defaults_write me.damir.dropover-mac PrefersHiddenStatusItem -bool true
 defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array
 defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
+defaults_write me.damir.dropover-mac ShelfTriggerModifierKey -string "command"
 
-open "/Applications/Folder Preview.app"
-sleep 3
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" expandAllRows -bool false
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" keepFoldersOnTop -bool true
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showHiddenFiles -bool true
-defaults_write "${HOME}/Library/Group Containers/S8MRM84X6F.group.ltd.anybox.FolderPreview/Library/Preferences/S8MRM84X6F.group.ltd.anybox.FolderPreview.plist" showPathBar -bool false
-
-apply_json "${HOME}/.lmstudio/settings.json" <<-"EOF"
+apply_json_values "${HOME}/.lmstudio/settings.json" <<-"EOF"
 	{
 	  "chat": {
 	    "useShiftEnterToSendMessage": true,
