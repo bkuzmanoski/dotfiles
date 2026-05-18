@@ -1,93 +1,7 @@
 import AppKit
 
-enum Constants {
+enum Configuration {
   static let subsystem = "industries.britown.SwitchToSpace"
-  static let lockFileName = "\(subsystem).lock"
-  static let notificationName = Notification.Name("\(subsystem).command")
-  static let notificationUserInfoKey = "arguments"
-}
-
-enum ProcessSignals {
-  static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
-    let sources = signals.map { signal in
-      DispatchSource.makeSignalSource(signal: signal, queue: .main)
-    }
-
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    for (signal, source) in zip(signals, sources) {
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.resume()
-    }
-
-    continuation.onTermination = { _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-struct Command {
-  let arguments: [String]
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Constants.notificationName,
-      object: nil,
-      userInfo: [Constants.notificationUserInfoKey: arguments],
-      deliverImmediately: true
-    )
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Instance already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard fd != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
-      close(fd)
-
-      guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: errno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = fd
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-
-    try? FileManager.default.removeItem(atPath: lockFilePath)
-  }
 }
 
 typealias CGSConnectionID = UInt32
@@ -283,61 +197,182 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.spaceSwitcher = try SpaceSwitcher()
     } catch {
-      FileHandle.standardError.write(Data("Failed to initialize SpaceSwitcher: \(error.localizedDescription)\n".utf8))
-      NSApplication.shared.terminate(nil)
-
-      return
+      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+      exit(EXIT_FAILURE)
     }
 
-    observeSignals()
-    observeCommands()
+    observeProcessSignals()
+    observeAppCommands()
   }
 
-  private func observeSignals() {
+  private func observeProcessSignals() {
     Task {
-      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
         NSApplication.shared.terminate(nil)
       }
     }
   }
 
-  private func observeCommands() {
+  private func observeAppCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
 
-      for await notification in notificationCenter.notifications(named: Constants.notificationName) {
+      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
         guard
           let userInfo = notification.userInfo,
-          let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
+          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
+          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
         else {
           continue
         }
 
-        handleCommand(with: arguments)
+        handleAppCommand(appCommand)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) {
-    guard let command = arguments.first?.lowercased() else {
-      return
+  private func handleAppCommand(_ appCommand: AppCommand) {
+    switch appCommand {
+    case .left: spaceSwitcher?.switchSpace(direction: .left)
+    case .right: spaceSwitcher?.switchSpace(direction: .right)
+    case .space(let number): spaceSwitcher?.switchToSpace(index: number - 1)
+    case .quit: NSApplication.shared.terminate(nil)
     }
+  }
+}
 
-    switch command {
-    case "quit":
-      NSApplication.shared.terminate(nil)
+final class SingleInstanceLock {
+  enum Error: Swift.Error, LocalizedError {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(errno: Int32)
 
-    case "left":
-      spaceSwitcher?.switchSpace(direction: .left)
-
-    case "right":
-      spaceSwitcher?.switchSpace(direction: .right)
-
-    default:
-      if let spaceNumber = Int(command), spaceNumber > 0 {
-        spaceSwitcher?.switchToSpace(index: spaceNumber - 1)
+    var errorDescription: String? {
+      switch self {
+      case .instanceAlreadyRunning: "Instance already running."
+      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
       }
     }
+  }
+
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "\(Configuration.subsystem).lock"
+  ).path
+  private var lockFileDescriptor: CInt
+
+  init() throws {
+    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
+
+    guard fd != -1 else {
+      throw Error.failedToAcquireLock(errno: errno)
+    }
+
+    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
+      close(fd)
+
+      guard errno == EWOULDBLOCK else {
+        throw Error.failedToAcquireLock(errno: errno)
+      }
+
+      throw Error.instanceAlreadyRunning
+    }
+
+    self.lockFileDescriptor = fd
+  }
+
+  deinit {
+    flock(lockFileDescriptor, LOCK_UN)
+    close(lockFileDescriptor)
+
+    try? FileManager.default.removeItem(atPath: lockFilePath)
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
+enum AppCommand: RawRepresentable, CaseIterable {
+  case left
+  case right
+  case space(Int)
+  case quit
+
+  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
+  static let notificationUserInfoKey = "command"
+  static let validSpaceRange = 1...9
+
+  static var allCases: [AppCommand] { [.left, .right] + validSpaceRange.map { .space($0) } + [.quit] }
+
+  static var usageDescription: String {
+    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
+  }
+
+  var rawValue: String {
+    switch self {
+    case .left: "left"
+    case .right: "right"
+    case .space(let number): String(number)
+    case .quit: "quit"
+    }
+  }
+
+  init?(rawValue: String) {
+    switch rawValue.lowercased() {
+    case "left":
+      self = .left
+
+    case "right":
+      self = .right
+
+    case "quit":
+      self = .quit
+
+    default:
+      guard let number = Int(rawValue), Self.validSpaceRange.contains(number) else {
+        return nil
+      }
+
+      self = .space(number)
+    }
+  }
+
+  func send() {
+    DistributedNotificationCenter.default().postNotificationName(
+      Self.notificationName,
+      object: nil,
+      userInfo: [Self.notificationUserInfoKey: self.rawValue],
+      deliverImmediately: true
+    )
   }
 }
 
@@ -352,19 +387,28 @@ do {
   }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = Array(CommandLine.arguments.dropFirst())
+  let arguments = CommandLine.arguments.dropFirst()
 
-  guard !arguments.isEmpty else {
-    print(
-      "Already running, specify a space to switch to (e.g., \"left\", \"right\", or number) or \"quit\" as an argument."
-    )
-    exit(0)
+  guard let argument = arguments.first else {
+    FileHandle.standardError.write(Data("Already running.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
   }
 
-  Command(arguments: arguments).send()
-  exit(0)
+  guard arguments.dropFirst().isEmpty else {
+    FileHandle.standardError.write(Data("Too many arguments.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  guard let appCommand = AppCommand(rawValue: argument.lowercased()) else {
+    FileHandle.standardError.write(Data("Unknown command.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  appCommand.send()
+
+  exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
-  exit(1)
+  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  exit(EXIT_FAILURE)
 }

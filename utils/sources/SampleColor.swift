@@ -31,8 +31,8 @@ let arguments = CommandLine.arguments
 let programName = (arguments.first as NSString?)?.lastPathComponent ?? "SampleColor"
 
 if arguments.contains("-h") || arguments.contains("--help") {
-  print("Usage: \(programName) [--rgb | --hex]")
-  exit(0)
+  print("Usage: \(programName) [--rgb|--hex]")
+  exit(EXIT_SUCCESS)
 }
 
 var outputFormat: OutputFormat
@@ -44,17 +44,15 @@ if arguments.count > 1, let format = OutputFormat(fromArgument: arguments[1]) {
 }
 
 NSColorSampler().show { selectedColor in
-  guard let selectedColor else {
-    NSApplication.shared.terminate(nil)
-    return
+  if let selectedColor {
+
+    let output = selectedColor.string(for: outputFormat)
+
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(output, forType: .string)
+
+    print(output)
   }
-
-  let output = selectedColor.string(for: outputFormat)
-
-  NSPasteboard.general.clearContents()
-  NSPasteboard.general.setString(output, forType: .string)
-
-  print(output)
 
   NSApplication.shared.terminate(nil)
 }

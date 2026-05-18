@@ -147,12 +147,8 @@ function module.createSpaces(numberOfSpaces)
   end
 end
 
-function module.triggerSpaceSwitch(argument)
-  hs.distributednotifications.post(
-    "industries.britown.SwitchToSpace.command",
-    nil,
-    { arguments = { tostring(argument) } }
-  )
+function module.triggerSpaceSwitch(command)
+  hs.distributednotifications.post("industries.britown.SwitchToSpace.Command", nil, { command = tostring(command) })
 end
 
 function module.playAlert(repeatCount, soundNameOrPath)

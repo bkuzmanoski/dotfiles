@@ -6,7 +6,7 @@ guard
   let pasteboardItems = pasteboard.pasteboardItems,
   let plaintext = pasteboard.string(forType: .string)
 else {
-  exit(0)
+  exit(EXIT_SUCCESS)
 }
 
 guard
@@ -14,8 +14,8 @@ guard
   let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: true),
   let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: false)
 else {
-  FileHandle.standardError.write(Data("Error: Failed to create event source.\n".utf8))
-  exit(1)
+  FileHandle.standardError.write(Data("Failed to create CGEvent for paste action.\n".utf8))
+  exit(EXIT_FAILURE)
 }
 
 pasteKeyDown.flags = .maskCommand

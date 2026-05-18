@@ -1,95 +1,9 @@
 import AppKit
 
-enum Constants {
+enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
-  static let lockFileName = "\(subsystem).lock"
-  static let notificationName = Notification.Name("\(subsystem).command")
-  static let notificationUserInfoKey = "arguments"
   static let hoverDelay: DispatchTimeInterval = .milliseconds(150)
   static let jitterThresholdSquared: CGFloat = 3 * 3
-}
-
-enum ProcessSignals {
-  static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
-    let sources = signals.map { signal in
-      DispatchSource.makeSignalSource(signal: signal, queue: .main)
-    }
-
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    for (signal, source) in zip(signals, sources) {
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.resume()
-    }
-
-    continuation.onTermination = { _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-struct Command {
-  let arguments: [String]
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Constants.notificationName,
-      object: nil,
-      userInfo: [Constants.notificationUserInfoKey: arguments],
-      deliverImmediately: true
-    )
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: return "Instance already running."
-      case .failedToAcquireLock(let errno): return "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard fd != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
-      close(fd)
-
-      guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: errno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = fd
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-
-    try? FileManager.default.removeItem(atPath: lockFilePath)
-  }
 }
 
 struct ProcessSerialNumber {
@@ -924,7 +838,7 @@ final class FocusManager {
       let deltaX = event.location.x - lastMouseLocation.x
       let deltaY = event.location.y - lastMouseLocation.y
 
-      guard (deltaX * deltaX) + (deltaY * deltaY) > Constants.jitterThresholdSquared else {
+      guard (deltaX * deltaX) + (deltaY * deltaY) > Configuration.jitterThresholdSquared else {
         break
       }
 
@@ -933,7 +847,7 @@ final class FocusManager {
 
       if !isFocusPending {
         self.isFocusPending = true
-        debounceTimer.schedule(deadline: lastMouseMoveTime + Constants.hoverDelay)
+        debounceTimer.schedule(deadline: lastMouseMoveTime + Configuration.hoverDelay)
       }
 
     case .leftMouseDragged, .rightMouseDragged:
@@ -962,7 +876,7 @@ final class FocusManager {
       return
     }
 
-    let focusDeadline = lastMouseMoveTime + Constants.hoverDelay
+    let focusDeadline = lastMouseMoveTime + Configuration.hoverDelay
 
     guard DispatchTime.now() >= focusDeadline else {
       debounceTimer.schedule(deadline: focusDeadline)
@@ -1082,51 +996,146 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.focusManager = try FocusManager()
     } catch {
-      FileHandle.standardError.write(Data("Failed to initialize FocusManager: \(error.localizedDescription)\n".utf8))
-      NSApplication.shared.terminate(nil)
-
-      return
+      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+      exit(EXIT_FAILURE)
     }
 
-    observeSignals()
-    observeCommands()
+    observeProcessSignals()
+    observeAppCommands()
   }
 
-  private func observeSignals() {
+  private func observeProcessSignals() {
     Task {
-      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
         NSApplication.shared.terminate(nil)
       }
     }
   }
 
-  private func observeCommands() {
+  private func observeAppCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
 
-      for await notification in notificationCenter.notifications(named: Constants.notificationName) {
+      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
         guard
           let userInfo = notification.userInfo,
-          let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
+          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
+          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
         else {
           continue
         }
 
-        handleCommand(with: arguments)
+        handleAppCommand(appCommand)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) {
-    guard let command = arguments.first else {
-      return
+  private func handleAppCommand(_ appCommand: AppCommand) {
+    switch appCommand {
+    case .toggle: focusManager?.toggleEnabled()
+    case .quit: NSApplication.shared.terminate(nil)
+    }
+  }
+}
+
+final class SingleInstanceLock {
+  enum Error: Swift.Error, LocalizedError {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(errno: Int32)
+
+    var errorDescription: String? {
+      switch self {
+      case .instanceAlreadyRunning: "Instance already running."
+      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
+      }
+    }
+  }
+
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "\(Configuration.subsystem).lock"
+  ).path
+  private var lockFileDescriptor: CInt
+
+  init() throws {
+    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
+
+    guard fd != -1 else {
+      throw Error.failedToAcquireLock(errno: errno)
     }
 
-    switch command {
-    case "toggle": focusManager?.toggleEnabled()
-    case "quit": NSApplication.shared.terminate(nil)
-    default: return
+    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
+      close(fd)
+
+      guard errno == EWOULDBLOCK else {
+        throw Error.failedToAcquireLock(errno: errno)
+      }
+
+      throw Error.instanceAlreadyRunning
     }
+
+    self.lockFileDescriptor = fd
+  }
+
+  deinit {
+    flock(lockFileDescriptor, LOCK_UN)
+    close(lockFileDescriptor)
+
+    try? FileManager.default.removeItem(atPath: lockFilePath)
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
+enum AppCommand: String, CaseIterable {
+  case toggle
+  case quit
+
+  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
+  static let notificationUserInfoKey = "command"
+
+  static var usageDescription: String {
+    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
+  }
+
+  func send() {
+    DistributedNotificationCenter.default().postNotificationName(
+      Self.notificationName,
+      object: nil,
+      userInfo: [Self.notificationUserInfoKey: self.rawValue],
+      deliverImmediately: true
+    )
   }
 }
 
@@ -1141,17 +1150,28 @@ do {
   }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = Array(CommandLine.arguments.dropFirst())
+  let arguments = CommandLine.arguments.dropFirst()
 
-  guard !arguments.isEmpty else {
-    print("Already running, specify \"toggle\" or \"quit\" as an argument.")
-    exit(0)
+  guard let argument = arguments.first else {
+    FileHandle.standardError.write(Data("Already running.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
   }
 
-  Command(arguments: arguments).send()
-  exit(0)
+  guard arguments.dropFirst().isEmpty else {
+    FileHandle.standardError.write(Data("Too many arguments.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  guard let appCommand = AppCommand(rawValue: argument.lowercased()) else {
+    FileHandle.standardError.write(Data("Unknown command.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  appCommand.send()
+
+  exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
-  exit(1)
+  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  exit(EXIT_FAILURE)
 }

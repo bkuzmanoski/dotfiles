@@ -1,95 +1,8 @@
 import AppKit
 
-enum Constants {
+enum Configuration {
   static let subsystem = "industries.britown.FloatingMenuBar"
-  static let lockFileName = "\(subsystem).lock"
-  static let notificationName = Notification.Name("\(subsystem).command")
-  static let notificationUserInfoKey = "arguments"
   static let modifierKey = CGEventFlags.maskCommand
-  static let minimumWidth: CGFloat = 160.0
-}
-
-enum ProcessSignals {
-  static func stream(for signals: [CInt]) -> AsyncStream<CInt> {
-    let sources = signals.map { signal in
-      DispatchSource.makeSignalSource(signal: signal, queue: .main)
-    }
-
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    for (signal, source) in zip(signals, sources) {
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.resume()
-    }
-
-    continuation.onTermination = { _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-struct Command {
-  let arguments: [String]
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Constants.notificationName,
-      object: nil,
-      userInfo: [Constants.notificationUserInfoKey: arguments],
-      deliverImmediately: true
-    )
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Instance already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(Constants.lockFileName).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard fd != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
-      close(fd)
-
-      guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: errno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = fd
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-
-    try? FileManager.default.removeItem(atPath: lockFilePath)
-  }
 }
 
 extension AXUIElement {
@@ -235,7 +148,7 @@ final class AppMenu {
 
     let menu = NSMenu()
     menu.autoenablesItems = false
-    menu.minimumWidth = Constants.minimumWidth
+    menu.minimumWidth = 160.0
     menu.items = menuItems
 
     return menu
@@ -375,10 +288,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      FileHandle.standardError.write(Data("Error: Accessibility permission not granted.\n".utf8))
-      NSApplication.shared.terminate(nil)
-
-      return
+      FileHandle.standardError.write(Data("Accessibility permission not granted.\n".utf8))
+      exit(EXIT_FAILURE)
     }
 
     guard
@@ -399,10 +310,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      FileHandle.standardError.write(Data("Error: Failed to create event tap.\n".utf8))
-      NSApplication.shared.terminate(nil)
-
-      return
+      FileHandle.standardError.write(Data("Failed to create event tap.\n".utf8))
+      exit(EXIT_FAILURE)
     }
 
     let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
@@ -410,8 +319,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
 
-    observeSignals()
-    observeCommands()
+    observeProcessSignals()
+    observeAppCommands()
 
     self.eventTap = eventTap
     self.runLoopSource = runLoopSource
@@ -430,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
-    case .rightMouseDown where CGEventSource.flagsState(.hidSystemState).contains(Constants.modifierKey):
+    case .rightMouseDown where CGEventSource.flagsState(.hidSystemState).contains(Configuration.modifierKey):
       try? AppMenu.popUp(at: NSEvent.mouseLocation)
       return true
 
@@ -446,40 +355,136 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func observeSignals() {
+  private func observeProcessSignals() {
     Task {
-      for await _ in ProcessSignals.stream(for: [SIGHUP, SIGINT, SIGTERM]) {
+      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
         NSApplication.shared.terminate(nil)
       }
     }
   }
 
-  private func observeCommands() {
+  private func observeAppCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
 
-      for await notification in notificationCenter.notifications(named: Constants.notificationName) {
+      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
         guard
           let userInfo = notification.userInfo,
-          let arguments = userInfo[Constants.notificationUserInfoKey] as? [String]
+          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
+          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
         else {
           continue
         }
 
-        handleCommand(with: arguments)
+        handleAppCommand(appCommand)
       }
     }
   }
 
-  private func handleCommand(with arguments: [String]) {
-    guard let command = arguments.first else {
-      return
+  private func handleAppCommand(_ appCommand: AppCommand) {
+    switch appCommand {
+    case .quit: NSApplication.shared.terminate(nil)
+    }
+  }
+}
+
+final class SingleInstanceLock {
+  enum Error: Swift.Error, LocalizedError {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(errno: Int32)
+
+    var errorDescription: String? {
+      switch self {
+      case .instanceAlreadyRunning: "Instance already running."
+      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
+      }
+    }
+  }
+
+  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
+    "\(Configuration.subsystem).lock"
+  ).path
+  private var lockFileDescriptor: CInt
+
+  init() throws {
+    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
+
+    guard fd != -1 else {
+      throw Error.failedToAcquireLock(errno: errno)
     }
 
-    switch command {
-    case "quit": NSApplication.shared.terminate(nil)
-    default: return
+    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
+      close(fd)
+
+      guard errno == EWOULDBLOCK else {
+        throw Error.failedToAcquireLock(errno: errno)
+      }
+
+      throw Error.instanceAlreadyRunning
     }
+
+    self.lockFileDescriptor = fd
+  }
+
+  deinit {
+    flock(lockFileDescriptor, LOCK_UN)
+    close(lockFileDescriptor)
+
+    try? FileManager.default.removeItem(atPath: lockFilePath)
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
+enum AppCommand: String, CaseIterable {
+  case quit
+
+  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
+  static let notificationUserInfoKey = "command"
+
+  static var usageDescription: String {
+    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
+  }
+
+  func send() {
+    DistributedNotificationCenter.default().postNotificationName(
+      Self.notificationName,
+      object: nil,
+      userInfo: [Self.notificationUserInfoKey: self.rawValue],
+      deliverImmediately: true
+    )
   }
 }
 
@@ -494,17 +499,28 @@ do {
   }
 
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = Array(CommandLine.arguments.dropFirst())
+  let arguments = CommandLine.arguments.dropFirst()
 
-  guard !arguments.isEmpty else {
-    print("Already running, specify \"quit\" to stop.")
-    exit(0)
+  guard let argument = arguments.first else {
+    FileHandle.standardError.write(Data("Already running.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
   }
 
-  Command(arguments: arguments).send()
-  exit(0)
+  guard arguments.dropFirst().isEmpty else {
+    FileHandle.standardError.write(Data("Too many arguments.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  guard let appCommand = AppCommand(rawValue: argument.lowercased()) else {
+    FileHandle.standardError.write(Data("Unknown command.\n\n\(AppCommand.usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+
+  appCommand.send()
+
+  exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data("Error: \(error.localizedDescription)\n".utf8))
-  exit(1)
+  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  exit(EXIT_FAILURE)
 }
