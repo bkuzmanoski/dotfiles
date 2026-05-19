@@ -68,6 +68,7 @@ mas "Xcode", id: 497799835
 cargo "shuck-cli"
 cargo "tetro-tui"
 
+cask "font-cozette"
 cask "font-instrument-serif"
 cask "font-inter"
 cask "font-jetbrains-mono"
