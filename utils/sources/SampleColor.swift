@@ -13,6 +13,15 @@ enum OutputFormat {
   }
 }
 
+extension String.StringInterpolation {
+  mutating func appendInterpolation(hex value: Int, padTo length: Int = 2) {
+    let hexString = String(value, radix: 16, uppercase: false)
+    let padding = String(repeating: "0", count: max(0, length - hexString.count))
+
+    appendLiteral(padding + hexString)
+  }
+}
+
 extension NSColor {
   func string(for format: OutputFormat) -> String {
     let color = usingColorSpace(.sRGB) ?? .black
@@ -21,7 +30,7 @@ extension NSColor {
     let blue = Int((color.blueComponent * 255).rounded())
 
     switch format {
-    case .hex: return String(format: "#%02x%02x%02x", red, green, blue)
+    case .hex: return "#\(hex: red)\(hex: green)\(hex: blue)"
     case .rgb: return "rgb(\(red), \(green), \(blue))"
     }
   }
