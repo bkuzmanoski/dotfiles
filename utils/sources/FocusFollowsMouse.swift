@@ -891,8 +891,7 @@ final class FocusManager {
     }
   }
 
-  @concurrent
-  private func focusWindow(at point: CGPoint) async {
+  private nonisolated func focusWindow(at point: CGPoint) async {
     guard
       let sessionInfo = CGSessionCopyCurrentDictionary() as? [String: Any],
       sessionInfo["CGSSessionScreenIsLocked"] == nil,
