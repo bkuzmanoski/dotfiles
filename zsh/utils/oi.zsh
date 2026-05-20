@@ -7,7 +7,7 @@ function oi() {
 			Options:
 			  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
 			  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
-			  -h, --help             Show this help message         Show this help message
+			  -h, --help             Show this help message
 		EOF
   }
 
