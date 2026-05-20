@@ -679,7 +679,7 @@ final class MeasurementView: NSView {
 
   weak var delegate: MeasurementViewDelegate?
 
-  var measurement: Measurement?
+  var measurements: [Measurement] = []
 
   override var acceptsFirstResponder: Bool { true }
 
@@ -734,11 +734,21 @@ final class MeasurementView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
-    guard let measurement else {
-      return
+    for measurement in measurements {
+      MeasurementRenderer.draw(measurement: measurement, in: self.bounds)
     }
+  }
+}
 
-    MeasurementRenderer.draw(measurement: measurement, in: self.bounds)
+enum AppMode: String {
+  case single
+  case continuous
+
+  var overlayWindowBackgroundColor: NSColor {
+    switch self {
+    case .single: Configuration.overlayWindowBackgroundColor
+    case .continuous: .clear
+    }
   }
 }
 
@@ -774,15 +784,21 @@ final class MeasurementSession {
   private let overlayWindow: OverlayWindow
   private var displayID: CGDirectDisplayID
   private var currentSpaceID: SpaceID
+  private var appMode: AppMode
   private var workspaceObservationTask: Task<Void, Never>?
   private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
   private var measurementMode: MeasurementMode = .region
 
-  private var measurement: Measurement? {
+  private var activeMeasurement: Measurement? {
     didSet {
-      measurementView.measurement = measurement
-      measurementView.needsDisplay = true
+      updateMeasurementView()
+    }
+  }
+
+  private var committedMeasurements: [Measurement] = [] {
+    didSet {
+      updateMeasurementView()
     }
   }
 
@@ -796,7 +812,7 @@ final class MeasurementSession {
         : nil)
   }
 
-  init(screen: NSScreen) throws {
+  init(screen: NSScreen, appMode: AppMode) throws {
     guard CGPreflightScreenCaptureAccess() else {
       throw Error.screenCapturePermissionNotGranted
     }
@@ -810,14 +826,16 @@ final class MeasurementSession {
     }
 
     let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
-    window.backgroundColor = Configuration.overlayWindowBackgroundColor
     window.contentView = measurementView
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
+    window.backgroundColor = appMode.overlayWindowBackgroundColor
+    window.ignoresMouseEvents = false
 
     self.overlayWindow = window
     self.displayID = displayID
     self.currentSpaceID = currentSpaceID
+    self.appMode = appMode
     self.workspaceObservationTask = Task {
       await withDiscardingTaskGroup { group in
         group.addTask { @MainActor [weak self] in
@@ -865,6 +883,19 @@ final class MeasurementSession {
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
+    }
+  }
+
+  func setAppMode(_ appMode: AppMode) {
+    guard self.appMode != appMode else {
+      return
+    }
+
+    self.appMode = appMode
+    self.overlayWindow.backgroundColor = appMode.overlayWindowBackgroundColor
+
+    if appMode == .single {
+      committedMeasurements.removeAll()
     }
   }
 
@@ -919,19 +950,27 @@ final class MeasurementSession {
   }
 
   private func handleMouseDown(at location: CGPoint) {
-    if let result = measurement?.formattedString {
-      NSPasteboard.general.clearContents()
-      NSPasteboard.general.setString(result, forType: .string)
+    if let activeMeasurement {
+      switch appMode {
+      case .single:
+        let result = activeMeasurement.formattedString
 
-      print(result)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(result, forType: .string)
 
-      NSApplication.shared.terminate(nil)
+        print(result)
 
-      return
-    }
+        NSApplication.shared.terminate(nil)
 
-    if case .region = measurementMode {
-      self.measurement = .region(RegionMeasurement(startLocation: location, endLocation: location))
+      case .continuous:
+        committedMeasurements.append(activeMeasurement)
+
+        if case .region = measurementMode {
+          self.activeMeasurement = nil
+        }
+      }
+    } else if case .region = measurementMode {
+      self.activeMeasurement = .region(RegionMeasurement(startLocation: location, endLocation: location))
     }
   }
 
@@ -953,33 +992,36 @@ final class MeasurementSession {
   }
 
   private func handleKeyPressed(_ keyCode: UInt16) {
-    guard keyCode == 53, case .region = measurementMode else {
+    guard keyCode == 53 else {
       return
     }
 
-    guard measurement != nil else {
+    if case .region = measurementMode, activeMeasurement != nil {
+      self.activeMeasurement = nil
+
+    } else if appMode == .continuous, !committedMeasurements.isEmpty {
+      committedMeasurements.removeLast()
+
+    } else {
       NSApplication.shared.terminate(nil)
-      return
     }
-
-    self.measurement = nil
   }
 
   private func measureRegion() {
     guard
-      case .region(let regionMeasurement) = measurement,
+      case .region(let regionMeasurement) = activeMeasurement,
       let mouseLocation,
       mouseLocation != regionMeasurement.endLocation
     else {
       return
     }
 
-    self.measurement = .region(regionMeasurement.extended(to: mouseLocation))
+    self.activeMeasurement = .region(regionMeasurement.extended(to: mouseLocation))
   }
 
   private func captureScreenAndMeasureSpan() {
     self.screenCapture = nil
-    self.measurement = nil
+    self.activeMeasurement = nil
 
     screenCaptureTask?.cancel()
     self.screenCaptureTask = Task { [weak self, displayID] in
@@ -1019,7 +1061,7 @@ final class MeasurementSession {
       length: length
     )
 
-    self.measurement = .span(spanMeasurement)
+    self.activeMeasurement = .span(spanMeasurement)
   }
 
   private func transition(to measurementMode: MeasurementMode) {
@@ -1039,15 +1081,15 @@ final class MeasurementSession {
       self.screenCapture = nil
 
       if let lastRegionMeasurement, let mouseLocation {
-        self.measurement = .region(lastRegionMeasurement.extended(to: mouseLocation))
+        self.activeMeasurement = .region(lastRegionMeasurement.extended(to: mouseLocation))
       } else {
-        self.measurement = nil
+        self.activeMeasurement = nil
       }
 
       self.lastRegionMeasurement = nil
 
     case .span:
-      if case .region(let regionMeasurement) = measurement {
+      if case .region(let regionMeasurement) = activeMeasurement {
         self.lastRegionMeasurement = regionMeasurement
       }
 
@@ -1057,6 +1099,11 @@ final class MeasurementSession {
         captureScreenAndMeasureSpan()
       }
     }
+  }
+
+  private func updateMeasurementView() {
+    measurementView.measurements = committedMeasurements + (activeMeasurement.map { [$0] } ?? [])
+    measurementView.needsDisplay = true
   }
 }
 
@@ -1073,7 +1120,13 @@ extension MeasurementSession: MeasurementViewDelegate {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  private let appMode: AppMode
   private var measurementSession: MeasurementSession?
+
+  init(appMode: AppMode) {
+    self.appMode = appMode
+    super.init()
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard let screen = NSScreen.screenContainingMouse ?? .main else {
@@ -1082,93 +1135,151 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     do {
-      self.measurementSession = try MeasurementSession(screen: screen)
-      observeAppCommands()
+      self.measurementSession = try MeasurementSession(screen: screen, appMode: appMode)
+      observeIPCCommands()
     } catch {
       FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
       exit(EXIT_FAILURE)
     }
   }
 
-  private func observeAppCommands() {
+  private func observeIPCCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
 
-      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
+      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
         guard
           let userInfo = notification.userInfo,
-          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
-          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
+          let ipcCommand = IPCCommand(userInfo: userInfo)
         else {
           continue
         }
 
-        handleAppCommand(appCommand)
+        handleIPCCommand(ipcCommand)
       }
     }
   }
 
-  private func handleAppCommand(_ command: AppCommand) {
+  private func handleIPCCommand(_ command: IPCCommand) {
     switch command {
-    case .activate:
+    case .activate(let appMode):
       guard let screen = NSScreen.screenContainingMouse ?? .main else {
         return
       }
 
+      measurementSession?.setAppMode(appMode)
       measurementSession?.move(to: screen)
+
       NSApplication.shared.activate(ignoringOtherApps: true)
     }
   }
 }
 
-enum AppCommand: String, CaseIterable {
-  case activate
+enum IPCCommand {
+  case activate(appMode: AppMode)
 
-  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
-  static let notificationUserInfoKey = "command"
+  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
 
-  static var usageDescription: String {
-    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
+  init?(userInfo: [AnyHashable: Any]) {
+    guard let userInfo = userInfo as? [String: String] else {
+      return nil
+    }
+
+    switch userInfo["command"] {
+    case "activate":
+      guard let appModeRawValue = userInfo["appMode"], let appMode = AppMode(rawValue: appModeRawValue) else {
+        return nil
+      }
+
+      self = .activate(appMode: appMode)
+
+    default:
+      return nil
+    }
   }
 
   func send() {
+    var userInfo: [String: String] = [:]
+
+    switch self {
+    case .activate(let appMode):
+      userInfo["command"] = "activate"
+      userInfo["appMode"] = appMode.rawValue
+    }
+
     DistributedNotificationCenter.default().postNotificationName(
       Self.notificationName,
       object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
+      userInfo: userInfo,
       deliverImmediately: true
     )
   }
 }
 
-MainActor.assumeIsolated {
-  guard let executablePath = CommandLine.arguments.first else {
-    FileHandle.standardError.write(Data("Executable path not found in command line arguments.\n".utf8))
-    exit(EXIT_FAILURE)
+let arguments = CommandLine.arguments.dropFirst()
+let usageDescription = """
+  Usage:
+    \(ProcessInfo.processInfo.processName) [options]
+
+  Options:
+    -s, --single      Measure once, copy to clipboard, and exit (default)
+    -c, --continuous  Measure continuously, keeping results on screen until cleared
+    -h, --help        Show this help message
+  """
+
+guard arguments.count == 1 else {
+  FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+  exit(EX_USAGE)
+}
+
+var appMode: AppMode = .single
+
+if let argument = arguments.first {
+  switch argument {
+  case "-s", "--single":
+    appMode = .single
+
+  case "-c", "--continuous":
+    appMode = .continuous
+
+  case "-h", "--help":
+    print(usageDescription)
+    exit(EXIT_SUCCESS)
+
+  default:
+    FileHandle.standardError.write(Data("Unknown argument: \(argument)\n\n\(usageDescription)\n".utf8))
+    exit(EX_USAGE)
+  }
+}
+
+guard let executablePath = CommandLine.arguments.first else {
+  FileHandle.standardError.write(Data("Executable path not found in command line arguments.\n".utf8))
+  exit(EXIT_FAILURE)
+}
+
+let currentProcessIdentifier = ProcessInfo.processInfo.processIdentifier
+let currentExecutableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().standardizedFileURL
+let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
+  guard
+    !runningApplication.isTerminated,
+    runningApplication.processIdentifier != currentProcessIdentifier,
+    let executableURL = runningApplication.executableURL?.resolvingSymlinksInPath().standardizedFileURL
+  else {
+    return false
   }
 
-  let currentProcessIdentifier = getpid()
-  let currentExecutableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().standardizedFileURL
-  let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
-    guard
-      !runningApplication.isTerminated,
-      runningApplication.processIdentifier != currentProcessIdentifier,
-      let executableURL = runningApplication.executableURL?.resolvingSymlinksInPath().standardizedFileURL
-    else {
-      return false
-    }
+  return executableURL == currentExecutableURL
+}
 
-    return executableURL == currentExecutableURL
-  }
-
-  if existingInstance == nil {
-    let delegate = AppDelegate()
+if existingInstance == nil {
+  MainActor.assumeIsolated {
+    let delegate = AppDelegate(appMode: appMode)
     let application = NSApplication.shared
     application.delegate = delegate
     application.setActivationPolicy(.accessory)
     application.run()
-  } else {
-    AppCommand.activate.send()
-    exit(EXIT_SUCCESS)
   }
+} else {
+  IPCCommand.activate(appMode: appMode).send()
+  exit(EXIT_SUCCESS)
 }
