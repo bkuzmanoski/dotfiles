@@ -470,23 +470,49 @@ enum MeasurementRenderer {
     }
 
     func backgroundRect(at anchor: CGPoint, size: CGSize, margin: CGFloat, within bounds: CGRect) -> CGRect {
-      let preferredRect = backgroundRect(at: anchor, size: size, margin: margin)
-      return bounds.contains(preferredRect)
-        ? preferredRect
-        : opposite.backgroundRect(at: anchor, size: size, margin: margin)
-    }
-
-    private func backgroundRect(at anchor: CGPoint, size: CGSize, margin: CGFloat) -> CGRect {
-      let origin: CGPoint
+      var x: CGFloat
+      var y: CGFloat
 
       switch self {
-      case .leading: origin = CGPoint(x: anchor.x - size.width - margin, y: anchor.y - size.height / 2)
-      case .trailing: origin = CGPoint(x: anchor.x + margin, y: anchor.y - size.height / 2)
-      case .top: origin = CGPoint(x: anchor.x - size.width / 2, y: anchor.y + margin)
-      case .bottom: origin = CGPoint(x: anchor.x - size.width / 2, y: anchor.y - size.height - margin)
+      case .leading:
+        x = anchor.x - size.width - margin
+
+        if x < bounds.minX {
+          x = anchor.x + margin
+        }
+
+        y = anchor.y - size.height / 2
+
+      case .trailing:
+        x = anchor.x + margin
+
+        if x + size.width > bounds.maxX {
+          x = anchor.x - size.width - margin
+        }
+
+        y = anchor.y - size.height / 2
+
+      case .top:
+        x = anchor.x - size.width / 2
+        y = anchor.y + margin
+
+        if y + size.height > bounds.maxY {
+          y = anchor.y - size.height - margin
+        }
+
+      case .bottom:
+        x = anchor.x - size.width / 2
+        y = anchor.y - size.height - margin
+
+        if y < bounds.minY {
+          y = anchor.y + margin
+        }
       }
 
-      return CGRect(x: origin.x, y: origin.y, width: size.width, height: size.height)
+      let clampedX = max(bounds.minX + margin, min(x, bounds.maxX - size.width - margin))
+      let clampedY = max(bounds.minY + margin, min(y, bounds.maxY - size.height - margin))
+
+      return CGRect(x: clampedX, y: clampedY, width: size.width, height: size.height)
     }
   }
 
