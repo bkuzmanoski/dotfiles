@@ -694,6 +694,8 @@ final class MeasurementView: NSView {
   }
 
   override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+
     if let mouseTrackingArea {
       removeTrackingArea(mouseTrackingArea)
     }
@@ -708,8 +710,6 @@ final class MeasurementView: NSView {
     addTrackingArea(mouseTrackingArea)
 
     self.mouseTrackingArea = mouseTrackingArea
-
-    super.updateTrackingAreas()
   }
 
   override func cursorUpdate(with event: NSEvent) {
