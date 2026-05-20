@@ -286,7 +286,8 @@ enum EdgeDetector {
     return screenCapture.withUnsafeUInt32Buffer { pixelBuffer in
       switch axis {
       case .horizontal:
-        let orthogonalPointY = floor(location.y)
+        let heightInPoints = CGFloat(screenCapture.height) / screenCapture.scaleFactor
+        let orthogonalPointY = max(0, min(floor(location.y), heightInPoints - 1))
         let measurementPointX = location.x
         let targetPixelX = Int(floor(measurementPointX * screenCapture.scaleFactor))
         let targetPixelY = Int(CGFloat(screenCapture.height) - (orthogonalPointY + 1) * screenCapture.scaleFactor)
@@ -343,7 +344,8 @@ enum EdgeDetector {
         )
 
       case .vertical:
-        let orthogonalPointX = floor(location.x)
+        let widthInPoints = CGFloat(screenCapture.width) / screenCapture.scaleFactor
+        let orthogonalPointX = max(0, min(floor(location.x), widthInPoints - 1))
         let measurementPointY = location.y
         let targetPixelX = Int(orthogonalPointX * screenCapture.scaleFactor)
         let targetPixelY = Int(CGFloat(screenCapture.height) - floor(measurementPointY * screenCapture.scaleFactor) - 1)
