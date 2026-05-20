@@ -148,7 +148,7 @@ function module.createSpaces(numberOfSpaces)
 end
 
 function module.triggerSpaceSwitch(command)
-  hs.distributednotifications.post("industries.britown.SwitchToSpace.Command", nil, { command = tostring(command) })
+  hs.distributednotifications.post("industries.britown.SwitchToSpace.IPCCommand", nil, { command = tostring(command) })
 end
 
 function module.playAlert(repeatCount, soundNameOrPath)

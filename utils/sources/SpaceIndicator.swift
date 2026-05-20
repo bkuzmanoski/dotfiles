@@ -567,7 +567,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     observeProcessSignals()
-    observeAppCommands()
+    observeIPCCommands()
   }
 
   private func observeProcessSignals() {
@@ -578,26 +578,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func observeAppCommands() {
+  private func observeIPCCommands() {
     Task {
       let notificationCenter = DistributedNotificationCenter.default()
 
-      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
+      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
         guard
           let userInfo = notification.userInfo,
-          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
-          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
+          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
+          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
         else {
           continue
         }
 
-        handleAppCommand(appCommand)
+        handleIPCCommand(ipcCommand)
       }
     }
   }
 
-  private func handleAppCommand(_ appCommand: AppCommand) {
-    switch appCommand {
+  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+    switch ipcCommand {
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -683,15 +683,11 @@ enum ProcessSignals {
   }
 }
 
-enum AppCommand: String, CaseIterable {
+enum IPCCommand: String, CaseIterable {
   case quit
 
-  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
+  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
   static let notificationUserInfoKey = "command"
-
-  static var usageDescription: String {
-    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
-  }
 
   func send() {
     DistributedNotificationCenter.default().postNotificationName(
@@ -716,22 +712,25 @@ do {
 } catch SingleInstanceLock.Error.instanceAlreadyRunning {
   let arguments = CommandLine.arguments.dropFirst()
 
+  lazy var usageDescription =
+    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
+
   guard let argument = arguments.first else {
-    FileHandle.standardError.write(Data("Already running.\n\n\(AppCommand.usageDescription)\n".utf8))
+    FileHandle.standardError.write(Data("Already running.\n\n\(usageDescription)\n".utf8))
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    FileHandle.standardError.write(Data("Too many arguments.\n\n\(AppCommand.usageDescription)\n".utf8))
+    FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
     exit(EX_USAGE)
   }
 
-  guard let appCommand = AppCommand(rawValue: argument.lowercased()) else {
-    FileHandle.standardError.write(Data("Unknown command.\n\n\(AppCommand.usageDescription)\n".utf8))
+  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
+    FileHandle.standardError.write(Data("Unknown command.\n\n\(usageDescription)\n".utf8))
     exit(EX_USAGE)
   }
 
-  appCommand.send()
+  ipcCommand.send()
 
   exit(EXIT_SUCCESS)
 
