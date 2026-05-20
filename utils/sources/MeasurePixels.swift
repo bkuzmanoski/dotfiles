@@ -1,6 +1,7 @@
 import ScreenCaptureKit
 
 enum Configuration {
+  static let subsystem = "industries.britown.MeasurePixels"
   static let spanMeasurementRGBDifferenceThreshold = 20
   static let overlayWindowBackgroundColor: NSColor = .black.withAlphaComponent(0.1)
   static let selectionColor: NSColor = .systemRed.withAlphaComponent(0.15)
@@ -23,10 +24,6 @@ func CGSMainConnectionID() -> CGSConnectionID
 
 @_silgen_name("CGSCopyManagedDisplaySpaces")
 func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
-
-extension NSRunningApplication {
-  var standardizedExecutableURL: URL? { executableURL?.resolvingSymlinksInPath().standardizedFileURL }
-}
 
 typealias DisplayIdentifier = String
 typealias SpaceID = UInt64
@@ -150,6 +147,7 @@ struct RegionMeasurement: Equatable {
 }
 
 struct SpanMeasurement: Equatable {
+  let referenceLocation: CGPoint
   let axis: Axis
   let startLocation: CGPoint
   let length: CGFloat
@@ -185,15 +183,16 @@ struct ScreenCapture {
     }
   }
 
+  let displayID: CGDirectDisplayID
+  let scaleFactor: CGFloat
   let width: Int
   let height: Int
-  let scaleFactor: CGFloat
   let pixelsPerRow: Int
 
   private let pixelData: CFData
   private let pixelDataPointer: UnsafePointer<UInt8>
 
-  init(image: CGImage, scaleFactor: CGFloat) throws {
+  init(image: CGImage, displayID: CGDirectDisplayID, scaleFactor: CGFloat) throws {
     guard
       image.bitmapInfo.byteOrder == .order32Little,
       image.bitmapInfo.alpha == .premultipliedFirst,
@@ -215,12 +214,13 @@ struct ScreenCapture {
       throw Error.missingPixelData
     }
 
+    self.displayID = displayID
+    self.scaleFactor = scaleFactor
     self.width = image.width
     self.height = image.height
-    self.scaleFactor = scaleFactor
+    self.pixelsPerRow = image.bytesPerRow / (image.bitsPerPixel / 8)
     self.pixelData = pixelData
     self.pixelDataPointer = pixelDataPointer
-    self.pixelsPerRow = image.bytesPerRow / (image.bitsPerPixel / 8)
   }
 
   func withUnsafeUInt32Buffer<R>(_ body: (UnsafeBufferPointer<UInt32>) throws -> R) rethrows -> R {
@@ -407,21 +407,27 @@ enum EdgeDetector {
 
 enum ScreenCaptureService {
   enum Error: Swift.Error, LocalizedError {
+    case screenNotFound(CGDirectDisplayID)
     case displayNotFound
     case missingSdrImage
 
     var errorDescription: String? {
       switch self {
+      case .screenNotFound(let displayID): "Screen for display ID \(displayID) not found."
       case .displayNotFound: "Display not found in shareable content."
       case .missingSdrImage: "Captured screenshot is missing SDR image representation."
       }
     }
   }
 
-  nonisolated static func capture(screen: NSScreen) async throws -> ScreenCapture {
+  nonisolated static func capture(displayID: CGDirectDisplayID) async throws -> ScreenCapture {
     let availableContent = try await SCShareableContent.current
 
-    guard let display = availableContent.displays.first(where: { $0.displayID == screen.cgDirectDisplayID }) else {
+    guard let screen = NSScreen.screen(for: displayID) else {
+      throw Error.screenNotFound(displayID)
+    }
+
+    guard let display = availableContent.displays.first(where: { $0.displayID == displayID }) else {
       throw Error.displayNotFound
     }
 
@@ -447,7 +453,7 @@ enum ScreenCaptureService {
       throw Error.missingSdrImage
     }
 
-    let screenCapture = try ScreenCapture(image: image, scaleFactor: screen.backingScaleFactor)
+    let screenCapture = try ScreenCapture(image: image, displayID: displayID, scaleFactor: screen.backingScaleFactor)
 
     return screenCapture
   }
@@ -584,6 +590,7 @@ enum MeasurementRenderer {
         guideLinePath.line(to: NSPoint(x: startPoint.x + 0.5, y: startPoint.y + guideLineEndCapLength))
         guideLinePath.move(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y - guideLineEndCapLength))
         guideLinePath.line(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y + guideLineEndCapLength))
+
       case .vertical:
         guideLinePath.move(to: NSPoint(x: startPoint.x - guideLineEndCapLength, y: startPoint.y + 0.5))
         guideLinePath.line(to: NSPoint(x: startPoint.x + guideLineEndCapLength, y: startPoint.y + 0.5))
@@ -672,11 +679,7 @@ final class MeasurementView: NSView {
 
   weak var delegate: MeasurementViewDelegate?
 
-  var measurement: Measurement? {
-    didSet {
-      self.needsDisplay = true
-    }
-  }
+  var measurement: Measurement?
 
   override var acceptsFirstResponder: Bool { true }
 
@@ -743,12 +746,14 @@ final class MeasurementView: NSView {
 final class MeasurementSession {
   enum Error: Swift.Error, LocalizedError {
     case screenCapturePermissionNotGranted
-    case screenNotFound(CGDirectDisplayID)
+    case failedToDetermineDisplayID
+    case failedToDetermineSpaceID
 
     var errorDescription: String? {
       switch self {
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
-      case .screenNotFound(let displayID): "Screen for display ID \(displayID) not found."
+      case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
+      case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
       }
     }
   }
@@ -756,47 +761,63 @@ final class MeasurementSession {
   private enum MeasurementMode: Equatable {
     case region
     case span(Axis)
-  }
 
-  private let measurementView: MeasurementView
-  private let overlayWindow: OverlayWindow
-  private var displayID: CGDirectDisplayID
-  private var currentSpaceID: SpaceID?
-  private var workspaceObservationTask: Task<Void, Never>?
-  private var screenCaptureTask: Task<Void, Never>?
-
-  private var measurementMode: MeasurementMode = .region {
-    didSet {
-      transitionMeasurementMode(to: measurementMode)
+    var isSpan: Bool {
+      switch self {
+      case .region: false
+      case .span: true
+      }
     }
   }
 
+  private let measurementView = MeasurementView()
+  private let overlayWindow: OverlayWindow
+  private var displayID: CGDirectDisplayID
+  private var currentSpaceID: SpaceID
+  private var workspaceObservationTask: Task<Void, Never>?
+  private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
-  private var lastRegionMeasurement: RegionMeasurement?
-  private var lastKnownMouseLocation: CGPoint?
+  private var measurementMode: MeasurementMode = .region
 
   private var measurement: Measurement? {
     didSet {
       measurementView.measurement = measurement
+      measurementView.needsDisplay = true
     }
   }
 
-  init(displayID: CGDirectDisplayID, initialSpaceID: SpaceID, screenFrame: CGRect) throws {
+  private var lastMouseLocation: CGPoint?
+  private var lastRegionMeasurement: RegionMeasurement?
+
+  private var mouseLocation: CGPoint? {
+    lastMouseLocation
+      ?? (NSScreen.screen(for: displayID)?.frame.contains(NSEvent.mouseLocation) ?? false
+        ? NSEvent.mouseLocation
+        : nil)
+  }
+
+  init(screen: NSScreen) throws {
     guard CGPreflightScreenCaptureAccess() else {
       throw Error.screenCapturePermissionNotGranted
     }
 
-    let measurementView = MeasurementView()
-    let window = OverlayWindow(contentRect: screenFrame, styleMask: .borderless, backing: .buffered, defer: false)
+    guard let displayID = screen.cgDirectDisplayID else {
+      throw Error.failedToDetermineDisplayID
+    }
+
+    guard let currentSpaceID = screen.currentSpaceID else {
+      throw Error.failedToDetermineSpaceID
+    }
+
+    let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.backgroundColor = Configuration.overlayWindowBackgroundColor
     window.contentView = measurementView
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
 
-    self.measurementView = measurementView
     self.overlayWindow = window
     self.displayID = displayID
-    self.currentSpaceID = initialSpaceID
+    self.currentSpaceID = currentSpaceID
     self.workspaceObservationTask = Task {
       await withDiscardingTaskGroup { group in
         group.addTask { @MainActor [weak self] in
@@ -828,9 +849,34 @@ final class MeasurementSession {
     screenCaptureTask?.cancel()
   }
 
+  func move(to screen: NSScreen) {
+    guard
+      let displayID = screen.cgDirectDisplayID,
+      self.displayID != displayID,
+      let spaceID = screen.currentSpaceID
+    else {
+      return
+    }
+
+    self.displayID = displayID
+    self.currentSpaceID = spaceID
+
+    overlayWindow.setFrame(screen.frame, display: true)
+
+    if case .span = measurementMode {
+      captureScreenAndMeasureSpan()
+    }
+  }
+
   private func handleScreenParametersChanged() {
     guard let screen = NSScreen.screen(for: displayID) else {
-      NSApplication.shared.terminate(nil)
+      if let newScreen = NSScreen.screenContainingMouse ?? .main {
+        move(to: newScreen)
+      } else {
+        FileHandle.standardError.write(Data("Failed to determine screen after screen parameters changed.\n".utf8))
+        NSApplication.shared.terminate(nil)
+      }
+
       return
     }
 
@@ -839,77 +885,36 @@ final class MeasurementSession {
     }
 
     overlayWindow.setFrame(screen.frame, display: true)
-    refreshScreenCaptureIfNeeded()
+
+    if case .span = measurementMode {
+      captureScreenAndMeasureSpan()
+    }
   }
 
   private func handleActiveSpaceChanged() {
     guard
       let screen = NSScreen.screen(for: displayID),
       let spaceID = screen.currentSpaceID,
-      spaceID != currentSpaceID
+      currentSpaceID != spaceID
     else {
       return
     }
 
     self.currentSpaceID = spaceID
 
-    refreshScreenCaptureIfNeeded()
     NSApplication.shared.activate(ignoringOtherApps: true)
-  }
 
-  private func transitionMeasurementMode(to newMeasurementMode: MeasurementMode) {
-    switch newMeasurementMode {
-    case .region:
-      screenCaptureTask?.cancel()
-
-      let lastRegionMeasurement = self.lastRegionMeasurement
-
-      self.screenCaptureTask = nil
-      self.screenCapture = nil
-      self.lastRegionMeasurement = nil
-
-      if let lastRegionMeasurement, let lastKnownMouseLocation {
-        self.measurement = .region(lastRegionMeasurement.extended(to: lastKnownMouseLocation))
-      } else {
-        self.measurement = nil
-      }
-
-    case .span:
-      if case .region(let regionMeasurement) = measurement {
-        self.lastRegionMeasurement = regionMeasurement
-      }
-
-      self.measurement = nil
-
-      captureScreenAndUpdateSpanMeasurement()
+    if case .span = measurementMode {
+      captureScreenAndMeasureSpan()
     }
   }
 
   private func handleMouseMoved(to location: CGPoint) {
-    self.lastKnownMouseLocation = location
+    self.lastMouseLocation = location
 
     switch measurementMode {
-    case .region:
-      guard case .region(let regionMeasurement) = measurement else {
-        return
-      }
-
-      self.measurement = .region(regionMeasurement.extended(to: location))
-
-    case .span(let axis):
-      guard let screenCapture else {
-        return
-      }
-
-      let (startLocation, _, length) = EdgeDetector.detect(
-        edgesIn: screenCapture,
-        from: location,
-        alongAxis: axis,
-        rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
-      )
-      let spanMeasurement = SpanMeasurement(axis: axis, startLocation: startLocation, length: length)
-
-      self.measurement = .span(spanMeasurement)
+    case .region: measureRegion()
+    case .span: measureSpan()
     }
   }
 
@@ -934,19 +939,17 @@ final class MeasurementSession {
     let hasCommand = modifierFlags.contains(.command)
     let hasShift = modifierFlags.contains(.shift)
 
-    let measurementMode: MeasurementMode
+    let nextMeasurementMode: MeasurementMode
 
     if hasCommand, hasShift {
-      measurementMode = .span(.vertical)
+      nextMeasurementMode = .span(.vertical)
     } else if hasCommand {
-      measurementMode = .span(.horizontal)
+      nextMeasurementMode = .span(.horizontal)
     } else {
-      measurementMode = .region
+      nextMeasurementMode = .region
     }
 
-    if self.measurementMode != measurementMode {
-      self.measurementMode = measurementMode
-    }
+    transition(to: nextMeasurementMode)
   }
 
   private func handleKeyPressed(_ keyCode: UInt16) {
@@ -962,18 +965,26 @@ final class MeasurementSession {
     self.measurement = nil
   }
 
-  private func captureScreenAndUpdateSpanMeasurement() {
-    self.measurement = nil
+  private func measureRegion() {
+    guard
+      case .region(let regionMeasurement) = measurement,
+      let mouseLocation,
+      mouseLocation != regionMeasurement.endLocation
+    else {
+      return
+    }
+
+    self.measurement = .region(regionMeasurement.extended(to: mouseLocation))
+  }
+
+  private func captureScreenAndMeasureSpan() {
     self.screenCapture = nil
+    self.measurement = nil
 
     screenCaptureTask?.cancel()
     self.screenCaptureTask = Task { [weak self, displayID] in
       do {
-        guard let screen = NSScreen.screen(for: displayID) else {
-          throw Error.screenNotFound(displayID)
-        }
-
-        let screenCapture = try await ScreenCaptureService.capture(screen: screen)
+        let screenCapture = try await ScreenCaptureService.capture(displayID: displayID)
 
         guard let self, !Task.isCancelled else {
           return
@@ -982,23 +993,7 @@ final class MeasurementSession {
         self.screenCaptureTask = nil
         self.screenCapture = screenCapture
 
-        let mouseLocation =
-          lastKnownMouseLocation
-          ?? (screen.frame.contains(NSEvent.mouseLocation) ? NSEvent.mouseLocation : nil)
-
-        guard let mouseLocation, case .span(let spanMeasurementAxis) = self.measurementMode else {
-          return
-        }
-
-        let (startLocation, _, length) = EdgeDetector.detect(
-          edgesIn: screenCapture,
-          from: mouseLocation,
-          alongAxis: spanMeasurementAxis,
-          rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
-        )
-        let spanMeasurement = SpanMeasurement(axis: spanMeasurementAxis, startLocation: startLocation, length: length)
-
-        self.measurement = .span(spanMeasurement)
+        measureSpan()
       } catch {
         FileHandle.standardError.write(Data(("Failed to capture screen: \(error.localizedDescription)\n").utf8))
         NSApplication.shared.terminate(nil)
@@ -1006,12 +1001,62 @@ final class MeasurementSession {
     }
   }
 
-  private func refreshScreenCaptureIfNeeded() {
-    guard case .span = measurementMode else {
+  private func measureSpan() {
+    guard case .span(let axis) = measurementMode, let screenCapture, let mouseLocation else {
       return
     }
 
-    captureScreenAndUpdateSpanMeasurement()
+    let (startLocation, _, length) = EdgeDetector.detect(
+      edgesIn: screenCapture,
+      from: mouseLocation,
+      alongAxis: axis,
+      rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
+    )
+    let spanMeasurement = SpanMeasurement(
+      referenceLocation: mouseLocation,
+      axis: axis,
+      startLocation: startLocation,
+      length: length
+    )
+
+    self.measurement = .span(spanMeasurement)
+  }
+
+  private func transition(to measurementMode: MeasurementMode) {
+    guard self.measurementMode != measurementMode else {
+      return
+    }
+
+    let previousMode = self.measurementMode
+
+    self.measurementMode = measurementMode
+
+    switch measurementMode {
+    case .region:
+      screenCaptureTask?.cancel()
+
+      self.screenCaptureTask = nil
+      self.screenCapture = nil
+
+      if let lastRegionMeasurement, let mouseLocation {
+        self.measurement = .region(lastRegionMeasurement.extended(to: mouseLocation))
+      } else {
+        self.measurement = nil
+      }
+
+      self.lastRegionMeasurement = nil
+
+    case .span:
+      if case .region(let regionMeasurement) = measurement {
+        self.lastRegionMeasurement = regionMeasurement
+      }
+
+      if previousMode.isSpan {
+        measureSpan()
+      } else {
+        captureScreenAndMeasureSpan()
+      }
+    }
   }
 }
 
@@ -1030,62 +1075,100 @@ extension MeasurementSession: MeasurementViewDelegate {
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private var measurementSession: MeasurementSession?
 
-  func applicationWillFinishLaunching(_ notification: Notification) {
-    let currentProcessIdentifier = NSRunningApplication.current.processIdentifier
-    let currentExecutableURL = NSRunningApplication.current.standardizedExecutableURL
-    let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
-      guard
-        !runningApplication.isTerminated,
-        runningApplication.processIdentifier != currentProcessIdentifier,
-        let executableURL = runningApplication.standardizedExecutableURL
-      else {
-        return false
-      }
-
-      return executableURL == currentExecutableURL
-    }
-
-    if let existingInstance {
-      let activated = existingInstance.activate()
-
-      if !activated {
-        FileHandle.standardError.write(
-          Data("An existing instance is already running, but it could not be activated.\n".utf8)
-        )
-        exit(EXIT_FAILURE)
-      }
-
-      exit(EXIT_SUCCESS)
-    }
-  }
-
   func applicationDidFinishLaunching(_ notification: Notification) {
-    guard
-      let screen = NSScreen.screenContainingMouse ?? .main,
-      let displayID = screen.cgDirectDisplayID,
-      let currentSpaceID = screen.currentSpaceID
-    else {
+    guard let screen = NSScreen.screenContainingMouse ?? .main else {
       FileHandle.standardError.write(Data("Failed to determine screen for measurement session.\n".utf8))
       exit(EXIT_FAILURE)
     }
 
     do {
-      self.measurementSession = try MeasurementSession(
-        displayID: displayID,
-        initialSpaceID: currentSpaceID,
-        screenFrame: screen.frame
-      )
+      self.measurementSession = try MeasurementSession(screen: screen)
+      observeAppCommands()
     } catch {
       FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
       exit(EXIT_FAILURE)
     }
   }
+
+  private func observeAppCommands() {
+    Task {
+      let notificationCenter = DistributedNotificationCenter.default()
+
+      for await notification in notificationCenter.notifications(named: AppCommand.notificationName) {
+        guard
+          let userInfo = notification.userInfo,
+          let appCommandRawValue = userInfo[AppCommand.notificationUserInfoKey] as? String,
+          let appCommand = AppCommand(rawValue: appCommandRawValue.lowercased())
+        else {
+          continue
+        }
+
+        handleAppCommand(appCommand)
+      }
+    }
+  }
+
+  private func handleAppCommand(_ command: AppCommand) {
+    switch command {
+    case .activate:
+      guard let screen = NSScreen.screenContainingMouse ?? .main else {
+        return
+      }
+
+      measurementSession?.move(to: screen)
+      NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+  }
+}
+
+enum AppCommand: String, CaseIterable {
+  case activate
+
+  static let notificationName = Notification.Name("\(Configuration.subsystem).Command")
+  static let notificationUserInfoKey = "command"
+
+  static var usageDescription: String {
+    "Usage: \(CommandLine.arguments.first.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "command") [\(Self.allCases.map(\.rawValue).joined(separator: "|"))]"
+  }
+
+  func send() {
+    DistributedNotificationCenter.default().postNotificationName(
+      Self.notificationName,
+      object: nil,
+      userInfo: [Self.notificationUserInfoKey: self.rawValue],
+      deliverImmediately: true
+    )
+  }
 }
 
 MainActor.assumeIsolated {
-  let delegate = AppDelegate()
-  let application = NSApplication.shared
-  application.delegate = delegate
-  application.setActivationPolicy(.accessory)
-  application.run()
+  guard let executablePath = CommandLine.arguments.first else {
+    FileHandle.standardError.write(Data("Executable path not found in command line arguments.\n".utf8))
+    exit(EXIT_FAILURE)
+  }
+
+  let currentProcessIdentifier = getpid()
+  let currentExecutableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().standardizedFileURL
+  let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
+    guard
+      !runningApplication.isTerminated,
+      runningApplication.processIdentifier != currentProcessIdentifier,
+      let executableURL = runningApplication.executableURL?.resolvingSymlinksInPath().standardizedFileURL
+    else {
+      return false
+    }
+
+    return executableURL == currentExecutableURL
+  }
+
+  if existingInstance == nil {
+    let delegate = AppDelegate()
+    let application = NSApplication.shared
+    application.delegate = delegate
+    application.setActivationPolicy(.accessory)
+    application.run()
+  } else {
+    AppCommand.activate.send()
+    exit(EXIT_SUCCESS)
+  }
 }
