@@ -1148,14 +1148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       let notificationCenter = DistributedNotificationCenter.default()
 
       for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommand = IPCCommand(userInfo: userInfo)
-        else {
+        guard let command = IPCCommand(userInfo: notification.userInfo) else {
           continue
         }
 
-        handleIPCCommand(ipcCommand)
+        handleIPCCommand(command)
       }
     }
   }
@@ -1180,7 +1177,7 @@ enum IPCCommand {
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
 
-  init?(userInfo: [AnyHashable: Any]) {
+  init?(userInfo: [AnyHashable: Any]?) {
     guard let userInfo = userInfo as? [String: String] else {
       return nil
     }
