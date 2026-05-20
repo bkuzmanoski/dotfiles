@@ -223,7 +223,7 @@ struct ScreenCapture {
     self.pixelDataPointer = pixelDataPointer
   }
 
-  func withUnsafeUInt32Buffer<R>(_ body: (UnsafeBufferPointer<UInt32>) throws -> R) rethrows -> R {
+  func withUnsafePixelBuffer<R>(_ body: (UnsafeBufferPointer<UInt32>) throws -> R) rethrows -> R {
     let pixelCount = height * pixelsPerRow
 
     return try pixelDataPointer.withMemoryRebound(to: UInt32.self, capacity: pixelCount) { pointer in
@@ -283,7 +283,7 @@ enum EdgeDetector {
   ) -> (startLocation: CGPoint, endLocation: CGPoint, length: CGFloat) {
     let pixelsPerPoint = Int(screenCapture.scaleFactor)
 
-    return screenCapture.withUnsafeUInt32Buffer { pixelBuffer in
+    return screenCapture.withUnsafePixelBuffer { pixelBuffer in
       switch axis {
       case .horizontal:
         let heightInPoints = CGFloat(screenCapture.height) / screenCapture.scaleFactor
