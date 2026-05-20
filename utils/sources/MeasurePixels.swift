@@ -1,7 +1,7 @@
 import ScreenCaptureKit
 
 enum Configuration {
-  static let spanMeasurementColorDifferenceThreshold = 20
+  static let spanMeasurementRGBDifferenceThreshold = 20
   static let overlayWindowBackgroundColor: NSColor = .black.withAlphaComponent(0.1)
   static let selectionColor: NSColor = .systemRed.withAlphaComponent(0.15)
   static let guideLineColor: NSColor = .systemRed
@@ -99,6 +99,21 @@ extension CGFloat {
   var compactString: String { Double(self).formatted(.number.precision(.fractionLength(0...2)).grouping(.never)) }
 }
 
+enum HorizontalDirection {
+  case leading
+  case trailing
+}
+
+enum VerticalDirection {
+  case upward
+  case downward
+}
+
+enum Axis {
+  case horizontal
+  case vertical
+}
+
 enum Measurement: Equatable {
   case region(RegionMeasurement)
   case span(SpanMeasurement)
@@ -112,16 +127,6 @@ enum Measurement: Equatable {
 }
 
 struct RegionMeasurement: Equatable {
-  enum HorizontalDirection {
-    case leading
-    case trailing
-  }
-
-  enum VerticalDirection {
-    case upward
-    case downward
-  }
-
   let startLocation: CGPoint
   let endLocation: CGPoint
 
@@ -145,11 +150,6 @@ struct RegionMeasurement: Equatable {
 }
 
 struct SpanMeasurement: Equatable {
-  enum Axis {
-    case horizontal
-    case vertical
-  }
-
   let axis: Axis
   let startLocation: CGPoint
   let length: CGFloat
@@ -247,6 +247,159 @@ extension UnsafeBufferPointer where Element == UInt32 {
     let blueB = Int(pixelB & 0xFF)
 
     return abs(redA - redB) + abs(greenA - greenB) + abs(blueA - blueB)
+  }
+
+  func maxRGBDifference(
+    betweenSliceStartingAt startIndexA: Int,
+    andSliceStartingAt startIndexB: Int,
+    sliceCount: Int,
+    stride: Int
+  ) -> Int {
+    var maxDifference = 0
+    var indexA = startIndexA
+    var indexB = startIndexB
+
+    for _ in 0..<sliceCount {
+      let difference = rgbDifference(betweenIndex: indexA, andIndex: indexB)
+
+      if difference > maxDifference {
+        maxDifference = difference
+      }
+
+      indexA += stride
+      indexB += stride
+    }
+
+    return maxDifference
+  }
+}
+
+enum EdgeDetector {
+  static func detect(
+    edgesIn screenCapture: ScreenCapture,
+    from location: CGPoint,
+    alongAxis axis: Axis,
+    rgbDifferenceThreshold: Int
+  ) -> (startLocation: CGPoint, endLocation: CGPoint, length: CGFloat) {
+    let pixelsPerPoint = Int(screenCapture.scaleFactor)
+
+    return screenCapture.withUnsafeUInt32Buffer { pixelBuffer in
+      switch axis {
+      case .horizontal:
+        let orthogonalPointY = floor(location.y)
+        let measurementPointX = location.x
+        let targetPixelX = Int(floor(measurementPointX * screenCapture.scaleFactor))
+        let targetPixelY = Int(CGFloat(screenCapture.height) - (orthogonalPointY + 1) * screenCapture.scaleFactor)
+        let clampedPixelX = max(0, min(targetPixelX, screenCapture.width - 1))
+        let clampedPixelY = max(0, min(targetPixelY, screenCapture.height - pixelsPerPoint))
+        let rowStartBufferIndex = clampedPixelY * screenCapture.pixelsPerRow
+
+        var leadingPixelX = clampedPixelX
+        var previousPixelX = clampedPixelX
+
+        for searchPixelX in stride(from: clampedPixelX - 1, through: 0, by: -1) {
+          let maxDifference = pixelBuffer.maxRGBDifference(
+            betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
+            andSliceStartingAt: rowStartBufferIndex + searchPixelX,
+            sliceCount: pixelsPerPoint,
+            stride: screenCapture.pixelsPerRow
+          )
+
+          if maxDifference > rgbDifferenceThreshold {
+            break
+          }
+
+          previousPixelX = searchPixelX
+          leadingPixelX = searchPixelX
+        }
+
+        previousPixelX = clampedPixelX
+
+        var trailingPixelX = clampedPixelX
+
+        for searchPixelX in stride(from: clampedPixelX + 1, to: screenCapture.width, by: 1) {
+          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+            betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
+            andSliceStartingAt: rowStartBufferIndex + searchPixelX,
+            sliceCount: pixelsPerPoint,
+            stride: screenCapture.pixelsPerRow
+          )
+
+          if maxRGBDifference > rgbDifferenceThreshold {
+            break
+          }
+
+          previousPixelX = searchPixelX
+          trailingPixelX = searchPixelX
+        }
+
+        let leadingPointX = CGFloat(leadingPixelX) / screenCapture.scaleFactor
+        let trailingPointX = CGFloat(trailingPixelX + 1) / screenCapture.scaleFactor
+
+        return (
+          CGPoint(x: leadingPointX, y: orthogonalPointY),
+          CGPoint(x: trailingPointX, y: orthogonalPointY),
+          trailingPointX - leadingPointX
+        )
+
+      case .vertical:
+        let orthogonalPointX = floor(location.x)
+        let measurementPointY = location.y
+        let targetPixelX = Int(orthogonalPointX * screenCapture.scaleFactor)
+        let targetPixelY = Int(CGFloat(screenCapture.height) - floor(measurementPointY * screenCapture.scaleFactor) - 1)
+        let clampedPixelX = max(0, min(targetPixelX, screenCapture.width - pixelsPerPoint))
+        let clampedPixelY = max(0, min(targetPixelY, screenCapture.height - 1))
+        let columnStartBufferIndex = clampedPixelX
+
+        var topPixelY = clampedPixelY
+        var previousPixelY = clampedPixelY
+
+        for searchPixelY in stride(from: clampedPixelY - 1, through: 0, by: -1) {
+          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+            betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            sliceCount: pixelsPerPoint,
+            stride: 1
+          )
+
+          if maxRGBDifference > rgbDifferenceThreshold {
+            break
+          }
+
+          previousPixelY = searchPixelY
+          topPixelY = searchPixelY
+        }
+
+        previousPixelY = clampedPixelY
+
+        var bottomPixelY = clampedPixelY
+
+        for searchPixelY in stride(from: clampedPixelY + 1, to: screenCapture.height, by: 1) {
+          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+            betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            sliceCount: pixelsPerPoint,
+            stride: 1
+          )
+
+          if maxRGBDifference > rgbDifferenceThreshold {
+            break
+          }
+
+          previousPixelY = searchPixelY
+          bottomPixelY = searchPixelY
+        }
+
+        let topPointY = CGFloat(screenCapture.height - topPixelY) / screenCapture.scaleFactor
+        let bottomPointY = CGFloat(screenCapture.height - bottomPixelY - 1) / screenCapture.scaleFactor
+
+        return (
+          CGPoint(x: orthogonalPointX, y: bottomPointY),
+          CGPoint(x: orthogonalPointX, y: topPointY),
+          topPointY - bottomPointY
+        )
+      }
+    }
   }
 }
 
@@ -574,7 +727,7 @@ final class MeasurementSession {
 
   private enum MeasurementMode: Equatable {
     case region
-    case span(SpanMeasurement.Axis)
+    case span(Axis)
   }
 
   private let measurementView: MeasurementView
@@ -715,17 +868,18 @@ final class MeasurementSession {
 
       self.measurement = .region(regionMeasurement.extended(to: location))
 
-    case .span(let spanMeasurementAxis):
+    case .span(let axis):
       guard let screenCapture else {
         return
       }
 
-      let spanMeasurement = measureSpan(
-        at: location,
-        alongAxis: spanMeasurementAxis,
-        screenCapture: screenCapture,
-        colorDifferenceThreshold: Configuration.spanMeasurementColorDifferenceThreshold
+      let (startLocation, _, length) = EdgeDetector.detect(
+        edgesIn: screenCapture,
+        from: location,
+        alongAxis: axis,
+        rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
       )
+      let spanMeasurement = SpanMeasurement(axis: axis, startLocation: startLocation, length: length)
 
       self.measurement = .span(spanMeasurement)
     }
@@ -808,12 +962,13 @@ final class MeasurementSession {
           return
         }
 
-        let spanMeasurement = measureSpan(
-          at: mouseLocation,
+        let (startLocation, _, length) = EdgeDetector.detect(
+          edgesIn: screenCapture,
+          from: mouseLocation,
           alongAxis: spanMeasurementAxis,
-          screenCapture: screenCapture,
-          colorDifferenceThreshold: Configuration.spanMeasurementColorDifferenceThreshold
+          rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
         )
+        let spanMeasurement = SpanMeasurement(axis: spanMeasurementAxis, startLocation: startLocation, length: length)
 
         self.measurement = .span(spanMeasurement)
       } catch {
@@ -829,120 +984,6 @@ final class MeasurementSession {
     }
 
     captureScreenAndUpdateSpanMeasurement()
-  }
-
-  private func measureSpan(
-    at location: CGPoint,
-    alongAxis axis: SpanMeasurement.Axis,
-    screenCapture: ScreenCapture,
-    colorDifferenceThreshold: Int
-  ) -> SpanMeasurement {
-    let screenWidthInPoints = CGFloat(screenCapture.width) / screenCapture.scaleFactor
-    let screenHeightInPoints = CGFloat(screenCapture.height) / screenCapture.scaleFactor
-    let horizontalScaleFactor = axis == .horizontal ? screenCapture.scaleFactor : 1
-    let verticalScaleFactor = axis == .vertical ? screenCapture.scaleFactor : 1
-    let referenceLocation = CGPoint(
-      x: max(0, min(floor(location.x * horizontalScaleFactor) / horizontalScaleFactor, screenWidthInPoints - 1)),
-      y: max(0, min(floor(location.y * verticalScaleFactor) / verticalScaleFactor, screenHeightInPoints - 1))
-    )
-    let referencePixelX = Int(referenceLocation.x * screenCapture.scaleFactor)
-    let referencePixelY = Int(
-      (screenHeightInPoints - referenceLocation.y - (1 / screenCapture.scaleFactor)) * screenCapture.scaleFactor
-    )
-
-    return screenCapture.withUnsafeUInt32Buffer { pixelBuffer in
-      let referencePixelIndex = referencePixelY * screenCapture.pixelsPerRow + referencePixelX
-
-      var currentPixelIndex = referencePixelIndex
-      var previousPixelIndex = referencePixelIndex
-
-      var startPixel = axis == .horizontal ? referencePixelX : referencePixelY
-      var endPixel = startPixel
-
-      switch axis {
-      case .horizontal:
-        for searchPixelX in stride(from: referencePixelX - 1, through: 0, by: -1) {
-          currentPixelIndex -= 1
-
-          if pixelBuffer.rgbDifference(
-            betweenIndex: previousPixelIndex,
-            andIndex: currentPixelIndex
-          ) > colorDifferenceThreshold {
-            break
-          }
-
-          previousPixelIndex = currentPixelIndex
-          startPixel = searchPixelX
-        }
-
-        currentPixelIndex = referencePixelIndex
-        previousPixelIndex = referencePixelIndex
-
-        for searchPixelX in stride(from: referencePixelX + 1, to: screenCapture.width, by: 1) {
-          currentPixelIndex += 1
-
-          if pixelBuffer.rgbDifference(
-            betweenIndex: previousPixelIndex,
-            andIndex: currentPixelIndex
-          ) > colorDifferenceThreshold {
-            break
-          }
-
-          previousPixelIndex = currentPixelIndex
-          endPixel = searchPixelX
-        }
-
-        let leadingPoint = CGFloat(startPixel) / screenCapture.scaleFactor
-        let trailingPoint = CGFloat(endPixel + 1) / screenCapture.scaleFactor
-
-        return SpanMeasurement(
-          axis: .horizontal,
-          startLocation: CGPoint(x: leadingPoint, y: referenceLocation.y),
-          length: trailingPoint - leadingPoint
-        )
-
-      case .vertical:
-        for searchPixelY in stride(from: referencePixelY - 1, through: 0, by: -1) {
-          currentPixelIndex -= screenCapture.pixelsPerRow
-
-          if pixelBuffer.rgbDifference(
-            betweenIndex: previousPixelIndex,
-            andIndex: currentPixelIndex
-          ) > colorDifferenceThreshold {
-            break
-          }
-
-          previousPixelIndex = currentPixelIndex
-          startPixel = searchPixelY
-        }
-
-        currentPixelIndex = referencePixelIndex
-        previousPixelIndex = referencePixelIndex
-
-        for searchPixelY in stride(from: referencePixelY + 1, to: screenCapture.height, by: 1) {
-          currentPixelIndex += screenCapture.pixelsPerRow
-
-          if pixelBuffer.rgbDifference(
-            betweenIndex: previousPixelIndex,
-            andIndex: currentPixelIndex
-          ) > colorDifferenceThreshold {
-            break
-          }
-
-          previousPixelIndex = currentPixelIndex
-          endPixel = searchPixelY
-        }
-
-        let topPoint = screenHeightInPoints - (CGFloat(startPixel) / screenCapture.scaleFactor)
-        let bottomPoint = screenHeightInPoints - (CGFloat(endPixel + 1) / screenCapture.scaleFactor)
-
-        return SpanMeasurement(
-          axis: .vertical,
-          startLocation: CGPoint(x: referenceLocation.x, y: bottomPoint),
-          length: topPoint - bottomPoint
-        )
-      }
-    }
   }
 }
 
