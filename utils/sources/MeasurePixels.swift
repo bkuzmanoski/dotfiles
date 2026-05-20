@@ -184,9 +184,9 @@ struct ScreenCapture {
   }
 
   let displayID: CGDirectDisplayID
-  let scaleFactor: CGFloat
   let width: Int
   let height: Int
+  let scaleFactor: CGFloat
   let pixelsPerRow: Int
 
   private let pixelData: CFData
@@ -215,9 +215,9 @@ struct ScreenCapture {
     }
 
     self.displayID = displayID
-    self.scaleFactor = scaleFactor
     self.width = image.width
     self.height = image.height
+    self.scaleFactor = scaleFactor
     self.pixelsPerRow = image.bytesPerRow / (image.bitsPerPixel / 8)
     self.pixelData = pixelData
     self.pixelDataPointer = pixelDataPointer
