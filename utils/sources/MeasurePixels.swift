@@ -355,14 +355,14 @@ enum EdgeDetector {
         var previousPixelY = clampedPixelY
 
         for searchPixelY in stride(from: clampedPixelY - 1, through: 0, by: -1) {
-          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+          let maxDifference = pixelBuffer.maxRGBDifference(
             betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             sliceCount: pixelsPerPoint,
             stride: 1
           )
 
-          if maxRGBDifference > rgbDifferenceThreshold {
+          if maxDifference > rgbDifferenceThreshold {
             break
           }
 
