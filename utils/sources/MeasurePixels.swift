@@ -44,12 +44,10 @@ extension NSScreen {
   }
 
   var currentSpaceID: SpaceID? {
-    let cgsConnectionID = CGSMainConnectionID()
-
     guard
       let displayIdentifier = self.displayIdentifier,
       let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        cgsConnectionID,
+        CGSMainConnectionID(),
         displayIdentifier as CFString
       )?.takeRetainedValue() as? [[String: Any]],
       let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
