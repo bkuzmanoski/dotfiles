@@ -47,23 +47,8 @@ extension NSAccessibility.Notification {
 
 typealias SpaceID = UInt64
 
-enum CGSSpaceType: CInt {
-  case user = 0
-  case system = 2
-  case fullscreen = 4
-  case unknown = -1
-
-  init(rawValue: CInt) {
-    switch rawValue {
-    case 0: self = .user
-    case 2: self = .system
-    case 4: self = .fullscreen
-    default: self = .unknown
-    }
-  }
-}
-
 enum CGSEventType: UInt32 {
+  case packagesStatusBarSpaceChanged = 1308
   case spaceWindowCreated = 1325
   case spaceWindowDestroyed = 1326
   case spaceCurrentChanged = 1329
@@ -129,18 +114,18 @@ struct SLPSEventRecord {
     self.bytes[Offset.recordLength] = UInt8(Self.size)
   }
 
-  static func focusTransition(windowID: CGWindowID, type focusTransitionType: FocusTransitionType) -> SLPSEventRecord {
+  static func focusTransition(windowID: CGWindowID, type: FocusTransitionType) -> SLPSEventRecord {
     var eventRecord = SLPSEventRecord()
-    eventRecord.bytes[Offset.eventType] = focusTransitionType.eventType.rawValue
-    eventRecord.bytes[Offset.focusTransitionType] = focusTransitionType.rawValue
+    eventRecord.bytes[Offset.eventType] = type.eventType.rawValue
+    eventRecord.bytes[Offset.focusTransitionType] = type.rawValue
     eventRecord.setWindowID(windowID)
 
     return eventRecord
   }
 
-  static func simulatedClick(windowID: CGWindowID, type simulatedClickType: SimulatedClickType) -> SLPSEventRecord {
+  static func simulatedClick(windowID: CGWindowID, type: SimulatedClickType) -> SLPSEventRecord {
     var eventRecord = SLPSEventRecord()
-    eventRecord.bytes[Offset.eventType] = simulatedClickType.eventType.rawValue
+    eventRecord.bytes[Offset.eventType] = type.eventType.rawValue
 
     for index in 0..<0x10 {
       eventRecord.bytes[Offset.mask + index] = 0xff
@@ -179,11 +164,6 @@ struct SkyLightProxy {
   private typealias SLSConnectionID = UInt32
   private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
   private typealias SLSGetActiveSpace = @convention(c) (_ connectionID: SLSConnectionID) -> SpaceID
-  private typealias SLSSpaceGetType =
-    @convention(c) (
-      _ connectionID: SLSConnectionID,
-      _ spaceID: SpaceID
-    ) -> CGSSpaceType.RawValue
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
       _ connectionID: SLSConnectionID,
@@ -227,7 +207,6 @@ struct SkyLightProxy {
 
   private let mainConnectionID: UInt32
   private let slsGetActiveSpace: SLSGetActiveSpace
-  private let slsSpaceGetType: SLSSpaceGetType
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
   private let slsCopyAssociatedWindows: SLSCopyAssociatedWindows
   private let slsRegisterNotifyProc: SLSRegisterNotifyProc
@@ -254,10 +233,6 @@ struct SkyLightProxy {
 
     guard let slsGetActiveSpaceSymbol = dlsym(skyLightHandle, "SLSGetActiveSpace") else {
       throw Error.symbolNotFound("SLSGetActiveSpace")
-    }
-
-    guard let slsSpaceGetTypeSymbol = dlsym(skyLightHandle, "SLSSpaceGetType") else {
-      throw Error.symbolNotFound("SLSSpaceGetType")
     }
 
     guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
@@ -290,7 +265,6 @@ struct SkyLightProxy {
 
     self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
     self.slsGetActiveSpace = unsafeBitCast(slsGetActiveSpaceSymbol, to: SLSGetActiveSpace.self)
-    self.slsSpaceGetType = unsafeBitCast(slsSpaceGetTypeSymbol, to: SLSSpaceGetType.self)
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
     self.slsCopyAssociatedWindows = unsafeBitCast(slsCopyAssociatedWindowsSymbol, to: SLSCopyAssociatedWindows.self)
     self.slsRegisterNotifyProc = unsafeBitCast(slsRegisterNotifyProcSymbol, to: SLSRegisterNotifyProc.self)
@@ -301,10 +275,6 @@ struct SkyLightProxy {
       to: _SLPSSetFrontProcessWithOptions.self
     )
     self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
-  }
-
-  func spaceType(for spaceID: SpaceID) -> CGSSpaceType {
-    return CGSSpaceType(rawValue: slsSpaceGetType(mainConnectionID, spaceID))
   }
 
   func findWindow(at point: CGPoint) -> CGWindowID? {
@@ -367,11 +337,6 @@ struct SkyLightProxy {
   }
 }
 
-struct Space {
-  let id: SpaceID
-  let type: CGSSpaceType
-}
-
 @MainActor
 final class WorkspaceMonitor {
   enum Error: Swift.Error, LocalizedError {
@@ -386,6 +351,7 @@ final class WorkspaceMonitor {
   }
 
   enum Event {
+    case mainScreenChanged
     case currentSpaceChanged
     case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
     case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
@@ -411,7 +377,12 @@ final class WorkspaceMonitor {
   init(skyLightProxy: SkyLightProxy) throws {
     self.skyLightProxy = skyLightProxy
 
-    for eventType: CGSEventType in [.spaceWindowCreated, .spaceWindowDestroyed, .spaceCurrentChanged] {
+    for eventType: CGSEventType in [
+      .packagesStatusBarSpaceChanged,
+      .spaceWindowCreated,
+      .spaceWindowDestroyed,
+      .spaceCurrentChanged
+    ] {
       let error = skyLightProxy.registerNotificationCallback(
         slsNotifyProc,
         for: eventType,
@@ -443,13 +414,16 @@ final class WorkspaceMonitor {
   }
 
   private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
-    guard let continuation, let data else {
+    guard let continuation else {
       return
     }
 
     switch event {
+    case .packagesStatusBarSpaceChanged:
+      continuation.yield(.mainScreenChanged)
+
     case .spaceWindowCreated:
-      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
@@ -459,7 +433,7 @@ final class WorkspaceMonitor {
       continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
 
     case .spaceWindowDestroyed:
-      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
@@ -469,7 +443,7 @@ final class WorkspaceMonitor {
       continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
 
     case .spaceCurrentChanged:
-      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
         return
       }
 
@@ -681,17 +655,14 @@ final class FocusManager {
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var activeSpace: Space
+  private var activeSpaceID: SpaceID
   private var floatingWindows: [SpaceID: Set<CGWindowID>] = [:]
   private var isMissionControlActive = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
-    isCommandKeyPressed
-      || isMissionControlActive
-      || activeSpace.type != .user
-      || !floatingWindows[activeSpace.id, default: []].isEmpty
+    isCommandKeyPressed || isMissionControlActive || !floatingWindows[activeSpaceID, default: []].isEmpty
   }
 
   init() throws {
@@ -703,10 +674,7 @@ final class FocusManager {
     self.workspaceMonitor = try WorkspaceMonitor(skyLightProxy: skyLightProxy)
     self.missionControlMonitor = try MissionControlMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
-    self.activeSpace = Space(
-      id: skyLightProxy.activeSpaceID,
-      type: skyLightProxy.spaceType(for: skyLightProxy.activeSpaceID)
-    )
+    self.activeSpaceID = skyLightProxy.activeSpaceID
 
     guard
       let cgEventTap = CGEvent.tapCreate(
@@ -781,13 +749,13 @@ final class FocusManager {
   private func monitorWorkspace() async {
     for await event in workspaceMonitor.events() {
       switch event {
-      case .currentSpaceChanged:
+      case .mainScreenChanged, .currentSpaceChanged:
         let activeSpaceID = skyLightProxy.activeSpaceID
 
-        if self.activeSpace.id != activeSpaceID {
+        if self.activeSpaceID != activeSpaceID {
           cancelPendingFocus()
 
-          self.activeSpace = Space(id: activeSpaceID, type: skyLightProxy.spaceType(for: activeSpaceID))
+          self.activeSpaceID = activeSpaceID
 
           pruneRemovedFloatingWindowsInActiveSpace()
         }
@@ -803,6 +771,7 @@ final class FocusManager {
           windowLayer > kCGNormalWindowLevel,
           windowLayer <= kCGScreenSaverWindowLevel,
           windowLayer != kCGFloatingWindowLevel,
+          windowLayer != kCGStatusWindowLevel + 1,
           windowLayer != kCGOverlayWindowLevel + 1
         {
           floatingWindows[spaceID, default: []].insert(windowID)
@@ -810,7 +779,6 @@ final class FocusManager {
 
       case .windowRemoved(let windowID, let spaceID):
         floatingWindows[spaceID]?.remove(windowID)
-
       }
     }
   }
@@ -871,7 +839,11 @@ final class FocusManager {
   }
 
   private func handleTimerEvent() {
-    guard isFocusPending, isEnabled, !isSuspended else {
+    guard isFocusPending else {
+      return
+    }
+
+    guard isEnabled, !isSuspended else {
       cancelPendingFocus()
       return
     }
@@ -963,7 +935,7 @@ final class FocusManager {
   }
 
   private func pruneRemovedFloatingWindowsInActiveSpace() {
-    let trackedWindowIDs = floatingWindows[activeSpace.id, default: []]
+    let trackedWindowIDs = floatingWindows[activeSpaceID, default: []]
 
     guard
       !trackedWindowIDs.isEmpty,
@@ -977,7 +949,7 @@ final class FocusManager {
 
     let onScreenWindowIDs = Set(windowListInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
 
-    self.floatingWindows[activeSpace.id] = trackedWindowIDs.intersection(onScreenWindowIDs)
+    self.floatingWindows[activeSpaceID] = trackedWindowIDs.intersection(onScreenWindowIDs)
   }
 }
 
