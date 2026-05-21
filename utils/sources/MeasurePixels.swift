@@ -27,7 +27,10 @@ typealias DisplayIdentifier = String
 typealias SpaceID = UInt64
 
 extension NSScreen {
-  static var screenContainingMouse: NSScreen? { screens.first { $0.frame.contains(NSEvent.mouseLocation) } }
+  static var screenContainingMouse: NSScreen? {
+    let mouseLocation = NSEvent.mouseLocation
+    return screens.first { $0.frame.contains(mouseLocation) }
+  }
 
   var displayIdentifier: DisplayIdentifier? {
     guard
@@ -451,9 +454,7 @@ enum ScreenCaptureService {
       throw Error.missingSdrImage
     }
 
-    let screenCapture = try ScreenCapture(image: image, displayID: displayID, scaleFactor: screen.backingScaleFactor)
-
-    return screenCapture
+    return try ScreenCapture(image: image, displayID: displayID, scaleFactor: screen.backingScaleFactor)
   }
 }
 
@@ -543,7 +544,7 @@ final class MeasurementView: NSView {
 
   override var acceptsFirstResponder: Bool { true }
 
-  private var mouseTrackingArea: NSTrackingArea?
+  private var trackingArea: NSTrackingArea?
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
@@ -556,20 +557,20 @@ final class MeasurementView: NSView {
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
 
-    if let mouseTrackingArea {
-      removeTrackingArea(mouseTrackingArea)
+    if let trackingArea {
+      removeTrackingArea(trackingArea)
     }
 
-    let mouseTrackingArea = NSTrackingArea(
+    let trackingArea = NSTrackingArea(
       rect: .zero,
       options: [.activeAlways, .inVisibleRect, .mouseMoved, .cursorUpdate],
       owner: self,
       userInfo: nil
     )
 
-    addTrackingArea(mouseTrackingArea)
+    addTrackingArea(trackingArea)
 
-    self.mouseTrackingArea = mouseTrackingArea
+    self.trackingArea = trackingArea
   }
 
   override func cursorUpdate(with event: NSEvent) {
