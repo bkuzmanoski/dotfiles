@@ -9,8 +9,6 @@ enum Configuration {
   static let labelMargin: CGFloat = 6.0
   static let labelHorizontalPadding: CGFloat = 4.0
   static let labelVerticalPadding: CGFloat = 2.0
-  static let labelFontSize: CGFloat = 11.0
-  static let labelFontWeight: NSFont.Weight = .medium
   static let labelCornerRadius: CGFloat = 4.0
   static let labelBackgroundColor: NSColor = .systemRed
   static let labelForegroundColor: NSColor = .white
@@ -459,7 +457,24 @@ enum ScreenCaptureService {
   }
 }
 
-enum MeasurementRenderer {
+final class OverlayWindow: NSWindow {
+  override var canBecomeKey: Bool { true }
+}
+
+@MainActor
+protocol MeasurementViewDelegate: AnyObject {
+  func measurementView(_ view: MeasurementView, didReceive event: MeasurementView.Event)
+}
+
+@MainActor
+final class MeasurementView: NSView {
+  enum Event {
+    case mouseMoved(CGPoint)
+    case mouseDown(CGPoint)
+    case flagsChanged(NSEvent.ModifierFlags)
+    case keyDown(UInt16)
+  }
+
   private enum LabelPlacement {
     case leading
     case trailing
@@ -522,161 +537,6 @@ enum MeasurementRenderer {
     }
   }
 
-  static func draw(measurement: Measurement, in frame: CGRect) {
-    switch measurement {
-    case .region(let regionMeasurement): drawRegionMeasurement(regionMeasurement, in: frame)
-    case .span(let spanMeasurement): drawSpanMeasurement(spanMeasurement, in: frame)
-    }
-  }
-
-  private static func drawRegionMeasurement(_ measurement: RegionMeasurement, in bounds: CGRect) {
-    let rect = measurement.boundingRect
-
-    Configuration.selectionColor.setFill()
-    rect.fill()
-
-    let insetRect = rect.insetBy(dx: 0.5, dy: 0.5)
-    let guideLineOriginX = measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX
-    let guideLineOriginY = measurement.verticalDirection == .upward ? insetRect.minY : insetRect.maxY
-    let guideLinePath = NSBezierPath()
-    guideLinePath.lineWidth = 1
-    guideLinePath.move(to: NSPoint(x: rect.minX, y: guideLineOriginY))
-    guideLinePath.line(to: NSPoint(x: rect.maxX, y: guideLineOriginY))
-    guideLinePath.move(to: NSPoint(x: guideLineOriginX, y: rect.minY))
-    guideLinePath.line(to: NSPoint(x: guideLineOriginX, y: rect.maxY))
-
-    Configuration.guideLineColor.setStroke()
-    guideLinePath.stroke()
-
-    let horizontalMidPoint = CGPoint(x: insetRect.midX, y: guideLineOriginY)
-    let verticalMidPoint = CGPoint(x: guideLineOriginX, y: insetRect.midY)
-
-    drawLabel(
-      rect.width.compactString,
-      at: horizontalMidPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.verticalDirection == .upward ? .bottom : .top,
-      inBounds: bounds
-    )
-    drawLabel(
-      rect.height.compactString,
-      at: verticalMidPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.horizontalDirection == .trailing ? .leading : .trailing,
-      inBounds: bounds
-    )
-  }
-
-  private static func drawSpanMeasurement(_ measurement: SpanMeasurement, in bounds: CGRect) {
-    let startPoint = NSPoint(
-      x: measurement.axis == .vertical ? measurement.startLocation.x + 0.5 : measurement.startLocation.x,
-      y: measurement.axis == .horizontal ? measurement.startLocation.y + 0.5 : measurement.startLocation.y
-    )
-    let endPoint = NSPoint(
-      x: measurement.axis == .vertical ? measurement.endLocation.x + 0.5 : measurement.endLocation.x,
-      y: measurement.axis == .horizontal ? measurement.endLocation.y + 0.5 : measurement.endLocation.y
-    )
-    let guideLinePath = NSBezierPath()
-    guideLinePath.lineWidth = 1
-    guideLinePath.move(to: startPoint)
-    guideLinePath.line(to: endPoint)
-
-    if let guideLineEndCapLength = Configuration.spanMeasurementGuidelineEndCapLength,
-      measurement.length > guideLineEndCapLength
-    {
-      switch measurement.axis {
-      case .horizontal:
-        guideLinePath.move(to: NSPoint(x: startPoint.x + 0.5, y: startPoint.y - guideLineEndCapLength))
-        guideLinePath.line(to: NSPoint(x: startPoint.x + 0.5, y: startPoint.y + guideLineEndCapLength))
-        guideLinePath.move(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y - guideLineEndCapLength))
-        guideLinePath.line(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y + guideLineEndCapLength))
-
-      case .vertical:
-        guideLinePath.move(to: NSPoint(x: startPoint.x - guideLineEndCapLength, y: startPoint.y + 0.5))
-        guideLinePath.line(to: NSPoint(x: startPoint.x + guideLineEndCapLength, y: startPoint.y + 0.5))
-        guideLinePath.move(to: NSPoint(x: endPoint.x - guideLineEndCapLength, y: endPoint.y - 0.5))
-        guideLinePath.line(to: NSPoint(x: endPoint.x + guideLineEndCapLength, y: endPoint.y - 0.5))
-      }
-    }
-
-    Configuration.guideLineColor.setStroke()
-    guideLinePath.stroke()
-
-    let midPoint = CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2))
-
-    drawLabel(
-      measurement.length.compactString,
-      at: midPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.axis == .horizontal ? .bottom : .trailing,
-      inBounds: bounds
-    )
-  }
-
-  private static func drawLabel(
-    _ text: String,
-    at anchor: CGPoint,
-    margin: CGFloat,
-    placement preferredPlacement: LabelPlacement,
-    inBounds bounds: CGRect
-  ) {
-    let attributedString = NSAttributedString(
-      string: text,
-      attributes: [
-        .font: NSFont.monospacedDigitSystemFont(
-          ofSize: Configuration.labelFontSize,
-          weight: Configuration.labelFontWeight
-        ),
-        .foregroundColor: Configuration.labelForegroundColor
-      ]
-    )
-    let textSize = attributedString.size()
-    let backgroundSize = CGSize(
-      width: ceil(textSize.width) + Configuration.labelHorizontalPadding * 2,
-      height: ceil(textSize.height) + Configuration.labelVerticalPadding * 2
-    )
-    let backgroundRect = preferredPlacement.backgroundRect(
-      at: anchor,
-      size: backgroundSize,
-      margin: margin,
-      within: bounds
-    )
-    let backgroundPath = NSBezierPath(
-      roundedRect: backgroundRect,
-      xRadius: Configuration.labelCornerRadius,
-      yRadius: Configuration.labelCornerRadius
-    )
-
-    Configuration.labelBackgroundColor.setFill()
-    backgroundPath.fill()
-
-    attributedString.draw(
-      at: CGPoint(
-        x: backgroundRect.minX + Configuration.labelHorizontalPadding,
-        y: backgroundRect.minY + Configuration.labelVerticalPadding
-      )
-    )
-  }
-}
-
-final class OverlayWindow: NSWindow {
-  override var canBecomeKey: Bool { true }
-}
-
-@MainActor
-protocol MeasurementViewDelegate: AnyObject {
-  func measurementView(_ view: MeasurementView, didReceive event: MeasurementView.Event)
-}
-
-@MainActor
-final class MeasurementView: NSView {
-  enum Event {
-    case mouseMoved(CGPoint)
-    case mouseDown(CGPoint)
-    case flagsChanged(NSEvent.ModifierFlags)
-    case keyDown(UInt16)
-  }
-
   weak var delegate: MeasurementViewDelegate?
 
   var measurements: [Measurement] = []
@@ -735,8 +595,137 @@ final class MeasurementView: NSView {
 
   override func draw(_ dirtyRect: NSRect) {
     for measurement in measurements {
-      MeasurementRenderer.draw(measurement: measurement, in: self.bounds)
+      switch measurement {
+      case .region(let regionMeasurement): drawRegionMeasurement(regionMeasurement, in: frame)
+      case .span(let spanMeasurement): drawSpanMeasurement(spanMeasurement, in: frame)
+      }
     }
+  }
+
+  private func drawRegionMeasurement(_ measurement: RegionMeasurement, in bounds: CGRect) {
+    let rect = measurement.boundingRect
+
+    Configuration.selectionColor.setFill()
+    rect.fill()
+
+    let insetRect = rect.insetBy(dx: 0.5, dy: 0.5)
+    let guideLineOriginX = measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX
+    let guideLineOriginY = measurement.verticalDirection == .upward ? insetRect.minY : insetRect.maxY
+    let guideLinePath = NSBezierPath()
+    guideLinePath.lineWidth = 1
+    guideLinePath.move(to: NSPoint(x: rect.minX, y: guideLineOriginY))
+    guideLinePath.line(to: NSPoint(x: rect.maxX, y: guideLineOriginY))
+    guideLinePath.move(to: NSPoint(x: guideLineOriginX, y: rect.minY))
+    guideLinePath.line(to: NSPoint(x: guideLineOriginX, y: rect.maxY))
+
+    Configuration.guideLineColor.setStroke()
+    guideLinePath.stroke()
+
+    let horizontalMidPoint = CGPoint(x: insetRect.midX, y: guideLineOriginY)
+    let verticalMidPoint = CGPoint(x: guideLineOriginX, y: insetRect.midY)
+
+    drawLabel(
+      rect.width.compactString,
+      at: horizontalMidPoint,
+      margin: Configuration.labelMargin,
+      placement: measurement.verticalDirection == .upward ? .bottom : .top,
+      inBounds: bounds
+    )
+    drawLabel(
+      rect.height.compactString,
+      at: verticalMidPoint,
+      margin: Configuration.labelMargin,
+      placement: measurement.horizontalDirection == .trailing ? .leading : .trailing,
+      inBounds: bounds
+    )
+  }
+
+  private func drawSpanMeasurement(_ measurement: SpanMeasurement, in bounds: CGRect) {
+    let startPoint = NSPoint(
+      x: measurement.axis == .vertical ? measurement.startLocation.x + 0.5 : measurement.startLocation.x,
+      y: measurement.axis == .horizontal ? measurement.startLocation.y + 0.5 : measurement.startLocation.y
+    )
+    let endPoint = NSPoint(
+      x: measurement.axis == .vertical ? measurement.endLocation.x + 0.5 : measurement.endLocation.x,
+      y: measurement.axis == .horizontal ? measurement.endLocation.y + 0.5 : measurement.endLocation.y
+    )
+    let guideLinePath = NSBezierPath()
+    guideLinePath.lineWidth = 1
+    guideLinePath.move(to: startPoint)
+    guideLinePath.line(to: endPoint)
+
+    if let guideLineEndCapLength = Configuration.spanMeasurementGuidelineEndCapLength,
+      measurement.length > guideLineEndCapLength
+    {
+      switch measurement.axis {
+      case .horizontal:
+        guideLinePath.move(to: NSPoint(x: startPoint.x + 0.5, y: startPoint.y - guideLineEndCapLength))
+        guideLinePath.line(to: NSPoint(x: startPoint.x + 0.5, y: startPoint.y + guideLineEndCapLength))
+        guideLinePath.move(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y - guideLineEndCapLength))
+        guideLinePath.line(to: NSPoint(x: endPoint.x - 0.5, y: endPoint.y + guideLineEndCapLength))
+
+      case .vertical:
+        guideLinePath.move(to: NSPoint(x: startPoint.x - guideLineEndCapLength, y: startPoint.y + 0.5))
+        guideLinePath.line(to: NSPoint(x: startPoint.x + guideLineEndCapLength, y: startPoint.y + 0.5))
+        guideLinePath.move(to: NSPoint(x: endPoint.x - guideLineEndCapLength, y: endPoint.y - 0.5))
+        guideLinePath.line(to: NSPoint(x: endPoint.x + guideLineEndCapLength, y: endPoint.y - 0.5))
+      }
+    }
+
+    Configuration.guideLineColor.setStroke()
+    guideLinePath.stroke()
+
+    let midPoint = CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2))
+
+    drawLabel(
+      measurement.length.compactString,
+      at: midPoint,
+      margin: Configuration.labelMargin,
+      placement: measurement.axis == .horizontal ? .bottom : .trailing,
+      inBounds: bounds
+    )
+  }
+
+  private func drawLabel(
+    _ text: String,
+    at anchor: CGPoint,
+    margin: CGFloat,
+    placement preferredPlacement: LabelPlacement,
+    inBounds bounds: CGRect
+  ) {
+    let attributedString = NSAttributedString(
+      string: text,
+      attributes: [
+        .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
+        .foregroundColor: Configuration.labelForegroundColor
+      ]
+    )
+    let textSize = attributedString.size()
+    let backgroundSize = CGSize(
+      width: ceil(textSize.width) + Configuration.labelHorizontalPadding * 2,
+      height: ceil(textSize.height) + Configuration.labelVerticalPadding * 2
+    )
+    let backgroundRect = preferredPlacement.backgroundRect(
+      at: anchor,
+      size: backgroundSize,
+      margin: margin,
+      within: bounds
+    )
+    let backgroundPath = NSBezierPath(
+      roundedRect: backgroundRect,
+      xRadius: Configuration.labelCornerRadius,
+      yRadius: Configuration.labelCornerRadius
+    )
+
+    Configuration.labelBackgroundColor.setFill()
+    backgroundPath.fill()
+
+    attributedString.draw(
+      at: CGPoint(
+        x: backgroundRect.minX + Configuration.labelHorizontalPadding,
+        y: backgroundRect.minY + Configuration.labelVerticalPadding
+      )
+    )
   }
 }
 
@@ -775,9 +764,9 @@ final class MeasurementSession {
 
   private let measurementView = MeasurementView()
   private let overlayWindow: OverlayWindow
+  private var appMode: AppMode
   private var displayID: CGDirectDisplayID
   private var currentSpaceID: SpaceID
-  private var appMode: AppMode
   private var workspaceObservationTask: Task<Void, Never>?
   private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
@@ -805,7 +794,7 @@ final class MeasurementSession {
         : nil)
   }
 
-  init(screen: NSScreen, appMode: AppMode) throws {
+  init(appMode: AppMode, screen: NSScreen) throws {
     guard CGPreflightScreenCaptureAccess() else {
       throw Error.screenCapturePermissionNotGranted
     }
@@ -826,9 +815,9 @@ final class MeasurementSession {
     window.ignoresMouseEvents = false
 
     self.overlayWindow = window
+    self.appMode = appMode
     self.displayID = displayID
     self.currentSpaceID = currentSpaceID
-    self.appMode = appMode
     self.workspaceObservationTask = Task {
       await withDiscardingTaskGroup { group in
         group.addTask { @MainActor [weak self] in
@@ -855,9 +844,23 @@ final class MeasurementSession {
     window.makeKeyAndOrderFront(nil)
   }
 
-  deinit {
+  isolated deinit {
+    overlayWindow.close()
     workspaceObservationTask?.cancel()
     screenCaptureTask?.cancel()
+  }
+
+  func setAppMode(_ appMode: AppMode) {
+    guard self.appMode != appMode else {
+      return
+    }
+
+    self.appMode = appMode
+    self.overlayWindow.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
+
+    if appMode == .single {
+      committedMeasurements.removeAll()
+    }
   }
 
   func move(to screen: NSScreen) {
@@ -873,22 +876,10 @@ final class MeasurementSession {
     self.currentSpaceID = spaceID
 
     overlayWindow.setFrame(screen.frame, display: true)
+    NSApplication.shared.activate(ignoringOtherApps: true)
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
-    }
-  }
-
-  func setAppMode(_ appMode: AppMode) {
-    guard self.appMode != appMode else {
-      return
-    }
-
-    self.appMode = appMode
-    self.overlayWindow.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
-
-    if appMode == .single {
-      committedMeasurements.removeAll()
     }
   }
 
@@ -1135,7 +1126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     do {
-      self.measurementSession = try MeasurementSession(screen: screen, appMode: appMode)
+      self.measurementSession = try MeasurementSession(appMode: appMode, screen: screen)
       observeIPCCommands()
     } catch {
       FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
@@ -1161,13 +1152,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch command {
     case .activate(let appMode):
       guard let screen = NSScreen.screenContainingMouse ?? .main else {
+        FileHandle.standardError.write(Data("Failed to determine screen for measurement session.\n".utf8))
+        NSApplication.shared.terminate(nil)
+
         return
       }
 
       measurementSession?.setAppMode(appMode)
       measurementSession?.move(to: screen)
-
-      NSApplication.shared.activate(ignoringOtherApps: true)
     }
   }
 }
