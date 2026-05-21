@@ -553,6 +553,10 @@ final class MeasurementView: NSView {
     }
   }
 
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    return true
+  }
+
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
 
