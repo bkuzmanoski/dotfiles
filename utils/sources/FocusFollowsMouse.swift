@@ -449,31 +449,31 @@ final class WorkspaceMonitor {
 
     switch event {
     case .spaceWindowCreated:
-      guard dataLength >= 12 else {
+      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
       continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
 
     case .spaceWindowDestroyed:
-      guard dataLength >= 12 else {
+      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
       continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
 
     case .spaceCurrentChanged:
-      guard dataLength >= 9 else {
+      guard dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
         return
       }
 
-      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
+      let isCurrentFlag = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self)
 
       guard isCurrentFlag != 0 else {
         return
