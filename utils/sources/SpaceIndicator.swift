@@ -221,22 +221,22 @@ final class SpaceMonitor {
       continuation.yield(.mainScreenChanged)
 
     case .spaceWindowCreated:
-      guard let data, dataLength >= 12 else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
       continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
 
     case .spaceWindowDestroyed:
-      guard let data, dataLength >= 12 else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
         return
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: 8, as: CGWindowID.self)
+      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
       continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
 
@@ -244,12 +244,12 @@ final class SpaceMonitor {
       continuation.yield(.spacesChanged)
 
     case .spaceCurrentChanged:
-      guard let data, dataLength >= 9 else {
+      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
         return
       }
 
       let spaceID = data.load(as: SpaceID.self)
-      let isCurrentFlag = data.load(fromByteOffset: 8, as: UInt8.self)
+      let isCurrentFlag = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self)
 
       guard isCurrentFlag != 0 else {
         return
