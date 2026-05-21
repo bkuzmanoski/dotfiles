@@ -127,7 +127,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
           - Turn off "Ad topics"
           - Turn off "Site-suggested ads"
           - Turn off "Ads measurement"
-        - Site settings → Additional content settings → Third-party sign-in → Select "Block sign-in prompts from identity services"
+        - Site settings
+          - Additional permissions → Web app installations → Select "Don't allow sites to install web apps on your device"
+          - Additional content settings → Third-party sign-in → Select "Block sign-in prompts from identity services"
       - AI innovations → Gemini in Chrome
         - Turn off "Show Gemini at the top of the browser"
         - Turn off "Show Gemini in Mac menu bar and turn on keyboard shortcut"
