@@ -2,7 +2,6 @@ import ScreenCaptureKit
 
 enum Configuration {
   static let subsystem = "industries.britown.MeasurePixels"
-  static let spanMeasurementRGBDifferenceThreshold = 20
   static let overlayWindowBackgroundColor: NSColor = .black.withAlphaComponent(0.1)
   static let selectionColor: NSColor = .systemRed.withAlphaComponent(0.15)
   static let guideLineColor: NSColor = .systemRed
@@ -15,6 +14,7 @@ enum Configuration {
   static let labelCornerRadius: CGFloat = 4.0
   static let labelBackgroundColor: NSColor = .systemRed
   static let labelForegroundColor: NSColor = .white
+  static let spanMeasurementRGBDifferenceThreshold = 20
 }
 
 typealias CGSConnectionID = UInt32
@@ -743,13 +743,6 @@ final class MeasurementView: NSView {
 enum AppMode: String {
   case single
   case continuous
-
-  var overlayWindowBackgroundColor: NSColor {
-    switch self {
-    case .single: Configuration.overlayWindowBackgroundColor
-    case .continuous: .clear
-    }
-  }
 }
 
 @MainActor
@@ -829,7 +822,7 @@ final class MeasurementSession {
     window.contentView = measurementView
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
-    window.backgroundColor = appMode.overlayWindowBackgroundColor
+    window.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
     window.ignoresMouseEvents = false
 
     self.overlayWindow = window
@@ -892,10 +885,17 @@ final class MeasurementSession {
     }
 
     self.appMode = appMode
-    self.overlayWindow.backgroundColor = appMode.overlayWindowBackgroundColor
+    self.overlayWindow.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
 
     if appMode == .single {
       committedMeasurements.removeAll()
+    }
+  }
+
+  private static func overlayWindowBackgroundColor(for appMode: AppMode) -> NSColor {
+    switch appMode {
+    case .single: Configuration.overlayWindowBackgroundColor
+    case .continuous: .clear
     }
   }
 
