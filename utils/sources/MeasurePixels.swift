@@ -441,7 +441,6 @@ enum ScreenCaptureService {
     )
     let configuration = SCScreenshotConfiguration()
     configuration.dynamicRange = .sdr
-    configuration.displayIntent = .canonical
     configuration.ignoreShadows = false
     configuration.showsCursor = false
 
