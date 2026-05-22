@@ -246,7 +246,7 @@ final class SingleInstanceLock {
 
     var errorDescription: String? {
       switch self {
-      case .instanceAlreadyRunning: "Instance already running."
+      case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
       }
     }
@@ -258,23 +258,25 @@ final class SingleInstanceLock {
   private var lockFileDescriptor: CInt
 
   init() throws {
-    let fd = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
+    let lockFileDescriptor = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
 
-    guard fd != -1 else {
+    guard lockFileDescriptor != -1 else {
       throw Error.failedToAcquireLock(errno: errno)
     }
 
-    guard flock(fd, LOCK_EX | LOCK_NB) != -1 else {
-      close(fd)
+    guard flock(lockFileDescriptor, LOCK_EX | LOCK_NB) != -1 else {
+      let flockErrno = errno
 
-      guard errno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: errno)
+      close(lockFileDescriptor)
+
+      guard flockErrno == EWOULDBLOCK else {
+        throw Error.failedToAcquireLock(errno: flockErrno)
       }
 
       throw Error.instanceAlreadyRunning
     }
 
-    self.lockFileDescriptor = fd
+    self.lockFileDescriptor = lockFileDescriptor
   }
 
   deinit {
