@@ -578,7 +578,6 @@ final class MeasurementView: NSView {
   override func mouseMoved(with event: NSEvent) {
     NSCursor.screenshotSelection?.set()
     delegate?.measurementView(self, didMoveMouseTo: convert(event.locationInWindow, from: nil))
-
   }
 
   override func mouseDown(with event: NSEvent) {
