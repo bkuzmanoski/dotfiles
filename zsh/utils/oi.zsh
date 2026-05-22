@@ -84,7 +84,7 @@ function oi() {
 
   print "Found ${image_count} image$([[ ${image_count} -eq 1 ]] || print "s") to optimize..."
 
-  local processed=0
+  local -i processed_count=0
   local -A original_sizes
   local -a jpeg_opts=("--all-progressive" "--strip-exif" "--strip-com")
   local -a oxipng_opts=("--strip" "safe")
@@ -102,14 +102,14 @@ function oi() {
   fi
 
   for file in "${files[@]}"; do
-    printf "\n\033[1m%d/%d\033[0m\n" "$((processed + 1))" "${image_count}"
+    printf "\n\033[1m%d/%d\033[0m\n" "$((processed_count + 1))" "${image_count}"
 
     case "${file:l}" in
     *.jpg | *.jpeg) jpegoptim ${jpeg_opts[@]} "${file}" ;;
     *.png) oxipng ${oxipng_opts[@]} "${file}" ;;
     esac
 
-    ((processed++))
+    ((processed_count++))
   done
 
   local total_size_before=0

@@ -21,7 +21,7 @@ function _update_timestamps() {
 function check_last_update_time() {
   local now="$(date "+%s")"
   local frequency="$((UPDATE_REMINDER_FREQUENCY_DAYS * 24 * 60 * 60))"
-  local updates_required=0
+  local -i updates_required=0
 
   for update_task in "${UPDATE_TASKS[@]}"; do
     local parts=("${(@s:|:)update_task}")
