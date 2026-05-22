@@ -1296,7 +1296,7 @@ let usageDescription = """
     -h, --help        Show this help message
   """
 
-guard arguments.count == 1 else {
+guard arguments.count <= 1 else {
   FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
   exit(EX_USAGE)
 }
