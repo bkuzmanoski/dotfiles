@@ -489,47 +489,47 @@ final class MeasurementView: NSView {
     }
 
     func backgroundRect(at anchor: CGPoint, size: CGSize, margin: CGFloat, within bounds: CGRect) -> CGRect {
-      var x: CGFloat
-      var y: CGFloat
+      var originX: CGFloat
+      var originY: CGFloat
 
       switch self {
       case .leading:
-        x = anchor.x - size.width - margin
+        originX = anchor.x - size.width - margin
 
-        if x < bounds.minX {
-          x = anchor.x + margin
+        if originX < bounds.minX {
+          originX = anchor.x + margin
         }
 
-        y = anchor.y - size.height / 2
+        originY = anchor.y - size.height / 2
 
       case .trailing:
-        x = anchor.x + margin
+        originX = anchor.x + margin
 
-        if x + size.width > bounds.maxX {
-          x = anchor.x - size.width - margin
+        if originX + size.width > bounds.maxX {
+          originX = anchor.x - size.width - margin
         }
 
-        y = anchor.y - size.height / 2
+        originY = anchor.y - size.height / 2
 
       case .top:
-        x = anchor.x - size.width / 2
-        y = anchor.y + margin
+        originX = anchor.x - size.width / 2
+        originY = anchor.y + margin
 
-        if y + size.height > bounds.maxY {
-          y = anchor.y - size.height - margin
+        if originY + size.height > bounds.maxY {
+          originY = anchor.y - size.height - margin
         }
 
       case .bottom:
-        x = anchor.x - size.width / 2
-        y = anchor.y - size.height - margin
+        originX = anchor.x - size.width / 2
+        originY = anchor.y - size.height - margin
 
-        if y < bounds.minY {
-          y = anchor.y + margin
+        if originY < bounds.minY {
+          originY = anchor.y + margin
         }
       }
 
-      let clampedX = max(bounds.minX + margin, min(x, bounds.maxX - size.width - margin))
-      let clampedY = max(bounds.minY + margin, min(y, bounds.maxY - size.height - margin))
+      let clampedX = max(bounds.minX + margin, min(originX, bounds.maxX - size.width - margin))
+      let clampedY = max(bounds.minY + margin, min(originY, bounds.maxY - size.height - margin))
 
       return CGRect(x: clampedX, y: clampedY, width: size.width, height: size.height)
     }
