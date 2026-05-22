@@ -57,14 +57,14 @@ function check_last_update_time() {
 }
 
 function zshup() (
-  local number_of_plugins=${#ZSH_PLUGINS[@]}
+  local plugin_count=${#ZSH_PLUGINS[@]}
 
-  if ((${number_of_plugins} == 0)); then
+  if ((${plugin_count} == 0)); then
     print "No plugins to update."
     return 0
   fi
 
-  for ((i = 1; i <= ${number_of_plugins}; i++)); do
+  for ((i = 1; i <= ${plugin_count}; i++)); do
     local plugin_entry="${ZSH_PLUGINS[i]}"
     local parts=("${(@s:|:)plugin_entry}")
     local plugin="${parts[1]}"
@@ -85,7 +85,7 @@ function zshup() (
       exit 1
     fi
 
-    if ((i < ${number_of_plugins})); then
+    if ((i < ${plugin_count})); then
       print
     fi
   done
