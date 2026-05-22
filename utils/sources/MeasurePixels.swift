@@ -720,6 +720,23 @@ final class MeasurementView: NSView {
       margin: margin,
       within: bounds
     )
+
+    if let context = NSGraphicsContext.current?.cgContext {
+      let maskPath = NSBezierPath(
+        roundedRect: backgroundRect.insetBy(dx: -1.0, dy: -1.0),
+        xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
+        yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
+      )
+
+      context.saveGState()
+      context.setBlendMode(.destinationOut)
+
+      NSColor.black.set()
+      maskPath.fill()
+
+      context.restoreGState()
+    }
+
     let backgroundPath = NSBezierPath(
       roundedRect: backgroundRect,
       xRadius: Configuration.labelCornerRadius,
