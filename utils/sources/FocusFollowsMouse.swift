@@ -1052,8 +1052,6 @@ final class SingleInstanceLock {
   deinit {
     flock(lockFileDescriptor, LOCK_UN)
     close(lockFileDescriptor)
-
-    try? FileManager.default.removeItem(atPath: lockFilePath)
   }
 }
 
