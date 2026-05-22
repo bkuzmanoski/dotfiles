@@ -470,6 +470,8 @@ final class MeasurementView: NSView {
     case mouseDown(CGPoint)
     case flagsChanged(NSEvent.ModifierFlags)
     case keyDown(UInt16)
+    case undo
+    case redo
   }
 
   private enum LabelPlacement {
@@ -591,7 +593,7 @@ final class MeasurementView: NSView {
   }
 
   override func keyDown(with event: NSEvent) {
-    delegate?.measurementView(self, didReceive: .keyDown(event.keyCode))
+    delegate?.measurementView(self, didReceive: .keyDown(event.keyCode)) // TODO... track handled
   }
 
   override func draw(_ dirtyRect: NSRect) {
@@ -601,6 +603,22 @@ final class MeasurementView: NSView {
       case .span(let measurement): drawSpanMeasurement(measurement, in: frame)
       }
     }
+  }
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    let modifierFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+    guard modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "z" else {
+      return super.performKeyEquivalent(with: event)
+    }
+
+    if modifierFlags.contains(.shift) {
+      delegate?.measurementView(self, didReceive: .redo)
+    } else {
+      delegate?.measurementView(self, didReceive: .undo)
+    }
+
+    return true
   }
 
   private func drawRegionMeasurement(_ measurement: RegionMeasurement, in bounds: CGRect) {
@@ -810,6 +828,7 @@ final class MeasurementSession {
     }
   }
 
+  private var undoneMeasurements: [Measurement] = []
   private var lastMouseLocation: CGPoint?
   private var lastRegionMeasurement: RegionMeasurement?
 
@@ -885,7 +904,8 @@ final class MeasurementSession {
     self.overlayWindow.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
 
     if appMode == .single {
-      committedMeasurements.removeAll()
+      self.committedMeasurements.removeAll()
+      self.undoneMeasurements.removeAll()
     }
   }
 
@@ -980,7 +1000,8 @@ final class MeasurementSession {
         NSApplication.shared.terminate(nil)
 
       case .continuous:
-        committedMeasurements.append(activeMeasurement)
+        self.committedMeasurements.append(activeMeasurement)
+        self.undoneMeasurements.removeAll()
 
         if case .region = measurementMode {
           self.activeMeasurement = nil
@@ -992,14 +1013,14 @@ final class MeasurementSession {
   }
 
   private func handleFlagsChanged(_ modifierFlags: NSEvent.ModifierFlags) {
-    let hasCommand = modifierFlags.contains(.command)
+    let hasOption = modifierFlags.contains(.option)
     let hasShift = modifierFlags.contains(.shift)
 
     let nextMeasurementMode: MeasurementMode
 
-    if hasCommand, hasShift {
+    if hasOption, hasShift {
       nextMeasurementMode = .span(.vertical)
-    } else if hasCommand {
+    } else if hasOption {
       nextMeasurementMode = .span(.horizontal)
     } else {
       nextMeasurementMode = .region
@@ -1015,13 +1036,29 @@ final class MeasurementSession {
 
     if case .region = measurementMode, activeMeasurement != nil {
       self.activeMeasurement = nil
-
-    } else if appMode == .continuous, !committedMeasurements.isEmpty {
-      committedMeasurements.removeLast()
-
     } else {
       NSApplication.shared.terminate(nil)
     }
+  }
+
+  private func handleUndo() {
+    guard appMode == .continuous, !committedMeasurements.isEmpty else {
+      return
+    }
+
+    let undoneMeasurement = committedMeasurements.removeLast()
+
+    self.undoneMeasurements.append(undoneMeasurement)
+  }
+
+  private func handleRedo() {
+    guard appMode == .continuous, !undoneMeasurements.isEmpty else {
+      return
+    }
+
+    let redoneMeasurement = undoneMeasurements.removeLast()
+
+    self.committedMeasurements.append(redoneMeasurement)
   }
 
   private func measureRegion() {
@@ -1131,6 +1168,8 @@ extension MeasurementSession: MeasurementViewDelegate {
     case .mouseDown(let location): handleMouseDown(at: location)
     case .flagsChanged(let modifierFlags): handleFlagsChanged(modifierFlags)
     case .keyDown(let keyCode): handleKeyPressed(keyCode)
+    case .undo: handleUndo()
+    case .redo: handleRedo()
     }
   }
 }
