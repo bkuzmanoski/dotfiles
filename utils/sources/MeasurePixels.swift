@@ -126,7 +126,7 @@ struct RegionMeasurement: Equatable {
   let endLocation: CGPoint
 
   var horizontalDirection: HorizontalDirection { endLocation.x >= startLocation.x ? .trailing : .leading }
-  var verticalDirection: VerticalDirection { endLocation.y >= startLocation.y ? .upward : .downward }
+  var verticalDirection: VerticalDirection { endLocation.y < startLocation.y ? .downward : .upward }
 
   var boundingRect: CGRect {
     CGRect(
@@ -619,53 +619,90 @@ final class MeasurementView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
+    guard let context = NSGraphicsContext.current?.cgContext else {
+      return
+    }
+
     for measurement in measurements {
       switch measurement {
-      case .region(let measurement): drawRegionMeasurement(measurement, in: frame)
-      case .span(let measurement): drawSpanMeasurement(measurement, in: frame)
+      case .region(let measurement): drawRegionMeasurement(measurement, in: context)
+      case .span(let measurement): drawSpanMeasurement(measurement, in: context)
       }
     }
   }
 
-  private func drawRegionMeasurement(_ measurement: RegionMeasurement, in bounds: CGRect) {
+  private func drawRegionMeasurement(_ measurement: RegionMeasurement, in context: CGContext) {
     let rect = measurement.boundingRect
 
     Configuration.measurementAreaColor.setFill()
     rect.fill()
 
     let insetRect = rect.insetBy(dx: 0.5, dy: 0.5)
-    let guideLineOriginX = measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX
-    let guideLineOriginY = measurement.verticalDirection == .upward ? insetRect.minY : insetRect.maxY
-    let path = NSBezierPath()
-    path.lineWidth = 1
-    path.move(to: NSPoint(x: rect.minX, y: guideLineOriginY))
-    path.line(to: NSPoint(x: rect.maxX, y: guideLineOriginY))
-    path.move(to: NSPoint(x: guideLineOriginX, y: rect.minY))
-    path.line(to: NSPoint(x: guideLineOriginX, y: rect.maxY))
+    let cornerPoint = NSPoint(
+      x: measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX,
+      y: measurement.verticalDirection == .downward ? insetRect.maxY : insetRect.minY
+    )
+    let horizontalLineEndPoint = NSPoint(
+      x: measurement.horizontalDirection == .trailing ? rect.maxX : rect.minX,
+      y: cornerPoint.y
+    )
+    let verticalLineEndPoint = NSPoint(
+      x: cornerPoint.x,
+      y: measurement.verticalDirection == .downward ? rect.minY : rect.maxY
+    )
+    let horizontalLineMaskEndPoint = NSPoint(
+      x: horizontalLineEndPoint.x + (measurement.horizontalDirection == .trailing ? -0.5 : 0.5),
+      y: horizontalLineEndPoint.y
+    )
+    let verticalLineMaskEndPoint = NSPoint(
+      x: verticalLineEndPoint.x,
+      y: verticalLineEndPoint.y + (measurement.verticalDirection == .downward ? 0.5 : -0.5)
+    )
+    let maskPath = NSBezierPath()
+    maskPath.move(to: verticalLineMaskEndPoint)
+    maskPath.line(to: cornerPoint)
+    maskPath.line(to: horizontalLineMaskEndPoint)
+
+    context.saveGState()
+    context.setBlendMode(.destinationOut)
+
+    NSColor.black.setStroke()
+    maskPath.lineWidth = 3.0
+    maskPath.lineCapStyle = .square
+    maskPath.lineJoinStyle = .miter
+    maskPath.stroke()
+
+    context.restoreGState()
+
+    let linePath = NSBezierPath()
+    linePath.move(to: horizontalLineEndPoint)
+    linePath.line(to: cornerPoint)
+    linePath.line(to: verticalLineEndPoint)
 
     Configuration.measurementLineColor.setStroke()
-    path.stroke()
+    linePath.lineWidth = 1.0
+    linePath.stroke()
 
-    let horizontalMidPoint = CGPoint(x: insetRect.midX, y: guideLineOriginY)
-    let verticalMidPoint = CGPoint(x: guideLineOriginX, y: insetRect.midY)
+    let horizontalMidPoint = CGPoint(x: insetRect.midX, y: cornerPoint.y)
+    let verticalMidPoint = CGPoint(x: cornerPoint.x, y: insetRect.midY)
 
     drawLabel(
       rect.width.compactString,
       at: horizontalMidPoint,
       margin: Configuration.labelMargin,
-      placement: measurement.verticalDirection == .upward ? .bottom : .top,
-      inBounds: bounds
+      placement: measurement.verticalDirection == .downward ? .top : .bottom,
+      in: context
     )
     drawLabel(
       rect.height.compactString,
       at: verticalMidPoint,
       margin: Configuration.labelMargin,
       placement: measurement.horizontalDirection == .trailing ? .leading : .trailing,
-      inBounds: bounds
+      in: context
     )
   }
 
-  private func drawSpanMeasurement(_ measurement: SpanMeasurement, in bounds: CGRect) {
+  private func drawSpanMeasurement(_ measurement: SpanMeasurement, in context: CGContext) {
     let startPoint = NSPoint(
       x: measurement.axis == .vertical ? measurement.startLocation.x + 0.5 : measurement.startLocation.x,
       y: measurement.axis == .horizontal ? measurement.startLocation.y + 0.5 : measurement.startLocation.y
@@ -675,7 +712,6 @@ final class MeasurementView: NSView {
       y: measurement.axis == .horizontal ? measurement.endLocation.y + 0.5 : measurement.endLocation.y
     )
     let path = NSBezierPath()
-    path.lineWidth = 1
     path.move(to: startPoint)
     path.line(to: endPoint)
 
@@ -705,7 +741,19 @@ final class MeasurementView: NSView {
       }
     }
 
+    context.saveGState()
+    context.setBlendMode(.destinationOut)
+
+    NSColor.black.setStroke()
+    path.lineWidth = 3.0
+    path.lineCapStyle = .square
+    path.stroke()
+
+    context.restoreGState()
+
     Configuration.measurementLineColor.setStroke()
+    path.lineWidth = 1.0
+    path.lineCapStyle = .butt
     path.stroke()
 
     let midPoint = CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2))
@@ -715,7 +763,7 @@ final class MeasurementView: NSView {
       at: midPoint,
       margin: Configuration.labelMargin,
       placement: measurement.axis == .horizontal ? .bottom : .trailing,
-      inBounds: bounds
+      in: context
     )
   }
 
@@ -724,7 +772,7 @@ final class MeasurementView: NSView {
     at anchor: CGPoint,
     margin: CGFloat,
     placement preferredPlacement: LabelPlacement,
-    inBounds bounds: CGRect
+    in context: CGContext
   ) {
     let attributedString = NSAttributedString(
       string: text,
@@ -742,24 +790,21 @@ final class MeasurementView: NSView {
       at: anchor,
       size: backgroundSize,
       margin: margin,
-      within: bounds
+      within: self.frame
+    )
+    let maskPath = NSBezierPath(
+      roundedRect: backgroundRect.insetBy(dx: -1.0, dy: -1.0),
+      xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
+      yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
     )
 
-    if let context = NSGraphicsContext.current?.cgContext {
-      let maskPath = NSBezierPath(
-        roundedRect: backgroundRect.insetBy(dx: -1.0, dy: -1.0),
-        xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
-        yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
-      )
+    context.saveGState()
+    context.setBlendMode(.destinationOut)
 
-      context.saveGState()
-      context.setBlendMode(.destinationOut)
+    NSColor.black.set()
+    maskPath.fill()
 
-      NSColor.black.set()
-      maskPath.fill()
-
-      context.restoreGState()
-    }
+    context.restoreGState()
 
     let backgroundPath = NSBezierPath(
       roundedRect: backgroundRect,
