@@ -470,15 +470,6 @@ protocol MeasurementViewDelegate: AnyObject {
 
 @MainActor
 final class MeasurementView: NSView {
-  enum Event {
-    case mouseMoved(CGPoint)
-    case mouseDown(CGPoint)
-    case flagsChanged(NSEvent.ModifierFlags)
-    case keyDown(UInt16)
-    case undo
-    case redo
-  }
-
   private enum LabelPlacement {
     case leading
     case trailing
