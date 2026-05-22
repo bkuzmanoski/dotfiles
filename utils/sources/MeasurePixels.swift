@@ -460,7 +460,12 @@ final class OverlayWindow: NSWindow {
 
 @MainActor
 protocol MeasurementViewDelegate: AnyObject {
-  func measurementView(_ view: MeasurementView, didReceive event: MeasurementView.Event)
+  func measurementView(_ view: MeasurementView, didMoveMouseTo localPoint: CGPoint)
+  func measurementView(_ view: MeasurementView, didClickAt localPoint: CGPoint)
+  func measurementView(_ view: MeasurementView, didChangeModifierFlags flags: NSEvent.ModifierFlags)
+  func measurementViewDidCancel(_ view: MeasurementView)
+  func measurementViewDidRequestUndo(_ view: MeasurementView)
+  func measurementViewDidRequestRedo(_ view: MeasurementView)
 }
 
 @MainActor
@@ -581,28 +586,16 @@ final class MeasurementView: NSView {
 
   override func mouseMoved(with event: NSEvent) {
     NSCursor.screenshotSelection?.set()
-    delegate?.measurementView(self, didReceive: .mouseMoved(event.locationInWindow))
+    delegate?.measurementView(self, didMoveMouseTo: convert(event.locationInWindow, from: nil))
+
   }
 
   override func mouseDown(with event: NSEvent) {
-    delegate?.measurementView(self, didReceive: .mouseDown(event.locationInWindow))
+    delegate?.measurementView(self, didClickAt: convert(event.locationInWindow, from: nil))
   }
 
   override func flagsChanged(with event: NSEvent) {
-    delegate?.measurementView(self, didReceive: .flagsChanged(event.modifierFlags))
-  }
-
-  override func keyDown(with event: NSEvent) {
-    delegate?.measurementView(self, didReceive: .keyDown(event.keyCode)) // TODO... track handled
-  }
-
-  override func draw(_ dirtyRect: NSRect) {
-    for measurement in measurements {
-      switch measurement {
-      case .region(let measurement): drawRegionMeasurement(measurement, in: frame)
-      case .span(let measurement): drawSpanMeasurement(measurement, in: frame)
-      }
-    }
+    delegate?.measurementView(self, didChangeModifierFlags: event.modifierFlags)
   }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -613,12 +606,25 @@ final class MeasurementView: NSView {
     }
 
     if modifierFlags.contains(.shift) {
-      delegate?.measurementView(self, didReceive: .redo)
+      delegate?.measurementViewDidRequestRedo(self)
     } else {
-      delegate?.measurementView(self, didReceive: .undo)
+      delegate?.measurementViewDidRequestUndo(self)
     }
 
     return true
+  }
+
+  override func cancelOperation(_ sender: Any?) {
+    delegate?.measurementViewDidCancel(self)
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    for measurement in measurements {
+      switch measurement {
+      case .region(let measurement): drawRegionMeasurement(measurement, in: frame)
+      case .span(let measurement): drawSpanMeasurement(measurement, in: frame)
+      }
+    }
   }
 
   private func drawRegionMeasurement(_ measurement: RegionMeasurement, in bounds: CGRect) {
@@ -1029,11 +1035,7 @@ final class MeasurementSession {
     transition(to: nextMeasurementMode)
   }
 
-  private func handleKeyPressed(_ keyCode: UInt16) {
-    guard keyCode == 53 else {
-      return
-    }
-
+  private func handleCancel() {
     if case .region = measurementMode, activeMeasurement != nil {
       self.activeMeasurement = nil
     } else {
@@ -1162,15 +1164,28 @@ final class MeasurementSession {
 }
 
 extension MeasurementSession: MeasurementViewDelegate {
-  func measurementView(_ view: MeasurementView, didReceive action: MeasurementView.Event) {
-    switch action {
-    case .mouseMoved(let location): handleMouseMoved(to: location)
-    case .mouseDown(let location): handleMouseDown(at: location)
-    case .flagsChanged(let modifierFlags): handleFlagsChanged(modifierFlags)
-    case .keyDown(let keyCode): handleKeyPressed(keyCode)
-    case .undo: handleUndo()
-    case .redo: handleRedo()
-    }
+  func measurementView(_ view: MeasurementView, didMoveMouseTo localPoint: CGPoint) {
+    handleMouseMoved(to: localPoint)
+  }
+
+  func measurementView(_ view: MeasurementView, didClickAt localPoint: CGPoint) {
+    handleMouseDown(at: localPoint)
+  }
+
+  func measurementView(_ view: MeasurementView, didChangeModifierFlags flags: NSEvent.ModifierFlags) {
+    handleFlagsChanged(flags)
+  }
+
+  func measurementViewDidCancel(_ view: MeasurementView) {
+    handleCancel()
+  }
+
+  func measurementViewDidRequestUndo(_ view: MeasurementView) {
+    handleUndo()
+  }
+
+  func measurementViewDidRequestRedo(_ view: MeasurementView) {
+    handleRedo()
   }
 }
 
