@@ -525,10 +525,12 @@ final class MeasurementView: NSView {
         }
       }
 
-      let clampedX = max(bounds.minX + margin, min(originX, bounds.maxX - size.width - margin))
-      let clampedY = max(bounds.minY + margin, min(originY, bounds.maxY - size.height - margin))
-
-      return CGRect(x: clampedX, y: clampedY, width: size.width, height: size.height)
+      return CGRect(
+        x: max(bounds.minX + margin, min(originX, bounds.maxX - size.width - margin)),
+        y: max(bounds.minY + margin, min(originY, bounds.maxY - size.height - margin)),
+        width: size.width,
+        height: size.height
+      )
     }
   }
 
