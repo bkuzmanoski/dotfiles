@@ -110,13 +110,15 @@ enum Axis {
 }
 
 enum Measurement: Equatable {
+  case identity
   case region(RegionMeasurement)
   case span(SpanMeasurement)
 
-  var formattedString: String {
+  var formattedString: String? {
     switch self {
-    case .region(let measurement): measurement.formattedString
-    case .span(let measurement): measurement.formattedString
+    case .identity: return nil
+    case .region(let measurement): return measurement.formattedString
+    case .span(let measurement): return measurement.formattedString
     }
   }
 }
@@ -470,26 +472,52 @@ protocol MeasurementViewDelegate: AnyObject {
 
 @MainActor
 final class MeasurementView: NSView {
-  private enum LabelPlacement {
-    case leading
-    case trailing
-    case top
-    case bottom
-
-    var opposite: LabelPlacement {
-      switch self {
-      case .leading: .trailing
-      case .trailing: .leading
-      case .top: .bottom
-      case .bottom: .top
-      }
+  private struct Label {
+    enum Position {
+      case leading
+      case trailing
+      case top
+      case bottom
     }
 
-    func backgroundRect(at anchor: CGPoint, size: CGSize, margin: CGFloat, within bounds: CGRect) -> CGRect {
+    let attributedString: NSAttributedString
+
+    private let size: CGSize
+    private let anchor: CGPoint
+    private let preferredPosition: Position
+    private let margin: CGFloat
+
+    init(
+      text: String,
+      anchor: CGPoint,
+      preferredPosition: Position,
+      margin: CGFloat,
+      padding: (horizontal: CGFloat, vertical: CGFloat)
+    ) {
+      let attributedString = NSAttributedString(
+        string: text,
+        attributes: [
+          .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
+          .foregroundColor: Configuration.labelForegroundColor
+        ]
+      )
+      let textSize = attributedString.size()
+
+      self.attributedString = attributedString
+      self.size = CGSize(
+        width: ceil(textSize.width) + Configuration.labelPadding.horizontal * 2,
+        height: ceil(textSize.height) + Configuration.labelPadding.vertical * 2
+      )
+      self.anchor = anchor
+      self.preferredPosition = preferredPosition
+      self.margin = margin
+    }
+
+    func rect(within bounds: CGRect) -> CGRect {
       var originX: CGFloat
       var originY: CGFloat
 
-      switch self {
+      switch preferredPosition {
       case .leading:
         originX = anchor.x - size.width - margin
 
@@ -535,7 +563,6 @@ final class MeasurementView: NSView {
   }
 
   weak var delegate: MeasurementViewDelegate?
-
   var measurements: [Measurement] = []
 
   override var acceptsFirstResponder: Bool { true }
@@ -617,6 +644,7 @@ final class MeasurementView: NSView {
 
     for measurement in measurements {
       switch measurement {
+      case .identity: continue
       case .region(let measurement): drawRegionMeasurement(measurement, in: context)
       case .span(let measurement): drawSpanMeasurement(measurement, in: context)
       }
@@ -624,23 +652,19 @@ final class MeasurementView: NSView {
   }
 
   private func drawRegionMeasurement(_ measurement: RegionMeasurement, in context: CGContext) {
-    let rect = measurement.boundingRect
-
-    Configuration.measurementAreaColor.setFill()
-    rect.fill()
-
-    let insetRect = rect.insetBy(dx: 0.5, dy: 0.5)
+    let boundingRect = measurement.boundingRect
+    let insetRect = boundingRect.insetBy(dx: 0.5, dy: 0.5)
     let cornerPoint = NSPoint(
       x: measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX,
       y: measurement.verticalDirection == .downward ? insetRect.maxY : insetRect.minY
     )
     let horizontalLineEndPoint = NSPoint(
-      x: measurement.horizontalDirection == .trailing ? rect.maxX : rect.minX,
+      x: measurement.horizontalDirection == .trailing ? boundingRect.maxX : boundingRect.minX,
       y: cornerPoint.y
     )
     let verticalLineEndPoint = NSPoint(
       x: cornerPoint.x,
-      y: measurement.verticalDirection == .downward ? rect.minY : rect.maxY
+      y: measurement.verticalDirection == .downward ? boundingRect.minY : boundingRect.maxY
     )
     let horizontalLineMaskEndPoint = NSPoint(
       x: horizontalLineEndPoint.x + (measurement.horizontalDirection == .trailing ? -0.5 : 0.5),
@@ -651,6 +675,10 @@ final class MeasurementView: NSView {
       y: verticalLineEndPoint.y + (measurement.verticalDirection == .downward ? 0.5 : -0.5)
     )
     let maskPath = NSBezierPath()
+
+    Configuration.measurementAreaColor.setFill()
+    boundingRect.fill()
+
     maskPath.move(to: verticalLineMaskEndPoint)
     maskPath.line(to: cornerPoint)
     maskPath.line(to: horizontalLineMaskEndPoint)
@@ -675,21 +703,24 @@ final class MeasurementView: NSView {
     linePath.lineWidth = 1.0
     linePath.stroke()
 
-    let horizontalMidPoint = CGPoint(x: insetRect.midX, y: cornerPoint.y)
-    let verticalMidPoint = CGPoint(x: cornerPoint.x, y: insetRect.midY)
-
     drawLabel(
-      rect.width.compactString,
-      at: horizontalMidPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.verticalDirection == .downward ? .top : .bottom,
+      Label(
+        text: boundingRect.width.compactString,
+        anchor: CGPoint(x: insetRect.midX, y: cornerPoint.y),
+        preferredPosition: measurement.verticalDirection == .downward ? .top : .bottom,
+        margin: Configuration.labelMargin,
+        padding: Configuration.labelPadding
+      ),
       in: context
     )
     drawLabel(
-      rect.height.compactString,
-      at: verticalMidPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.horizontalDirection == .trailing ? .leading : .trailing,
+      Label(
+        text: boundingRect.height.compactString,
+        anchor: CGPoint(x: cornerPoint.x, y: insetRect.midY),
+        preferredPosition: measurement.horizontalDirection == .trailing ? .leading : .trailing,
+        margin: Configuration.labelMargin,
+        padding: Configuration.labelPadding
+      ),
       in: context
     )
   }
@@ -703,9 +734,9 @@ final class MeasurementView: NSView {
       x: measurement.axis == .vertical ? measurement.endLocation.x + 0.5 : measurement.endLocation.x,
       y: measurement.axis == .horizontal ? measurement.endLocation.y + 0.5 : measurement.endLocation.y
     )
-    let path = NSBezierPath()
-    path.move(to: startPoint)
-    path.line(to: endPoint)
+    let linePath = NSBezierPath()
+    linePath.move(to: startPoint)
+    linePath.line(to: endPoint)
 
     if let endCapLength = Configuration.spanMeasurementLineEndCapLength, measurement.length > endCapLength * 2 {
       switch measurement.axis {
@@ -715,21 +746,21 @@ final class MeasurementView: NSView {
         let endCapMinY = startPoint.y - endCapLength
         let endCapMaxY = startPoint.y + endCapLength
 
-        path.move(to: NSPoint(x: leadingEndCapX, y: endCapMinY))
-        path.line(to: NSPoint(x: leadingEndCapX, y: endCapMaxY))
-        path.move(to: NSPoint(x: trailingEndCapX, y: endCapMinY))
-        path.line(to: NSPoint(x: trailingEndCapX, y: endCapMaxY))
+        linePath.move(to: NSPoint(x: leadingEndCapX, y: endCapMinY))
+        linePath.line(to: NSPoint(x: leadingEndCapX, y: endCapMaxY))
+        linePath.move(to: NSPoint(x: trailingEndCapX, y: endCapMinY))
+        linePath.line(to: NSPoint(x: trailingEndCapX, y: endCapMaxY))
 
       case .vertical:
-        let endCapMinX = startPoint.x - endCapLength
-        let endCapMaxX = startPoint.x + endCapLength
         let topEndCapY = endPoint.y - 0.5
         let bottomEndCapY = startPoint.y + 0.5
+        let endCapMinX = startPoint.x - endCapLength
+        let endCapMaxX = startPoint.x + endCapLength
 
-        path.move(to: NSPoint(x: endCapMinX, y: bottomEndCapY))
-        path.line(to: NSPoint(x: endCapMaxX, y: bottomEndCapY))
-        path.move(to: NSPoint(x: endCapMinX, y: topEndCapY))
-        path.line(to: NSPoint(x: endCapMaxX, y: topEndCapY))
+        linePath.move(to: NSPoint(x: endCapMinX, y: bottomEndCapY))
+        linePath.line(to: NSPoint(x: endCapMaxX, y: bottomEndCapY))
+        linePath.move(to: NSPoint(x: endCapMinX, y: topEndCapY))
+        linePath.line(to: NSPoint(x: endCapMaxX, y: topEndCapY))
       }
     }
 
@@ -737,55 +768,33 @@ final class MeasurementView: NSView {
     context.setBlendMode(.destinationOut)
 
     NSColor.black.setStroke()
-    path.lineWidth = 3.0
-    path.lineCapStyle = .square
-    path.stroke()
+    linePath.lineWidth = 3.0
+    linePath.lineCapStyle = .square
+    linePath.stroke()
 
     context.restoreGState()
 
     Configuration.measurementLineColor.setStroke()
-    path.lineWidth = 1.0
-    path.lineCapStyle = .butt
-    path.stroke()
-
-    let midPoint = CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2))
+    linePath.lineWidth = 1.0
+    linePath.lineCapStyle = .butt
+    linePath.stroke()
 
     drawLabel(
-      measurement.length.compactString,
-      at: midPoint,
-      margin: Configuration.labelMargin,
-      placement: measurement.axis == .horizontal ? .bottom : .trailing,
+      Label(
+        text: measurement.length.compactString,
+        anchor: CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2)),
+        preferredPosition: measurement.axis == .horizontal ? .bottom : .trailing,
+        margin: Configuration.labelMargin,
+        padding: Configuration.labelPadding
+      ),
       in: context
     )
   }
 
-  private func drawLabel(
-    _ text: String,
-    at anchor: CGPoint,
-    margin: CGFloat,
-    placement preferredPlacement: LabelPlacement,
-    in context: CGContext
-  ) {
-    let attributedString = NSAttributedString(
-      string: text,
-      attributes: [
-        .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
-        .foregroundColor: Configuration.labelForegroundColor
-      ]
-    )
-    let textSize = attributedString.size()
-    let backgroundSize = CGSize(
-      width: ceil(textSize.width) + Configuration.labelPadding.horizontal * 2,
-      height: ceil(textSize.height) + Configuration.labelPadding.vertical * 2
-    )
-    let backgroundRect = preferredPlacement.backgroundRect(
-      at: anchor,
-      size: backgroundSize,
-      margin: margin,
-      within: self.frame
-    )
+  private func drawLabel(_ label: Label, in context: CGContext) {
+    let rect = label.rect(within: self.frame)
     let maskPath = NSBezierPath(
-      roundedRect: backgroundRect.insetBy(dx: -1.0, dy: -1.0),
+      roundedRect: rect.insetBy(dx: -1.0, dy: -1.0),
       xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
       yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
     )
@@ -799,7 +808,7 @@ final class MeasurementView: NSView {
     context.restoreGState()
 
     let backgroundPath = NSBezierPath(
-      roundedRect: backgroundRect,
+      roundedRect: rect,
       xRadius: Configuration.labelCornerRadius,
       yRadius: Configuration.labelCornerRadius
     )
@@ -807,10 +816,10 @@ final class MeasurementView: NSView {
     Configuration.labelBackgroundColor.setFill()
     backgroundPath.fill()
 
-    attributedString.draw(
+    label.attributedString.draw(
       at: CGPoint(
-        x: backgroundRect.minX + Configuration.labelPadding.horizontal,
-        y: backgroundRect.minY + Configuration.labelPadding.vertical
+        x: rect.minX + Configuration.labelPadding.horizontal,
+        y: rect.minY + Configuration.labelPadding.vertical
       )
     )
   }
@@ -1033,7 +1042,9 @@ final class MeasurementSession {
     if let activeMeasurement {
       switch appMode {
       case .single:
-        let result = activeMeasurement.formattedString
+        guard let result = activeMeasurement.formattedString else {
+          return
+        }
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(result, forType: .string)
@@ -1043,7 +1054,12 @@ final class MeasurementSession {
         NSApplication.shared.terminate(nil)
 
       case .continuous:
-        self.committedMeasurements.append(activeMeasurement)
+        if !committedMeasurements.contains(activeMeasurement) {
+          self.committedMeasurements.append(activeMeasurement)
+        } else {
+          self.committedMeasurements.append(.identity)
+        }
+
         self.undoneMeasurements.removeAll()
 
         if case .region = measurementMode {
