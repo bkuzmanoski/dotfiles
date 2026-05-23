@@ -110,13 +110,11 @@ enum Axis {
 }
 
 enum Measurement: Equatable {
-  case identity
   case region(RegionMeasurement)
   case span(SpanMeasurement)
 
-  var formattedString: String? {
+  var formattedString: String {
     switch self {
-    case .identity: return nil
     case .region(let measurement): return measurement.formattedString
     case .span(let measurement): return measurement.formattedString
     }
@@ -433,9 +431,10 @@ enum ScreenCaptureService {
 
     let contentFilter = SCContentFilter(
       display: display,
-      including: availableContent.applications.filter { application in
-        application.processID != NSRunningApplication.current.processIdentifier
-      },
+      excludingApplications: availableContent.applications
+        .first { $0.processID == NSRunningApplication.current.processIdentifier }
+        .map { [$0] }
+        ?? [],
       exceptingWindows: []
     )
     let configuration = SCScreenshotConfiguration()
@@ -620,17 +619,27 @@ final class MeasurementView: NSView {
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     let modifierFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-    guard modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "z" else {
-      return super.performKeyEquivalent(with: event)
+    if modifierFlags.contains(.command) {
+      switch event.charactersIgnoringModifiers?.lowercased() {
+      case "q":
+        NSApplication.shared.terminate(nil)
+        return true
+
+      case "z":
+        if modifierFlags.contains(.shift) {
+          delegate?.measurementViewDidRequestRedo(self)
+        } else {
+          delegate?.measurementViewDidRequestUndo(self)
+        }
+
+        return true
+
+      default:
+        break
+      }
     }
 
-    if modifierFlags.contains(.shift) {
-      delegate?.measurementViewDidRequestRedo(self)
-    } else {
-      delegate?.measurementViewDidRequestUndo(self)
-    }
-
-    return true
+    return super.performKeyEquivalent(with: event)
   }
 
   override func cancelOperation(_ sender: Any?) {
@@ -644,7 +653,6 @@ final class MeasurementView: NSView {
 
     for measurement in measurements {
       switch measurement {
-      case .identity: continue
       case .region(let measurement): drawRegionMeasurement(measurement, in: context)
       case .span(let measurement): drawSpanMeasurement(measurement, in: context)
       }
@@ -908,8 +916,10 @@ final class MeasurementSession {
     window.contentView = measurementView
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
-    window.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
     window.ignoresMouseEvents = false
+    window.isOpaque = false
+    window.hasShadow = false
+    window.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
 
     self.overlayWindow = window
     self.appMode = appMode
@@ -1042,9 +1052,7 @@ final class MeasurementSession {
     if let activeMeasurement {
       switch appMode {
       case .single:
-        guard let result = activeMeasurement.formattedString else {
-          return
-        }
+        let result = activeMeasurement.formattedString
 
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(result, forType: .string)
@@ -1054,12 +1062,11 @@ final class MeasurementSession {
         NSApplication.shared.terminate(nil)
 
       case .continuous:
-        if !committedMeasurements.contains(activeMeasurement) {
-          self.committedMeasurements.append(activeMeasurement)
-        } else {
-          self.committedMeasurements.append(.identity)
+        guard !committedMeasurements.contains(activeMeasurement) else {
+          return
         }
 
+        self.committedMeasurements.append(activeMeasurement)
         self.undoneMeasurements.removeAll()
 
         if case .region = measurementMode {
