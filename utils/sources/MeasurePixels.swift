@@ -562,7 +562,12 @@ final class MeasurementView: NSView {
   }
 
   weak var delegate: MeasurementViewDelegate?
-  var measurements: [Measurement] = []
+
+  var measurements: [Measurement] = [] {
+    didSet {
+      self.needsDisplay = true
+    }
+  }
 
   override var acceptsFirstResponder: Bool { true }
 
@@ -1219,7 +1224,6 @@ final class MeasurementSession {
 
   private func updateMeasurementView() {
     measurementView.measurements = committedMeasurements + (activeMeasurement.map { [$0] } ?? [])
-    measurementView.needsDisplay = true
   }
 }
 
