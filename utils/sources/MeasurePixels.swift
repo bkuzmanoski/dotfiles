@@ -137,7 +137,7 @@ struct RegionMeasurement: Equatable {
   var horizontalDirection: HorizontalDirection { endLocation.x >= startLocation.x ? .trailing : .leading }
   var verticalDirection: VerticalDirection { endLocation.y < startLocation.y ? .downward : .upward }
 
-  var boundingRect: CGRect {
+  var rect: CGRect {
     CGRect(
       x: startLocation.x,
       y: startLocation.y,
@@ -146,7 +146,7 @@ struct RegionMeasurement: Equatable {
     ).integral
   }
 
-  var formattedString: String { "\(boundingRect.width.compactString) × \(boundingRect.height.compactString)" }
+  var formattedString: String { "\(rect.width.compactString) × \(rect.height.compactString)" }
 
   func extended(to endLocation: CGPoint) -> RegionMeasurement {
     return RegionMeasurement(startLocation: self.startLocation, endLocation: endLocation)
@@ -668,19 +668,19 @@ final class MeasurementView: NSView {
   }
 
   private func drawRegionMeasurement(_ measurement: RegionMeasurement, in context: CGContext) {
-    let boundingRect = measurement.boundingRect
-    let insetRect = boundingRect.insetBy(dx: 0.5, dy: 0.5)
+    let measurementRect = measurement.rect
+    let insetMeasurementRect = measurementRect.insetBy(dx: 0.5, dy: 0.5)
     let cornerPoint = NSPoint(
-      x: measurement.horizontalDirection == .trailing ? insetRect.minX : insetRect.maxX,
-      y: measurement.verticalDirection == .downward ? insetRect.maxY : insetRect.minY
+      x: measurement.horizontalDirection == .trailing ? insetMeasurementRect.minX : insetMeasurementRect.maxX,
+      y: measurement.verticalDirection == .downward ? insetMeasurementRect.maxY : insetMeasurementRect.minY
     )
     let horizontalLineEndPoint = NSPoint(
-      x: measurement.horizontalDirection == .trailing ? boundingRect.maxX : boundingRect.minX,
+      x: measurement.horizontalDirection == .trailing ? measurementRect.maxX : measurementRect.minX,
       y: cornerPoint.y
     )
     let verticalLineEndPoint = NSPoint(
       x: cornerPoint.x,
-      y: measurement.verticalDirection == .downward ? boundingRect.minY : boundingRect.maxY
+      y: measurement.verticalDirection == .downward ? measurementRect.minY : measurementRect.maxY
     )
     let horizontalLineMaskEndPoint = NSPoint(
       x: horizontalLineEndPoint.x + (measurement.horizontalDirection == .trailing ? -0.5 : 0.5),
@@ -693,7 +693,7 @@ final class MeasurementView: NSView {
     let maskPath = NSBezierPath()
 
     Configuration.measurementAreaColor.setFill()
-    boundingRect.fill()
+    measurementRect.fill()
 
     maskPath.move(to: verticalLineMaskEndPoint)
     maskPath.line(to: cornerPoint)
@@ -718,8 +718,8 @@ final class MeasurementView: NSView {
 
     drawLabel(
       Label(
-        text: boundingRect.width.compactString,
-        anchor: CGPoint(x: insetRect.midX, y: cornerPoint.y),
+        text: measurementRect.width.compactString,
+        anchor: CGPoint(x: insetMeasurementRect.midX, y: cornerPoint.y),
         preferredPosition: measurement.verticalDirection == .downward ? .top : .bottom,
         margin: Configuration.labelMargin,
         padding: Configuration.labelPadding
@@ -728,8 +728,8 @@ final class MeasurementView: NSView {
     )
     drawLabel(
       Label(
-        text: boundingRect.height.compactString,
-        anchor: CGPoint(x: cornerPoint.x, y: insetRect.midY),
+        text: measurementRect.height.compactString,
+        anchor: CGPoint(x: cornerPoint.x, y: insetMeasurementRect.midY),
         preferredPosition: measurement.horizontalDirection == .trailing ? .leading : .trailing,
         margin: Configuration.labelMargin,
         padding: Configuration.labelPadding
@@ -802,9 +802,9 @@ final class MeasurementView: NSView {
   }
 
   private func drawLabel(_ label: Label, in context: CGContext) {
-    let rect = label.rect(within: self.frame)
+    let labelRect = label.rect(within: self.frame)
     let maskPath = NSBezierPath(
-      roundedRect: rect.insetBy(dx: -1.0, dy: -1.0),
+      roundedRect: labelRect.insetBy(dx: -1.0, dy: -1.0),
       xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
       yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
     )
@@ -815,7 +815,7 @@ final class MeasurementView: NSView {
     }
 
     let backgroundPath = NSBezierPath(
-      roundedRect: rect,
+      roundedRect: labelRect,
       xRadius: Configuration.labelCornerRadius,
       yRadius: Configuration.labelCornerRadius
     )
@@ -825,8 +825,8 @@ final class MeasurementView: NSView {
 
     label.attributedString.draw(
       at: CGPoint(
-        x: rect.minX + Configuration.labelPadding.horizontal,
-        y: rect.minY + Configuration.labelPadding.vertical
+        x: labelRect.minX + Configuration.labelPadding.horizontal,
+        y: labelRect.minY + Configuration.labelPadding.vertical
       )
     )
   }
@@ -874,6 +874,8 @@ final class MeasurementSession {
   private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
   private var measurementMode: MeasurementMode = .region
+  private var lastMouseLocation: CGPoint?
+  private var lastRegionMeasurement: RegionMeasurement?
 
   private var activeMeasurement: Measurement? {
     didSet {
@@ -888,8 +890,6 @@ final class MeasurementSession {
   }
 
   private var undoneMeasurements: [Measurement] = []
-  private var lastMouseLocation: CGPoint?
-  private var lastRegionMeasurement: RegionMeasurement?
 
   private var mouseLocation: CGPoint? {
     lastMouseLocation
