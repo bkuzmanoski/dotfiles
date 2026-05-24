@@ -19,6 +19,7 @@ function die() {
   exit ${2:-1}
 }
 
+# shellcheck disable=SC2034
 if ! zparseopts -D -F \
   {b,-background}=flag_background \
   {B,-build-only}=flag_build_only \
