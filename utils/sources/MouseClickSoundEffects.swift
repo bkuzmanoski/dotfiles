@@ -3,7 +3,7 @@ import AudioToolbox
 
 enum Configuration {
   static let subsystem = "industries.britown.MouseClickSoundEffects"
-  static let soundFileDirectory = "~/.dotfiles/utils/assets"
+  static let soundFileDirectoryPath = "~/.dotfiles/utils/assets"
 }
 
 typealias AudioDeviceTransportType = UInt32
@@ -51,12 +51,11 @@ final class SoundEffectManager {
   private let systemSoundIDs: [SoundEffect: SystemSoundID]
 
   init() throws {
-    let soundFileDirectoryPath = NSString(string: Configuration.soundFileDirectory).expandingTildeInPath
-    let soundFileDirectoryURL = URL(fileURLWithPath: soundFileDirectoryPath, isDirectory: true)
-
     var systemSoundIDs: [SoundEffect: SystemSoundID] = [:]
 
     do {
+      let soundFileDirectoryURL = URL(fileURLWithPath: Configuration.soundFileDirectoryPath, isDirectory: true)
+
       for soundEffect in SoundEffect.allCases {
         systemSoundIDs[soundEffect] = try Self.load(soundEffect: soundEffect, from: soundFileDirectoryURL)
       }
@@ -142,7 +141,7 @@ final class ClickMonitor {
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.rightMouseUp.rawValue,
         callback: { _, type, event, refcon in
-          if let refcon {
+          if let refcon, event.getIntegerValueField(.mouseEventSubtype) == NSEvent.EventSubtype.touch.rawValue {
             Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
           }
 
@@ -230,7 +229,7 @@ final class ClickMonitor {
   }
 }
 
-final class OutputDeviceObserver {
+final class SystemOutputDeviceObserver {
   enum Error: Swift.Error, LocalizedError {
     case failedToDetermineOutputDevice(status: OSStatus)
     case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
@@ -262,10 +261,9 @@ final class OutputDeviceObserver {
     mElement: kAudioObjectPropertyElementMain
   )
   private let onTransportTypeChanged: (AudioDeviceTransportType) -> Void
-  private lazy var defaultSystemOutputDevicePropertyListenerBlock: AudioObjectPropertyListenerBlock =
-    { [weak self] _, _ in
-      self?.handleOutputDeviceChanged()
-    }
+  private lazy var systemOutputDevicePropertyListenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+    self?.handleOutputDeviceChanged()
+  }
 
   init(onTransportTypeChanged: @escaping (AudioDeviceTransportType) -> Void) throws {
     self.onTransportTypeChanged = onTransportTypeChanged
@@ -276,7 +274,7 @@ final class OutputDeviceObserver {
       systemObjectID,
       &defaultSystemOutputDevicePropertyAddress,
       .main,
-      defaultSystemOutputDevicePropertyListenerBlock
+      systemOutputDevicePropertyListenerBlock
     )
 
     guard status == kAudioHardwareNoError else {
@@ -290,11 +288,11 @@ final class OutputDeviceObserver {
       systemObjectID,
       &defaultSystemOutputDevicePropertyAddress,
       .main,
-      defaultSystemOutputDevicePropertyListenerBlock
+      systemOutputDevicePropertyListenerBlock
     )
   }
 
-  func currentDeviceTransportType() throws -> AudioDeviceTransportType {
+  func currentTransportType() throws -> AudioDeviceTransportType {
     var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
     var defaultSystemOutputDeviceID = kAudioObjectUnknown
     var defaultSystemOutputDevicePropertyDataSize = UInt32(MemoryLayout.size(ofValue: defaultSystemOutputDeviceID))
@@ -344,7 +342,7 @@ final class OutputDeviceObserver {
   }
 
   private func handleOutputDeviceChanged() {
-    let transportType = (try? currentDeviceTransportType()) ?? kAudioDeviceTransportTypeUnknown
+    let transportType = (try? currentTransportType()) ?? kAudioDeviceTransportTypeUnknown
     onTransportTypeChanged(transportType)
   }
 }
@@ -352,7 +350,7 @@ final class OutputDeviceObserver {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
-  private var outputDeviceObserver: OutputDeviceObserver?
+  private var systemOutputDeviceObserver: SystemOutputDeviceObserver?
   private var clickMonitor: ClickMonitor?
 
   init(singleInstanceLock: SingleInstanceLock) {
@@ -362,18 +360,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let outputDeviceObserver = try OutputDeviceObserver { [weak self] transportType in
+      let systemOutputDeviceObserver = try SystemOutputDeviceObserver { [weak self] transportType in
         self?.clickMonitor?.setSuspended(transportType.isBluetooth)
       }
 
       let soundEffectManager = try SoundEffectManager()
-      let currentOutputDeviceTransportType = try outputDeviceObserver.currentDeviceTransportType()
       let clickMonitor = try ClickMonitor(
         soundEffectManager: soundEffectManager,
-        isSuspended: currentOutputDeviceTransportType.isBluetooth
+        isSuspended: systemOutputDeviceObserver.currentTransportType().isBluetooth
       )
 
-      self.outputDeviceObserver = outputDeviceObserver
+      self.systemOutputDeviceObserver = systemOutputDeviceObserver
       self.clickMonitor = clickMonitor
     } catch {
       FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
