@@ -273,6 +273,7 @@ local function updateManagedWindows()
   end
 
   tiledSpaces[spaceID] = tilingState
+
   applyLayout(screen, tilingState)
 end
 
@@ -322,6 +323,7 @@ local function tile(mainWindowEdge)
     end
 
     tiledSpaces[spaceID] = tilingState
+
     applyLayout(screen, tilingState)
   else
     local currentWindowData = getCurrentWindowData(screen, spaceID)
@@ -348,6 +350,7 @@ local function tile(mainWindowEdge)
     }
 
     tiledSpaces[spaceID] = newTilingState
+
     applyLayout(screen, newTilingState)
   end
 end
