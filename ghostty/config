@@ -1,12 +1,5 @@
 theme = light:light,dark:dark
-
-macos-titlebar-proxy-icon = hidden
-window-padding-x = 8
-window-padding-y = 4
-window-padding-balance = true
-resize-overlay = never
-unfocused-split-opacity = 1
-mouse-hide-while-typing = true
+palette-generate = true
 
 font-size = 13
 font-thicken = true
@@ -14,9 +7,18 @@ font-thicken-strength = 0
 adjust-cell-height = 5%
 adjust-cell-width = -5%
 
+macos-titlebar-proxy-icon = hidden
+window-padding-x = 8
+window-padding-y = 4
+window-padding-balance = true
+resize-overlay = never
+unfocused-split-opacity = 1
+
 cursor-style = bar
 cursor-style-blink = true
 adjust-cursor-thickness = 1
+mouse-hide-while-typing = true
+selection-clear-on-copy = true
 
 macos-option-as-alt = true
 keybind = shift+command+k=toggle_command_palette
