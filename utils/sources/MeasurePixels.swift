@@ -90,6 +90,15 @@ extension NSCursor {
   }
 }
 
+extension CGContext {
+  func withBlendMode(_ blendMode: CGBlendMode, _ body: () -> Void) {
+    saveGState()
+    setBlendMode(blendMode)
+    body()
+    restoreGState()
+  }
+}
+
 extension CGFloat {
   var compactString: String { Double(self).formatted(.number.precision(.fractionLength(0...2)).grouping(.never)) }
 }
@@ -232,7 +241,29 @@ struct ScreenCapture {
 }
 
 extension UnsafeBufferPointer where Element == UInt32 {
-  func rgbDifference(betweenIndex indexA: Int, andIndex indexB: Int) -> Int {
+  func exceedsRGBDifferenceThreshold(
+    betweenSliceStartingAt startA: Int,
+    andSliceStartingAt startB: Int,
+    sliceCount: Int,
+    stride: Int,
+    threshold: Int
+  ) -> Bool {
+    var indexA = startA
+    var indexB = startB
+
+    for _ in 0..<sliceCount {
+      if rgbDifference(betweenIndex: indexA, andIndex: indexB) > threshold {
+        return true
+      }
+
+      indexA += stride
+      indexB += stride
+    }
+
+    return false
+  }
+
+  private func rgbDifference(betweenIndex indexA: Int, andIndex indexB: Int) -> Int {
     let pixelA = self[indexA]
     let pixelB = self[indexB]
 
@@ -245,30 +276,6 @@ extension UnsafeBufferPointer where Element == UInt32 {
     let blueB = Int(pixelB & 0xFF)
 
     return abs(redA - redB) + abs(greenA - greenB) + abs(blueA - blueB)
-  }
-
-  func maxRGBDifference(
-    betweenSliceStartingAt startIndexA: Int,
-    andSliceStartingAt startIndexB: Int,
-    sliceCount: Int,
-    stride: Int
-  ) -> Int {
-    var maxDifference = 0
-    var indexA = startIndexA
-    var indexB = startIndexB
-
-    for _ in 0..<sliceCount {
-      let difference = rgbDifference(betweenIndex: indexA, andIndex: indexB)
-
-      if difference > maxDifference {
-        maxDifference = difference
-      }
-
-      indexA += stride
-      indexB += stride
-    }
-
-    return maxDifference
   }
 }
 
@@ -297,14 +304,13 @@ enum EdgeDetector {
         var previousPixelX = clampedPixelX
 
         for searchPixelX in stride(from: clampedPixelX - 1, through: 0, by: -1) {
-          let maxDifference = pixelBuffer.maxRGBDifference(
+          if pixelBuffer.exceedsRGBDifferenceThreshold(
             betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
             andSliceStartingAt: rowStartBufferIndex + searchPixelX,
             sliceCount: pixelsPerPoint,
-            stride: screenCapture.pixelsPerRow
-          )
-
-          if maxDifference > rgbDifferenceThreshold {
+            stride: screenCapture.pixelsPerRow,
+            threshold: rgbDifferenceThreshold
+          ) {
             break
           }
 
@@ -317,14 +323,13 @@ enum EdgeDetector {
         var trailingPixelX = clampedPixelX
 
         for searchPixelX in stride(from: clampedPixelX + 1, to: screenCapture.width, by: 1) {
-          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+          if pixelBuffer.exceedsRGBDifferenceThreshold(
             betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
             andSliceStartingAt: rowStartBufferIndex + searchPixelX,
             sliceCount: pixelsPerPoint,
-            stride: screenCapture.pixelsPerRow
-          )
-
-          if maxRGBDifference > rgbDifferenceThreshold {
+            stride: screenCapture.pixelsPerRow,
+            threshold: rgbDifferenceThreshold
+          ) {
             break
           }
 
@@ -355,14 +360,13 @@ enum EdgeDetector {
         var previousPixelY = clampedPixelY
 
         for searchPixelY in stride(from: clampedPixelY - 1, through: 0, by: -1) {
-          let maxDifference = pixelBuffer.maxRGBDifference(
+          if pixelBuffer.exceedsRGBDifferenceThreshold(
             betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             sliceCount: pixelsPerPoint,
-            stride: 1
-          )
-
-          if maxDifference > rgbDifferenceThreshold {
+            stride: 1,
+            threshold: rgbDifferenceThreshold
+          ) {
             break
           }
 
@@ -375,14 +379,13 @@ enum EdgeDetector {
         var bottomPixelY = clampedPixelY
 
         for searchPixelY in stride(from: clampedPixelY + 1, to: screenCapture.height, by: 1) {
-          let maxRGBDifference = pixelBuffer.maxRGBDifference(
+          if pixelBuffer.exceedsRGBDifferenceThreshold(
             betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
             sliceCount: pixelsPerPoint,
-            stride: 1
-          )
-
-          if maxRGBDifference > rgbDifferenceThreshold {
+            stride: 1,
+            threshold: rgbDifferenceThreshold
+          ) {
             break
           }
 
@@ -471,7 +474,13 @@ protocol MeasurementViewDelegate: AnyObject {
 
 @MainActor
 final class MeasurementView: NSView {
+
   private struct Label {
+    private static let textAttributes: [NSAttributedString.Key: Any] = [
+      .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
+      .foregroundColor: Configuration.labelForegroundColor
+    ]
+
     enum Position {
       case leading
       case trailing
@@ -493,13 +502,7 @@ final class MeasurementView: NSView {
       margin: CGFloat,
       padding: (horizontal: CGFloat, vertical: CGFloat)
     ) {
-      let attributedString = NSAttributedString(
-        string: text,
-        attributes: [
-          .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
-          .foregroundColor: Configuration.labelForegroundColor
-        ]
-      )
+      let attributedString = NSAttributedString(string: text, attributes: Self.textAttributes)
       let textSize = attributedString.size()
 
       self.attributedString = attributedString
@@ -696,16 +699,13 @@ final class MeasurementView: NSView {
     maskPath.line(to: cornerPoint)
     maskPath.line(to: horizontalLineMaskEndPoint)
 
-    context.saveGState()
-    context.setBlendMode(.destinationOut)
-
-    NSColor.black.setStroke()
-    maskPath.lineWidth = 3.0
-    maskPath.lineCapStyle = .square
-    maskPath.lineJoinStyle = .miter
-    maskPath.stroke()
-
-    context.restoreGState()
+    context.withBlendMode(.destinationOut) {
+      NSColor.black.setStroke()
+      maskPath.lineWidth = 3.0
+      maskPath.lineCapStyle = .square
+      maskPath.lineJoinStyle = .miter
+      maskPath.stroke()
+    }
 
     let linePath = NSBezierPath()
     linePath.move(to: horizontalLineEndPoint)
@@ -777,15 +777,12 @@ final class MeasurementView: NSView {
       }
     }
 
-    context.saveGState()
-    context.setBlendMode(.destinationOut)
-
-    NSColor.black.setStroke()
-    linePath.lineWidth = 3.0
-    linePath.lineCapStyle = .square
-    linePath.stroke()
-
-    context.restoreGState()
+    context.withBlendMode(.destinationOut) {
+      NSColor.black.setStroke()
+      linePath.lineWidth = 3.0
+      linePath.lineCapStyle = .square
+      linePath.stroke()
+    }
 
     Configuration.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
@@ -812,13 +809,10 @@ final class MeasurementView: NSView {
       yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
     )
 
-    context.saveGState()
-    context.setBlendMode(.destinationOut)
-
-    NSColor.black.set()
-    maskPath.fill()
-
-    context.restoreGState()
+    context.withBlendMode(.destinationOut) {
+      NSColor.black.set()
+      maskPath.fill()
+    }
 
     let backgroundPath = NSBezierPath(
       roundedRect: rect,
