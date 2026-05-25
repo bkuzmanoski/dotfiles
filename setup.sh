@@ -148,6 +148,16 @@ if ! (
   exit 1
 fi
 
+log --info "Installing Cargo packages..."
+
+export PATH="/opt/homebrew/opt/rustup/bin:${HOME}/.cargo/bin:${PATH}"
+
+source "${SCRIPT_DIR}/zsh/utils/up.zsh"
+
+if ! cargoup; then
+  log --error "Cargo package installation failed"
+fi
+
 # =============================================================================
 # Link dotfiles
 # =============================================================================

@@ -1,7 +1,6 @@
 brew "bandwhich"
 brew "bat"
 brew "cargo-binstall"
-brew "cargo-update"
 brew "colima"
 brew "create-dmg"
 brew "docker-compose"
@@ -19,8 +18,9 @@ brew "jpegoptim"
 brew "llama.cpp"
 brew "mas"
 brew "oxipng"
+brew "pkgconf"
 brew "ripgrep"
-brew "rust"
+brew "rustup"
 brew "sentry-cli"
 brew "shfmt"
 brew "snitch"
@@ -65,9 +65,6 @@ mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "Xcode", id: 497799835
-
-cargo "shuck-cli"
-cargo "tetro-tui"
 
 cask "font-cozette"
 cask "font-instrument-serif"

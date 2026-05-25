@@ -64,6 +64,8 @@ function zshup() {
     return 0
   fi
 
+  local -i i
+
   for ((i = 1; i <= ${plugin_count}; i++)); do
     local plugin_entry="${ZSH_PLUGINS[i]}"
     local parts=("${(@s:|:)plugin_entry}")
@@ -210,13 +212,69 @@ function fnmup() {
 }
 
 function cargoup() {
-  if ! command -v cargo >/dev/null; then
-    print -u2 -P "%Bcargo%b is not installed."
+  setopt localoptions extendedglob
+
+  local cargo_file_path="${HOME}/.dotfiles/Cargofile"
+
+  if ! command -v rustup >/dev/null; then
+    print -u2 -P "%Brustup%b is not installed."
+    return 1
+  fi
+
+  if ! rustup update stable; then
+    print -u2 "Failed to update Rust toolchain."
+    return 1
+  fi
+
+  print
+
+  if ! command -v cargo-binstall >/dev/null; then
+    print -u2 -P "%Bcargo-binstall%b is not installed."
+    return 1
+  fi
+
+  if [[ ! -f "${cargo_file_path}" ]]; then
+    print -u2 -P "%BCargofile%b not found."
+    return 1
+  fi
+
+  local entries=(${(f)"$(<${cargo_file_path})"})
+  entries=(${entries##[[:space:]]#})
+  entries=(${entries%%[[:space:]]#})
+  entries=(${entries:#[[:space:]]#\#*})
+  entries=(${entries:#[[:space:]]#})
+
+  local -a packages=()
+  local -A binaries
+
+  for entry in "${entries[@]}"; do
+    if [[ "${entry}" == *:* ]]; then
+      local package="${entry%%:*}"
+      local binary="${entry##*:}"
+
+      packages+=("${package}")
+      binaries["${package}"]="${binary}"
+    else
+      packages+=("${entry}")
+      binaries["${entry}"]="${entry}"
+    fi
+  done
+
+  local missing_tools=()
+
+  for tool in "${packages[@]}"; do
+    if ! command -v "${binaries["${tool}"]}" >/dev/null; then
+      missing_tools+=("${tool}")
+    fi
+  done
+
+  if ((${#missing_tools[@]} > 0)) && ! cargo binstall "${missing_tools[@]}" --no-confirm; then
+    print -u2 "\nFailed to install Cargo tools"
     return 1
   fi
 
   if ! cargo install-update -a; then
-    print "\nFailed to update cargo packages."
+    print -u2 "\nFailed to update Cargo packages."
     return 1
   fi
 
@@ -225,6 +283,13 @@ function cargoup() {
 
 function up() {
   local update_task_count=${#UPDATE_TASKS[@]}
+
+  if ((update_task_count == 0)); then
+    print "No update tasks defined."
+    return 0
+  fi
+
+  local -i i
 
   for ((i = 1; i <= update_task_count; i++)); do
     local task="${UPDATE_TASKS[i]}"

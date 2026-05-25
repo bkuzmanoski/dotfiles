@@ -1,0 +1,6 @@
+# Format: <package_name> or <package_name>:<binary_name_if_different>
+
+cargo-update:cargo-install-update
+cargo-watch
+shuck-cli
+tetro-tui
