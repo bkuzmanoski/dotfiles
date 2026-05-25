@@ -296,6 +296,8 @@ function up() {
     local parts=("${(@s:|:)task}")
     local command="${parts[4]}"
 
+    print -P "%B${parts[1]} Updating ${parts[2]}...%b\n"
+
     if ! ${command}; then
       return 1
     fi
