@@ -56,7 +56,7 @@ function check_last_update_time() {
   fi
 }
 
-function zshup() (
+function zshup() {
   local plugin_count=${#ZSH_PLUGINS[@]}
 
   if ((${plugin_count} == 0)); then
@@ -72,17 +72,15 @@ function zshup() (
 
     print -P "Updating %B${plugin}%b...\n"
 
-    (
+    if ! (
       cd "${plugin_dir}"
 
       print -nP '\e[1A\e[2K\r'
 
       git pull
-    )
-
-    if [[ $? -ne 0 ]]; then
+    ); then
       print -u2 "\n${plugin} update failed."
-      exit 1
+      return 1
     fi
 
     if ((i < ${plugin_count})); then
@@ -91,45 +89,38 @@ function zshup() (
   done
 
   _update_timestamps "zsh_plugins_last_update"
-)
+}
 
-function brewup() (
+function brewup() {
   if ! command -v brew >/dev/null; then
     print -u2 -P "%Bbrew%b is not installed."
-    exit 1
+    return 1
   fi
 
-  if ! cd ~/.dotfiles &>/dev/null; then
-    print -u2 -P "%B.dotfiles%b directory not found."
-    exit 1
-  fi
-
-  brew upgrade || {
+  if ! brew upgrade; then
     print -u2 "\nbrew upgrade failed."
-    exit 1
-  }
+    return 1
+  fi
 
-  brew bundle || {
+  if ! brew bundle --global; then
     print -u2 "\nbrew bundle failed."
-    exit 1
-  }
+    return 1
+  fi
 
-  brew autoremove || {
+  if ! brew autoremove; then
     print -u2 "\nbrew autoremove failed."
-    exit 1
-  }
+    return 1
+  fi
 
-  brew cleanup --prune all || {
+  if ! brew cleanup --prune all; then
     print -u2 "\nbrew cleanup failed."
-    exit 1
-  }
+    return 1
+  fi
 
-  print
-
-  brew bundle cleanup
+  brew bundle --global cleanup 2>&1 | awk 'NR==1 {printf "\n"} {print}'
 
   _update_timestamps "brew_last_update"
-)
+}
 
 function fnmup() {
   if ! command -v fnm >/dev/null; then
