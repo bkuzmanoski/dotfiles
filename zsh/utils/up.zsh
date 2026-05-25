@@ -105,24 +105,28 @@ function brewup() (
   fi
 
   brew upgrade || {
-    print "\nbrew upgrade failed."
+    print -u2 "\nbrew upgrade failed."
     exit 1
   }
 
   brew bundle || {
-    print "\nbrew bundle failed."
+    print -u2 "\nbrew bundle failed."
     exit 1
   }
 
   brew autoremove || {
-    print "\nbrew autoremove failed."
+    print -u2 "\nbrew autoremove failed."
     exit 1
   }
 
   brew cleanup --prune all || {
-    print "\nbrew cleanup failed."
+    print -u2 "\nbrew cleanup failed."
     exit 1
   }
+
+  print
+
+  brew bundle cleanup
 
   _update_timestamps "brew_last_update"
 )
