@@ -1,26 +1,15 @@
 import AppKit
+import Carbon.HIToolbox
 
 enum Configuration {
   static let subsystem = "industries.britown.RightCommandHotkeys"
   static let keymap = [
-    CGKeyCode.l: CGKeyCode.leftArrow,
-    CGKeyCode.quote: CGKeyCode.rightArrow,
-    CGKeyCode.p: CGKeyCode.upArrow,
-    CGKeyCode.semicolon: CGKeyCode.downArrow,
-    CGKeyCode.returnKey: CGKeyCode.returnKey
+    CGKeyCode(kVK_ANSI_L): CGKeyCode(kVK_LeftArrow),
+    CGKeyCode(kVK_ANSI_Quote): CGKeyCode(kVK_RightArrow),
+    CGKeyCode(kVK_ANSI_P): CGKeyCode(kVK_UpArrow),
+    CGKeyCode(kVK_ANSI_Semicolon): CGKeyCode(kVK_DownArrow),
+    CGKeyCode(kVK_Return): CGKeyCode(kVK_Return)
   ]
-}
-
-extension CGKeyCode {
-  static let l: CGKeyCode = 37
-  static let quote: CGKeyCode = 39
-  static let p: CGKeyCode = 35
-  static let semicolon: CGKeyCode = 41
-  static let returnKey: CGKeyCode = 36
-  static let leftArrow: CGKeyCode = 123
-  static let rightArrow: CGKeyCode = 124
-  static let upArrow: CGKeyCode = 126
-  static let downArrow: CGKeyCode = 125
 }
 
 extension CGEventFlags {
