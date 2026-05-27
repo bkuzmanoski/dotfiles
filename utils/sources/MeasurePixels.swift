@@ -690,6 +690,7 @@ final class MeasurementView: NSView {
       x: verticalLineEndPoint.x,
       y: verticalLineEndPoint.y + (measurement.verticalDirection == .downward ? 0.5 : -0.5)
     )
+
     let maskPath = NSBezierPath()
 
     Configuration.measurementAreaColor.setFill()
@@ -747,6 +748,19 @@ final class MeasurementView: NSView {
       x: measurement.axis == .vertical ? measurement.endLocation.x + 0.5 : measurement.endLocation.x,
       y: measurement.axis == .horizontal ? measurement.endLocation.y + 0.5 : measurement.endLocation.y
     )
+    let maskStartPoint = NSPoint(
+      x: startPoint.x + (measurement.axis == .horizontal ? 0.5 : 0.0),
+      y: startPoint.y + (measurement.axis == .vertical ? 0.5 : 0.0)
+    )
+    let maskEndPoint = NSPoint(
+      x: endPoint.x + (measurement.axis == .horizontal ? -0.5 : 0.0),
+      y: endPoint.y + (measurement.axis == .vertical ? -0.5 : 0.0)
+    )
+
+    let maskPath = NSBezierPath()
+    maskPath.move(to: maskStartPoint)
+    maskPath.line(to: maskEndPoint)
+
     let linePath = NSBezierPath()
     linePath.move(to: startPoint)
     linePath.line(to: endPoint)
@@ -758,6 +772,13 @@ final class MeasurementView: NSView {
         let trailingEndCapX = endPoint.x - 0.5
         let endCapMinY = startPoint.y - endCapLength
         let endCapMaxY = startPoint.y + endCapLength
+        let maskEndCapMinY = endCapMinY + 0.5
+        let maskEndCapMaxY = endCapMaxY - 0.5
+
+        maskPath.move(to: NSPoint(x: leadingEndCapX, y: maskEndCapMinY))
+        maskPath.line(to: NSPoint(x: leadingEndCapX, y: maskEndCapMaxY))
+        maskPath.move(to: NSPoint(x: trailingEndCapX, y: maskEndCapMinY))
+        maskPath.line(to: NSPoint(x: trailingEndCapX, y: maskEndCapMaxY))
 
         linePath.move(to: NSPoint(x: leadingEndCapX, y: endCapMinY))
         linePath.line(to: NSPoint(x: leadingEndCapX, y: endCapMaxY))
@@ -769,6 +790,13 @@ final class MeasurementView: NSView {
         let bottomEndCapY = startPoint.y + 0.5
         let endCapMinX = startPoint.x - endCapLength
         let endCapMaxX = startPoint.x + endCapLength
+        let maskEndCapMinX = endCapMinX + 0.5
+        let maskEndCapMaxX = endCapMaxX - 0.5
+
+        maskPath.move(to: NSPoint(x: maskEndCapMinX, y: bottomEndCapY))
+        maskPath.line(to: NSPoint(x: maskEndCapMaxX, y: bottomEndCapY))
+        maskPath.move(to: NSPoint(x: maskEndCapMinX, y: topEndCapY))
+        maskPath.line(to: NSPoint(x: maskEndCapMaxX, y: topEndCapY))
 
         linePath.move(to: NSPoint(x: endCapMinX, y: bottomEndCapY))
         linePath.line(to: NSPoint(x: endCapMaxX, y: bottomEndCapY))
@@ -779,14 +807,13 @@ final class MeasurementView: NSView {
 
     context.withBlendMode(.destinationOut) {
       NSColor.black.setStroke()
-      linePath.lineWidth = 3.0
-      linePath.lineCapStyle = .square
-      linePath.stroke()
+      maskPath.lineWidth = 3.0
+      maskPath.lineCapStyle = .square
+      maskPath.stroke()
     }
 
     Configuration.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
-    linePath.lineCapStyle = .butt
     linePath.stroke()
 
     drawLabel(
