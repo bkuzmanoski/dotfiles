@@ -66,6 +66,7 @@ mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "Xcode", id: 497799835
 
+cask "font-commit-mono"
 cask "font-cozette"
 cask "font-departure-mono"
 cask "font-instrument-serif"
