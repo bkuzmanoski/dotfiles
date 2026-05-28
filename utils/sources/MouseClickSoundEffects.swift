@@ -108,8 +108,8 @@ final class ClickMonitor {
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionNotGranted: return "Accessibility permission not granted."
-      case .failedToCreateEventTap: return "Failed to create event tap."
+      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
+      case .failedToCreateEventTap: "Failed to create event tap."
       }
     }
   }
