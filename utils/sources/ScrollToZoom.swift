@@ -2,7 +2,7 @@ import AppKit
 
 enum Configuration {
   static let subsystem = "industries.britown.ScrollToZoom"
-  static let hotkey = CGEventFlags.maskAlternate
+  static let modifierKey: CGEventFlags = .maskCommand
   static let zoomSensitivity = 0.005
   static let reverseZoomDirection = true
 }
@@ -100,7 +100,7 @@ final class ZoomManager {
       return false
     }
 
-    guard event.type == .scrollWheel, event.flags.contains(Configuration.hotkey) else {
+    guard event.type == .scrollWheel, event.flags.contains(Configuration.modifierKey) else {
       guard isZooming else {
         return false
       }
