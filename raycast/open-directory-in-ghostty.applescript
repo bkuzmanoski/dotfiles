@@ -7,15 +7,15 @@
 # @raycast.schemaVersion 1
 
 on getSelectedFolderPath()
-	tell application "Finder"
-		set selectedItems to selection as list
+  tell application "Finder"
+    set selectedItems to selection as list
 
-		if (count of selectedItems) is 1 and class of first item of selectedItems is folder then
-			return POSIX path of (first item of selectedItems as alias)
-		else
-			return POSIX path of (insertion location as alias)
-		end if
-	end tell
+    if (count of selectedItems) is 1 and class of first item of selectedItems is folder then
+      return POSIX path of (first item of selectedItems as alias)
+    else
+      return POSIX path of (insertion location as alias)
+    end if
+  end tell
 end getSelectedFolderPath
 
 set currentPath to getSelectedFolderPath()
