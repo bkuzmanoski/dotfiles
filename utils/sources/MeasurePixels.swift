@@ -973,9 +973,8 @@ final class MeasurementSession {
     }
 
     measurementView.delegate = self
-
-    NSApplication.shared.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
+    NSApplication.shared.activate(ignoringOtherApps: true)
   }
 
   isolated deinit {
