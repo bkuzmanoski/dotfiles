@@ -1106,14 +1106,14 @@ final class MeasurementSession {
   }
 
   private func handleFlagsChanged(_ modifierFlags: NSEvent.ModifierFlags) {
-    let hasOption = modifierFlags.contains(.option)
-    let hasShift = modifierFlags.contains(.shift)
+    let isOptionPressed = modifierFlags.contains(.option)
+    let isShiftPressed = modifierFlags.contains(.shift)
 
     let nextMeasurementMode: MeasurementMode
 
-    if hasOption, hasShift {
+    if isOptionPressed, isShiftPressed {
       nextMeasurementMode = .span(.vertical)
-    } else if hasOption {
+    } else if isOptionPressed {
       nextMeasurementMode = .span(.horizontal)
     } else {
       nextMeasurementMode = .region
