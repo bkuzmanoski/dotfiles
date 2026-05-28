@@ -169,6 +169,15 @@ struct SpanMeasurement: Equatable {
   var formattedString: String { "\(length.compactString)" }
 }
 
+typealias BGRAPixel = UInt32
+
+extension BGRAPixel {
+  var blueComponent: UInt8 { UInt8(self & 0xFF) }
+  var greenComponent: UInt8 { UInt8((self >> 8) & 0xFF) }
+  var redComponent: UInt8 { UInt8((self >> 16) & 0xFF) }
+  var alphaComponent: UInt8 { UInt8((self >> 24) & 0xFF) }
+}
+
 struct ScreenCapture {
   enum Error: Swift.Error, LocalizedError {
     case unsupportedPixelFormat(
@@ -201,14 +210,14 @@ struct ScreenCapture {
 
   init(image: CGImage, displayID: CGDirectDisplayID, scaleFactor: CGFloat) throws {
     guard
-      image.bitmapInfo.byteOrder == .order32Little,
-      image.bitmapInfo.alpha == .premultipliedFirst,
+      image.byteOrderInfo == .order32Little,
+      image.alphaInfo == .premultipliedFirst,
       image.bitsPerPixel == 32,
       image.bitsPerComponent == 8
     else {
       throw Error.unsupportedPixelFormat(
-        byteOrder: image.bitmapInfo.byteOrder,
-        alphaInfo: image.bitmapInfo.alpha,
+        byteOrder: image.byteOrderInfo,
+        alphaInfo: image.alphaInfo,
         bitsPerPixel: image.bitsPerPixel,
         bitsPerComponent: image.bitsPerComponent
       )
@@ -230,52 +239,47 @@ struct ScreenCapture {
     self.pixelDataPointer = pixelDataPointer
   }
 
-  func withUnsafePixelBuffer<R>(_ body: (UnsafeBufferPointer<UInt32>) throws -> R) rethrows -> R {
+  func withUnsafeBGRAPixelBuffer<Result>(_ body: (UnsafeBufferPointer<BGRAPixel>) throws -> Result) rethrows -> Result {
     let pixelCount = height * pixelsPerRow
 
-    return try pixelDataPointer.withMemoryRebound(to: UInt32.self, capacity: pixelCount) { pointer in
+    return try pixelDataPointer.withMemoryRebound(to: BGRAPixel.self, capacity: pixelCount) { pointer in
       let buffer = UnsafeBufferPointer(start: pointer, count: pixelCount)
       return try body(buffer)
     }
   }
 }
 
-extension UnsafeBufferPointer where Element == UInt32 {
-  func exceedsRGBDifferenceThreshold(
-    betweenSliceStartingAt startA: Int,
-    andSliceStartingAt startB: Int,
-    sliceCount: Int,
+extension UnsafeBufferPointer where Element == BGRAPixel {
+  func hasRGBDifference(
+    startingAt startIndex1: Int,
+    and startIndex2: Int,
+    length: Int,
     stride: Int,
-    threshold: Int
+    exceeding threshold: Int
   ) -> Bool {
-    var indexA = startA
-    var indexB = startB
+    var offset1 = startIndex1
+    var offset2 = startIndex2
 
-    for _ in 0..<sliceCount {
-      if rgbDifference(betweenIndex: indexA, andIndex: indexB) > threshold {
+    for _ in 0..<length {
+      if rgbDifference(at: offset1, and: offset2) > threshold {
         return true
       }
 
-      indexA += stride
-      indexB += stride
+      offset1 += stride
+      offset2 += stride
     }
 
     return false
   }
 
-  private func rgbDifference(betweenIndex indexA: Int, andIndex indexB: Int) -> Int {
-    let pixelA = self[indexA]
-    let pixelB = self[indexB]
+  private func rgbDifference(at index1: Int, and index2: Int) -> Int {
+    let pixel1 = self[index1]
+    let pixel2 = self[index2]
 
-    let redA = Int((pixelA >> 16) & 0xFF)
-    let greenA = Int((pixelA >> 8) & 0xFF)
-    let blueA = Int(pixelA & 0xFF)
-
-    let redB = Int((pixelB >> 16) & 0xFF)
-    let greenB = Int((pixelB >> 8) & 0xFF)
-    let blueB = Int(pixelB & 0xFF)
-
-    return abs(redA - redB) + abs(greenA - greenB) + abs(blueA - blueB)
+    return
+      abs(Int(pixel1.redComponent) - Int(pixel2.redComponent))
+      + abs(Int(pixel1.greenComponent) - Int(pixel2.greenComponent))
+      + abs(Int(pixel1.blueComponent) - Int(pixel2.blueComponent))
   }
 }
 
@@ -288,7 +292,7 @@ enum EdgeDetector {
   ) -> (startLocation: CGPoint, endLocation: CGPoint, length: CGFloat) {
     let pixelsPerPoint = Int(screenCapture.scaleFactor)
 
-    return screenCapture.withUnsafePixelBuffer { pixelBuffer in
+    return screenCapture.withUnsafeBGRAPixelBuffer { pixelBuffer in
       switch axis {
       case .horizontal:
         let heightInPoints = CGFloat(screenCapture.height) / screenCapture.scaleFactor
@@ -304,12 +308,12 @@ enum EdgeDetector {
         var previousPixelX = clampedPixelX
 
         for searchPixelX in stride(from: clampedPixelX - 1, through: 0, by: -1) {
-          if pixelBuffer.exceedsRGBDifferenceThreshold(
-            betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
-            andSliceStartingAt: rowStartBufferIndex + searchPixelX,
-            sliceCount: pixelsPerPoint,
+          if pixelBuffer.hasRGBDifference(
+            startingAt: rowStartBufferIndex + previousPixelX,
+            and: rowStartBufferIndex + searchPixelX,
+            length: pixelsPerPoint,
             stride: screenCapture.pixelsPerRow,
-            threshold: rgbDifferenceThreshold
+            exceeding: rgbDifferenceThreshold
           ) {
             break
           }
@@ -323,12 +327,12 @@ enum EdgeDetector {
         var trailingPixelX = clampedPixelX
 
         for searchPixelX in stride(from: clampedPixelX + 1, to: screenCapture.width, by: 1) {
-          if pixelBuffer.exceedsRGBDifferenceThreshold(
-            betweenSliceStartingAt: rowStartBufferIndex + previousPixelX,
-            andSliceStartingAt: rowStartBufferIndex + searchPixelX,
-            sliceCount: pixelsPerPoint,
+          if pixelBuffer.hasRGBDifference(
+            startingAt: rowStartBufferIndex + previousPixelX,
+            and: rowStartBufferIndex + searchPixelX,
+            length: pixelsPerPoint,
             stride: screenCapture.pixelsPerRow,
-            threshold: rgbDifferenceThreshold
+            exceeding: rgbDifferenceThreshold
           ) {
             break
           }
@@ -360,12 +364,12 @@ enum EdgeDetector {
         var previousPixelY = clampedPixelY
 
         for searchPixelY in stride(from: clampedPixelY - 1, through: 0, by: -1) {
-          if pixelBuffer.exceedsRGBDifferenceThreshold(
-            betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
-            andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
-            sliceCount: pixelsPerPoint,
+          if pixelBuffer.hasRGBDifference(
+            startingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            and: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            length: pixelsPerPoint,
             stride: 1,
-            threshold: rgbDifferenceThreshold
+            exceeding: rgbDifferenceThreshold
           ) {
             break
           }
@@ -379,12 +383,12 @@ enum EdgeDetector {
         var bottomPixelY = clampedPixelY
 
         for searchPixelY in stride(from: clampedPixelY + 1, to: screenCapture.height, by: 1) {
-          if pixelBuffer.exceedsRGBDifferenceThreshold(
-            betweenSliceStartingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
-            andSliceStartingAt: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
-            sliceCount: pixelsPerPoint,
+          if pixelBuffer.hasRGBDifference(
+            startingAt: previousPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            and: searchPixelY * screenCapture.pixelsPerRow + columnStartBufferIndex,
+            length: pixelsPerPoint,
             stride: 1,
-            threshold: rgbDifferenceThreshold
+            exceeding: rgbDifferenceThreshold
           ) {
             break
           }
