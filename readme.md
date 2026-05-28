@@ -107,10 +107,11 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
   - Figma
     - Settings
-      - Turn off "Show Figma in Menu Bar"
       - Turn off "Rename duplicated layers"
       - Turn off "Flip objects while resizing"
-      - Set "Big nudge" to 8px
+      - Turn on "Invert Zoom Direction"
+      - Nudge Amount… → Set "Big nudge" to 8px
+      - Turn off "Show Figma in Menu Bar"
 
   - FineTune
     - Settings → Set "Menu Bar Icon" to speaker
