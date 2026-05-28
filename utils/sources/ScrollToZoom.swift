@@ -2,7 +2,7 @@ import AppKit
 
 enum Configuration {
   static let subsystem = "industries.britown.ScrollToZoom"
-  static let modifierKey: CGEventFlags = .maskCommand
+  static let modifierKey: CGEventFlags = .maskAlternate
   static let zoomSensitivity = 0.005
   static let reverseZoomDirection = true
 }
