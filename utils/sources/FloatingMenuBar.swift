@@ -308,13 +308,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
+      ),
+      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
     else {
       FileHandle.standardError.write(Data("Failed to create event tap.\n".utf8))
       exit(EXIT_FAILURE)
     }
-
-    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)

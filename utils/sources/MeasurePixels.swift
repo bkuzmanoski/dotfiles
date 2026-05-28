@@ -468,8 +468,8 @@ final class OverlayWindow: NSWindow {
 
 @MainActor
 protocol MeasurementViewDelegate: AnyObject {
-  func measurementView(_ view: MeasurementView, didMoveMouseTo localPoint: CGPoint)
-  func measurementView(_ view: MeasurementView, didClickAt localPoint: CGPoint)
+  func measurementView(_ view: MeasurementView, didMoveMouseTo locationInWindow: CGPoint)
+  func measurementView(_ view: MeasurementView, didClickAt locationInWindow: CGPoint)
   func measurementView(_ view: MeasurementView, didChangeModifierFlags flags: NSEvent.ModifierFlags)
   func measurementViewDidCancel(_ view: MeasurementView)
   func measurementViewDidRequestUndo(_ view: MeasurementView)
@@ -478,7 +478,6 @@ protocol MeasurementViewDelegate: AnyObject {
 
 @MainActor
 final class MeasurementView: NSView {
-
   private struct Label {
     private static let textAttributes: [NSAttributedString.Key: Any] = [
       .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
@@ -617,11 +616,11 @@ final class MeasurementView: NSView {
 
   override func mouseMoved(with event: NSEvent) {
     NSCursor.screenshotSelection?.set()
-    delegate?.measurementView(self, didMoveMouseTo: convert(event.locationInWindow, from: nil))
+    delegate?.measurementView(self, didMoveMouseTo: event.locationInWindow)
   }
 
   override func mouseDown(with event: NSEvent) {
-    delegate?.measurementView(self, didClickAt: convert(event.locationInWindow, from: nil))
+    delegate?.measurementView(self, didClickAt: event.locationInWindow)
   }
 
   override func flagsChanged(with event: NSEvent) {
@@ -943,13 +942,11 @@ final class MeasurementSession {
     }
 
     let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
-    window.contentView = measurementView
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
-    window.ignoresMouseEvents = false
-    window.isOpaque = false
-    window.hasShadow = false
     window.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
+    window.contentView = measurementView
+    window.ignoresMouseEvents = false
 
     self.overlayWindow = window
     self.appMode = appMode
@@ -1253,12 +1250,12 @@ final class MeasurementSession {
 }
 
 extension MeasurementSession: MeasurementViewDelegate {
-  func measurementView(_ view: MeasurementView, didMoveMouseTo localPoint: CGPoint) {
-    handleMouseMoved(to: localPoint)
+  func measurementView(_ view: MeasurementView, didMoveMouseTo locationInWindow: CGPoint) {
+    handleMouseMoved(to: locationInWindow)
   }
 
-  func measurementView(_ view: MeasurementView, didClickAt localPoint: CGPoint) {
-    handleMouseDown(at: localPoint)
+  func measurementView(_ view: MeasurementView, didClickAt locationInWindow: CGPoint) {
+    handleMouseDown(at: locationInWindow)
   }
 
   func measurementView(_ view: MeasurementView, didChangeModifierFlags flags: NSEvent.ModifierFlags) {

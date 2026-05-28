@@ -649,8 +649,8 @@ final class FocusManager {
   private let workspaceMonitor: WorkspaceMonitor
   private let missionControlMonitor: MissionControlMonitor
   private let debounceTimer: DispatchSourceTimer
-  private var cgEventTap: CFMachPort?
-  private var cgEventRunLoopSource: CFRunLoopSource?
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
   private var observationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
@@ -677,7 +677,7 @@ final class FocusManager {
     self.activeSpaceID = skyLightProxy.activeSpaceID
 
     guard
-      let cgEventTap = CGEvent.tapCreate(
+      let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .listenOnly,
@@ -693,15 +693,14 @@ final class FocusManager {
           return Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
+      ),
+      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
     else {
       throw Error.failedToCreateEventTap
     }
 
-    let cgEventRunLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, cgEventTap, 0)
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), cgEventRunLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: cgEventTap, enable: true)
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
 
     let observationTask = Task { [weak self] in
       await withDiscardingTaskGroup { group in
@@ -716,8 +715,8 @@ final class FocusManager {
 
     debounceTimer.resume()
 
-    self.cgEventTap = cgEventTap
-    self.cgEventRunLoopSource = cgEventRunLoopSource
+    self.eventTap = eventTap
+    self.runLoopSource = runLoopSource
     self.observationTask = observationTask
   }
 
@@ -726,24 +725,24 @@ final class FocusManager {
     observationTask?.cancel()
     focusTask?.cancel()
 
-    if let cgEventTap {
-      CGEvent.tapEnable(tap: cgEventTap, enable: false)
-      CFMachPortInvalidate(cgEventTap)
+    if let eventTap {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
+      CFMachPortInvalidate(eventTap)
     }
 
-    if let cgEventRunLoopSource {
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), cgEventRunLoopSource, .commonModes)
+    if let runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     }
   }
 
   func toggleEnabled() {
-    guard let cgEventTap else {
+    guard let eventTap else {
       return
     }
 
     self.isEnabled.toggle()
 
-    CGEvent.tapEnable(tap: cgEventTap, enable: isEnabled)
+    CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
   }
 
   private func monitorWorkspace() async {
@@ -829,8 +828,8 @@ final class FocusManager {
       }
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if isEnabled, let cgEventTap {
-        CGEvent.tapEnable(tap: cgEventTap, enable: true)
+      if isEnabled, let eventTap {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
     default:
