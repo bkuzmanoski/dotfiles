@@ -869,6 +869,7 @@ enum AppMode: String {
 @MainActor
 final class MeasurementSession {
   enum Error: Swift.Error, LocalizedError {
+    case accessibilityPermissionNotGranted
     case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
     case failedToDetermineSpaceID
@@ -876,6 +877,7 @@ final class MeasurementSession {
 
     var errorDescription: String? {
       switch self {
+      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
       case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
       case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
@@ -933,6 +935,10 @@ final class MeasurementSession {
   }
 
   init(appMode: AppMode, screen: NSScreen) throws {
+    guard AXIsProcessTrustedWithOptions(nil) else {
+      throw Error.accessibilityPermissionNotGranted
+    }
+
     guard CGPreflightScreenCaptureAccess() else {
       throw Error.screenCapturePermissionNotGranted
     }
