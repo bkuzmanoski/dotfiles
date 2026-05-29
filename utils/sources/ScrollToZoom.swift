@@ -61,7 +61,8 @@ final class ZoomManager {
             return Unmanaged.passUnretained(event)
           }
 
-          return Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
+          return
+            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },

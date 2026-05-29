@@ -25,7 +25,8 @@ extension AXUIElement {
 
   func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) -> T? {
     var rawValue: CFTypeRef?
-    return AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue) == .success
+    return
+      AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue) == .success
       ? rawValue as? T
       : nil
   }
@@ -303,7 +304,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return Unmanaged.passUnretained(event)
           }
 
-          return Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
+          return
+            Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
             ? nil
             : Unmanaged.passUnretained(event)
         },

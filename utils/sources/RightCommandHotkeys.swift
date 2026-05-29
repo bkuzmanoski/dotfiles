@@ -51,7 +51,8 @@ final class HotkeyManager {
             return Unmanaged.passUnretained(event)
           }
 
-          return Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleKeyboardEvent(event)
+          return
+            Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleKeyboardEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
