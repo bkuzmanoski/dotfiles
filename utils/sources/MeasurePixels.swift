@@ -967,14 +967,17 @@ final class MeasurementSession {
       let eventTap = CGEvent.tapCreate(
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
-        options: .listenOnly,
+        options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.flagsChanged.rawValue,
         callback: { _, _, event, refcon in
-          if let refcon {
-            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleGlobalFlagsChanged(event.flags)
+          guard let refcon else {
+            return Unmanaged.passUnretained(event)
           }
 
-          return Unmanaged.passUnretained(event)
+          return
+            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleGlobalFlagsChanged(event.flags)
+            ? nil
+            : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       ),
@@ -1087,16 +1090,23 @@ final class MeasurementSession {
     }
   }
 
-  private func handleGlobalFlagsChanged(_ flags: CGEventFlags) {
-    if flags.contains(.maskSecondaryFn) {
-      self.isPassthroughModeEnabled = true
-      NSApplication.shared.hide(nil)
-    } else {
-      self.isPassthroughModeEnabled = false
+  private func handleGlobalFlagsChanged(_ flags: CGEventFlags) -> Bool {
+    guard flags.contains(.maskSecondaryFn) else {
+      if isPassthroughModeEnabled {
+        self.isPassthroughModeEnabled = false
 
-      reactivateAppIfNeeded()
-      handleMouseMoved(to: NSEvent.mouseLocation)
+        reactivateAppIfNeeded()
+        handleMouseMoved(to: NSEvent.mouseLocation)
+      }
+
+      return false
     }
+
+    self.isPassthroughModeEnabled = true
+
+    NSApplication.shared.hide(nil)
+
+    return true
   }
 
   private func handleScreenParametersChanged() {
