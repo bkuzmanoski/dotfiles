@@ -274,6 +274,8 @@ plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifie
 plistbuddy_execute 'Add :"NSToolbar Configuration Browser":"TB Item Identifiers" array' "${HOME}/Library/Preferences/com.apple.finder.plist" # Clear default toolbar items
 plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' "${HOME}/Library/Preferences/com.apple.finder.plist"         #
 
+defaults_write com.apple.HIToolbox AppleFnUsageType -int 0 # Disable showing Emoji & Symbols when pressing 🌐︎ key
+
 defaults_write com.apple.mail AutoReplyFormat -bool true                                                                                        # Use the same message format as the original message when responding
 defaults_write com.apple.mail SendFormat -string "Plain"                                                                                        #
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" UndoSendDelayTime -int 0  #

@@ -579,14 +579,6 @@ final class MeasurementView: NSView {
 
   private var trackingArea: NSTrackingArea?
 
-  override func viewDidMoveToWindow() {
-    super.viewDidMoveToWindow()
-
-    DispatchQueue.main.async {
-      NSCursor.screenshotSelection?.set()
-    }
-  }
-
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
     return true
   }
@@ -610,12 +602,19 @@ final class MeasurementView: NSView {
     self.trackingArea = trackingArea
   }
 
+  override func resetCursorRects() {
+    super.resetCursorRects()
+
+    if let cursor = NSCursor.screenshotSelection {
+      addCursorRect(bounds, cursor: cursor)
+    }
+  }
+
   override func cursorUpdate(with event: NSEvent) {
     NSCursor.screenshotSelection?.set()
   }
 
   override func mouseMoved(with event: NSEvent) {
-    NSCursor.screenshotSelection?.set()
     delegate?.measurementView(self, didMoveMouseTo: event.locationInWindow)
   }
 
@@ -873,12 +872,14 @@ final class MeasurementSession {
     case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
     case failedToDetermineSpaceID
+    case failedToCreateEventTap
 
     var errorDescription: String? {
       switch self {
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
       case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
       case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
+      case .failedToCreateEventTap: "Failed to create event tap."
       }
     }
   }
@@ -900,10 +901,13 @@ final class MeasurementSession {
   private var appMode: AppMode
   private var displayID: CGDirectDisplayID
   private var currentSpaceID: SpaceID
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
   private var workspaceObservationTask: Task<Void, Never>?
   private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
   private var measurementMode: MeasurementMode = .region
+  private var isPassthroughModeEnabled: Bool = false
   private var lastMouseLocation: CGPoint?
   private var lastRegionMeasurement: RegionMeasurement?
 
@@ -952,35 +956,88 @@ final class MeasurementSession {
     self.appMode = appMode
     self.displayID = displayID
     self.currentSpaceID = currentSpaceID
-    self.workspaceObservationTask = Task {
-      await withDiscardingTaskGroup { group in
-        group.addTask { @MainActor [weak self] in
+
+    guard
+      let eventTap = CGEvent.tapCreate(
+        tap: .cgSessionEventTap,
+        place: .headInsertEventTap,
+        options: .listenOnly,
+        eventsOfInterest: 1 << CGEventType.flagsChanged.rawValue,
+        callback: { _, _, event, refcon in
+          if let refcon {
+            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleGlobalFlagsChanged(event.flags)
+          }
+
+          return Unmanaged.passUnretained(event)
+        },
+        userInfo: Unmanaged.passUnretained(self).toOpaque()
+      ),
+      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    else {
+      throw Error.failedToCreateEventTap
+    }
+
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+
+    let workspaceObservationTask = Task {
+      await withDiscardingTaskGroup { [weak self] group in
+        group.addTask {
           for await _ in NotificationCenter.default.notifications(
             named: NSApplication.didChangeScreenParametersNotification
           ) {
-            self?.handleScreenParametersChanged()
+            await self?.handleScreenParametersChanged()
           }
         }
 
-        group.addTask { @MainActor [weak self] in
-          for await _ in NSWorkspace.shared.notificationCenter.notifications(
-            named: NSWorkspace.activeSpaceDidChangeNotification
-          ) {
-            self?.handleActiveSpaceChanged()
+        for notificationName in [
+          NSWorkspace.activeSpaceDidChangeNotification,
+          NSWorkspace.didLaunchApplicationNotification,
+          NSWorkspace.didActivateApplicationNotification
+        ] {
+          group.addTask {
+            for await _ in NSWorkspace.shared.notificationCenter.notifications(named: notificationName) {
+              await MainActor.run {
+                guard let self else {
+                  return
+                }
+
+                if notificationName == NSWorkspace.activeSpaceDidChangeNotification {
+                  self.reactivateApp()
+                  self.handleSpaceChanged()
+                } else {
+                  self.reactivateApp(withDelay: true)
+                }
+              }
+            }
           }
         }
       }
     }
 
+    self.eventTap = eventTap
+    self.runLoopSource = runLoopSource
+    self.workspaceObservationTask = workspaceObservationTask
+
     measurementView.delegate = self
     window.makeKeyAndOrderFront(nil)
-    NSApplication.shared.activate(ignoringOtherApps: true)
+
+    reactivateApp()
   }
 
   isolated deinit {
     overlayWindow.close()
     workspaceObservationTask?.cancel()
     screenCaptureTask?.cancel()
+
+    if let eventTap {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
+      CFMachPortInvalidate(eventTap)
+    }
+
+    if let runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    }
   }
 
   func setAppMode(_ appMode: AppMode) {
@@ -1010,7 +1067,7 @@ final class MeasurementSession {
     self.currentSpaceID = spaceID
 
     overlayWindow.setFrame(screen.frame, display: true)
-    NSApplication.shared.activate(ignoringOtherApps: true)
+    reactivateApp()
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
@@ -1021,6 +1078,18 @@ final class MeasurementSession {
     switch appMode {
     case .single: Configuration.singleModeScreenOverlayColor
     case .continuous: .clear
+    }
+  }
+
+  private func handleGlobalFlagsChanged(_ flags: CGEventFlags) {
+    if flags.contains(.maskSecondaryFn) {
+      self.isPassthroughModeEnabled = true
+      NSApplication.shared.hide(nil)
+    } else {
+      self.isPassthroughModeEnabled = false
+
+      reactivateApp()
+      handleMouseMoved(to: NSEvent.mouseLocation)
     }
   }
 
@@ -1047,7 +1116,7 @@ final class MeasurementSession {
     }
   }
 
-  private func handleActiveSpaceChanged() {
+  private func handleSpaceChanged() {
     guard
       let screen = NSScreen.screen(for: displayID),
       let spaceID = screen.currentSpaceID,
@@ -1057,8 +1126,6 @@ final class MeasurementSession {
     }
 
     self.currentSpaceID = spaceID
-
-    NSApplication.shared.activate(ignoringOtherApps: true)
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
@@ -1204,6 +1271,25 @@ final class MeasurementSession {
     )
 
     self.activeMeasurement = .span(measurement)
+  }
+
+  private func reactivateApp(withDelay delay: Bool = false) {
+    guard !isPassthroughModeEnabled else {
+      return
+    }
+
+    Task { [weak self] in
+      if delay {
+        try? await Task.sleep(for: .milliseconds(300))
+      }
+
+      guard let self else {
+        return
+      }
+
+      NSApplication.shared.activate(ignoringOtherApps: true)
+      overlayWindow.invalidateCursorRects(for: measurementView)
+    }
   }
 
   private func transition(to measurementMode: MeasurementMode) {
