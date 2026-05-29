@@ -1091,22 +1091,22 @@ final class MeasurementSession {
   }
 
   private func handleGlobalFlagsChanged(_ flags: CGEventFlags) -> Bool {
-    guard flags.contains(.maskSecondaryFn) else {
-      if isPassthroughModeEnabled {
-        self.isPassthroughModeEnabled = false
+    if flags.contains(.maskSecondaryFn) {
+      self.isPassthroughModeEnabled = true
 
-        reactivateAppIfNeeded()
-        handleMouseMoved(to: NSEvent.mouseLocation)
-      }
+      NSApplication.shared.hide(nil)
 
-      return false
+      return true
+    } else if isPassthroughModeEnabled {
+      self.isPassthroughModeEnabled = false
+
+      reactivateAppIfNeeded()
+      handleMouseMoved(to: NSEvent.mouseLocation)
+
+      return true
     }
 
-    self.isPassthroughModeEnabled = true
-
-    NSApplication.shared.hide(nil)
-
-    return true
+    return false
   }
 
   private func handleScreenParametersChanged() {
@@ -1188,14 +1188,14 @@ final class MeasurementSession {
   }
 
   private func handleFlagsChanged(_ modifierFlags: NSEvent.ModifierFlags) {
-    let isOptionPressed = modifierFlags.contains(.option)
-    let isShiftPressed = modifierFlags.contains(.shift)
+    let isOptionKeyPressed = modifierFlags.contains(.option)
+    let isShiftKeyPressed = modifierFlags.contains(.shift)
 
     let nextMeasurementMode: MeasurementMode
 
-    if isOptionPressed, isShiftPressed {
+    if isOptionKeyPressed, isShiftKeyPressed {
       nextMeasurementMode = .span(.vertical)
-    } else if isOptionPressed {
+    } else if isOptionKeyPressed {
       nextMeasurementMode = .span(.horizontal)
     } else {
       nextMeasurementMode = .region
