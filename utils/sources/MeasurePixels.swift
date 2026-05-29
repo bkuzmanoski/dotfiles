@@ -1003,10 +1003,10 @@ final class MeasurementSession {
                 }
 
                 if notificationName == NSWorkspace.activeSpaceDidChangeNotification {
-                  self.reactivateApp()
+                  self.reactivateAppIfNeeded()
                   self.handleSpaceChanged()
                 } else {
-                  self.reactivateApp(withDelay: true)
+                  self.reactivateAppIfNeeded(withDelay: true)
                 }
               }
             }
@@ -1022,7 +1022,7 @@ final class MeasurementSession {
     measurementView.delegate = self
     window.makeKeyAndOrderFront(nil)
 
-    reactivateApp()
+    reactivateAppIfNeeded()
   }
 
   isolated deinit {
@@ -1067,7 +1067,7 @@ final class MeasurementSession {
     self.currentSpaceID = spaceID
 
     overlayWindow.setFrame(screen.frame, display: true)
-    reactivateApp()
+    reactivateAppIfNeeded()
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
@@ -1088,7 +1088,7 @@ final class MeasurementSession {
     } else {
       self.isPassthroughModeEnabled = false
 
-      reactivateApp()
+      reactivateAppIfNeeded()
       handleMouseMoved(to: NSEvent.mouseLocation)
     }
   }
@@ -1273,8 +1273,8 @@ final class MeasurementSession {
     self.activeMeasurement = .span(measurement)
   }
 
-  private func reactivateApp(withDelay delay: Bool = false) {
-    guard !isPassthroughModeEnabled else {
+  private func reactivateAppIfNeeded(withDelay delay: Bool = false) {
+    guard !isPassthroughModeEnabled, overlayWindow.frame.contains(NSEvent.mouseLocation) else {
       return
     }
 
