@@ -262,7 +262,6 @@ defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false      
 defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv"                                                                          # Set default view to list view
 defaults_write com.apple.finder NewWindowTarget -string "PfHm"                                                                               # Open new windows in Home folder
 defaults_write com.apple.finder NSUserKeyEquivalents -dict-add "Close All" "@q"                                                              #
-defaults_write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false                                                                  #
 defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false                                                                          #
 defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false                                                                      #
 defaults_write com.apple.finder ShowRecentTags -bool false                                                                                   #
