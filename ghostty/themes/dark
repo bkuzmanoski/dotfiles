@@ -1,8 +1,15 @@
-background = #292929
 foreground = #bbbbbb
+background = #292929
 
+selection-foreground = cell-foreground
 selection-background = #39576a
-selection-foreground = #bbbbbb
+
+search-foreground = cell-foreground
+search-background = #314839
+search-selected-foreground = cell-foreground
+search-selected-background = #4b6153
+
+split-divider-color = #191919
 
 palette = 0=#191919
 palette = 1=#de6e7c
