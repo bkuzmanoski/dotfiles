@@ -965,7 +965,7 @@ final class MeasurementSession {
 
     guard
       let eventTap = CGEvent.tapCreate(
-        tap: .cgSessionEventTap,
+        tap: .cghidEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
         eventsOfInterest: 1 << CGEventType.flagsChanged.rawValue,
