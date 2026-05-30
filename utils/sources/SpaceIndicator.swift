@@ -499,8 +499,11 @@ struct SpaceIndicatorView: View {
 
 @MainActor
 final class StatusItemManager {
-  private var statusItem: NSStatusItem?
+  private static let autosaveName = "space-indicator"
+  private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
+
   private var hostingView: NSHostingView<SpaceIndicatorView>?
+  private var statusItem: NSStatusItem?
   private var lastReportedWidth: CGFloat = .zero
 
   init(spaceMonitor: SpaceMonitor) {
@@ -512,15 +515,24 @@ final class StatusItemManager {
     )
     let hostingView = NSHostingView(rootView: spaceIndicatorView)
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    statusItem.autosaveName = Self.autosaveName
+    statusItem.behavior = .terminationOnRemoval
     statusItem.button?.isEnabled = false
     statusItem.button?.addSubview(hostingView)
-    statusItem.behavior = .terminationOnRemoval
 
-    self.statusItem = statusItem
     self.hostingView = hostingView
+    self.statusItem = statusItem
   }
 
   func toggleVisibility() {
+    let savedPosition = UserDefaults.standard.object(forKey: Self.preferredPositionKey)
+
+    defer {
+      if let savedPosition {
+        UserDefaults.standard.set(savedPosition, forKey: Self.preferredPositionKey)
+      }
+    }
+
     statusItem?.isVisible.toggle()
   }
 

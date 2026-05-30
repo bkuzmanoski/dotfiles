@@ -9,8 +9,8 @@ final class StatusItemManager {
   private let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
   init() {
-    statusItem.button?.isEnabled = false
     statusItem.behavior = .terminationOnRemoval
+    statusItem.button?.isEnabled = false
   }
 
   deinit {
