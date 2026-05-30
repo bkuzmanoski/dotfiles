@@ -499,7 +499,7 @@ struct SpaceIndicatorView: View {
 
 @MainActor
 final class StatusItemManager {
-  private static let autosaveName = "space-indicator"
+  private static let autosaveName = "SpaceIndicator"
   private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
 
   private var hostingView: NSHostingView<SpaceIndicatorView>?
