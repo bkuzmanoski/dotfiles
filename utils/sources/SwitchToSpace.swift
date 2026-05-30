@@ -375,8 +375,8 @@ do {
     let singleInstanceLock = try SingleInstanceLock()
     let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
     let application = NSApplication.shared
-    application.setActivationPolicy(.prohibited)
     application.delegate = delegate
+    application.setActivationPolicy(.prohibited)
     application.run()
   }
 

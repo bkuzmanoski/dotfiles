@@ -1,9 +1,9 @@
 #!/bin/zsh
 
-# @raycast.title Toggle Hide Menu Bar Items
+# @raycast.title Toggle Space Indicator
 # @raycast.packageName Utilities
 # @raycast.icon icons/toggle-menu-bar-item.png
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_util.sh --background HideMenuBarItems toggle
+${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator toggle

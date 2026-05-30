@@ -511,7 +511,6 @@ final class StatusItemManager {
       }
     )
     let hostingView = NSHostingView(rootView: spaceIndicatorView)
-
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.button?.isEnabled = false
     statusItem.button?.addSubview(hostingView)
@@ -521,12 +520,8 @@ final class StatusItemManager {
     self.hostingView = hostingView
   }
 
-  private func setStatusItemVisibility(to isVisible: Bool) {
-    guard let statusItem, statusItem.isVisible != isVisible else {
-      return
-    }
-
-    statusItem.isVisible = isVisible
+  func toggleVisibility() {
+    statusItem?.isVisible.toggle()
   }
 
   private func setStatusItemWidth(to width: CGFloat) {
@@ -598,6 +593,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
+    case .toggle: statusItemManager?.toggleVisibility()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -684,6 +680,7 @@ enum ProcessSignals {
 }
 
 enum IPCCommand: String, CaseIterable {
+  case toggle
   case quit
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
@@ -704,8 +701,8 @@ do {
     let singletonLock = try SingleInstanceLock()
     let delegate = AppDelegate(singletonLock: singletonLock)
     let application = NSApplication.shared
-    application.setActivationPolicy(.accessory)
     application.delegate = delegate
+    application.setActivationPolicy(.accessory)
     application.run()
   }
 
