@@ -975,7 +975,7 @@ final class MeasurementSession {
           }
 
           return
-            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleGlobalFlagsChanged(event.flags)
+            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -1039,13 +1039,10 @@ final class MeasurementSession {
     workspaceObservationTask?.cancel()
     screenCaptureTask?.cancel()
 
-    if let eventTap {
+    if let eventTap, let runLoopSource {
       CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFMachPortInvalidate(eventTap)
-    }
-
-    if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+      CFMachPortInvalidate(eventTap)
     }
   }
 
@@ -1090,13 +1087,22 @@ final class MeasurementSession {
     }
   }
 
-  private func handleGlobalFlagsChanged(_ flags: CGEventFlags) -> Bool {
-    if flags.contains(.maskSecondaryFn) {
+  private func handleEvent(_ event: CGEvent) -> Bool {
+    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
+      if let eventTap {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      return false
+    }
+
+    if event.flags.contains(.maskSecondaryFn) {
       self.isPassthroughModeEnabled = true
 
       NSApplication.shared.hide(nil)
 
       return true
+
     } else if isPassthroughModeEnabled {
       self.isPassthroughModeEnabled = false
 
@@ -1104,9 +1110,10 @@ final class MeasurementSession {
       handleMouseMoved(to: NSEvent.mouseLocation)
 
       return true
-    }
 
-    return false
+    } else {
+      return false
+    }
   }
 
   private func handleScreenParametersChanged() {

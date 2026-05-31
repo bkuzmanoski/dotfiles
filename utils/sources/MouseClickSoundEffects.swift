@@ -163,16 +163,13 @@ final class ClickMonitor {
   }
 
   deinit {
-    if let eventTap {
+    if let eventTap, let runLoopSource {
       if CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: false)
       }
 
-      CFMachPortInvalidate(eventTap)
-    }
-
-    if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+      CFMachPortInvalidate(eventTap)
     }
   }
 

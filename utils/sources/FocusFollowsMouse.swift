@@ -514,13 +514,13 @@ final class MissionControlMonitor {
       throw Error.accessibilityPermissionNotGranted
     }
 
-    try startAXObserver()
+    try startObserver()
 
     let dockRestartObservationTask = Task { [weak self] in
       for await _ in NotificationCenter.default.notifications(
         named: Notification.Name("NSApplicationDockDidRestartNotification")
       ) {
-        try? self?.startAXObserver()
+        try? self?.startObserver()
       }
     }
 
@@ -530,7 +530,7 @@ final class MissionControlMonitor {
   isolated deinit {
     dockRestartObservationTask?.cancel()
     continuation?.finish()
-    stopAXObserverIfNeeded()
+    stopObserverIfNeeded()
   }
 
   func events() -> AsyncStream<Event> {
@@ -543,8 +543,8 @@ final class MissionControlMonitor {
     return stream
   }
 
-  private func startAXObserver() throws {
-    stopAXObserverIfNeeded()
+  private func startObserver() throws {
+    stopObserverIfNeeded()
 
     guard
       let dockPID =
@@ -562,7 +562,7 @@ final class MissionControlMonitor {
         return
       }
 
-      Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleAXNotification(
+      Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleNotification(
         NSAccessibility.Notification(rawValue: notification as String)
       )
     }
@@ -584,7 +584,7 @@ final class MissionControlMonitor {
       let error = AXObserverAddNotification(axObserver, dockElement, notification as CFString, selfPointer)
 
       guard error == .success else {
-        stopAXObserverIfNeeded()
+        stopObserverIfNeeded()
         throw Error.failedToAddNotification(notification: notification, code: error)
       }
 
@@ -600,7 +600,7 @@ final class MissionControlMonitor {
     self.runLoopSource = runLoopSource
   }
 
-  private func stopAXObserverIfNeeded() {
+  private func stopObserverIfNeeded() {
     if let axObserver, let dockElement {
       observedNotifications.forEach { notification in
         AXObserverRemoveNotification(axObserver, dockElement, notification as CFString)
@@ -617,7 +617,7 @@ final class MissionControlMonitor {
     self.runLoopSource = nil
   }
 
-  private func handleAXNotification(_ notification: NSAccessibility.Notification) {
+  private func handleNotification(_ notification: NSAccessibility.Notification) {
     guard let continuation else {
       return
     }
@@ -726,24 +726,19 @@ final class FocusManager {
     observationTask?.cancel()
     focusTask?.cancel()
 
-    if let eventTap {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFMachPortInvalidate(eventTap)
-    }
+    if let eventTap, let runLoopSource {
+      if CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: false)
+      }
 
-    if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+      CFMachPortInvalidate(eventTap)
     }
   }
 
   func toggleEnabled() {
-    guard let eventTap else {
-      return
-    }
-
     self.isEnabled.toggle()
-
-    CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
+    updateEventTapState()
   }
 
   private func monitorWorkspace() async {
@@ -796,6 +791,14 @@ final class FocusManager {
     }
   }
 
+  private func updateEventTapState() {
+    guard let eventTap, CGEvent.tapIsEnabled(tap: eventTap) != isEnabled else {
+      return
+    }
+
+    CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
+  }
+
   private func handleCGEvent(_ event: CGEvent) {
     switch event.type {
     case .mouseMoved:
@@ -829,9 +832,7 @@ final class FocusManager {
       }
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if isEnabled, let eventTap {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
+      updateEventTapState()
 
     default:
       break

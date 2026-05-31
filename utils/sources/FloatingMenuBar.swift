@@ -328,14 +328,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    if let eventTap {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFMachPortInvalidate(eventTap)
+    guard let eventTap, let runLoopSource else {
+      return
     }
 
-    if let runLoopSource {
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    }
+    CGEvent.tapEnable(tap: eventTap, enable: false)
+    CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CFMachPortInvalidate(eventTap)
   }
 
   private func handleEvent(ofType type: CGEventType) -> Bool {
@@ -345,7 +344,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return true
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+      if let eventTap {
         CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 

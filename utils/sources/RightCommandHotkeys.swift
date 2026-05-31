@@ -52,7 +52,7 @@ final class HotkeyManager {
           }
 
           return
-            Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleKeyboardEvent(event)
+            Unmanaged<HotkeyManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -71,19 +71,16 @@ final class HotkeyManager {
   }
 
   deinit {
-    if let eventTap {
+    if let eventTap, let runLoopSource {
       CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFMachPortInvalidate(eventTap)
-    }
-
-    if let runLoopSource {
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+      CFMachPortInvalidate(eventTap)
     }
   }
 
-  private func handleKeyboardEvent(_ event: CGEvent) -> Bool {
+  private func handleEvent(_ event: CGEvent) -> Bool {
     guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
-      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+      if let eventTap {
         CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
