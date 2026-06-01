@@ -1,5 +1,20 @@
 import AppKit
 
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
+}
+
 struct HexIntegerFormatStyle<Value: BinaryInteger>: FormatStyle {
   typealias FormatInput = Value
   typealias FormatOutput = String
@@ -72,7 +87,7 @@ extension NSColor {
 }
 
 func printUsageErrorAndExit(_ message: String) -> Never {
-  FileHandle.standardError.write(Data("\(message)\n\n\(usageDescription)\n".utf8))
+  print("\(message)\n\n\(usageDescription)", to: &FileOutputStream.standardError)
   exit(EX_USAGE)
 }
 
@@ -120,7 +135,7 @@ while let argument = arguments.next() {
 NSColorSampler().show { color in
   if let color {
     guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
-      FileHandle.standardError.write(Data("Failed to convert color to the specified color space.\n".utf8))
+      print("Failed to convert color to the specified color space.", to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 

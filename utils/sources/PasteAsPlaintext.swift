@@ -1,5 +1,20 @@
 import AppKit
 
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
+}
+
 let pasteboard = NSPasteboard.general
 
 guard
@@ -14,7 +29,7 @@ guard
   let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: true),
   let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: false)
 else {
-  FileHandle.standardError.write(Data("Failed to create CGEvent for paste action.\n".utf8))
+  print("Failed to create CGEvent for paste action.", to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }
 

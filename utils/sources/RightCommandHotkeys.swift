@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import System
 
 enum Configuration {
   static let subsystem = "industries.britown.RightCommandHotkeys"
@@ -12,6 +13,95 @@ enum Configuration {
   ]
 }
 
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
+}
+
+final class SingleInstanceLock {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(underlyingError: Errno)
+
+    var description: String {
+      switch self {
+      case .instanceAlreadyRunning: "Another instance is already running."
+      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
+      }
+    }
+  }
+
+  private var lockFileDescriptor: FileDescriptor
+
+  init(subsystem: String) throws {
+    do {
+      self.lockFileDescriptor = try FileDescriptor.open(
+        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
+        .readWrite,
+        options: [.create, .exclusiveLock, .nonBlocking],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+    } catch let errno as Errno {
+      switch errno {
+      case .wouldBlock, .resourceTemporarilyUnavailable: throw Error.instanceAlreadyRunning
+      default: throw Error.failedToAcquireLock(underlyingError: errno)
+      }
+    }
+  }
+
+  deinit {
+    do {
+      try lockFileDescriptor.close()
+    } catch {
+      print("Failed to close lock file descriptor: \(error)", to: &FileOutputStream.standardError)
+    }
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
 extension CGEventFlags {
   static let maskLeftCommand = CGEventFlags(rawValue: 0x08)
   static let maskRightCommand = CGEventFlags(rawValue: 0x10)
@@ -19,26 +109,31 @@ extension CGEventFlags {
 
 @MainActor
 final class HotkeyManager {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case accessibilityPermissionNotGranted
     case failedToCreateEventTap
+    case failedToCreateRunLoopSource
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .failedToCreateEventTap: "Failed to create event tap."
+      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
       }
     }
   }
 
+  private let keymap: [CGKeyCode: CGKeyCode]
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var activeHotkeys: [CGKeyCode: CGKeyCode] = [:]
 
-  init() throws {
+  init(keymap: [CGKeyCode: CGKeyCode]) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionNotGranted
     }
+
+    self.keymap = keymap
 
     guard
       let eventTap = CGEvent.tapCreate(
@@ -57,10 +152,14 @@ final class HotkeyManager {
             : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      ),
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+      )
     else {
       throw Error.failedToCreateEventTap
+    }
+
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      CFMachPortInvalidate(eventTap)
+      throw Error.failedToCreateRunLoopSource
     }
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -96,7 +195,7 @@ final class HotkeyManager {
       activeHotkeys[keyCode] = nil
       mappedKeyCode = activeHotkey
 
-    } else if isKeyDown, event.flags.contains(.maskRightCommand), let mappedCode = Configuration.keymap[keyCode] {
+    } else if isKeyDown, event.flags.contains(.maskRightCommand), let mappedCode = keymap[keyCode] {
       activeHotkeys[keyCode] = mappedCode
       mappedKeyCode = mappedCode
 
@@ -135,9 +234,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      self.hotkeyManager = try HotkeyManager()
+      self.hotkeyManager = try HotkeyManager(keymap: Configuration.keymap)
     } catch {
-      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+      print(error, to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
@@ -155,9 +254,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeIPCCommands() {
     Task {
-      let notificationCenter = DistributedNotificationCenter.default()
-
-      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
+      for await notification
+        in DistributedNotificationCenter
+        .default()
+        .notifications(named: IPCCommand.notificationName)
+      {
         guard
           let userInfo = notification.userInfo,
           let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
@@ -173,92 +274,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
+    case .printLog: break
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
 }
 
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
-    "\(Configuration.subsystem).lock"
-  ).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let lockFileDescriptor = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard lockFileDescriptor != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(lockFileDescriptor, LOCK_EX | LOCK_NB) != -1 else {
-      let flockErrno = errno
-
-      close(lockFileDescriptor)
-
-      guard flockErrno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: flockErrno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = lockFileDescriptor
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
 enum IPCCommand: String, CaseIterable {
+  case printLog = "print-log"
   case quit
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
@@ -276,7 +299,31 @@ enum IPCCommand: String, CaseIterable {
 
 do {
   try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock()
+    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
+
+    if isatty(STDOUT_FILENO) == 0 {
+      do {
+        let fd = try FileDescriptor.open(
+          FilePath(
+            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
+          ),
+          .writeOnly,
+          options: [.create, .truncate],
+          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+        )
+
+        try fd.closeAfter {
+          _ = try fd.duplicate(as: .standardOutput)
+          _ = try fd.duplicate(as: .standardError)
+        }
+
+        setvbuf(stdout, nil, _IONBF, 0)
+        setvbuf(stderr, nil, _IONBF, 0)
+      } catch {
+        print("Failed to redirect output: \(error)", to: &FileOutputStream.standardError)
+      }
+    }
+
     let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
     let application = NSApplication.shared
     application.delegate = delegate
@@ -291,25 +338,49 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    FileHandle.standardError.write(Data("Already running.\n\n\(usageDescription)\n".utf8))
+    print("Already running.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+    print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    FileHandle.standardError.write(Data("Unknown command.\n\n\(usageDescription)\n".utf8))
+    print("Unknown command.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
-  ipcCommand.send()
+  if case .printLog = ipcCommand {
+    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
+
+    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
+      print("Log file does not exist.", to: &FileOutputStream.standardError)
+      exit(EX_NOINPUT)
+    }
+
+    print("Log file path: \(logFileURL.path)\n")
+
+    do {
+      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
+
+      if logContents.isEmpty {
+        print("<EMPTY>")
+      } else {
+        print(logContents)
+      }
+    } catch {
+      print("Failed to read log file: \(error)", to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+  } else {
+    ipcCommand.send()
+  }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  print(error, to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }

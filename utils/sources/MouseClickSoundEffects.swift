@@ -1,15 +1,126 @@
 import AppKit
 import AudioToolbox
+import System
 
 enum Configuration {
   static let subsystem = "industries.britown.MouseClickSoundEffects"
   static let soundFileDirectoryPath = "~/.dotfiles/utils/assets"
 }
 
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
+}
+
+final class SingleInstanceLock {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(underlyingError: Errno)
+
+    var description: String {
+      switch self {
+      case .instanceAlreadyRunning: "Another instance is already running."
+      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
+      }
+    }
+  }
+
+  private var lockFileDescriptor: FileDescriptor
+
+  init(subsystem: String) throws {
+    do {
+      self.lockFileDescriptor = try FileDescriptor.open(
+        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
+        .readWrite,
+        options: [.create, .exclusiveLock, .nonBlocking],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+    } catch let errno as Errno {
+      switch errno {
+      case .wouldBlock, .resourceTemporarilyUnavailable: throw Error.instanceAlreadyRunning
+      default: throw Error.failedToAcquireLock(underlyingError: errno)
+      }
+    }
+  }
+
+  deinit {
+    do {
+      try lockFileDescriptor.close()
+    } catch {
+      print("Failed to close lock file descriptor: \(error)", to: &FileOutputStream.standardError)
+    }
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
 typealias AudioDeviceTransportType = UInt32
 
 extension AudioDeviceTransportType {
   var isBluetooth: Bool { self == kAudioDeviceTransportTypeBluetooth || self == kAudioDeviceTransportTypeBluetoothLE }
+}
+
+extension OSStatus {
+  var fourCharCodeString: String? {
+    let bytes = [
+      UInt8((self >> 24) & 0xFF),
+      UInt8((self >> 16) & 0xFF),
+      UInt8((self >> 8) & 0xFF),
+      UInt8(self & 0xFF)
+    ]
+
+    guard bytes.allSatisfy({ $0 >= 0x20 && $0 <= 0x7e }) else {
+      return nil
+    }
+
+    let scalars = bytes.compactMap { UnicodeScalar($0) }
+
+    return String(String.UnicodeScalarView(scalars))
+  }
+
+  var statusDescription: String { fourCharCodeString.map { "\($0) (\(self))" } ?? String(self) }
 }
 
 enum SoundEffect: CaseIterable, CustomStringConvertible {
@@ -38,24 +149,34 @@ enum SoundEffect: CaseIterable, CustomStringConvertible {
 }
 
 final class SoundEffectManager {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case soundFileDirectoryNotFound(path: String)
+    case invalidSoundFileDirectoryPath(String)
     case soundFileNotFound(soundEffect: SoundEffect, path: String)
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
-      case .soundFileNotFound(let soundEffect, let path): "Sound file for \(soundEffect) not found at path: \(path)"
+      case .soundFileDirectoryNotFound(let path): "Sound file directory not found at path: \(path)"
+      case .invalidSoundFileDirectoryPath(let path): "Invalid sound file directory path (not a directory): \(path)"
+      case .soundFileNotFound(let soundEffect, let path): "Sound file for '\(soundEffect)' not found at path: \(path)"
       }
     }
   }
 
   private let systemSoundIDs: [SoundEffect: SystemSoundID]
 
-  init() throws {
+  init(soundFileDirectoryURL: URL) throws {
+    guard FileManager.default.fileExists(atPath: soundFileDirectoryURL.path) else {
+      throw Error.soundFileDirectoryNotFound(path: soundFileDirectoryURL.path)
+    }
+
+    guard soundFileDirectoryURL.hasDirectoryPath else {
+      throw Error.invalidSoundFileDirectoryPath(soundFileDirectoryURL.path)
+    }
+
     var systemSoundIDs: [SoundEffect: SystemSoundID] = [:]
 
     do {
-      let soundFileDirectoryURL = URL(fileURLWithPath: Configuration.soundFileDirectoryPath, isDirectory: true)
-
       for soundEffect in SoundEffect.allCases {
         systemSoundIDs[soundEffect] = try Self.load(soundEffect: soundEffect, from: soundFileDirectoryURL)
       }
@@ -102,14 +223,16 @@ final class SoundEffectManager {
 
 @MainActor
 final class ClickMonitor {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case accessibilityPermissionNotGranted
     case failedToCreateEventTap
+    case failedToCreateRunLoopSource
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .failedToCreateEventTap: "Failed to create event tap."
+      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
       }
     }
   }
@@ -148,10 +271,14 @@ final class ClickMonitor {
           return Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      ),
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+      )
     else {
       throw Error.failedToCreateEventTap
+    }
+
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      CFMachPortInvalidate(eventTap)
+      throw Error.failedToCreateRunLoopSource
     }
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -226,21 +353,21 @@ final class ClickMonitor {
 }
 
 final class SystemOutputDeviceObserver {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case failedToDetermineOutputDevice(status: OSStatus)
     case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
     case failedToObserveOutputDeviceChanges(status: OSStatus)
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .failedToDetermineOutputDevice(let status):
-        "Failed to determine the output audio device (\(status))."
+        "Failed to determine the output audio device: \(status.statusDescription)"
 
       case .failedToDetermineDeviceTransportType(let deviceID, let status):
-        "Failed to determine the transport type for device \(deviceID) (\(status))."
+        "Failed to determine the transport type for device '\(deviceID)': \(status.statusDescription)"
 
       case .failedToObserveOutputDeviceChanges(let status):
-        "Failed to observe output device changes (\(status))."
+        "Failed to observe output device changes: \(status.statusDescription)"
       }
     }
   }
@@ -338,7 +465,15 @@ final class SystemOutputDeviceObserver {
   }
 
   private func handleOutputDeviceChanged() {
-    let transportType = (try? currentTransportType()) ?? kAudioDeviceTransportTypeUnknown
+    let transportType: AudioDeviceTransportType
+
+    do {
+      transportType = try currentTransportType()
+    } catch {
+      print(error, to: &FileOutputStream.standardError)
+      transportType = kAudioDeviceTransportTypeUnknown
+    }
+
     onTransportTypeChanged(transportType)
   }
 }
@@ -360,7 +495,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.clickMonitor?.setSuspended(transportType.isBluetooth)
       }
 
-      let soundEffectManager = try SoundEffectManager()
+      let soundEffectManager = try SoundEffectManager(
+        soundFileDirectoryURL: URL(fileURLWithPath: Configuration.soundFileDirectoryPath, isDirectory: true)
+      )
       let clickMonitor = try ClickMonitor(
         soundEffectManager: soundEffectManager,
         isSuspended: systemOutputDeviceObserver.currentTransportType().isBluetooth
@@ -369,7 +506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self.systemOutputDeviceObserver = systemOutputDeviceObserver
       self.clickMonitor = clickMonitor
     } catch {
-      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+      print(error, to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
@@ -387,9 +524,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeIPCCommands() {
     Task {
-      let notificationCenter = DistributedNotificationCenter.default()
-
-      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
+      for await notification
+        in DistributedNotificationCenter
+        .default()
+        .notifications(named: IPCCommand.notificationName)
+      {
         guard
           let userInfo = notification.userInfo,
           let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
@@ -406,93 +545,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: clickMonitor?.toggleEnabled()
+    case .printLog: break
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
 }
 
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
-    "\(Configuration.subsystem).lock"
-  ).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let lockFileDescriptor = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard lockFileDescriptor != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(lockFileDescriptor, LOCK_EX | LOCK_NB) != -1 else {
-      let flockErrno = errno
-
-      close(lockFileDescriptor)
-
-      guard flockErrno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: flockErrno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = lockFileDescriptor
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
 enum IPCCommand: String, CaseIterable {
   case toggle
+  case printLog = "print-log"
   case quit
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
@@ -510,7 +571,31 @@ enum IPCCommand: String, CaseIterable {
 
 do {
   try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock()
+    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
+
+    if isatty(STDOUT_FILENO) == 0 {
+      do {
+        let fd = try FileDescriptor.open(
+          FilePath(
+            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
+          ),
+          .writeOnly,
+          options: [.create, .truncate],
+          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+        )
+
+        try fd.closeAfter {
+          _ = try fd.duplicate(as: .standardOutput)
+          _ = try fd.duplicate(as: .standardError)
+        }
+
+        setvbuf(stdout, nil, _IONBF, 0)
+        setvbuf(stderr, nil, _IONBF, 0)
+      } catch {
+        print("Failed to redirect output: \(error)", to: &FileOutputStream.standardError)
+      }
+    }
+
     let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
     let application = NSApplication.shared
     application.delegate = delegate
@@ -525,25 +610,49 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    FileHandle.standardError.write(Data("Already running.\n\n\(usageDescription)\n".utf8))
+    print("Already running.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+    print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    FileHandle.standardError.write(Data("Unknown command.\n\n\(usageDescription)\n".utf8))
+    print("Unknown command.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
-  ipcCommand.send()
+  if case .printLog = ipcCommand {
+    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
+
+    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
+      print("Log file does not exist.", to: &FileOutputStream.standardError)
+      exit(EX_NOINPUT)
+    }
+
+    print("Log file path: \(logFileURL.path)\n")
+
+    do {
+      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
+
+      if logContents.isEmpty {
+        print("<EMPTY>")
+      } else {
+        print(logContents)
+      }
+    } catch {
+      print("Failed to read log file: \(error)", to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+  } else {
+    ipcCommand.send()
+  }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  print(error, to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }

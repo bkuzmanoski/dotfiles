@@ -1,135 +1,302 @@
 import AppKit
+import System
 
 enum Configuration {
   static let subsystem = "industries.britown.FloatingMenuBar"
+  static let minimumMenuWidth: CGFloat = 160.0
   static let modifierKey = CGEventFlags.maskCommand
 }
 
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
+}
+
+final class SingleInstanceLock {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case instanceAlreadyRunning
+    case failedToAcquireLock(underlyingError: Errno)
+
+    var description: String {
+      switch self {
+      case .instanceAlreadyRunning: "Another instance is already running."
+      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
+      }
+    }
+  }
+
+  private var lockFileDescriptor: FileDescriptor
+
+  init(subsystem: String) throws {
+    do {
+      self.lockFileDescriptor = try FileDescriptor.open(
+        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
+        .readWrite,
+        options: [.create, .exclusiveLock, .nonBlocking],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+    } catch let errno as Errno {
+      switch errno {
+      case .wouldBlock, .resourceTemporarilyUnavailable: throw Error.instanceAlreadyRunning
+      default: throw Error.failedToAcquireLock(underlyingError: errno)
+      }
+    }
+  }
+
+  deinit {
+    do {
+      try lockFileDescriptor.close()
+    } catch {
+      print("Failed to close lock file descriptor: \(error)", to: &FileOutputStream.standardError)
+    }
+  }
+}
+
+enum ProcessSignals {
+  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
+    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+
+    var sources: [any DispatchSourceSignal] = []
+    sources.reserveCapacity(signals.count)
+
+    for signal in signals {
+      Darwin.signal(signal, SIG_IGN)
+
+      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
+
+      source.setEventHandler {
+        continuation.yield(signal)
+      }
+
+      source.setCancelHandler {
+        Darwin.signal(signal, SIG_DFL)
+      }
+
+      source.resume()
+      sources.append(source)
+    }
+
+    continuation.onTermination = { [sources] _ in
+      sources.forEach { source in
+        source.cancel()
+      }
+    }
+
+    return stream
+  }
+}
+
 extension AXUIElement {
-  var children: [AXUIElement]? {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case typeMismatch
+
+    var description: String {
+      switch self {
+      case .typeMismatch: "Returned value type does not match expected type."
+      }
+    }
+  }
+
+  static let systemWideElement = AXUIElementCreateSystemWide()
+
+  static func setGlobalMessagingTimeout(seconds timeoutInSeconds: Float) {
+    AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
+  }
+
+  func children() throws -> [AXUIElement]? {
     var valuesRef: CFArray?
-    return AXUIElementCopyAttributeValues(
+
+    try AXUIElementCopyAttributeValues(
       self,
       NSAccessibility.Attribute.children.rawValue as CFString,
       0,
       Int.max,
       &valuesRef
-    ) == .success
-      ? valuesRef as? [AXUIElement]
-      : nil
+    ).throwIfFailed()
+
+    return valuesRef as? [AXUIElement]
   }
 
   static func element(for pid: pid_t) -> AXUIElement {
     return AXUIElementCreateApplication(pid)
   }
 
-  func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) -> T? {
+  func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) throws -> T {
     var rawValue: CFTypeRef?
-    return
-      AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue) == .success
-      ? rawValue as? T
-      : nil
+
+    try AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue).throwIfFailed()
+
+    guard let value = rawValue as? T else {
+      throw Error.typeMismatch
+    }
+
+    return value
   }
 
-  func values(for attributes: [NSAccessibility.Attribute]) -> [NSAccessibility.Attribute: Any]? {
+  func values(for attributes: [NSAccessibility.Attribute]) throws -> [NSAccessibility.Attribute: Any]? {
     var rawValues: CFArray?
-    return AXUIElementCopyMultipleAttributeValues(
+
+    try AXUIElementCopyMultipleAttributeValues(
       self,
       attributes.map { $0.rawValue as CFString } as CFArray,
       AXCopyMultipleAttributeOptions(rawValue: 0),
       &rawValues
-    ) == .success
-      ? (rawValues as? [AnyObject]).map { Dictionary(uniqueKeysWithValues: zip(attributes, $0)) }
-      : nil
+    ).throwIfFailed()
+
+    return (rawValues as? [AnyObject]).map { Dictionary(uniqueKeysWithValues: zip(attributes, $0)) }
   }
 
-  @discardableResult
-  func performAction(_ action: NSAccessibility.Action) -> AXError {
-    return AXUIElementPerformAction(self, action.rawValue as CFString)
+  func performAction(_ action: NSAccessibility.Action) throws {
+    try AXUIElementPerformAction(self, action.rawValue as CFString).throwIfFailed()
+  }
+}
+
+extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive CustomStringConvertible {
+  public var description: String {
+    let message: String
+
+    switch (self) {
+    case .success: message = "Success"
+    case .failure: message = "Failure"
+    case .illegalArgument: message = "Illegal argument"
+    case .invalidUIElement: message = "Invalid UI element"
+    case .invalidUIElementObserver: message = "Invalid UI element observer"
+    case .cannotComplete: message = "Cannot complete"
+    case .attributeUnsupported: message = "Attribute unsupported"
+    case .actionUnsupported: message = "Action unsupported"
+    case .notificationUnsupported: message = "Notification unsupported"
+    case .notImplemented: message = "Not implemented"
+    case .notificationAlreadyRegistered: message = "Notification already registered"
+    case .notificationNotRegistered: message = "Notification not registered"
+    case .apiDisabled: message = "API disabled"
+    case .noValue: message = "No value"
+    case .parameterizedAttributeUnsupported: message = "Parameterized attribute unsupported"
+    case .notEnoughPrecision: message = "Not enough precision"
+    @unknown default: message = "Unknown error"
+    }
+
+    return "\(message) (\(self.rawValue))"
+  }
+}
+
+extension AXError {
+  func throwIfFailed() throws {
+    if self != .success {
+      throw self
+    }
   }
 }
 
 extension NSAccessibility.Attribute {
-  static let menuItemCommandCharacter = Self(rawValue: "AXMenuItemCmdChar")
-  static let menuItemMarkCharacter = Self(rawValue: "AXMenuItemMarkChar")
-  static let menuItemCommandModifiers = Self(rawValue: "AXMenuItemCmdModifiers")
+  static let menuItemCommandCharacter = NSAccessibility.Attribute(rawValue: kAXMenuItemCmdCharAttribute)
+  static let menuItemCommandModifiers = NSAccessibility.Attribute(rawValue: kAXMenuItemCmdModifiersAttribute)
+  static let menuItemMarkCharacter = NSAccessibility.Attribute(rawValue: kAXMenuItemMarkCharAttribute)
 }
 
 extension NSEvent.ModifierFlags {
-  init(fromAXCommandModifiers axModifiers: UInt32?) {
-    self = []
-
-    guard let axModifiers else {
-      return
-    }
-
-    if (axModifiers & AXMenuItemModifiers.shift.rawValue) != 0 {
-      self.insert(.shift)
-    }
-
-    if (axModifiers & AXMenuItemModifiers.option.rawValue) != 0 {
-      self.insert(.option)
-    }
-
-    if (axModifiers & AXMenuItemModifiers.control.rawValue) != 0 {
-      self.insert(.control)
-    }
-
-    if (axModifiers & AXMenuItemModifiers.noCommand.rawValue) == 0 {
-      self.insert(.command)
-    }
-  }
-}
-
-extension NSFont {
-  static func boldSystemFont(ofSize size: CGFloat) -> NSFont {
-    return NSFontManager.shared.convert(NSFont.systemFont(ofSize: size), toHaveTrait: .boldFontMask)
+  init(axMenuItemModifiers: AXMenuItemModifiers) {
+    self.init(
+      [
+        axMenuItemModifiers.contains(.shift) ? .shift : nil,
+        axMenuItemModifiers.contains(.option) ? .option : nil,
+        axMenuItemModifiers.contains(.control) ? .control : nil,
+        axMenuItemModifiers.contains(.noCommand) ? nil : .command
+      ]
+      .compactMap { $0 }
+    )
   }
 }
 
 @MainActor
 final class AppMenu {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case accessibilityPermissionNotGranted
+    case failedToRetrieveMenuBarElement(application: NSRunningApplication, underlyingError: Swift.Error)
+    case failedToBuildMenu(application: NSRunningApplication, underlyingError: Swift.Error)
+
+    var description: String {
+      switch self {
+      case .accessibilityPermissionNotGranted:
+        "Accessibility permission not granted."
+
+      case .failedToRetrieveMenuBarElement(let application, let underlyingError):
+        "Failed to retrieve menu bar element for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError)"
+
+      case .failedToBuildMenu(let application, let underlyingError):
+        "Failed to build menu for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError)"
+      }
+    }
+  }
+
+  private static let appMenuFont = NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)
+
   private struct MenuItemData {
     let title: String
     let isEnabled: Bool
-    let markCharacter: String?
     let commandCharacter: String?
     let commandModifiers: UInt32?
+    let markCharacter: String?
     let children: [AXUIElement]?
   }
 
-  static func popUp(at location: NSPoint) throws {
-    guard let appMenu = buildAppMenu() else {
+  static func popUp(at location: NSPoint, minimumWidth: CGFloat? = nil) throws {
+    guard AXIsProcessTrustedWithOptions(nil) else {
+      throw Error.accessibilityPermissionNotGranted
+    }
+
+    guard let application = NSWorkspace.shared.menuBarOwningApplication else {
       return
     }
 
-    appMenu.popUp(positioning: nil, at: location, in: nil)
-  }
+    let menuBarElement: AXUIElement?
 
-  private static func buildAppMenu() -> NSMenu? {
-    guard
-      AXIsProcessTrustedWithOptions(nil),
-      let activeApp = NSWorkspace.shared.menuBarOwningApplication,
-      let menuBarElement = AXUIElement.element(for: activeApp.processIdentifier).value(for: .menuBar) as AXUIElement?
-    else {
-      return nil
+    do {
+      menuBarElement = try AXUIElement.element(for: application.processIdentifier).value(for: .menuBar) as AXUIElement
+    } catch {
+      throw Error.failedToRetrieveMenuBarElement(application: application, underlyingError: error)
     }
 
-    let appMenu = buildMenu(from: menuBarElement)
+    do {
+      guard
+        let menuBarElement,
+        let appMenu = try buildMenu(from: menuBarElement, skipFirstChild: true, minimumWidth: minimumWidth),
+        let mainAppMenuItem = appMenu.items.first
+      else {
+        return
+      }
 
-    if let mainAppMenuItem = appMenu?.items.first {
       mainAppMenuItem.attributedTitle = NSAttributedString(
         string: mainAppMenuItem.title,
-        attributes: [.font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize)]
+        attributes: [.font: appMenuFont]
       )
+      appMenu.popUp(positioning: nil, at: location, in: nil)
+    } catch {
+      throw Error.failedToBuildMenu(application: application, underlyingError: error)
     }
-
-    return appMenu
   }
 
-  private static func buildMenu(from element: AXUIElement, isSubmenu: Bool = false) -> NSMenu? {
-    guard let menuItemElements = element.children, !menuItemElements.isEmpty else {
+  private static func buildMenu(
+    from element: AXUIElement,
+    skipFirstChild: Bool = false,
+    isSubmenu: Bool = false,
+    minimumWidth: CGFloat?
+  ) throws -> NSMenu? {
+    guard var menuItemElements = try element.children(), !menuItemElements.isEmpty else {
       return nil
+    }
+
+    if skipFirstChild {
+      menuItemElements.removeFirst()
     }
 
     var menuItems: [NSMenuItem] = []
@@ -137,9 +304,13 @@ final class AppMenu {
 
     for menuItemElement in menuItemElements {
       guard
-        let menuItemData = extractMenuItemData(from: menuItemElement),
-        menuItemData.title != "Apple",
-        let menuItem = buildMenuItem(from: menuItemData, element: menuItemElement, previousItem: menuItems.last)
+        let menuItemData = try extractMenuItemData(from: menuItemElement),
+        let menuItem = try buildMenuItem(
+          from: menuItemData,
+          element: menuItemElement,
+          previousItem: menuItems.last,
+          minimumWidth: minimumWidth
+        )
       else {
         continue
       }
@@ -149,15 +320,18 @@ final class AppMenu {
 
     let menu = NSMenu()
     menu.autoenablesItems = false
-    menu.minimumWidth = 160.0
     menu.items = menuItems
+
+    if let minimumWidth {
+      menu.minimumWidth = minimumWidth
+    }
 
     return menu
   }
 
-  private static func extractMenuItemData(from element: AXUIElement) -> MenuItemData? {
+  private static func extractMenuItemData(from element: AXUIElement) throws -> MenuItemData? {
     guard
-      let axAttributeValues = element.values(for: [
+      let axAttributeValues = try element.values(for: [
         .title,
         .role,
         .enabled,
@@ -176,9 +350,9 @@ final class AppMenu {
     return MenuItemData(
       title: title,
       isEnabled: axAttributeValues[.enabled] as? Bool ?? true,
-      markCharacter: axAttributeValues[.menuItemMarkCharacter] as? String,
       commandCharacter: axAttributeValues[.menuItemCommandCharacter] as? String,
       commandModifiers: axAttributeValues[.menuItemCommandModifiers] as? UInt32,
+      markCharacter: axAttributeValues[.menuItemMarkCharacter] as? String,
       children: axAttributeValues[.children] as? [AXUIElement]
     )
   }
@@ -186,8 +360,9 @@ final class AppMenu {
   private static func buildMenuItem(
     from menuItemData: MenuItemData,
     element: AXUIElement,
-    previousItem: NSMenuItem?
-  ) -> NSMenuItem? {
+    previousItem: NSMenuItem?,
+    minimumWidth: CGFloat?
+  ) throws -> NSMenuItem? {
     if menuItemData.title.isEmpty {
       return NSMenuItem.separator()
     }
@@ -196,7 +371,7 @@ final class AppMenu {
     let keyEquivalentModifierMask =
       keyEquivalent.isEmpty
       ? []
-      : NSEvent.ModifierFlags(fromAXCommandModifiers: menuItemData.commandModifiers)
+      : NSEvent.ModifierFlags(axMenuItemModifiers: AXMenuItemModifiers(rawValue: menuItemData.commandModifiers ?? 0))
 
     if let previousItem,
       previousItem.title == menuItemData.title,
@@ -226,7 +401,7 @@ final class AppMenu {
       }
 
     if let submenuElement = menuItemData.children?.first {
-      menuItem.submenu = buildMenu(from: submenuElement, isSubmenu: true)
+      menuItem.submenu = try buildMenu(from: submenuElement, isSubmenu: true, minimumWidth: minimumWidth)
     } else {
       menuItem.target = self
       menuItem.action = #selector(menuItemAction(_:))
@@ -268,10 +443,12 @@ final class AppMenu {
       return
     }
 
-    let menuItemElement = representedObject as! AXUIElement
-
     DispatchQueue.main.async {
-      menuItemElement.performAction(.press)
+      do {
+        try (representedObject as! AXUIElement).performAction(.press)
+      } catch {
+        print(error, to: &FileOutputStream.standardError)
+      }
     }
   }
 }
@@ -289,9 +466,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      FileHandle.standardError.write(Data("Accessibility permission not granted.\n".utf8))
+      print("Accessibility permission not granted.", to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
+
+    AXUIElement.setGlobalMessagingTimeout(seconds: 1.0)
 
     guard
       let eventTap = CGEvent.tapCreate(
@@ -310,10 +489,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      ),
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+      )
     else {
-      FileHandle.standardError.write(Data("Failed to create event tap.\n".utf8))
+      print("Failed to create event tap.", to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      CFMachPortInvalidate(eventTap)
+      print("Failed to create run loop source for event tap.", to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
@@ -340,7 +524,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleEvent(ofType type: CGEventType) -> Bool {
     switch type {
     case .rightMouseDown where CGEventSource.flagsState(.hidSystemState).contains(Configuration.modifierKey):
-      try? AppMenu.popUp(at: NSEvent.mouseLocation)
+      do {
+        try AppMenu.popUp(at: NSEvent.mouseLocation, minimumWidth: Configuration.minimumMenuWidth)
+      } catch {
+        print(error, to: &FileOutputStream.standardError)
+      }
+
       return true
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
@@ -365,9 +554,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeIPCCommands() {
     Task {
-      let notificationCenter = DistributedNotificationCenter.default()
-
-      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
+      for await notification
+        in DistributedNotificationCenter
+        .default()
+        .notifications(named: IPCCommand.notificationName)
+      {
         guard
           let userInfo = notification.userInfo,
           let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
@@ -383,92 +574,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
+    case .printLog: break
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
 }
 
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
-      }
-    }
-  }
-
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
-    "\(Configuration.subsystem).lock"
-  ).path
-  private var lockFileDescriptor: CInt
-
-  init() throws {
-    let lockFileDescriptor = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard lockFileDescriptor != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(lockFileDescriptor, LOCK_EX | LOCK_NB) != -1 else {
-      let flockErrno = errno
-
-      close(lockFileDescriptor)
-
-      guard flockErrno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: flockErrno)
-      }
-
-      throw Error.instanceAlreadyRunning
-    }
-
-    self.lockFileDescriptor = lockFileDescriptor
-  }
-
-  deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
 enum IPCCommand: String, CaseIterable {
+  case printLog = "print-log"
   case quit
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
@@ -486,7 +599,31 @@ enum IPCCommand: String, CaseIterable {
 
 do {
   try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock()
+    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
+
+    if isatty(STDOUT_FILENO) == 0 {
+      do {
+        let fd = try FileDescriptor.open(
+          FilePath(
+            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
+          ),
+          .writeOnly,
+          options: [.create, .truncate],
+          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+        )
+
+        try fd.closeAfter {
+          _ = try fd.duplicate(as: .standardOutput)
+          _ = try fd.duplicate(as: .standardError)
+        }
+
+        setvbuf(stdout, nil, _IONBF, 0)
+        setvbuf(stderr, nil, _IONBF, 0)
+      } catch {
+        print("Failed to redirect output: \(error)", to: &FileOutputStream.standardError)
+      }
+    }
+
     let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
     let application = NSApplication.shared
     application.delegate = delegate
@@ -501,25 +638,49 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    FileHandle.standardError.write(Data("Already running.\n\n\(usageDescription)\n".utf8))
+    print("Already running.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+    print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    FileHandle.standardError.write(Data("Unknown command.\n\n\(usageDescription)\n".utf8))
+    print("Unknown command.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
-  ipcCommand.send()
+  if case .printLog = ipcCommand {
+    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
+
+    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
+      print("Log file does not exist.", to: &FileOutputStream.standardError)
+      exit(EX_NOINPUT)
+    }
+
+    print("Log file path: \(logFileURL.path)\n")
+
+    do {
+      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
+
+      if logContents.isEmpty {
+        print("<EMPTY>")
+      } else {
+        print(logContents)
+      }
+    } catch {
+      print("Failed to read log file: \(error)", to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+  } else {
+    ipcCommand.send()
+  }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  print(error, to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }

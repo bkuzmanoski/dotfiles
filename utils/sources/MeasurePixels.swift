@@ -2,16 +2,31 @@ import ScreenCaptureKit
 
 enum Configuration {
   static let subsystem = "industries.britown.MeasurePixels"
-  static let spanMeasurementRGBDifferenceThreshold = 20
-  static let singleModeScreenOverlayColor: NSColor = .black.withAlphaComponent(0.1)
+  static let screenOverlayColor: NSColor = .black.withAlphaComponent(0.1)
   static let measurementLineColor: NSColor = .systemRed
   static let measurementAreaColor: NSColor = .systemRed.withAlphaComponent(0.15)
+  static let spanMeasurementLineEndCapLength: CGFloat? = 3.0
   static let labelForegroundColor: NSColor = .white
   static let labelBackgroundColor: NSColor = .systemRed
-  static let spanMeasurementLineEndCapLength: CGFloat? = 3.0
   static let labelMargin: CGFloat = 6.0
   static let labelCornerRadius: CGFloat = 4.0
   static let labelPadding: (horizontal: CGFloat, vertical: CGFloat) = (4.0, 2.0)
+  static let spanMeasurementRGBDifferenceThreshold = 20
+}
+
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+
+  private let fileHandle: FileHandle
+
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
+  }
+
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
+  }
 }
 
 typealias CGSConnectionID = UInt32
@@ -179,7 +194,7 @@ extension BGRAPixel {
 }
 
 struct ScreenCapture {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case unsupportedPixelFormat(
       byteOrder: CGImageByteOrderInfo,
       alphaInfo: CGImageAlphaInfo,
@@ -188,7 +203,7 @@ struct ScreenCapture {
     )
     case missingPixelData
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .unsupportedPixelFormat(let byteOrder, let alphaInfo, let bitsPerPixel, let bitsPerComponent):
         "Unsupported pixel format: \(byteOrder), \(alphaInfo), \(bitsPerPixel) bits per pixel, \(bitsPerComponent) bits per component."
@@ -411,12 +426,12 @@ enum EdgeDetector {
 }
 
 enum ScreenCaptureService {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case screenNotFound(CGDirectDisplayID)
     case displayNotFound
     case missingSdrImage
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .screenNotFound(let displayID): "Screen for display ID \(displayID) not found."
       case .displayNotFound: "Display not found in shareable content."
@@ -479,11 +494,6 @@ protocol MeasurementViewDelegate: AnyObject {
 @MainActor
 final class MeasurementView: NSView {
   private struct Label {
-    private static let textAttributes: [NSAttributedString.Key: Any] = [
-      .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.labelFontSize, weight: .regular),
-      .foregroundColor: Configuration.labelForegroundColor
-    ]
-
     enum Position {
       case leading
       case trailing
@@ -503,15 +513,16 @@ final class MeasurementView: NSView {
       anchor: CGPoint,
       preferredPosition: Position,
       margin: CGFloat,
-      padding: (horizontal: CGFloat, vertical: CGFloat)
+      padding: (horizontal: CGFloat, vertical: CGFloat),
+      attributes: [NSAttributedString.Key: Any]
     ) {
-      let attributedString = NSAttributedString(string: text, attributes: Self.textAttributes)
+      let attributedString = NSAttributedString(string: text, attributes: attributes)
       let textSize = attributedString.size()
 
       self.attributedString = attributedString
       self.size = CGSize(
-        width: ceil(textSize.width) + Configuration.labelPadding.horizontal * 2,
-        height: ceil(textSize.height) + Configuration.labelPadding.vertical * 2
+        width: ceil(textSize.width) + padding.horizontal * 2,
+        height: ceil(textSize.height) + padding.vertical * 2
       )
       self.anchor = anchor
       self.preferredPosition = preferredPosition
@@ -577,7 +588,18 @@ final class MeasurementView: NSView {
 
   override var acceptsFirstResponder: Bool { true }
 
+  private let style: MeasurementStyle
   private var trackingArea: NSTrackingArea?
+
+  init(style: MeasurementStyle, frame frameRect: CGRect = .zero) {
+    self.style = style
+    super.init(frame: frameRect)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
+  }
 
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
     return true
@@ -695,7 +717,7 @@ final class MeasurementView: NSView {
 
     let maskPath = NSBezierPath()
 
-    Configuration.measurementAreaColor.setFill()
+    style.measurementAreaColor.setFill()
     measurementRect.fill()
 
     maskPath.move(to: verticalLineMaskEndPoint)
@@ -715,7 +737,7 @@ final class MeasurementView: NSView {
     linePath.line(to: cornerPoint)
     linePath.line(to: verticalLineEndPoint)
 
-    Configuration.measurementLineColor.setStroke()
+    style.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
     linePath.stroke()
 
@@ -724,8 +746,9 @@ final class MeasurementView: NSView {
         text: measurementRect.width.compactString,
         anchor: CGPoint(x: insetMeasurementRect.midX, y: cornerPoint.y),
         preferredPosition: measurement.verticalDirection == .downward ? .top : .bottom,
-        margin: Configuration.labelMargin,
-        padding: Configuration.labelPadding
+        margin: style.labelMargin,
+        padding: style.labelPadding,
+        attributes: style.labelAttributes
       ),
       in: context
     )
@@ -734,8 +757,9 @@ final class MeasurementView: NSView {
         text: measurementRect.height.compactString,
         anchor: CGPoint(x: cornerPoint.x, y: insetMeasurementRect.midY),
         preferredPosition: measurement.horizontalDirection == .trailing ? .leading : .trailing,
-        margin: Configuration.labelMargin,
-        padding: Configuration.labelPadding
+        margin: style.labelMargin,
+        padding: style.labelPadding,
+        attributes: style.labelAttributes
       ),
       in: context
     )
@@ -767,7 +791,7 @@ final class MeasurementView: NSView {
     linePath.move(to: startPoint)
     linePath.line(to: endPoint)
 
-    if let endCapLength = Configuration.spanMeasurementLineEndCapLength, measurement.length > endCapLength * 2 {
+    if let endCapLength = style.spanMeasurementLineEndCapLength, measurement.length > endCapLength * 2 {
       switch measurement.axis {
       case .horizontal:
         let leadingEndCapX = startPoint.x + 0.5
@@ -814,7 +838,7 @@ final class MeasurementView: NSView {
       maskPath.stroke()
     }
 
-    Configuration.measurementLineColor.setStroke()
+    style.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
     linePath.stroke()
 
@@ -823,8 +847,9 @@ final class MeasurementView: NSView {
         text: measurement.length.compactString,
         anchor: CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2)),
         preferredPosition: measurement.axis == .horizontal ? .bottom : .trailing,
-        margin: Configuration.labelMargin,
-        padding: Configuration.labelPadding
+        margin: style.labelMargin,
+        padding: style.labelPadding,
+        attributes: style.labelAttributes
       ),
       in: context
     )
@@ -834,8 +859,8 @@ final class MeasurementView: NSView {
     let labelRect = label.rect(within: self.frame)
     let maskPath = NSBezierPath(
       roundedRect: labelRect.insetBy(dx: -1.0, dy: -1.0),
-      xRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0,
-      yRadius: Configuration.labelCornerRadius > 0 ? Configuration.labelCornerRadius + 1.0 : 0.0
+      xRadius: style.labelCornerRadius > 0 ? style.labelCornerRadius + 1.0 : 0.0,
+      yRadius: style.labelCornerRadius > 0 ? style.labelCornerRadius + 1.0 : 0.0
     )
 
     context.withBlendMode(.destinationOut) {
@@ -845,17 +870,17 @@ final class MeasurementView: NSView {
 
     let backgroundPath = NSBezierPath(
       roundedRect: labelRect,
-      xRadius: Configuration.labelCornerRadius,
-      yRadius: Configuration.labelCornerRadius
+      xRadius: style.labelCornerRadius,
+      yRadius: style.labelCornerRadius
     )
 
-    Configuration.labelBackgroundColor.setFill()
+    style.labelBackgroundColor.setFill()
     backgroundPath.fill()
 
     label.attributedString.draw(
       at: CGPoint(
-        x: labelRect.minX + Configuration.labelPadding.horizontal,
-        y: labelRect.minY + Configuration.labelPadding.vertical
+        x: labelRect.minX + style.labelPadding.horizontal,
+        y: labelRect.minY + style.labelPadding.vertical
       )
     )
   }
@@ -866,22 +891,66 @@ enum AppMode: String {
   case continuous
 }
 
+struct MeasurementStyle {
+  let measurementLineColor: NSColor
+  let measurementAreaColor: NSColor
+  let spanMeasurementLineEndCapLength: CGFloat?
+  let labelForegroundColor: NSColor
+  let labelBackgroundColor: NSColor
+  let labelMargin: CGFloat
+  let labelCornerRadius: CGFloat
+  let labelPadding: (horizontal: CGFloat, vertical: CGFloat)
+  let labelAttributes: [NSAttributedString.Key: Any]
+
+  private let screenOverlayColor: NSColor
+
+  init(
+    screenOverlayColor: NSColor = NSColor.black.withAlphaComponent(0.2),
+    measurementLineColor: NSColor = .white,
+    measurementAreaColor: NSColor = NSColor.white.withAlphaComponent(0.3),
+    spanMeasurementLineEndCapLength: CGFloat? = nil,
+    labelForegroundColor: NSColor = .white,
+    labelBackgroundColor: NSColor = NSColor.black.withAlphaComponent(0.7),
+    labelMargin: CGFloat = 4.0,
+    labelCornerRadius: CGFloat = 4.0,
+    labelPadding: (horizontal: CGFloat, vertical: CGFloat) = (6.0, 2.0),
+    labelAttributes: [NSAttributedString.Key: Any]
+  ) {
+    self.screenOverlayColor = screenOverlayColor
+    self.measurementLineColor = measurementLineColor
+    self.measurementAreaColor = measurementAreaColor
+    self.spanMeasurementLineEndCapLength = spanMeasurementLineEndCapLength
+    self.labelForegroundColor = labelForegroundColor
+    self.labelBackgroundColor = labelBackgroundColor
+    self.labelMargin = labelMargin
+    self.labelCornerRadius = labelCornerRadius
+    self.labelPadding = labelPadding
+    self.labelAttributes = labelAttributes
+  }
+
+  func screenOverlayColor(for appMode: AppMode) -> NSColor {
+    return appMode == .single ? screenOverlayColor : .clear
+  }
+}
+
 @MainActor
 final class MeasurementSession {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case accessibilityPermissionNotGranted
     case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
     case failedToDetermineSpaceID
     case failedToCreateEventTap
+    case failedToCreateRunLoopSource
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
       case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
       case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
       case .failedToCreateEventTap: "Failed to create event tap."
+      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
       }
     }
   }
@@ -898,7 +967,9 @@ final class MeasurementSession {
     }
   }
 
-  private let measurementView = MeasurementView()
+  private let style: MeasurementStyle
+  private let spanMeasurementRGBDifferenceThreshold: Int
+  private let measurementView: MeasurementView
   private let overlayWindow: OverlayWindow
   private var appMode: AppMode
   private var displayID: CGDirectDisplayID
@@ -934,7 +1005,12 @@ final class MeasurementSession {
         : nil)
   }
 
-  init(appMode: AppMode, screen: NSScreen) throws {
+  init(
+    appMode: AppMode,
+    screen: NSScreen,
+    style: MeasurementStyle,
+    spanMeasurementRGBDifferenceThreshold: Int
+  ) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionNotGranted
     }
@@ -951,13 +1027,17 @@ final class MeasurementSession {
       throw Error.failedToDetermineSpaceID
     }
 
+    let measurementView = MeasurementView(style: style)
     let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
     window.level = .screenSaver
-    window.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
+    window.backgroundColor = style.screenOverlayColor(for: appMode)
     window.contentView = measurementView
     window.ignoresMouseEvents = false
 
+    self.style = style
+    self.spanMeasurementRGBDifferenceThreshold = spanMeasurementRGBDifferenceThreshold
+    self.measurementView = measurementView
     self.overlayWindow = window
     self.appMode = appMode
     self.displayID = displayID
@@ -980,10 +1060,14 @@ final class MeasurementSession {
             : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
-      ),
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+      )
     else {
       throw Error.failedToCreateEventTap
+    }
+
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      CFMachPortInvalidate(eventTap)
+      throw Error.failedToCreateRunLoopSource
     }
 
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
@@ -1036,14 +1120,15 @@ final class MeasurementSession {
 
   isolated deinit {
     overlayWindow.close()
-    workspaceObservationTask?.cancel()
-    screenCaptureTask?.cancel()
 
     if let eventTap, let runLoopSource {
       CGEvent.tapEnable(tap: eventTap, enable: false)
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
       CFMachPortInvalidate(eventTap)
     }
+
+    workspaceObservationTask?.cancel()
+    screenCaptureTask?.cancel()
   }
 
   func setAppMode(_ appMode: AppMode) {
@@ -1052,7 +1137,7 @@ final class MeasurementSession {
     }
 
     self.appMode = appMode
-    self.overlayWindow.backgroundColor = Self.overlayWindowBackgroundColor(for: appMode)
+    self.overlayWindow.backgroundColor = style.screenOverlayColor(for: appMode)
 
     if appMode == .single {
       self.committedMeasurements.removeAll()
@@ -1077,13 +1162,6 @@ final class MeasurementSession {
 
     if case .span = measurementMode {
       captureScreenAndMeasureSpan()
-    }
-  }
-
-  private static func overlayWindowBackgroundColor(for appMode: AppMode) -> NSColor {
-    switch appMode {
-    case .single: Configuration.singleModeScreenOverlayColor
-    case .continuous: .clear
     }
   }
 
@@ -1121,7 +1199,7 @@ final class MeasurementSession {
       if let newScreen = NSScreen.screenContainingMouse ?? .main {
         move(to: newScreen)
       } else {
-        FileHandle.standardError.write(Data("Failed to determine screen after screen parameters changed.\n".utf8))
+        print("Failed to determine screen after screen parameters changed.", to: &FileOutputStream.standardError)
         NSApplication.shared.terminate(nil)
       }
 
@@ -1269,7 +1347,7 @@ final class MeasurementSession {
 
         measureSpan()
       } catch {
-        FileHandle.standardError.write(Data(("Failed to capture screen: \(error.localizedDescription)\n").utf8))
+        print("Failed to capture screen: \(error)", to: &FileOutputStream.standardError)
         NSApplication.shared.terminate(nil)
       }
     }
@@ -1284,7 +1362,7 @@ final class MeasurementSession {
       edgesIn: screenCapture,
       from: mouseLocation,
       alongAxis: axis,
-      rgbDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
+      rgbDifferenceThreshold: spanMeasurementRGBDifferenceThreshold
     )
     let measurement = SpanMeasurement(
       referenceLocation: mouseLocation,
@@ -1395,24 +1473,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard let screen = NSScreen.screenContainingMouse ?? .main else {
-      FileHandle.standardError.write(Data("Failed to determine screen for measurement session.\n".utf8))
+      print("Failed to determine screen for measurement session.", to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
     do {
-      self.measurementSession = try MeasurementSession(appMode: appMode, screen: screen)
+      self.measurementSession = try MeasurementSession(
+        appMode: appMode,
+        screen: screen,
+        style: MeasurementStyle(
+          screenOverlayColor: Configuration.screenOverlayColor,
+          measurementLineColor: Configuration.measurementLineColor,
+          measurementAreaColor: Configuration.measurementAreaColor,
+          spanMeasurementLineEndCapLength: Configuration.spanMeasurementLineEndCapLength,
+          labelForegroundColor: Configuration.labelForegroundColor,
+          labelBackgroundColor: Configuration.labelBackgroundColor,
+          labelMargin: Configuration.labelMargin,
+          labelCornerRadius: Configuration.labelCornerRadius,
+          labelPadding: Configuration.labelPadding,
+          labelAttributes: [
+            .font: NSFont.systemFont(ofSize: NSFont.labelFontSize, weight: .regular),
+            .foregroundColor: Configuration.labelForegroundColor
+          ]
+        ),
+        spanMeasurementRGBDifferenceThreshold: Configuration.spanMeasurementRGBDifferenceThreshold
+      )
       observeIPCCommands()
     } catch {
-      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+      print(error, to: &FileOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
   }
 
   private func observeIPCCommands() {
     Task {
-      let notificationCenter = DistributedNotificationCenter.default()
-
-      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
+      for await notification
+        in DistributedNotificationCenter
+        .default()
+        .notifications(named: IPCCommand.notificationName)
+      {
         guard let command = IPCCommand(userInfo: notification.userInfo) else {
           continue
         }
@@ -1426,7 +1525,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch command {
     case .activate(let appMode):
       guard let screen = NSScreen.screenContainingMouse ?? .main else {
-        FileHandle.standardError.write(Data("Failed to determine screen for measurement session.\n".utf8))
+        print("Failed to determine screen for measurement session.", to: &FileOutputStream.standardError)
         NSApplication.shared.terminate(nil)
 
         return
@@ -1491,7 +1590,7 @@ let usageDescription = """
   """
 
 guard arguments.count <= 1 else {
-  FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+  print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
   exit(EX_USAGE)
 }
 
@@ -1510,13 +1609,13 @@ if let argument = arguments.first {
     exit(EXIT_SUCCESS)
 
   default:
-    FileHandle.standardError.write(Data("Unknown argument: \(argument)\n\n\(usageDescription)\n".utf8))
+    print("Unknown argument: \(argument)\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 }
 
 guard let executablePath = CommandLine.arguments.first else {
-  FileHandle.standardError.write(Data("Executable path not found in command line arguments.\n".utf8))
+  print("Executable path not found in command line arguments.", to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }
 
