@@ -3,7 +3,7 @@ import System
 
 enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
-  static let hoverDelay: DispatchTimeInterval = .milliseconds(150)
+  static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let jitterThreshold = 3
 }
 
