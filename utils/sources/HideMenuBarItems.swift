@@ -5,18 +5,24 @@ enum Configuration {
   static let subsystem = "industries.britown.HideMenuBarItems"
 }
 
-struct FileOutputStream: TextOutputStream {
-  static var standardError = FileOutputStream(fileHandle: .standardError)
-  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+struct FileDescriptorOutputStream: TextOutputStream {
+  static var standardError = FileDescriptorOutputStream(.standardError)
+  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
-  private let fileHandle: FileHandle
+  let fileDescriptor: FileDescriptor
+  var errorHandler: ((Error) -> Void)?
 
-  init(fileHandle: FileHandle) {
-    self.fileHandle = fileHandle
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+    self.fileDescriptor = fileDescriptor
+    self.errorHandler = errorHandler
   }
 
   mutating func write(_ string: String) {
-    fileHandle.write(Data(string.utf8))
+    do {
+      try fileDescriptor.writeAll(string.utf8)
+    } catch {
+      errorHandler?(error)
+    }
   }
 }
 
@@ -55,7 +61,7 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print("Failed to close lock file descriptor: \(error)", to: &FileOutputStream.standardError)
+      print("Failed to close lock file descriptor: \(error)", to: &FileDescriptorOutputStream.standardError)
     }
   }
 }
@@ -219,7 +225,7 @@ do {
         setvbuf(stdout, nil, _IONBF, 0)
         setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error)", to: &FileOutputStream.standardError)
+        print("Failed to redirect output: \(error)", to: &FileDescriptorOutputStream.standardError)
       }
     }
 
@@ -237,17 +243,17 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    print("Already running.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
+    print("Already running.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
+    print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    print("Unknown command.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
+    print("Unknown command.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
     exit(EX_USAGE)
   }
 
@@ -255,7 +261,7 @@ do {
     let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
 
     guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      print("Log file does not exist.", to: &FileOutputStream.standardError)
+      print("Log file does not exist.", to: &FileDescriptorOutputStream.standardError)
       exit(EX_NOINPUT)
     }
 
@@ -270,7 +276,7 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error)", to: &FileOutputStream.standardError)
+      print("Failed to read log file: \(error)", to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
   } else {
@@ -280,6 +286,6 @@ do {
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error, to: &FileOutputStream.standardError)
+  print(error, to: &FileDescriptorOutputStream.standardError)
   exit(EXIT_FAILURE)
 }

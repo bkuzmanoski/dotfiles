@@ -14,18 +14,24 @@ enum Configuration {
   static let spanMeasurementRGBDifferenceThreshold = 20
 }
 
-struct FileOutputStream: TextOutputStream {
-  static var standardError = FileOutputStream(fileHandle: .standardError)
-  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+struct FileDescriptorOutputStream: TextOutputStream {
+  static var standardError = FileDescriptorOutputStream(.standardError)
+  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
-  private let fileHandle: FileHandle
+  let fileDescriptor: FileDescriptor
+  var errorHandler: ((Error) -> Void)?
 
-  init(fileHandle: FileHandle) {
-    self.fileHandle = fileHandle
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+    self.fileDescriptor = fileDescriptor
+    self.errorHandler = errorHandler
   }
 
   mutating func write(_ string: String) {
-    fileHandle.write(Data(string.utf8))
+    do {
+      try fileDescriptor.writeAll(string.utf8)
+    } catch {
+      errorHandler?(error)
+    }
   }
 }
 
@@ -1199,7 +1205,8 @@ final class MeasurementSession {
       if let newScreen = NSScreen.screenContainingMouse ?? .main {
         move(to: newScreen)
       } else {
-        print("Failed to determine screen after screen parameters changed.", to: &FileOutputStream.standardError)
+        print(
+          "Failed to determine screen after screen parameters changed.", to: &FileDescriptorOutputStream.standardError)
         NSApplication.shared.terminate(nil)
       }
 
@@ -1347,7 +1354,7 @@ final class MeasurementSession {
 
         measureSpan()
       } catch {
-        print("Failed to capture screen: \(error)", to: &FileOutputStream.standardError)
+        print("Failed to capture screen: \(error)", to: &FileDescriptorOutputStream.standardError)
         NSApplication.shared.terminate(nil)
       }
     }
@@ -1473,7 +1480,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard let screen = NSScreen.screenContainingMouse ?? .main else {
-      print("Failed to determine screen for measurement session.", to: &FileOutputStream.standardError)
+      print("Failed to determine screen for measurement session.", to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
@@ -1500,7 +1507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       )
       observeIPCCommands()
     } catch {
-      print(error, to: &FileOutputStream.standardError)
+      print(error, to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
   }
@@ -1525,7 +1532,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch command {
     case .activate(let appMode):
       guard let screen = NSScreen.screenContainingMouse ?? .main else {
-        print("Failed to determine screen for measurement session.", to: &FileOutputStream.standardError)
+        print("Failed to determine screen for measurement session.", to: &FileDescriptorOutputStream.standardError)
         NSApplication.shared.terminate(nil)
 
         return
@@ -1590,7 +1597,7 @@ let usageDescription = """
   """
 
 guard arguments.count <= 1 else {
-  print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
+  print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
   exit(EX_USAGE)
 }
 
@@ -1609,13 +1616,13 @@ if let argument = arguments.first {
     exit(EXIT_SUCCESS)
 
   default:
-    print("Unknown argument: \(argument)\n\n\(usageDescription)", to: &FileOutputStream.standardError)
+    print("Unknown argument: \(argument)\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
     exit(EX_USAGE)
   }
 }
 
 guard let executablePath = CommandLine.arguments.first else {
-  print("Executable path not found in command line arguments.", to: &FileOutputStream.standardError)
+  print("Executable path not found in command line arguments.", to: &FileDescriptorOutputStream.standardError)
   exit(EXIT_FAILURE)
 }
 

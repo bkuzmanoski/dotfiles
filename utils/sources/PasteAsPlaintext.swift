@@ -1,17 +1,24 @@
 import AppKit
+import System
 
-struct FileOutputStream: TextOutputStream {
-  static var standardError = FileOutputStream(fileHandle: .standardError)
-  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
+struct FileDescriptorOutputStream: TextOutputStream {
+  static var standardError = FileDescriptorOutputStream(.standardError)
+  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
-  private let fileHandle: FileHandle
+  let fileDescriptor: FileDescriptor
+  var errorHandler: ((Error) -> Void)?
 
-  init(fileHandle: FileHandle) {
-    self.fileHandle = fileHandle
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+    self.fileDescriptor = fileDescriptor
+    self.errorHandler = errorHandler
   }
 
   mutating func write(_ string: String) {
-    fileHandle.write(Data(string.utf8))
+    do {
+      try fileDescriptor.writeAll(string.utf8)
+    } catch {
+      errorHandler?(error)
+    }
   }
 }
 
@@ -29,7 +36,7 @@ guard
   let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: true),
   let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: false)
 else {
-  print("Failed to create CGEvent for paste action.", to: &FileOutputStream.standardError)
+  print("Failed to create CGEvent for paste action.", to: &FileDescriptorOutputStream.standardError)
   exit(EXIT_FAILURE)
 }
 
