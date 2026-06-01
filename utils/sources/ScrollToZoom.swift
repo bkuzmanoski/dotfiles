@@ -1,245 +1,64 @@
 import AppKit
+import System
 
 enum Configuration {
   static let subsystem = "industries.britown.ScrollToZoom"
   static let modifierKey: CGEventFlags = .maskAlternate
   static let zoomSensitivity = 0.005
-  static let reverseZoomDirection = true
 }
 
-enum IOHIDEventType: UInt32 {
-  case zoom = 8
-}
+struct FileOutputStream: TextOutputStream {
+  static var standardError = FileOutputStream(fileHandle: .standardError)
+  static var standardOutput = FileOutputStream(fileHandle: .standardOutput)
 
-enum CGSGesturePhase: UInt8 {
-  case began = 1
-  case changed = 2
-  case ended = 4
-}
+  private let fileHandle: FileHandle
 
-extension CGEventField {
-  static let gestureHIDType = CGEventField(rawValue: 110)!
-  static let gestureZoomValue = CGEventField(rawValue: 113)!
-  static let gesturePhase = CGEventField(rawValue: 132)!
-}
-
-extension CGEventType {
-  static let gesture = CGEventType(rawValue: 29)!
-}
-
-@MainActor
-final class ZoomManager {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-    case failedToCreateEventTap
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
-      case .failedToCreateEventTap: "Failed to create event tap."
-      }
-    }
+  init(fileHandle: FileHandle) {
+    self.fileHandle = fileHandle
   }
 
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
-  private var isZooming = false
-
-  init() throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
-
-    guard
-      let eventTap = CGEvent.tapCreate(
-        tap: .cgSessionEventTap,
-        place: .headInsertEventTap,
-        options: .defaultTap,
-        eventsOfInterest: 1 << CGEventType.scrollWheel.rawValue | 1 << CGEventType.flagsChanged.rawValue,
-        callback: { _, _, event, refcon in
-          guard let refcon else {
-            return Unmanaged.passUnretained(event)
-          }
-
-          return
-            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
-            ? nil
-            : Unmanaged.passUnretained(event)
-        },
-        userInfo: Unmanaged.passUnretained(self).toOpaque()
-      ),
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-    else {
-      throw Error.failedToCreateEventTap
-    }
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: eventTap, enable: true)
-
-    self.eventTap = eventTap
-    self.runLoopSource = runLoopSource
-  }
-
-  deinit {
-    if let eventTap {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFMachPortInvalidate(eventTap)
-    }
-
-    if let runLoopSource {
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    }
-  }
-
-  private func handleEvent(_ event: CGEvent) -> Bool {
-    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
-      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-      return false
-    }
-
-    guard event.type == .scrollWheel, event.flags.contains(Configuration.modifierKey) else {
-      guard isZooming else {
-        return false
-      }
-
-      performZoomGesture(phase: .ended, magnification: 0.0)
-
-      self.isZooming = false
-
-      return true
-    }
-
-    if !isZooming {
-      self.isZooming = true
-      performZoomGesture(phase: .began, magnification: 0.0)
-    }
-
-    let scrollDelta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-
-    if scrollDelta != 0.0 {
-      let directionMultiplier = Configuration.reverseZoomDirection ? -1.0 : 1.0
-      let magnification = scrollDelta * directionMultiplier * Configuration.zoomSensitivity
-
-      performZoomGesture(phase: .changed, magnification: magnification)
-    }
-
-    return true
-  }
-
-  private func performZoomGesture(phase: CGSGesturePhase, magnification: Double) {
-    guard let event = CGEvent(source: nil) else {
-      return
-    }
-
-    event.type = .gesture
-    event.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.zoom.rawValue))
-    event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
-    event.setDoubleValueField(.gestureZoomValue, value: magnification)
-    event.post(tap: .cghidEventTap)
-  }
-}
-
-@MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private let singleInstanceLock: SingleInstanceLock
-  private var zoomManager: ZoomManager?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
-
-  func applicationDidFinishLaunching(_ notification: Notification) {
-    do {
-      self.zoomManager = try ZoomManager()
-    } catch {
-      FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
-      exit(EXIT_FAILURE)
-    }
-
-    observeProcessSignals()
-    observeIPCCommands()
-  }
-
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      let notificationCenter = DistributedNotificationCenter.default()
-
-      for await notification in notificationCenter.notifications(named: IPCCommand.notificationName) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
-    switch ipcCommand {
-    case .quit: NSApplication.shared.terminate(nil)
-    }
+  func write(_ string: String) {
+    fileHandle.write(Data(string.utf8))
   }
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
+  enum Error: Swift.Error, CustomStringConvertible {
     case instanceAlreadyRunning
-    case failedToAcquireLock(errno: Int32)
+    case failedToAcquireLock(underlyingError: Errno)
 
-    var errorDescription: String? {
+    var description: String {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let errno): "Failed to acquire lock (\(String(cString: strerror(errno))))."
+      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
       }
     }
   }
 
-  private let lockFilePath = FileManager.default.temporaryDirectory.appendingPathComponent(
-    "\(Configuration.subsystem).lock"
-  ).path
-  private var lockFileDescriptor: CInt
+  private var lockFileDescriptor: FileDescriptor
 
-  init() throws {
-    let lockFileDescriptor = open(lockFilePath, O_CREAT | O_RDWR, 0o644)
-
-    guard lockFileDescriptor != -1 else {
-      throw Error.failedToAcquireLock(errno: errno)
-    }
-
-    guard flock(lockFileDescriptor, LOCK_EX | LOCK_NB) != -1 else {
-      let flockErrno = errno
-
-      close(lockFileDescriptor)
-
-      guard flockErrno == EWOULDBLOCK else {
-        throw Error.failedToAcquireLock(errno: flockErrno)
+  init(subsystem: String) throws {
+    do {
+      self.lockFileDescriptor = try FileDescriptor.open(
+        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
+        .readWrite,
+        options: [.create, .exclusiveLock, .nonBlocking],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+    } catch let errno as Errno {
+      switch errno {
+      case .wouldBlock, .resourceTemporarilyUnavailable: throw Error.instanceAlreadyRunning
+      default: throw Error.failedToAcquireLock(underlyingError: errno)
       }
-
-      throw Error.instanceAlreadyRunning
     }
-
-    self.lockFileDescriptor = lockFileDescriptor
   }
 
   deinit {
-    flock(lockFileDescriptor, LOCK_UN)
-    close(lockFileDescriptor)
+    do {
+      try lockFileDescriptor.close()
+    } catch {
+      print("Failed to close lock file descriptor: \(error)", to: &FileOutputStream.standardError)
+    }
   }
 }
 
@@ -277,7 +96,246 @@ enum ProcessSignals {
   }
 }
 
+enum IOHIDEventType: UInt32 {
+  case zoom = 8
+}
+
+extension CGEvent {
+  var scrollPhase: CGScrollPhase? {
+    guard let scrollPhaseRawValue = UInt32(exactly: getIntegerValueField(.scrollWheelEventScrollPhase)) else {
+      return nil
+    }
+
+    return CGScrollPhase(rawValue: scrollPhaseRawValue)
+  }
+}
+
+extension CGEventField {
+  static let gestureHIDType = CGEventField(rawValue: 110)!
+  static let gestureZoomValue = CGEventField(rawValue: 113)!
+  static let gesturePhase = CGEventField(rawValue: 132)!
+}
+
+extension CGEventType {
+  static let gesture = CGEventType(rawValue: 29)!
+}
+
+@MainActor
+final class ZoomManager {
+  enum Error: Swift.Error, CustomStringConvertible {
+    case accessibilityPermissionNotGranted
+    case failedToCreateEventTap
+    case failedToCreateRunLoopSource
+
+    var description: String {
+      switch self {
+      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
+      case .failedToCreateEventTap: "Failed to create event tap."
+      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
+      }
+    }
+  }
+
+  private let modifierKey: CGEventFlags
+  private let zoomSensitivity: Double
+  private var eventTap: CFMachPort?
+  private var runLoopSource: CFRunLoopSource?
+  private var isZooming = false
+
+  init(modifierKey: CGEventFlags, zoomSensitivity: Double) throws {
+    guard AXIsProcessTrustedWithOptions(nil) else {
+      throw Error.accessibilityPermissionNotGranted
+    }
+
+    self.modifierKey = modifierKey
+    self.zoomSensitivity = zoomSensitivity
+
+    guard
+      let eventTap = CGEvent.tapCreate(
+        tap: .cgSessionEventTap,
+        place: .headInsertEventTap,
+        options: .defaultTap,
+        eventsOfInterest: 1 << CGEventType.scrollWheel.rawValue,
+        callback: { _, _, event, refcon in
+          guard let refcon else {
+            return Unmanaged.passUnretained(event)
+          }
+
+          return
+            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleScrollWheelEvent(event)
+            ? nil
+            : Unmanaged.passUnretained(event)
+        },
+        userInfo: Unmanaged.passUnretained(self).toOpaque()
+      )
+    else {
+      throw Error.failedToCreateEventTap
+    }
+
+    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
+      CFMachPortInvalidate(eventTap)
+      throw Error.failedToCreateRunLoopSource
+    }
+
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+
+    self.eventTap = eventTap
+    self.runLoopSource = runLoopSource
+  }
+
+  deinit {
+    if let eventTap, let runLoopSource {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+      CFMachPortInvalidate(eventTap)
+    }
+  }
+
+  private func handleScrollWheelEvent(_ event: CGEvent) -> Bool {
+    guard event.type == .scrollWheel else {
+      return false
+    }
+
+    guard
+      event.type != .tapDisabledByTimeout,
+      event.type != .tapDisabledByUserInput,
+      event.flags.contains(modifierKey)
+    else {
+      if isZooming {
+        self.isZooming = false
+
+        postZoomGestureEvent(withPhase: .cancelled)
+
+        if event.scrollPhase == .changed {
+          event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(CGScrollPhase.began.rawValue))
+        }
+      }
+
+      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      return false
+    }
+
+    guard let scrollPhase = event.scrollPhase else {
+      return false
+    }
+
+    switch scrollPhase {
+    case .began where !isZooming:
+      self.isZooming = true
+      postZoomGestureEvent(withPhase: .began)
+
+    case .changed:
+      let wasZooming = isZooming
+
+      if !isZooming {
+        self.isZooming = true
+
+        event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(CGScrollPhase.cancelled.rawValue))
+        postZoomGestureEvent(withPhase: .began)
+      }
+
+      postZoomGestureEvent(
+        withPhase: .changed,
+        zoomValue: -(event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1) * zoomSensitivity)
+      )
+
+      return wasZooming
+
+    case .cancelled where isZooming:
+      self.isZooming = false
+      postZoomGestureEvent(withPhase: .cancelled)
+
+    case .ended where isZooming:
+      self.isZooming = false
+      postZoomGestureEvent(withPhase: .ended)
+
+    default:
+      break
+    }
+
+    return true
+  }
+
+  private func postZoomGestureEvent(withPhase phase: CGGesturePhase, zoomValue: Double = 0.0) {
+    guard let event = CGEvent(source: nil) else {
+      return
+    }
+
+    event.type = .gesture
+    event.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.zoom.rawValue))
+    event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
+    event.setDoubleValueField(.gestureZoomValue, value: zoomValue)
+    event.post(tap: .cghidEventTap)
+  }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+  private let singleInstanceLock: SingleInstanceLock
+  private var zoomManager: ZoomManager?
+
+  init(singleInstanceLock: SingleInstanceLock) {
+    self.singleInstanceLock = singleInstanceLock
+    super.init()
+  }
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    do {
+      self.zoomManager = try ZoomManager(
+        modifierKey: Configuration.modifierKey,
+        zoomSensitivity: Configuration.zoomSensitivity
+      )
+    } catch {
+      print(error, to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+
+    observeProcessSignals()
+    observeIPCCommands()
+  }
+
+  private func observeProcessSignals() {
+    Task {
+      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
+        NSApplication.shared.terminate(nil)
+      }
+    }
+  }
+
+  private func observeIPCCommands() {
+    Task {
+      for await notification
+        in DistributedNotificationCenter
+        .default()
+        .notifications(named: IPCCommand.notificationName)
+      {
+        guard
+          let userInfo = notification.userInfo,
+          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
+          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
+        else {
+          continue
+        }
+
+        handleIPCCommand(ipcCommand)
+      }
+    }
+  }
+
+  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+    switch ipcCommand {
+    case .printLog: break
+    case .quit: NSApplication.shared.terminate(nil)
+    }
+  }
+}
+
 enum IPCCommand: String, CaseIterable {
+  case printLog = "print-log"
   case quit
 
   static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
@@ -295,7 +353,31 @@ enum IPCCommand: String, CaseIterable {
 
 do {
   try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock()
+    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
+
+    if isatty(STDOUT_FILENO) == 0 {
+      do {
+        let fd = try FileDescriptor.open(
+          FilePath(
+            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
+          ),
+          .writeOnly,
+          options: [.create, .truncate],
+          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+        )
+
+        try fd.closeAfter {
+          _ = try fd.duplicate(as: .standardOutput)
+          _ = try fd.duplicate(as: .standardError)
+        }
+
+        setvbuf(stdout, nil, _IONBF, 0)
+        setvbuf(stderr, nil, _IONBF, 0)
+      } catch {
+        print("Failed to redirect output: \(error)", to: &FileOutputStream.standardError)
+      }
+    }
+
     let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
     let application = NSApplication.shared
     application.delegate = delegate
@@ -310,25 +392,49 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    FileHandle.standardError.write(Data("Already running.\n\n\(usageDescription)\n".utf8))
+    print("Already running.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    FileHandle.standardError.write(Data("Too many arguments.\n\n\(usageDescription)\n".utf8))
+    print("Too many arguments.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    FileHandle.standardError.write(Data("Unknown command.\n\n\(usageDescription)\n".utf8))
+    print("Unknown command.\n\n\(usageDescription)", to: &FileOutputStream.standardError)
     exit(EX_USAGE)
   }
 
-  ipcCommand.send()
+  if case .printLog = ipcCommand {
+    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
+
+    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
+      print("Log file does not exist.", to: &FileOutputStream.standardError)
+      exit(EX_NOINPUT)
+    }
+
+    print("Log file path: \(logFileURL.path)")
+
+    do {
+      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
+
+      if logContents.isEmpty {
+        print("<EMPTY>")
+      } else {
+        print(logContents)
+      }
+    } catch {
+      print("Failed to read log file: \(error)", to: &FileOutputStream.standardError)
+      exit(EXIT_FAILURE)
+    }
+  } else {
+    ipcCommand.send()
+  }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
+  print(error, to: &FileOutputStream.standardError)
   exit(EXIT_FAILURE)
 }
