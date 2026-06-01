@@ -60,6 +60,7 @@ cask "sloth"
 cask "utm"
 cask "visual-studio-code"
 
+mas "Apple Developer", id: 640199958
 mas "Aqua Swatch", id: 1565479346
 mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
