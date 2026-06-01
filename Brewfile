@@ -64,6 +64,9 @@ mas "Aqua Swatch", id: 1565479346
 mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
+mas "Keynote", id: 361285480
+mas "Numbers", id: 361304891
+mas "Pages", id: 361309726
 mas "Xcode", id: 497799835
 
 cask "font-commit-mono"
