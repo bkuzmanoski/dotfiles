@@ -1,4 +1,5 @@
 import ScreenCaptureKit
+import System
 
 enum Configuration {
   static let subsystem = "industries.britown.MeasurePixels"
