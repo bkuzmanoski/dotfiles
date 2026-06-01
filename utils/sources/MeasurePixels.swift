@@ -187,10 +187,10 @@ struct SpanMeasurement: Equatable {
 typealias BGRAPixel = UInt32
 
 extension BGRAPixel {
-  var blueComponent: UInt8 { UInt8(self & 0xFF) }
-  var greenComponent: UInt8 { UInt8((self >> 8) & 0xFF) }
-  var redComponent: UInt8 { UInt8((self >> 16) & 0xFF) }
-  var alphaComponent: UInt8 { UInt8((self >> 24) & 0xFF) }
+  var blueComponent: UInt8 { UInt8(self & 0xff) }
+  var greenComponent: UInt8 { UInt8((self >> 8) & 0xff) }
+  var redComponent: UInt8 { UInt8((self >> 16) & 0xff) }
+  var alphaComponent: UInt8 { UInt8((self >> 24) & 0xff) }
 }
 
 struct ScreenCapture {
