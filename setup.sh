@@ -278,6 +278,9 @@ plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' 
 
 defaults_write com.apple.HIToolbox AppleFnUsageType -int 0 # Disable showing Emoji & Symbols when pressing 🌐︎ key
 
+defaults_write com.apple.mail NSUserKeyEquivalents -dict-add "Mailbox Search" "@f" # Map "Mailbox Search" keyboard shortcut to ⌘F
+defaults_write com.apple.mail NSUserKeyEquivalents -dict-add "Find…" "\U0000"      # Remove keyboard shortcut for "Find…" (conflicts with ⌘F)
+
 defaults_write com.apple.mail AutoReplyFormat -bool true                                                                                        # Use the same message format as the original message when responding
 defaults_write com.apple.mail SendFormat -string "Plain"                                                                                        #
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" UndoSendDelayTime -int 0  #
