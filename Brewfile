@@ -66,6 +66,7 @@ mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "Keynote", id: 361285480
+mas "Linearity Move", id: 6443677011
 mas "Numbers", id: 361304891
 mas "Pages", id: 361309726
 mas "Xcode", id: 497799835
