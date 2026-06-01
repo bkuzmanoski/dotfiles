@@ -49,11 +49,12 @@ final class SingleInstanceLock {
         options: [.create, .exclusiveLock, .nonBlocking],
         permissions: [.ownerReadWrite, .groupRead, .otherRead]
       )
+
+    } catch let errno as Errno where errno == .wouldBlock {
+      throw Error.instanceAlreadyRunning
+
     } catch let errno as Errno {
-      switch errno {
-      case .wouldBlock, .resourceTemporarilyUnavailable: throw Error.instanceAlreadyRunning
-      default: throw Error.failedToAcquireLock(underlyingError: errno)
-      }
+      throw Error.failedToAcquireLock(underlyingError: errno)
     }
   }
 
