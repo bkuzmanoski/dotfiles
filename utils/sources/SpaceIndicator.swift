@@ -15,7 +15,7 @@ struct FileOutputStream: TextOutputStream {
     self.fileHandle = fileHandle
   }
 
-  func write(_ string: String) {
+  mutating func write(_ string: String) {
     fileHandle.write(Data(string.utf8))
   }
 }
