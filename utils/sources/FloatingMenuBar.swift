@@ -400,12 +400,12 @@ final class AppMenu {
     menuItem.keyEquivalent = keyEquivalent
     menuItem.keyEquivalentModifierMask = keyEquivalentModifierMaskOverride ?? keyEquivalentModifierMask
     menuItem.isAlternate = isAlternate
-    menuItem.state =
-      switch menuItemData.markCharacter {
-      case "✓": .on
-      case "-": .mixed
-      default: .off
-      }
+
+    switch menuItemData.markCharacter {
+    case "✓": menuItem.state = .on
+    case "-": menuItem.state = .mixed
+    default: menuItem.state = .off
+    }
 
     if let submenuElement = menuItemData.children?.first {
       menuItem.submenu = try buildMenu(from: submenuElement, isSubmenu: true, minimumWidth: minimumWidth)
