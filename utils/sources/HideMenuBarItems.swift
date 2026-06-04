@@ -68,8 +68,8 @@ final class SingleInstanceLock {
 }
 
 enum ProcessSignals {
-  static func stream(for signals: CInt...) -> AsyncStream<CInt> {
-    let (stream, continuation) = AsyncStream.makeStream(of: CInt.self)
+  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
+    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
 
     var sources: [any DispatchSourceSignal] = []
     sources.reserveCapacity(signals.count)
