@@ -143,6 +143,13 @@ final class ZoomManager {
     }
   }
 
+  private let modifierFlagsMask: CGEventFlags = [
+    .maskShift,
+    .maskControl,
+    .maskAlternate,
+    .maskCommand,
+    .maskSecondaryFn
+  ]
   private let modifierKey: CGEventFlags
   private let zoomSensitivity: Double
   private var eventTap: CFMachPort?
@@ -207,7 +214,7 @@ final class ZoomManager {
     guard
       event.type != .tapDisabledByTimeout,
       event.type != .tapDisabledByUserInput,
-      event.flags.contains(modifierKey)
+      event.flags.intersection(modifierFlagsMask) == modifierKey
     else {
       if isZooming {
         self.isZooming = false
