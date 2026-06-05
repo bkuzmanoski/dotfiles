@@ -498,7 +498,6 @@ protocol MeasurementViewDelegate: AnyObject {
   func measurementViewDidRequestRedo(_ view: MeasurementView)
 }
 
-@MainActor
 final class MeasurementView: NSView {
   private struct Label {
     enum Position {
