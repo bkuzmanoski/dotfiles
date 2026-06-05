@@ -147,7 +147,7 @@ final class HotkeyManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: 1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue,
+        eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue),
         callback: { _, _, event, refcon in
           guard let refcon else {
             return Unmanaged.passUnretained(event)

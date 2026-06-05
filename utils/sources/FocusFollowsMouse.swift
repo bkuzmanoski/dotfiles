@@ -877,10 +877,11 @@ final class FocusManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .listenOnly,
-        eventsOfInterest: 1 << CGEventType.mouseMoved.rawValue
-          | 1 << CGEventType.leftMouseDragged.rawValue
-          | 1 << CGEventType.rightMouseDragged.rawValue
-          | 1 << CGEventType.flagsChanged.rawValue,
+        eventsOfInterest: CGEventMask(
+          1 << CGEventType.mouseMoved.rawValue
+            | 1 << CGEventType.leftMouseDragged.rawValue
+            | 1 << CGEventType.rightMouseDragged.rawValue
+            | 1 << CGEventType.flagsChanged.rawValue),
         callback: { _, _, event, refcon in
           if let refcon {
             Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
