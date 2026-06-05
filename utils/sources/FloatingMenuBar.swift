@@ -463,6 +463,13 @@ final class AppMenu {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
+  private let modifierFlagsMask: CGEventFlags = [
+    .maskShift,
+    .maskControl,
+    .maskAlternate,
+    .maskCommand,
+    .maskSecondaryFn
+  ]
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
@@ -484,14 +491,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: 1 << CGEventType.rightMouseDown.rawValue,
-        callback: { _, type, event, refcon in
+        eventsOfInterest: CGEventMask(1 << CGEventType.rightMouseDown.rawValue),
+        callback: { _, _, event, refcon in
           guard let refcon else {
             return Unmanaged.passUnretained(event)
           }
 
           return
-            Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
+            Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -528,9 +535,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     CFMachPortInvalidate(eventTap)
   }
 
-  private func handleEvent(ofType type: CGEventType) -> Bool {
-    switch type {
-    case .rightMouseDown where CGEventSource.flagsState(.hidSystemState).contains(Configuration.modifierKey):
+  private func handleEvent(_ event: CGEvent) -> Bool {
+    switch event.type {
+    case .rightMouseDown where event.flags.intersection(modifierFlagsMask) == Configuration.modifierKey:
       do {
         try AppMenu.popUp(at: NSEvent.mouseLocation, minimumWidth: Configuration.minimumMenuWidth)
       } catch {
