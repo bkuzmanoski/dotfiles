@@ -140,12 +140,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    observeProcessSignals()
-    observeIPCCommands()
-
     self.statusItemManager = StatusItemManager()
 
     statusItemManager?.hideStatusItem()
+
+    observeProcessSignals()
+    observeIPCCommands()
   }
 
   private func observeProcessSignals() {
