@@ -76,10 +76,18 @@ function cv() {
     return 1
   fi
 
+  local base_command
+
+  if command -v ffpb >/dev/null; then
+    base_command="ffpb"
+  else
+    base_command="ffmpeg"
+  fi
+
   local original_size="$(stat -f %z "${input_file}")"
   local output_file="${input_file%.*}_compressed.mp4"
 
-  ffmpeg \
+  ${base_command} \
     -hide_banner \
     -stats \
     -loglevel error \

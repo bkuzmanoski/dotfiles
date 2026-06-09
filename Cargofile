@@ -2,5 +2,6 @@
 
 cargo-update:cargo-install-update
 cargo-watch
+ffpb
 shuck-cli
 tetro-tui
