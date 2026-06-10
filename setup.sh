@@ -305,7 +305,7 @@ defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false    
 
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill"          # Set title bar double-click action to maximize window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false  #
-defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2                       # Enable full keyboard access
+defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2                       # Enable keyboard navigation
 defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true       #
 defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false             # Disable press-and-hold for keys in favor of key repeat
 defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true             # Don't tint window background with wallpaper color
