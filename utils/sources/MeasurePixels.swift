@@ -20,9 +20,9 @@ struct FileDescriptorOutputStream: TextOutputStream {
   static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
   let fileDescriptor: FileDescriptor
-  var errorHandler: ((Error) -> Void)?
+  var errorHandler: ((any Error) -> Void)?
 
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
     self.fileDescriptor = fileDescriptor
     self.errorHandler = errorHandler
   }
@@ -584,7 +584,7 @@ final class MeasurementView: NSView {
     }
   }
 
-  weak var delegate: MeasurementViewDelegate?
+  weak var delegate: (any MeasurementViewDelegate)?
 
   var measurements: [Measurement] = [] {
     didSet {

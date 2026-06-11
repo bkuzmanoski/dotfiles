@@ -1,0 +1,13 @@
+{
+  "defaultWorkspaceType": "compilationDatabase",
+  "fallbackBuildSystem": {
+    "swiftCompilerFlags": [
+      "-enable-upcoming-feature",
+      "NonisolatedNonsendingByDefault",
+      "-enable-upcoming-feature",
+      "MemberImportVisibility",
+      "-enable-upcoming-feature",
+      "ExistentialAny"
+    ]
+  }
+}

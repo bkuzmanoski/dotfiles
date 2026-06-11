@@ -12,9 +12,9 @@ struct FileDescriptorOutputStream: TextOutputStream {
   static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
   let fileDescriptor: FileDescriptor
-  var errorHandler: ((Error) -> Void)?
+  var errorHandler: ((any Error) -> Void)?
 
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
     self.fileDescriptor = fileDescriptor
     self.errorHandler = errorHandler
   }
@@ -840,7 +840,7 @@ final class FocusManager {
   private let skyLightProxy: SkyLightProxy
   private let workspaceMonitor: WorkspaceMonitor
   private let missionControlMonitor: MissionControlMonitor
-  private let debounceTimer: DispatchSourceTimer
+  private let debounceTimer: any DispatchSourceTimer
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var systemObservationTask: Task<Void, Never>?

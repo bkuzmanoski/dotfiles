@@ -12,9 +12,9 @@ struct FileDescriptorOutputStream: TextOutputStream {
   static var standardOutput = FileDescriptorOutputStream(.standardOutput)
 
   let fileDescriptor: FileDescriptor
-  var errorHandler: ((Error) -> Void)?
+  var errorHandler: ((any Error) -> Void)?
 
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((Error) -> Void)? = nil) {
+  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
     self.fileDescriptor = fileDescriptor
     self.errorHandler = errorHandler
   }
@@ -228,8 +228,8 @@ extension NSEvent.ModifierFlags {
 final class AppMenu {
   enum Error: Swift.Error, CustomStringConvertible {
     case accessibilityPermissionNotGranted
-    case failedToRetrieveMenuBarElement(application: NSRunningApplication, underlyingError: Swift.Error)
-    case failedToBuildMenu(application: NSRunningApplication, underlyingError: Swift.Error)
+    case failedToRetrieveMenuBarElement(application: NSRunningApplication, underlyingError: any Swift.Error)
+    case failedToBuildMenu(application: NSRunningApplication, underlyingError: any Swift.Error)
 
     var description: String {
       switch self {
