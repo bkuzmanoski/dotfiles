@@ -250,6 +250,8 @@ defaults_write com.apple.dock persistent-apps -array                 # Clear def
 defaults_write com.apple.dock show-recents -bool false               #
 defaults_write com.apple.dock showAppExposeGestureEnabled -bool true # Enable app exposé with multi-finger swipe down
 defaults_write com.apple.dock showhidden -bool true                  # Make hidden app icons translucent in Dock
+defaults_write com.apple.dock size-immutable -bool true              # Prevent changes to Dock icon size
+defaults_write com.apple.dock tilesize -int 48                       # Set Dock icon size to 48 pixels
 defaults_write com.apple.dock wvous-br-corner -int 1                 # Disable bottom-right hot corner (default is Quick Note)
 add_app_to_dock "/System/Applications/Mail.app"                      #
 add_app_to_dock "/Applications/Google Chrome.app"                    #
