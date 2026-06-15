@@ -73,6 +73,7 @@ mas "Numbers", id: 361304891
 mas "Pages", id: 361309726
 mas "Xcode", id: 497799835
 
+cask "font-0xproto"
 cask "font-commit-mono"
 cask "font-cozette"
 cask "font-departure-mono"
