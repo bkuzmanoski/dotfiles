@@ -114,7 +114,10 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Turn off "Show Figma in Menu Bar"
 
   - FineTune
-    - Settings → Set "Menu Bar Icon" to speaker
+    - Set HypetheSonics EQ preset
+    - Settings → General
+      - Set "Icon Style" to speaker
+      - Set "Popup Size" to "Compact"
 
   - Ghostty
     - Grant Full Disk Access permission
