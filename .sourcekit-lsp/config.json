@@ -1,5 +1,7 @@
 {
-  "defaultWorkspaceType": "compilationDatabase",
+  "compilationDatabase": {
+    "searchPaths": ["utils"]
+  },
   "fallbackBuildSystem": {
     "swiftCompilerFlags": [
       "-enable-upcoming-feature",
