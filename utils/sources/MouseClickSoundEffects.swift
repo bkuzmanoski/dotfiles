@@ -347,7 +347,7 @@ final class ClickMonitor {
   }
 
   private func handleEvent(_ event: CGEvent) {
-    guard event.mouseEventSubtype == NSEvent.EventSubtype.touch else {
+    guard event.mouseEventSubtype == .touch else {
       return
     }
 
