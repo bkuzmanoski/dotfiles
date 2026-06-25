@@ -109,11 +109,66 @@ enum IOHIDEventType: UInt32 {
 
 extension CGEvent {
   var scrollPhase: CGScrollPhase? {
-    guard let scrollPhaseRawValue = UInt32(exactly: getIntegerValueField(.scrollWheelEventScrollPhase)) else {
-      return nil
+    get {
+      guard let scrollPhaseRawValue = UInt32(exactly: getIntegerValueField(.scrollWheelEventScrollPhase)) else {
+        return nil
+      }
+
+      return CGScrollPhase(rawValue: scrollPhaseRawValue)
     }
 
-    return CGScrollPhase(rawValue: scrollPhaseRawValue)
+    set {
+      if let newValue {
+        self.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(newValue.rawValue))
+      }
+    }
+  }
+
+  var scrollWheelEventPointDeltaAxis1: Double {
+    get {
+      return getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+    }
+
+    set {
+      self.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: newValue)
+    }
+  }
+
+  var gestureHIDType: IOHIDEventType? {
+    get {
+      guard let rawValue = UInt32(exactly: getIntegerValueField(.gestureHIDType)) else {
+        return nil
+      }
+
+      return IOHIDEventType(rawValue: rawValue)
+    }
+
+    set {
+      if let newValue {
+        self.setIntegerValueField(.gestureHIDType, value: Int64(newValue.rawValue))
+      }
+    }
+  }
+
+  var gesturePhase: CGGesturePhase? {
+    get {
+      guard let rawValue = UInt32(exactly: getIntegerValueField(.gesturePhase)) else {
+        return nil
+      }
+
+      return CGGesturePhase(rawValue: rawValue)
+    }
+
+    set {
+      if let newValue {
+        self.setIntegerValueField(.gesturePhase, value: Int64(newValue.rawValue))
+      }
+    }
+  }
+
+  var gestureZoomValue: Double {
+    get { getDoubleValueField(.gestureZoomValue) }
+    set { self.setDoubleValueField(.gestureZoomValue, value: newValue) }
   }
 }
 
@@ -176,7 +231,7 @@ final class ZoomManager {
           }
 
           return
-            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleScrollWheelEvent(event)
+            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -206,7 +261,7 @@ final class ZoomManager {
     }
   }
 
-  private func handleScrollWheelEvent(_ event: CGEvent) -> Bool {
+  private func handleEvent(_ event: CGEvent) -> Bool {
     guard event.type == .scrollWheel else {
       return false
     }
@@ -222,7 +277,7 @@ final class ZoomManager {
         postZoomGestureEvent(withPhase: .cancelled)
 
         if event.scrollPhase == .changed {
-          event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(CGScrollPhase.began.rawValue))
+          event.scrollPhase = .began
         }
       }
 
@@ -248,13 +303,13 @@ final class ZoomManager {
       if !isZooming {
         self.isZooming = true
 
-        event.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(CGScrollPhase.cancelled.rawValue))
+        event.scrollPhase = .cancelled
         postZoomGestureEvent(withPhase: .began)
       }
 
       postZoomGestureEvent(
         withPhase: .changed,
-        zoomValue: -(event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1) * zoomSensitivity)
+        zoomValue: -(event.scrollWheelEventPointDeltaAxis1 * zoomSensitivity)
       )
 
       return wasZooming
@@ -280,9 +335,9 @@ final class ZoomManager {
     }
 
     event.type = .gesture
-    event.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.zoom.rawValue))
-    event.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
-    event.setDoubleValueField(.gestureZoomValue, value: zoomValue)
+    event.gestureHIDType = .zoom
+    event.gesturePhase = phase
+    event.gestureZoomValue = zoomValue
     event.post(tap: .cghidEventTap)
   }
 }
