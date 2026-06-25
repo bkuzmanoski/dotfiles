@@ -124,9 +124,9 @@ extension CGEvent {
     }
   }
 
-  var scrollWheelEventPointDeltaAxis1: Double {
-    get { getDoubleValueField(.scrollWheelEventPointDeltaAxis1) }
-    set { self.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: newValue) }
+  var scrollWheelEventPointDeltaAxis1: Int64 {
+    get { getIntegerValueField(.scrollWheelEventPointDeltaAxis1) }
+    set { self.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: newValue) }
   }
 
   var gestureHIDType: IOHIDEventType? {
@@ -304,7 +304,7 @@ final class ZoomManager {
 
       postZoomGestureEvent(
         withPhase: .changed,
-        zoomValue: -(event.scrollWheelEventPointDeltaAxis1 * zoomSensitivity)
+        zoomValue: -(Double(event.scrollWheelEventPointDeltaAxis1) * zoomSensitivity)
       )
 
       return wasZooming
