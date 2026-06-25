@@ -130,6 +130,16 @@ extension OSStatus {
   var statusDescription: String { fourCharCodeString.map { "\($0) (\(self))" } ?? String(self) }
 }
 
+extension CGEvent {
+  var mouseEventSubtype: NSEvent.EventSubtype? {
+    guard let mouseEventSubtypeRawValue = Int16(exactly: getIntegerValueField(.mouseEventSubtype)) else {
+      return nil
+    }
+
+    return NSEvent.EventSubtype(rawValue: mouseEventSubtypeRawValue)
+  }
+}
+
 enum SoundEffect: CaseIterable, CustomStringConvertible {
   case leftMouseDown
   case leftMouseUp
@@ -271,8 +281,8 @@ final class ClickMonitor {
           | 1 << CGEventType.rightMouseDown.rawValue
           | 1 << CGEventType.rightMouseUp.rawValue,
         callback: { _, type, event, refcon in
-          if let refcon, event.getIntegerValueField(.mouseEventSubtype) == NSEvent.EventSubtype.touch.rawValue {
-            Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(ofType: type)
+          if let refcon {
+            Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
           }
 
           return Unmanaged.passUnretained(event)
@@ -336,8 +346,12 @@ final class ClickMonitor {
     CGEvent.tapEnable(tap: eventTap, enable: shouldEnable)
   }
 
-  private func handleEvent(ofType type: CGEventType) {
-    switch type {
+  private func handleEvent(_ event: CGEvent) {
+    guard event.mouseEventSubtype == NSEvent.EventSubtype.touch else {
+      return
+    }
+
+    switch event.type {
     case .leftMouseDown:
       soundEffectManager.play(soundEffect: .leftMouseDown)
 
