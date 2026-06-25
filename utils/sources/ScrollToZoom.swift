@@ -125,13 +125,8 @@ extension CGEvent {
   }
 
   var scrollWheelEventPointDeltaAxis1: Double {
-    get {
-      return getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
-    }
-
-    set {
-      self.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: newValue)
-    }
+    get { getDoubleValueField(.scrollWheelEventPointDeltaAxis1) }
+    set { self.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: newValue) }
   }
 
   var gestureHIDType: IOHIDEventType? {
