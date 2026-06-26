@@ -43,7 +43,6 @@ cask "apparency"
 cask "archaeology"
 cask "asset-catalog-tinkerer"
 cask "audacity"
-cask "blender"
 cask "cleanshot"
 cask "deskpad"
 cask "figma"
@@ -62,13 +61,11 @@ cask "sloth"
 cask "utm"
 cask "visual-studio-code"
 
-mas "Apple Developer", id: 640199958
 mas "Aqua Swatch", id: 1565479346
 mas "DaVinci Resolve", id: 571213070
 mas "Dropover", id: 1355679052
 mas "Equinox", id: 1591510203
 mas "Keynote", id: 361285480
-mas "Linearity Move", id: 6443677011
 mas "Numbers", id: 361304891
 mas "Pages", id: 361309726
 mas "Xcode", id: 497799835

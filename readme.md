@@ -152,9 +152,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - IINA
     - Settings → Utilities → Select "Set IINA as the Default Application…"
 
-  - Linearity Move
-    - Customise Toolbar → Set "Show" to "Icons Only"
-
   - Mail
     - Set up sidebar favorites (see reference screenshot)
     - Turn off "Show Mail Categories"

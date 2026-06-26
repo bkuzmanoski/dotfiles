@@ -412,15 +412,6 @@ defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array
 defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
 defaults_write me.damir.dropover-mac ShelfTriggerModifierKey -string "command"
 
-open "/Applications/Linearity Move.app"
-sleep 3
-defaults_write defaults read com.linearity.Silver notificationsAllowed -bool false
-defaults_write defaults read com.linearity.Silver notificationsGuidesAllowed -bool false
-defaults_write defaults read com.linearity.Silver notificationsInAppMessagesAllowed -bool false
-defaults_write defaults read com.linearity.Silver notificationsNewFeaturesAllowed -bool false
-defaults_write defaults read com.linearity.Silver notificationsOtherAllowed -bool false
-defaults_write defaults read com.linearity.Silver notificationsPendingUpdatesAvailable -bool false
-
 apply_json_values "${HOME}/.lmstudio/settings.json" <<-"EOF"
 	{
 	  "chat": {
