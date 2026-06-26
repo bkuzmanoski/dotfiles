@@ -462,8 +462,7 @@ enum ScreenCaptureService {
       display: display,
       excludingApplications: availableContent.applications
         .first { $0.processID == NSRunningApplication.current.processIdentifier }
-        .map { [$0] }
-        ?? [],
+        .map { [$0] } ?? [],
       exceptingWindows: []
     )
     let configuration = SCScreenshotConfiguration()
@@ -1053,7 +1052,7 @@ final class MeasurementSession {
         tap: .cghidEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: 1 << CGEventType.flagsChanged.rawValue,
+        eventsOfInterest: CGEventMask(1 << CGEventType.flagsChanged.rawValue),
         callback: { _, _, event, refcon in
           guard let refcon else {
             return Unmanaged.passUnretained(event)
@@ -1205,7 +1204,9 @@ final class MeasurementSession {
         move(to: newScreen)
       } else {
         print(
-          "Failed to determine screen after screen parameters changed.", to: &FileDescriptorOutputStream.standardError)
+          "Failed to determine screen after screen parameters changed.",
+          to: &FileDescriptorOutputStream.standardError
+        )
         NSApplication.shared.terminate(nil)
       }
 

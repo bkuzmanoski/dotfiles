@@ -274,12 +274,16 @@ final class ClickMonitor {
         tap: .cghidEventTap,
         place: .headInsertEventTap,
         options: .listenOnly,
-        eventsOfInterest: 1 << CGEventType.leftMouseDown.rawValue
-          | 1 << CGEventType.leftMouseUp.rawValue
-          | 1 << CGEventType.otherMouseDown.rawValue
-          | 1 << CGEventType.otherMouseUp.rawValue
-          | 1 << CGEventType.rightMouseDown.rawValue
-          | 1 << CGEventType.rightMouseUp.rawValue,
+        eventsOfInterest: CGEventMask(
+          [
+            CGEventType.leftMouseDown,
+            CGEventType.leftMouseUp,
+            CGEventType.otherMouseDown,
+            CGEventType.otherMouseUp,
+            CGEventType.rightMouseDown,
+            CGEventType.rightMouseUp
+          ].reduce(0) { $0 | (1 << $1.rawValue) }
+        ),
         callback: { _, type, event, refcon in
           if let refcon {
             Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
@@ -594,7 +598,7 @@ do {
   try MainActor.assumeIsolated {
     let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
 
-    if isatty(STDOUT_FILENO) == 0 {
+    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
         let fd = try FileDescriptor.open(
           FilePath(

@@ -758,7 +758,7 @@ do {
   try MainActor.assumeIsolated {
     let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
 
-    if isatty(STDOUT_FILENO) == 0 {
+    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
         let fd = try FileDescriptor.open(
           FilePath(

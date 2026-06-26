@@ -878,10 +878,13 @@ final class FocusManager {
         place: .headInsertEventTap,
         options: .listenOnly,
         eventsOfInterest: CGEventMask(
-          1 << CGEventType.mouseMoved.rawValue
-            | 1 << CGEventType.leftMouseDragged.rawValue
-            | 1 << CGEventType.rightMouseDragged.rawValue
-            | 1 << CGEventType.flagsChanged.rawValue),
+          [
+            CGEventType.mouseMoved,
+            CGEventType.leftMouseDragged,
+            CGEventType.rightMouseDragged,
+            CGEventType.flagsChanged
+          ].reduce(0) { $0 | (1 << $1.rawValue) }
+        ),
         callback: { _, _, event, refcon in
           if let refcon {
             Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
@@ -1099,7 +1102,9 @@ final class FocusManager {
       } catch {
         focusedWindowID = nil
         print(
-          "Failed to get focused window for PID \(targetPID): \(error)", to: &FileDescriptorOutputStream.standardError)
+          "Failed to get focused window for PID \(targetPID): \(error)",
+          to: &FileDescriptorOutputStream.standardError
+        )
       }
 
       if let focusedWindowID {
@@ -1250,7 +1255,7 @@ do {
   try MainActor.assumeIsolated {
     let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
 
-    if isatty(STDOUT_FILENO) == 0 {
+    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
         let fd = try FileDescriptor.open(
           FilePath(

@@ -147,7 +147,12 @@ final class HotkeyManager {
         tap: .cgSessionEventTap,
         place: .headInsertEventTap,
         options: .defaultTap,
-        eventsOfInterest: CGEventMask(1 << CGEventType.keyDown.rawValue | 1 << CGEventType.keyUp.rawValue),
+        eventsOfInterest: CGEventMask(
+          [
+            CGEventType.keyDown,
+            CGEventType.keyUp
+          ].reduce(0) { $0 | (1 << $1.rawValue) }
+        ),
         callback: { _, _, event, refcon in
           guard let refcon else {
             return Unmanaged.passUnretained(event)
@@ -308,7 +313,7 @@ do {
   try MainActor.assumeIsolated {
     let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
 
-    if isatty(STDOUT_FILENO) == 0 {
+    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
         let fd = try FileDescriptor.open(
           FilePath(
