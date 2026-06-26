@@ -3,8 +3,9 @@ import System
 
 enum Configuration {
   static let subsystem = "industries.britown.FloatingMenuBar"
-  static let minimumMenuWidth: CGFloat = 160.0
   static let modifierKey = CGEventFlags.maskCommand
+  static let minimumMenuWidth: CGFloat = 160.0
+  static let submenuImageBundleIdentifiers: Set<String> = ["com.google.Chrome"]
 }
 
 struct FileDescriptorOutputStream: TextOutputStream {
@@ -276,7 +277,15 @@ final class AppMenu {
     do {
       guard
         let menuBarElement,
-        let appMenu = try buildMenu(from: menuBarElement, skipFirstChild: true, minimumWidth: minimumWidth),
+        let appMenu = try buildMenu(
+          from: menuBarElement,
+          skipFirstChild: true,
+          isRootMenu: true,
+          showImageForSubmenuItems: Configuration.submenuImageBundleIdentifiers.contains(
+            application.bundleIdentifier ?? ""
+          ),
+          minimumWidth: minimumWidth
+        ),
         let mainAppMenuItem = appMenu.items.first
       else {
         return
@@ -295,7 +304,9 @@ final class AppMenu {
   private static func buildMenu(
     from element: AXUIElement,
     skipFirstChild: Bool = false,
+    isRootMenu: Bool = false,
     isSubmenu: Bool = false,
+    showImageForSubmenuItems shouldShowImageForSubmenuItems: Bool,
     minimumWidth: CGFloat?
   ) throws -> NSMenu? {
     guard var menuItemElements = try element.children(), !menuItemElements.isEmpty else {
@@ -316,6 +327,8 @@ final class AppMenu {
           from: menuItemData,
           element: menuItemElement,
           previousItem: menuItems.last,
+          isInRootMenu: isRootMenu,
+          showImageIfSubmenu: shouldShowImageForSubmenuItems,
           minimumWidth: minimumWidth
         )
       else {
@@ -368,6 +381,8 @@ final class AppMenu {
     from menuItemData: MenuItemData,
     element: AXUIElement,
     previousItem: NSMenuItem?,
+    isInRootMenu: Bool = false,
+    showImageIfSubmenu shouldShowImageIfSubmenu: Bool,
     minimumWidth: CGFloat?
   ) throws -> NSMenuItem? {
     if menuItemData.title.isEmpty {
@@ -408,7 +423,16 @@ final class AppMenu {
     }
 
     if let submenuElement = menuItemData.children?.first {
-      menuItem.submenu = try buildMenu(from: submenuElement, isSubmenu: true, minimumWidth: minimumWidth)
+      if !isInRootMenu, shouldShowImageIfSubmenu {
+        menuItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+      }
+
+      menuItem.submenu = try buildMenu(
+        from: submenuElement,
+        isSubmenu: true,
+        showImageForSubmenuItems: shouldShowImageIfSubmenu,
+        minimumWidth: minimumWidth
+      )
     } else {
       menuItem.target = self
       menuItem.action = #selector(menuItemAction(_:))
