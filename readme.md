@@ -58,10 +58,13 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - 1Password
     - Settings
       - General
+        - Set "Save new items in" to "Personal"
         - Set "Show Quick Access" shortcut to ⌃⇧␣
         - Clear "Autofill" shortcut
       - Appearance → Set "Density" to "Compact"
-      - Security → Set "App unlock preset" to "Convenient"
+      - Security
+        - Set "App unlock preset" to "Convenient"
+        - Turn on "Use Universal Clipboard to copy to other devices"
       - Developer
         - Turn on "Show 1Password Developer experience"
         - Turn on "Integrate with 1Password CLI"
