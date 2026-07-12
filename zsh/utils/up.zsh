@@ -269,7 +269,7 @@ function cargoup() {
   done
 
   if ((${#missing_tools[@]} > 0)) && ! cargo binstall "${missing_tools[@]}" --no-confirm; then
-    print -u2 "\nFailed to install Cargo tools"
+    print -u2 "\nFailed to install Cargo tools."
     return 1
   fi
 
