@@ -144,7 +144,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Downloads → Turn off "Show downloads when they're complete"
       - System → Turn off "On-device AI"
     - Flags
-      - [#lens-overlay-optimization-filter](chrome://flags/#lens-overlay-optimization-filter) → Set to "Disabled" → Set to "Enabled"
+      - [#lens-overlay-optimization-filter](chrome://flags/#lens-overlay-optimization-filter) → Set to "Disabled"
 
   - Hammerspoon
     - Settings → Turn on "Launch Hammerspoon at login"
@@ -167,6 +167,13 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Raycast
     - Import settings file
     - Disable unused extensions/commands
+
+  - RunCat Neo
+    - Settings
+      - General → Turn on "Launch at login"
+      - Metrics
+        - Turn off "Enable Storage Capacity Monitoring"
+        - Turn off "Enable Battery Status Monitoring"
 
   - VS Code
     - Sync settings and extensions

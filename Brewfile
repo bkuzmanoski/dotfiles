@@ -68,6 +68,7 @@ mas "Equinox", id: 1591510203
 mas "Keynote", id: 361285480
 mas "Numbers", id: 361304891
 mas "Pages", id: 361309726
+mas "RunCat Neo" id: 6757801838
 mas "Xcode", id: 497799835
 
 cask "font-0xproto"
