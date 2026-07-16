@@ -126,6 +126,10 @@ extension AXUIElement {
     AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
   }
 
+  static func element(for pid: pid_t) -> AXUIElement {
+    return AXUIElementCreateApplication(pid)
+  }
+
   func children() throws -> [AXUIElement]? {
     var valuesRef: CFArray?
 
@@ -138,10 +142,6 @@ extension AXUIElement {
     ).throwIfFailed()
 
     return valuesRef as? [AXUIElement]
-  }
-
-  static func element(for pid: pid_t) -> AXUIElement {
-    return AXUIElementCreateApplication(pid)
   }
 
   func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) throws -> T {
