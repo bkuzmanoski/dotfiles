@@ -175,6 +175,10 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn off "Enable Storage Capacity Monitoring"
         - Turn off "Enable Battery Status Monitoring"
 
+  - Scratchpad
+    - Launch at login
+    - Set Font to "JetBrains Mono Regular Regular"
+
   - VS Code
     - Sync settings and extensions
     - Position Command Center in center of window
