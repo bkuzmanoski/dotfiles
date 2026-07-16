@@ -130,7 +130,7 @@ extension AXUIElement {
     return AXUIElementCreateApplication(pid)
   }
 
-  func children() throws -> [AXUIElement]? {
+  func children() throws -> [AXUIElement] {
     var valuesRef: CFArray?
 
     try AXUIElementCopyAttributeValues(
@@ -141,7 +141,7 @@ extension AXUIElement {
       &valuesRef
     ).throwIfFailed()
 
-    return valuesRef as? [AXUIElement]
+    return valuesRef as? [AXUIElement] ?? []
   }
 
   func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) throws -> T {
@@ -314,7 +314,9 @@ final class AppMenu {
     showsSubmenuImages: Bool,
     minimumWidth: CGFloat?
   ) throws -> NSMenu? {
-    guard var menuItemElements = try element.children(), !menuItemElements.isEmpty else {
+    var menuItemElements = try element.children()
+
+    guard !menuItemElements.isEmpty else {
       return nil
     }
 
