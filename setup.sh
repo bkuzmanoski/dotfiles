@@ -381,14 +381,6 @@ defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0            #
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 #
 defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"  # Set hotkey to ⌘␣
 
-defaults_write com.sindresorhus.Scratchpad KeyboardShortcuts_toggleWindow -string '{"carbonModifiers":768,"carbonKeyCode":49}' # Set keyboard shortcut to ⇧⌘␣
-defaults_write com.sindresorhus.Scratchpad lineSpacing -string "0.3"
-defaults_write com.sindresorhus.Scratchpad showMenuBarIcon -bool false
-defaults_write com.sindresorhus.Scratchpad showOnAllSpaces -bool true
-defaults_write com.sindresorhus.Scratchpad textSize -int 13
-defaults_write com.sindresorhus.Scratchpad linkifyURLs -bool true
-defaults_write com.sindresorhus.Scratchpad isSyncEnabled -bool true
-
 defaults_write com.superultra.Homerow auto-activate-mission-control -bool false #
 defaults_write com.superultra.Homerow enableSoundEffects -bool false            #
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space"     # Set Clicking keyboard shortcut to ⌥⇧␣
