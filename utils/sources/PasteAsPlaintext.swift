@@ -2,8 +2,8 @@ import AppKit
 import System
 
 struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardError = FileDescriptorOutputStream(.standardError)
   static var standardOutput = FileDescriptorOutputStream(.standardOutput)
+  static var standardError = FileDescriptorOutputStream(.standardError)
 
   let fileDescriptor: FileDescriptor
   var errorHandler: ((any Error) -> Void)?
