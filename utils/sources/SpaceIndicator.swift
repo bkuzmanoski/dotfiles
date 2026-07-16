@@ -28,11 +28,11 @@ struct FileDescriptorOutputStream: TextOutputStream {
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(underlyingError: Errno)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
@@ -159,8 +159,8 @@ struct CGSSpaceMask: OptionSet {
   static let allVisibleSpaces: CGSSpaceMask = [.visible, .allSpaces]
 }
 
-extension CGError: @retroactive CustomStringConvertible {
-  public var description: String {
+extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
+  public var errorDescription: String? {
     let message: String
 
     switch self {
@@ -263,10 +263,10 @@ struct Window: Hashable {
 
 @MainActor
 final class SpaceMonitor {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case failedToRegisterForNotifications(eventType: CGSEventType, underlyingError: CGError)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .failedToRegisterForNotifications(let eventType, let underlyingError):
         "Failed to register for '\(eventType)' notifications: \(underlyingError)"

@@ -201,7 +201,7 @@ extension BGRAPixel {
 }
 
 struct ScreenCapture {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case unsupportedPixelFormat(
       byteOrder: CGImageByteOrderInfo,
       alphaInfo: CGImageAlphaInfo,
@@ -210,7 +210,7 @@ struct ScreenCapture {
     )
     case missingPixelData
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .unsupportedPixelFormat(let byteOrder, let alphaInfo, let bitsPerPixel, let bitsPerComponent):
         "Unsupported pixel format: \(byteOrder), \(alphaInfo), \(bitsPerPixel) bits per pixel, \(bitsPerComponent) bits per component."
@@ -433,12 +433,12 @@ enum EdgeDetector {
 }
 
 enum ScreenCaptureService {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case screenNotFound(CGDirectDisplayID)
     case displayNotFound
     case missingSdrImage
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .screenNotFound(let displayID): "Screen for display ID \(displayID) not found."
       case .displayNotFound: "Display not found in shareable content."
@@ -939,7 +939,7 @@ struct MeasurementStyle {
 
 @MainActor
 final class MeasurementSession {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
     case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
@@ -947,7 +947,7 @@ final class MeasurementSession {
     case failedToCreateEventTap
     case failedToCreateRunLoopSource
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."

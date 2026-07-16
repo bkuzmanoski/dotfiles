@@ -29,11 +29,11 @@ struct FileDescriptorOutputStream: TextOutputStream {
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(underlyingError: Errno)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
@@ -125,10 +125,10 @@ func SameProcess(
 func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
 
 extension AXUIElement {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case typeMismatch
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .typeMismatch: "Returned value type does not match expected type."
       }
@@ -162,8 +162,8 @@ extension AXUIElement {
   }
 }
 
-extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive CustomStringConvertible {
-  public var description: String {
+extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive LocalizedError {
+  public var errorDescription: String? {
     let message: String
 
     switch (self) {
@@ -205,8 +205,8 @@ extension NSAccessibility.Notification {
   static let exposeExit = NSAccessibility.Notification(rawValue: "AXExposeExit")
 }
 
-extension CGError: @retroactive CustomStringConvertible {
-  public var description: String {
+extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
+  public var errorDescription: String? {
     let message: String
 
     switch self {
@@ -332,11 +332,11 @@ struct SLPSEventRecord {
 }
 
 struct SkyLightProxy {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case frameworkNotFound
     case symbolNotFound(String)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .frameworkNotFound: "SkyLight framework could not be loaded."
       case .symbolNotFound(let symbol): "Symbol '\(symbol)' not found in SkyLight framework."
@@ -522,13 +522,13 @@ struct SkyLightProxy {
 
 @MainActor
 final class WorkspaceMonitor {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case failedToRegisterForNotifications(eventType: CGSEventType, underlyingError: CGError)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .failedToRegisterForNotifications(let eventType, let underlyingError):
-        "Failed to register for '\(eventType)' notifications: \(underlyingError.description)"
+        "Failed to register for '\(eventType)' notifications: \(underlyingError.localizedDescription)"
       }
     }
   }
@@ -656,13 +656,13 @@ final class WorkspaceMonitor {
 
 @MainActor
 final class MissionControlMonitor {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
     case dockProcessNotFound
     case failedToCreateObserver(underlyingError: AXError)
     case failedToAddNotification(notification: NSAccessibility.Notification, underlyingError: AXError)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted:
         "Accessibility permission not granted."
@@ -822,12 +822,12 @@ final class MissionControlMonitor {
 
 @MainActor
 final class FocusManager {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
     case failedToCreateEventTap
     case failedToCreateRunLoopSource
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .failedToCreateEventTap: "Failed to create event tap."

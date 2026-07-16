@@ -29,11 +29,11 @@ struct FileDescriptorOutputStream: TextOutputStream {
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(underlyingError: Errno)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
@@ -169,12 +169,12 @@ enum SoundEffect: CaseIterable, CustomStringConvertible {
 }
 
 final class SoundEffectManager {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case soundFileDirectoryNotFound(path: String)
     case invalidSoundFileDirectoryPath(String)
     case soundFileNotFound(soundEffect: SoundEffect, path: String)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .soundFileDirectoryNotFound(let path): "Sound file directory not found at path: \(path)"
       case .invalidSoundFileDirectoryPath(let path): "Invalid sound file directory path (not a directory): \(path)"
@@ -243,12 +243,12 @@ final class SoundEffectManager {
 
 @MainActor
 final class ClickMonitor {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
     case failedToCreateEventTap
     case failedToCreateRunLoopSource
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .failedToCreateEventTap: "Failed to create event tap."
@@ -381,12 +381,12 @@ final class ClickMonitor {
 }
 
 final class SystemOutputDeviceObserver {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case failedToDetermineOutputDevice(status: OSStatus)
     case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
     case failedToObserveOutputDeviceChanges(status: OSStatus)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .failedToDetermineOutputDevice(let status):
         "Failed to determine the output audio device: \(status.statusDescription)"

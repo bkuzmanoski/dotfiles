@@ -27,11 +27,11 @@ struct FileDescriptorOutputStream: TextOutputStream {
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(underlyingError: Errno)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
@@ -177,10 +177,10 @@ enum CGGestureMotion: Int64 {
 }
 
 final class SpaceSwitcher {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       }

@@ -32,11 +32,11 @@ struct FileDescriptorOutputStream: TextOutputStream {
 }
 
 final class SingleInstanceLock {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case instanceAlreadyRunning
     case failedToAcquireLock(underlyingError: Errno)
 
-    var description: String {
+    var errorDescription: String {
       switch self {
       case .instanceAlreadyRunning: "Another instance is already running."
       case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
@@ -110,10 +110,10 @@ enum ProcessSignals {
 }
 
 extension AXUIElement {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case typeMismatch
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .typeMismatch: "Returned value type does not match expected type."
       }
@@ -174,8 +174,8 @@ extension AXUIElement {
   }
 }
 
-extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive CustomStringConvertible {
-  public var description: String {
+extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive LocalizedError {
+  public var errorDescription: String? {
     let message: String
 
     switch (self) {
@@ -232,12 +232,12 @@ extension NSEvent.ModifierFlags {
 
 @MainActor
 final class AppMenu {
-  enum Error: Swift.Error, CustomStringConvertible {
+  enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
     case failedToRetrieveMenuBarElement(application: NSRunningApplication, underlyingError: any Swift.Error)
     case failedToBuildMenu(application: NSRunningApplication, underlyingError: any Swift.Error)
 
-    var description: String {
+    var errorDescription: String? {
       switch self {
       case .accessibilityPermissionNotGranted:
         "Accessibility permission not granted."
