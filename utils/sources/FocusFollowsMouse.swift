@@ -186,7 +186,7 @@ extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactiv
     @unknown default: message = "Unknown error"
     }
 
-    return "\(message) (\(self.rawValue))"
+    return "AXError: \(message) (\(self.rawValue))"
   }
 }
 
@@ -224,7 +224,7 @@ extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
     @unknown default: message = "Unknown error"
     }
 
-    return "\(message) (\(self.rawValue))"
+    return "CGError: \(message) (\(self.rawValue))"
   }
 }
 

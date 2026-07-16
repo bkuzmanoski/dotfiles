@@ -198,7 +198,7 @@ extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactiv
     @unknown default: message = "Unknown error"
     }
 
-    return "\(message) (\(self.rawValue))"
+    return "AXError: \(message) (\(self.rawValue))"
   }
 }
 

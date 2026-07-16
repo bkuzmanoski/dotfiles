@@ -178,7 +178,7 @@ extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
     @unknown default: message = "Unknown error"
     }
 
-    return "\(message) (\(self.rawValue))"
+    return "CGError: \(message) (\(self.rawValue))"
   }
 }
 
