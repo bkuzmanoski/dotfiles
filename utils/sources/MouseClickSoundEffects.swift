@@ -64,7 +64,10 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print("Failed to close lock file descriptor: \(error)", to: &FileDescriptorOutputStream.standardError)
+      print(
+        "Failed to close lock file descriptor: \(error.localizedDescription)",
+        to: &FileDescriptorOutputStream.standardError
+      )
     }
   }
 }
@@ -495,7 +498,7 @@ final class SystemOutputDeviceObserver {
     do {
       transportType = try currentTransportType()
     } catch {
-      print(error, to: &FileDescriptorOutputStream.standardError)
+      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
       transportType = kAudioDeviceTransportTypeUnknown
     }
 
@@ -531,7 +534,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       self.systemOutputDeviceObserver = systemOutputDeviceObserver
       self.clickMonitor = clickMonitor
     } catch {
-      print(error, to: &FileDescriptorOutputStream.standardError)
+      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
 
@@ -617,7 +620,7 @@ do {
         setvbuf(stdout, nil, _IONBF, 0)
         setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error)", to: &FileDescriptorOutputStream.standardError)
+        print("Failed to redirect output: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
       }
     }
 
@@ -668,7 +671,7 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error)", to: &FileDescriptorOutputStream.standardError)
+      print("Failed to read log file: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
   } else {
@@ -678,6 +681,6 @@ do {
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error, to: &FileDescriptorOutputStream.standardError)
+  print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
   exit(EXIT_FAILURE)
 }

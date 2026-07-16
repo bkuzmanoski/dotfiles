@@ -1354,7 +1354,7 @@ final class MeasurementSession {
 
         measureSpan()
       } catch {
-        print("Failed to capture screen: \(error)", to: &FileDescriptorOutputStream.standardError)
+        print("Failed to capture screen: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
         NSApplication.shared.terminate(nil)
       }
     }
@@ -1507,7 +1507,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       )
       observeIPCCommands()
     } catch {
-      print(error, to: &FileDescriptorOutputStream.standardError)
+      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
       exit(EXIT_FAILURE)
     }
   }
