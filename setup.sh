@@ -120,6 +120,21 @@ function apply_json_values() {
   fi
 }
 
+function write_file() {
+  local target_file="$1"
+  local content
+
+  if [[ -n "$2" ]]; then
+    content="$2"
+  else
+    content="$(cat)"
+  fi
+
+  log --info "Writing file: ${target_file}"
+  mkdir -p "$(dirname "${target_file}")"
+  print -r -- "${content}" >"${target_file}"
+}
+
 # =============================================================================
 # Install Homebrew, apps, and fonts
 # =============================================================================
@@ -338,7 +353,7 @@ set_system_hotkey 30 "false" 52 21 1179648                                     #
 set_system_hotkey 31 "false" 52 21 1441792                                     # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648                                    # Disable Screenshot and recording options
 
-apply_json_values "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
+write_file "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
 	{
 	  "@\U007F" = (
 	    "moveToBeginningOfLineAndModifySelection:",
