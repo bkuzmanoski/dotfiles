@@ -458,6 +458,8 @@ apply_json_values "${HOME}/.lmstudio/settings.json" <<-"EOF"
 	}
 EOF
 
+utiluti type set public.json com.microsoft.VSCode
+
 # =============================================================================
 # Finalization
 # =============================================================================
