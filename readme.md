@@ -82,6 +82,13 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Shortcut 1 → Trigger → Set "Hold" to "⌘"
         - Shortcut 2 → Trigger → Set "Hold" to "⌘"
 
+  - Claude
+    - Settings
+      - Cowork → Turn on "Dispatch"
+      - Claude in Chrome → Turn on "Enable Claude in Chrome"
+      - General → Turn on "Enable computer use"
+      - Extensions → Install Figma connector
+
   - CleanShot X
     - Settings
       - General → After capture

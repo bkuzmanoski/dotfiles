@@ -458,6 +458,14 @@ apply_json_values "${HOME}/.lmstudio/settings.json" <<-"EOF"
 	}
 EOF
 
+apply_json_values "${HOME}/Library/Application Support/Claude/claude_desktop_config.json" <<-"EOF"
+	{
+	  "preferences": {
+	    "menuBarEnabled": false
+	  }
+	}
+EOF
+
 utiluti type set public.json com.microsoft.VSCode
 
 # =============================================================================
