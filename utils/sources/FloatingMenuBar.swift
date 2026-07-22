@@ -178,7 +178,7 @@ extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactiv
   public var errorDescription: String? {
     let message: String
 
-    switch (self) {
+    switch self {
     case .success: message = "Success"
     case .failure: message = "Failure"
     case .illegalArgument: message = "Illegal argument"

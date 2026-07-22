@@ -227,10 +227,8 @@ final class SpaceSwitcher {
     let direction: Direction = spacesInfo.currentIndex < targetIndex ? .right : .left
     let steps = direction == .right ? (targetIndex - spacesInfo.currentIndex) : (spacesInfo.currentIndex - targetIndex)
 
-    for _ in 0..<steps {
-      if !performSpaceSwitchGesture(direction: direction) {
-        return
-      }
+    for _ in 0..<steps where !performSpaceSwitchGesture(direction: direction) {
+      return
     }
   }
 
