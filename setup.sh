@@ -461,7 +461,8 @@ EOF
 apply_json_values "${HOME}/Library/Application Support/Claude/claude_desktop_config.json" <<-"EOF"
 	{
 	  "preferences": {
-	    "menuBarEnabled": false
+	    "menuBarEnabled": false,
+			"quickEntryShortcut": "off"
 	  }
 	}
 EOF
