@@ -467,6 +467,7 @@ apply_json_values "${HOME}/Library/Application Support/Claude/claude_desktop_con
 	}
 EOF
 
+utiluti type set net.daringfireball.markdown com.microsoft.VSCode
 utiluti type set public.json com.microsoft.VSCode
 utiluti type set public.svg-image com.google.Chrome
 
