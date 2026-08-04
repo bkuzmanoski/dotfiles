@@ -399,7 +399,6 @@ defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true             #
 defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true     #
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true           #
 defaults_write com.lwouis.alt-tab-macos previewFadeInAnimation -bool false   #
-defaults_write com.lwouis.alt-tab-macos previewFocusedWindow -bool true      #
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0            #
 
 defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 #
