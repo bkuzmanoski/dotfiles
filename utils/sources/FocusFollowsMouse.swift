@@ -1105,7 +1105,7 @@ final class FocusManager {
       } catch {
         focusedWindowID = nil
         print(
-          "Failed to get focused window for PID \(targetPID): \(error.localizedDescription)",
+          "Failed to retrieve focused window for PID \(targetPID): \(error.localizedDescription)",
           to: &FileDescriptorOutputStream.standardError
         )
       }

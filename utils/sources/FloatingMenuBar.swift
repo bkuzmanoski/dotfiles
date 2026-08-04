@@ -230,6 +230,10 @@ extension NSEvent.ModifierFlags {
   }
 }
 
+extension CGEventFlags {
+  static let modifierFlagsMask: CGEventFlags = [.maskShift, .maskControl, .maskAlternate, .maskCommand]
+}
+
 @MainActor
 final class AppMenu {
   enum Error: Swift.Error, LocalizedError {
@@ -494,13 +498,6 @@ final class AppMenu {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private let singleInstanceLock: SingleInstanceLock
-  private let modifierFlagsMask: CGEventFlags = [
-    .maskShift,
-    .maskControl,
-    .maskAlternate,
-    .maskCommand,
-    .maskSecondaryFn
-  ]
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
@@ -568,7 +565,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleEvent(_ event: CGEvent) -> Bool {
     switch event.type {
-    case .rightMouseDown where event.flags.intersection(modifierFlagsMask) == Configuration.modifierKey:
+    case .rightMouseDown where event.flags.intersection(CGEventFlags.modifierFlagsMask) == Configuration.modifierKey:
       do {
         try AppMenu.popUp(at: NSEvent.mouseLocation, minimumWidth: Configuration.minimumMenuWidth)
       } catch {
