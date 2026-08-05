@@ -232,12 +232,11 @@ if ! bat cache --build >/dev/null; then
 fi
 
 # =============================================================================
-# Write defaults
+# Write system defaults
 # =============================================================================
 
-log --info "Setting defaults..."
+log --info "Setting macOS defaults..."
 
-# macOS settings
 defaults_write --sudo /Library/Preferences/com.apple.commerce AutoUpdate -bool true # Enable automatic App Store updates
 
 defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Power" -dict-add "ReduceBrightness" -int 0
@@ -364,7 +363,12 @@ EOF
 
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
 
-# App settings
+# =============================================================================
+# Write app defaults
+# =============================================================================
+
+log --info "Setting app defaults..."
+
 defaults_write com.canva.affinity com.canva.affinity.scheme.uimode -int 2                # Set UI mode to "Default OS"
 defaults_write com.canva.affinity com.canva.affinity.HomeScreenShowOnStartUp -bool false #
 
