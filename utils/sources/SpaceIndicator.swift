@@ -586,6 +586,27 @@ struct SpaceIndicatorView: View {
     }
 
     self.currentSpaceIDs[displayIdentifier] = spaceID
+
+    guard
+      let windowsInfo = CGWindowListCopyWindowInfo(
+        [.optionAll, .excludeDesktopElements],
+        kCGNullWindowID
+      ) as? [[String: Any]]
+    else {
+      return
+    }
+
+    let liveWindowIDs = Set(windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
+
+    for (trackedSpaceID, windows) in spaceWindows {
+      let liveWindows = windows.filter { liveWindowIDs.contains($0.id) }
+
+      guard liveWindows.count != windows.count else {
+        continue
+      }
+
+      self.spaceWindows[trackedSpaceID] = liveWindows
+    }
   }
 
   private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {
