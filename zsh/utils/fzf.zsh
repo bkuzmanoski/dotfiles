@@ -24,11 +24,25 @@ function fzf() {
 }
 
 function fdir() {
-  _select_paths "fd --type d" "$@"
+  local no_ignore_flag=""
+
+  if [[ "$1" == "--no-ignore" ]]; then
+    no_ignore_flag="--no-ignore"
+    shift
+  fi
+
+  _select_paths "fd --type d ${no_ignore_flag}" "$@"
 }
 
 function ff() {
-  _select_paths "fd --type f" "$@"
+  local no_ignore_flag=""
+
+  if [[ "$1" == "--no-ignore" ]]; then
+    no_ignore_flag="--no-ignore"
+    shift
+  fi
+
+  _select_paths "fd --type f ${no_ignore_flag}" "$@"
 }
 
 function fif() {
