@@ -570,6 +570,10 @@ struct SpaceIndicatorView: View {
       }
 
       self.runningApps.removeValue(forKey: app.processIdentifier)
+
+      for (trackedSpaceID, windows) in spaceWindows {
+        self.spaceWindows[trackedSpaceID] = windows.filter { $0.processIdentifier != app.processIdentifier }
+      }
     }
   }
 
