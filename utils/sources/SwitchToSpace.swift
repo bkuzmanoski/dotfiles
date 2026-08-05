@@ -246,6 +246,7 @@ final class SpaceSwitcher {
 
   private func performSpaceSwitchGesture(phase: CGGesturePhase, direction: Direction) -> Bool {
     guard let dockControlEvent = CGEvent(source: nil), let gestureEvent = CGEvent(source: nil) else {
+      print("Failed to create CGEvent for space switch gesture.", to: &FileDescriptorOutputStream.standardError)
       return false
     }
 
