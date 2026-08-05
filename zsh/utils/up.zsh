@@ -4,8 +4,9 @@ readonly UPDATE_TASKS=(
   # emoji|description|timestamp_file|update_command
   "🧩|zsh plugins|${UPDATE_TIMESTAMPS_DIR}/zsh_plugins_last_update|zshup"
   "🍺|brew|${UPDATE_TIMESTAMPS_DIR}/brew_last_update|brewup"
-  "🟢|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
+  "🔨|built packages|${UPDATE_TIMESTAMPS_DIR}/build_last_update|buildup"
   "📦|cargo|${UPDATE_TIMESTAMPS_DIR}/cargo_last_update|cargoup"
+  "🟢|fnm|${UPDATE_TIMESTAMPS_DIR}/fnm_last_update|fnmup"
 )
 
 function _update_timestamps() {
@@ -124,6 +125,167 @@ function brewup() {
   _update_timestamps "brew_last_update"
 }
 
+function cargoup() {
+  setopt localoptions extendedglob
+
+  local cargofile_path="${HOME}/.dotfiles/Cargofile"
+
+  if ! command -v rustup >/dev/null; then
+    print -u2 -P "%Brustup%b is not installed."
+    return 1
+  fi
+
+  if ! rustup update stable; then
+    print -u2 "Failed to update Rust toolchain."
+    return 1
+  fi
+
+  print
+
+  if ! command -v cargo-binstall >/dev/null; then
+    print -u2 -P "%Bcargo-binstall%b is not installed."
+    return 1
+  fi
+
+  if [[ ! -f "${cargofile_path}" ]]; then
+    print -u2 -P "%BCargofile%b not found."
+    return 1
+  fi
+
+  local entries=(${(f)"$(<${cargofile_path})"})
+  entries=(${entries##[[:space:]]#})
+  entries=(${entries%%[[:space:]]#})
+  entries=(${entries:#[[:space:]]#\#*})
+  entries=(${entries:#[[:space:]]#})
+
+  local -a packages=()
+  local -A binaries
+
+  for entry in "${entries[@]}"; do
+    if [[ "${entry}" == *:* ]]; then
+      local package="${entry%%:*}"
+      local binary="${entry##*:}"
+
+      packages+=("${package}")
+      binaries["${package}"]="${binary}"
+    else
+      packages+=("${entry}")
+      binaries["${entry}"]="${entry}"
+    fi
+  done
+
+  local missing_tools=()
+
+  for tool in "${packages[@]}"; do
+    if ! command -v "${binaries["${tool}"]}" >/dev/null; then
+      missing_tools+=("${tool}")
+    fi
+  done
+
+  if ((${#missing_tools[@]} > 0)) && ! cargo binstall "${missing_tools[@]}" --no-confirm; then
+    print -u2 "\nFailed to install Cargo tools."
+    return 1
+  fi
+
+  if ! cargo install-update -a; then
+    print -u2 "\nFailed to update Cargo packages."
+    return 1
+  fi
+
+  _update_timestamps "cargo_last_update"
+}
+
+function buildup() {
+  setopt localoptions extendedglob
+
+  local buildfile_path="${HOME}/.dotfiles/Buildfile"
+  local build_sources_dir="${HOME}/.local/src"
+
+  if [[ ! -f "${buildfile_path}" ]]; then
+    print -u2 -P "%BBuildfile%b not found."
+    return 1
+  fi
+
+  local entries=(${(f)"$(<${buildfile_path})"})
+  entries=(${entries##[[:space:]]#})
+  entries=(${entries%%[[:space:]]#})
+  entries=(${entries:#[[:space:]]#\#*})
+  entries=(${entries:#[[:space:]]#})
+
+  local entry_count=${#entries[@]}
+
+  if ((entry_count == 0)); then
+    _update_timestamps "build_last_update"
+    return 0
+  fi
+
+  local -i i
+
+  for ((i = 1; i <= entry_count; i++)); do
+    local parts=("${(@s:|:)entries[i]}")
+    local package="${parts[1]}"
+    local git_repository="${parts[2]}"
+    local install_command="${parts[3]}"
+    local installed_path="${parts[4]}"
+
+    if [[ -z "${package}" || -z "${git_repository}" || -z "${install_command}" ]]; then
+      print -u2 "Invalid Buildfile entry: ${entries[i]}"
+      return 1
+    fi
+
+    local source_dir="${build_sources_dir}/${package}"
+    local -i needs_installation=0
+
+    if [[ ! -d "${source_dir}" ]]; then
+      print -P "Cloning %B${package}%b...\n"
+
+      mkdir -p "${build_sources_dir}"
+
+      if ! git clone --recursive "${git_repository}" "${source_dir}"; then
+        print -u2 "\n${package} clone failed."
+        return 1
+      fi
+
+      needs_installation=1
+    else
+      print -P "Updating %B${package}%b...\n"
+
+      local previous_revision="$(git -C "${source_dir}" rev-parse HEAD)"
+
+      if ! git -C "${source_dir}" pull --recurse-submodules; then
+        print -u2 "\n${package} update failed."
+        return 1
+      fi
+
+      if [[ "$(git -C "${source_dir}" rev-parse HEAD)" != "${previous_revision}" ]]; then
+        needs_installation=1
+      fi
+    fi
+
+    if [[ -n "${installed_path}" && ! -e "${installed_path}" ]]; then
+      needs_installation=1
+    fi
+
+    if ((needs_installation)); then
+      print -P "\nInstalling %B${package}%b...\n"
+
+      if ! (
+        cd "${source_dir}"
+        eval "${install_command}"
+      ); then
+        print -u2 "\n${package} installation failed."
+        return 1
+      fi
+    fi
+
+    if ((i < entry_count)); then
+      print
+    fi
+  done
+
+  _update_timestamps "build_last_update"
+}
+
 function fnmup() {
   if ! command -v fnm >/dev/null; then
     print -u2 -P "%Bfnm%b is not installed."
@@ -209,76 +371,6 @@ function fnmup() {
   fi
 
   _update_timestamps "fnm_last_update"
-}
-
-function cargoup() {
-  setopt localoptions extendedglob
-
-  local cargo_file_path="${HOME}/.dotfiles/Cargofile"
-
-  if ! command -v rustup >/dev/null; then
-    print -u2 -P "%Brustup%b is not installed."
-    return 1
-  fi
-
-  if ! rustup update stable; then
-    print -u2 "Failed to update Rust toolchain."
-    return 1
-  fi
-
-  print
-
-  if ! command -v cargo-binstall >/dev/null; then
-    print -u2 -P "%Bcargo-binstall%b is not installed."
-    return 1
-  fi
-
-  if [[ ! -f "${cargo_file_path}" ]]; then
-    print -u2 -P "%BCargofile%b not found."
-    return 1
-  fi
-
-  local entries=(${(f)"$(<${cargo_file_path})"})
-  entries=(${entries##[[:space:]]#})
-  entries=(${entries%%[[:space:]]#})
-  entries=(${entries:#[[:space:]]#\#*})
-  entries=(${entries:#[[:space:]]#})
-
-  local -a packages=()
-  local -A binaries
-
-  for entry in "${entries[@]}"; do
-    if [[ "${entry}" == *:* ]]; then
-      local package="${entry%%:*}"
-      local binary="${entry##*:}"
-
-      packages+=("${package}")
-      binaries["${package}"]="${binary}"
-    else
-      packages+=("${entry}")
-      binaries["${entry}"]="${entry}"
-    fi
-  done
-
-  local missing_tools=()
-
-  for tool in "${packages[@]}"; do
-    if ! command -v "${binaries["${tool}"]}" >/dev/null; then
-      missing_tools+=("${tool}")
-    fi
-  done
-
-  if ((${#missing_tools[@]} > 0)) && ! cargo binstall "${missing_tools[@]}" --no-confirm; then
-    print -u2 "\nFailed to install Cargo tools."
-    return 1
-  fi
-
-  if ! cargo install-update -a; then
-    print -u2 "\nFailed to update Cargo packages."
-    return 1
-  fi
-
-  _update_timestamps "cargo_last_update"
 }
 
 function up() {

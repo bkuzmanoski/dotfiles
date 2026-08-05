@@ -136,7 +136,7 @@ function write_file() {
 }
 
 # =============================================================================
-# Install Homebrew, apps, and fonts
+# Install apps and packages
 # =============================================================================
 
 if ! command -v brew >/dev/null; then
@@ -171,6 +171,12 @@ source "${SCRIPT_DIR}/zsh/utils/up.zsh"
 
 if ! cargoup; then
   log --error "Cargo package installation failed"
+fi
+
+log --info "Building packages from source..."
+
+if ! buildup; then
+  log --error "Package build failed"
 fi
 
 # =============================================================================
