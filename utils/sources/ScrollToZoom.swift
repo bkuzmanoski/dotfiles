@@ -251,36 +251,44 @@ final class ZoomManager {
     self.runLoopSource = runLoopSource
   }
 
-  deinit {
+  isolated deinit {
     if let eventTap, let runLoopSource {
       CGEvent.tapEnable(tap: eventTap, enable: false)
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
       CFMachPortInvalidate(eventTap)
     }
+
+    if isZooming {
+      postZoomGestureEvent(withPhase: .cancelled)
+    }
   }
 
   private func handleEvent(_ event: CGEvent) -> Bool {
+    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
+      if isZooming {
+        self.isZooming = false
+        postZoomGestureEvent(withPhase: .cancelled)
+      }
+
+      if let eventTap {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      return false
+    }
+
     guard event.type == .scrollWheel else {
       return false
     }
 
-    guard
-      event.type != .tapDisabledByTimeout,
-      event.type != .tapDisabledByUserInput,
-      event.flags.intersection(modifierFlagsMask) == modifierKey
-    else {
+    guard event.flags.intersection(modifierFlagsMask) == modifierKey else {
       if isZooming {
         self.isZooming = false
-
         postZoomGestureEvent(withPhase: .cancelled)
 
         if event.scrollPhase == .changed {
           event.scrollPhase = .began
         }
-      }
-
-      if let eventTap, !CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
       }
 
       return false
@@ -329,6 +337,7 @@ final class ZoomManager {
 
   private func postZoomGestureEvent(withPhase phase: CGGesturePhase, zoomValue: Double = 0.0) {
     guard let event = CGEvent(source: nil) else {
+      print("Failed to create CGEvent for zoom gesture.", to: &FileDescriptorOutputStream.standardError)
       return
     }
 
