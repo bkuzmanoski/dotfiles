@@ -702,8 +702,13 @@ final class MissionControlMonitor {
       for await _ in NotificationCenter.default.notifications(
         named: Notification.Name("NSApplicationDockDidRestartNotification")
       ) {
+        guard let self else {
+          break
+        }
+
         do {
-          try self?.startObserver()
+          continuation?.yield(.deactivated)
+          try startObserver()
         } catch {
           print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
         }
@@ -1003,6 +1008,7 @@ final class FocusManager {
     }
 
     CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
+    self.isCommandKeyPressed = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
   }
 
   private func handleCGEvent(_ event: CGEvent) {
@@ -1038,7 +1044,11 @@ final class FocusManager {
       }
 
     case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      updateEventTapState()
+      if let eventTap, isEnabled {
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+      }
+
+      self.isCommandKeyPressed = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
 
     default:
       break
