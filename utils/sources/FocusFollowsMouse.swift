@@ -1186,7 +1186,7 @@ final class FocusManager {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private let singleInstanceLock: SingleInstanceLock
+  private var singleInstanceLock: SingleInstanceLock?
   private var focusManager: FocusManager?
 
   init(singleInstanceLock: SingleInstanceLock) {
@@ -1207,6 +1207,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     observeProcessSignals()
     observeIPCCommands()
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    self.singleInstanceLock = nil
+    self.focusManager = nil
   }
 
   private func observeProcessSignals() {

@@ -277,7 +277,7 @@ final class SpaceSwitcher {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-  private let singleInstanceLock: SingleInstanceLock
+  private var singleInstanceLock: SingleInstanceLock?
   private var spaceSwitcher: SpaceSwitcher?
 
   init(singleInstanceLock: SingleInstanceLock) {
@@ -295,6 +295,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     observeProcessSignals()
     observeIPCCommands()
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    self.singleInstanceLock = nil
+    self.spaceSwitcher = nil
   }
 
   private func observeProcessSignals() {

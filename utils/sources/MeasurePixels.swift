@@ -1512,6 +1512,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  func applicationWillTerminate(_ notification: Notification) {
+    self.measurementSession = nil
+  }
+
   private func observeIPCCommands() {
     Task {
       for await notification
