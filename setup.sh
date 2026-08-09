@@ -308,6 +308,8 @@ defaults_write com.apple.mail SendFormat -string "Plain"                        
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" UndoSendDelayTime -int 0  #
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Preferences/group.com.apple.mail.plist" MarkAsReadBehavior -int 3 # Mark all messages as read when entering a conversation
 
+defaults_write com.apple.Safari IncludeDevelopMenu -bool true
+
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"           #
