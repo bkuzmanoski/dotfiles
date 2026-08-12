@@ -65,6 +65,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Security
         - Set "App unlock preset" to "Convenient"
         - Turn on "Use Universal Clipboard to copy to other devices"
+      - Autofill → Turn on "macOS AutoFill"
       - Developer
         - Turn on "Show 1Password Developer experience"
         - Turn on "Integrate with 1Password CLI"
