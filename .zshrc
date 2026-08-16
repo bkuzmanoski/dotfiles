@@ -2,15 +2,6 @@ export HOMEBREW_BUNDLE_FILE_GLOBAL="${HOME}/.dotfiles/Brewfile"
 export HOMEBREW_NO_ENV_HINTS=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 
-autoload -Uz add-zsh-hook
-autoload -Uz zmv
-
-for file in ~/.zsh/hooks/*.zsh; do
-  source "${file}"
-done
-
-fnm_use_on_cd
-
 if [[ -o interactive ]]; then
   export EDITOR="code"
   export EZA_CONFIG_DIR="${HOME}/.config/eza"
@@ -22,21 +13,31 @@ if [[ -o interactive ]]; then
   export FZF_NAVIGATOR_FILE_PREVIEW_COMMAND='if __fzf_navigator_is_binary "${full_path}"; then __fzf_navigator_default_preview_file "${full_path}"; else bat --color=always --style=numbers --theme="$([[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null) == "Dark" ]] && echo "dark" || echo "light")" "${full_path}"; fi; :'
   export MANPAGER="col -bx | bat --language man --style plain"
 
-  HISTSIZE=100000
+  HISTSIZE=10000
+  SAVEHIST=10000
 
   setopt ALWAYS_TO_END
   setopt AUTO_CD
+  setopt AUTO_PUSHD
+  setopt COMBINING_CHARS
   setopt COMPLETE_IN_WORD
   setopt CORRECT
   setopt GLOB_DOTS
+  setopt HIST_FCNTL_LOCK
+  setopt HIST_FIND_NO_DUPS
   setopt HIST_IGNORE_ALL_DUPS
   setopt HIST_REDUCE_BLANKS
+  setopt HIST_SAVE_NO_DUPS
+  setopt HIST_VERIFY
   setopt INTERACTIVE_COMMENTS
   setopt NO_BEEP
+  setopt PUSHD_IGNORE_DUPS
   setopt SHARE_HISTORY
 
+  autoload -Uz add-zsh-hook
   autoload -Uz compinit && compinit
   autoload -Uz undo
+  autoload -Uz zmv
 
   source "${HOME}/.zsh/prompt.zsh"
   source "${HOME}/.zsh/aliases.zsh"
@@ -44,12 +45,14 @@ if [[ -o interactive ]]; then
   source "${HOME}/.zsh/plugins.zsh"
   source "${HOME}/.zsh/theme.zsh"
 
-  for file in ~/.zsh/{utils,widgets}/*.zsh; do
+  for file in ~/.zsh/{hooks,utils,widgets}/*.zsh; do
     source "${file}"
   done
 
   eval "$(zoxide init zsh --cmd cd)"
   unfunction cdi
+
+  fnm_use_on_cd
 
   check_last_update_time
 fi
