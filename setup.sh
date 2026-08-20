@@ -399,7 +399,6 @@ defaults_write com.colliderli.iina themeMaterial -int 4
 
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i"    # Map "Developer Tools" keyboard shortcut to ⇧⌘I
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000"       # Remove keyboard shortcut for "Email Link" (conflicts with ⇧⌘I)
-defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab below" "@t"        # Map "New tab below" keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the Right" "@t" # Map "New Tab to the Right" keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000"          # Remove keyboard shortcut for "New tab" (conflicts with ⌘T)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f"       # Map "Search Tabs…" keyboard shortcut to ⇧⌘F
