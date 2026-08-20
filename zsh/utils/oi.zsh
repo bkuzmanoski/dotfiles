@@ -62,6 +62,7 @@ function oi() {
   fi
 
   local -a files
+
   for input in "$@"; do
     if [[ ! -e ${input} ]]; then
       continue
