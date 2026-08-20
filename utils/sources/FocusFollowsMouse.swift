@@ -141,7 +141,7 @@ extension AXUIElement {
     AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
   }
 
-  func windowID() throws -> CGWindowID? {
+  func windowID() throws -> CGWindowID {
     var windowID: CGWindowID = kCGNullWindowID
 
     try _AXUIElementGetWindow(self, &windowID).throwIfFailed()
