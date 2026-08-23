@@ -61,7 +61,10 @@ function zshup() {
   local plugin_count=${#ZSH_PLUGINS[@]}
 
   if ((${plugin_count} == 0)); then
-    print "No plugins to update."
+    print "No plugins found."
+
+    _update_timestamps "zsh_plugins_last_update"
+
     return 0
   fi
 
@@ -158,6 +161,14 @@ function cargoup() {
   entries=(${entries:#[[:space:]]#\#*})
   entries=(${entries:#[[:space:]]#})
 
+  if ((${#entries[@]} == 0)); then
+    print "No Cargo packages found."
+
+    _update_timestamps "cargo_last_update"
+
+    return 0
+  fi
+
   local -a packages=()
   local -A binaries
 
@@ -215,7 +226,10 @@ function buildup() {
   local entry_count=${#entries[@]}
 
   if ((entry_count == 0)); then
+    print "No build entries found."
+
     _update_timestamps "build_last_update"
+
     return 0
   fi
 
@@ -286,10 +300,39 @@ function buildup() {
   _update_timestamps "build_last_update"
 }
 
+function _fnm_installed_versions() {
+  local list
+
+  if ! list="$(fnm ls)"; then
+    return 1
+  fi
+
+  print -r -- "${list}" | grep -o "v[0-9][0-9.]*"
+
+  return 0
+}
+
 function fnmup() {
   if ! command -v fnm >/dev/null; then
     print -u2 -P "%Bfnm%b is not installed."
     return 1
+  fi
+
+  local version_list
+
+  if ! version_list="$(_fnm_installed_versions)"; then
+    print -u2 "Failed to list installed Node versions."
+    return 1
+  fi
+
+  local installed_versions=(${(f)version_list})
+
+  if ((${#installed_versions[@]} == 0)); then
+    print "No Node versions installed."
+
+    _update_timestamps "fnm_last_update"
+
+    return 0
   fi
 
   local current_version="$(fnm current)"
@@ -303,71 +346,78 @@ function fnmup() {
     return 1
   fi
 
-  if [[ "${current_version}" != "${latest_version}" ]]; then
-    print "Current version: ${current_version}"
-    print "Latest version: ${latest_version}\n"
-
-    read -r "response?Install latest version? (y/N) "
-
-    if [[ "${response}" =~ ^[Yy]$ ]]; then
-      fnm install "${latest_version}"
-
-      if [[ $? -ne 0 ]]; then
-        print -u2 "\nFailed to install Node ${latest_version}."
-        return 1
-      fi
-
-      print
-
-      read -r "default?Set as default? (y/N) "
-
-      if [[ "${default}" =~ ^[Yy]$ ]]; then
-        fnm default "${latest_version}"
-
-        if [[ $? -ne 0 ]]; then
-          print -u2 "\nFailed to set Node ${latest_version} as default."
-          return 1
-        fi
-
-        print "Node ${latest_version} is now default."
-      fi
-
-      print
-
-      read -r "cleanup?Clean up old versions? (y/N) "
-
-      if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
-        local installed_versions="$(fnm ls | grep -v "system" | grep -v "${latest_version}" | tr -d "* " | grep -o "v[0-9][0-9.]*")"
-
-        if [[ -n "${installed_versions}" ]]; then
-          print "The following version(s) will be removed:"
-          print "${installed_versions}\n"
-
-          read -r "confirm?Proceed? (y/N) "
-
-          if [[ "${confirm}" =~ ^[Yy]$ ]]; then
-            print "${installed_versions}" | while read -r version; do
-              if [[ -n "${version}" ]]; then
-                print "Removing "${version}"...\n"
-
-                fnm uninstall "${version}"
-
-                if [[ $? -ne 0 ]]; then
-                  print -u2 "\nFailed to remove Node ${version}."
-                  return 1
-                fi
-              fi
-            done
-
-            print "\nCleanup complete."
-          fi
-        else
-          print "No old versions to clean up."
-        fi
-      fi
-    fi
-  else
+  if [[ "${current_version}" == "${latest_version}" ]]; then
     print "Already up to date."
+
+    _update_timestamps "fnm_last_update"
+
+    return 0
+  fi
+
+  print "Current version: ${current_version}"
+  print "Latest version: ${latest_version}\n"
+
+  read -r "response?Install latest version? (y/N) "
+
+  if [[ ! "${response}" =~ ^[Yy]$ ]]; then
+    _update_timestamps "fnm_last_update"
+
+    return 0
+  fi
+
+  if ! fnm install "${latest_version}"; then
+    print -u2 "\nFailed to install Node ${latest_version}."
+    return 1
+  fi
+
+  print
+
+  read -r "default?Set as default? (y/N) "
+
+  if [[ "${default}" =~ ^[Yy]$ ]]; then
+    if ! fnm default "${latest_version}"; then
+      print -u2 "\nFailed to set Node ${latest_version} as default."
+      return 1
+    fi
+
+    print "Node ${latest_version} is now default."
+  fi
+
+  print
+
+  read -r "cleanup?Clean up old versions? (y/N) "
+
+  if [[ "${cleanup}" =~ ^[Yy]$ ]]; then
+    if ! version_list="$(_fnm_installed_versions)"; then
+      print -u2 "Failed to list installed Node versions."
+      return 1
+    fi
+
+    local old_versions=(${${(f)version_list}:#${latest_version}})
+
+    if ((${#old_versions[@]} > 0)); then
+      print "The following version(s) will be removed:"
+      print "${(F)old_versions}\n"
+
+      read -r "confirm?Proceed? (y/N) "
+
+      if [[ "${confirm}" =~ ^[Yy]$ ]]; then
+        local version
+
+        for version in "${old_versions[@]}"; do
+          print "Removing ${version}...\n"
+
+          if ! fnm uninstall "${version}"; then
+            print -u2 "\nFailed to remove Node ${version}."
+            return 1
+          fi
+        done
+
+        print "\nCleanup complete."
+      fi
+    else
+      print "No old versions to clean up."
+    fi
   fi
 
   _update_timestamps "fnm_last_update"

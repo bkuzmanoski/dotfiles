@@ -3,7 +3,7 @@ function mitm() {
   local certificate="${HOME}/.mitmproxy/mitmproxy-ca-cert.pem"
 
   if [[ ! -f "${certificate}" ]]; then
-    print "mitmproxy certificate not found at '${certificate}'. Run mitmproxy once to generate it."
+    print -u2 "mitmproxy certificate not found at '${certificate}'. Run mitmproxy once to generate it."
     return 1
   fi
 

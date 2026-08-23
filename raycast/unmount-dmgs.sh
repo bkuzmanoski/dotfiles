@@ -9,6 +9,6 @@
 source "${HOME}/.dotfiles/zsh/utils/udmg.zsh"
 
 if ! udmg >/dev/null 2>&1; then
-  print "Failed to unmount DMGs."
+  print -u2 "Failed to unmount DMGs."
   exit 1
 fi

@@ -9,8 +9,8 @@ readonly SCRIPT_DIR="${0:A:h}"
 function log() {
   case "$1" in
   "--info") print "[INFO]    $2" ;;
-  "--warning") print "[WARNING] $2" ;;
-  "--error") print "[ERROR]   $2" ;;
+  "--warning") print -u2 "[WARNING] $2" ;;
+  "--error") print -u2 "[ERROR]   $2" ;;
   *) print "[MESSAGE] $*" ;;
   esac
 }
@@ -183,7 +183,7 @@ fi
 # Link dotfiles
 # =============================================================================
 
-typeset -A settings_paths=(
+readonly -A settings_paths=(
   ["bat"]="${HOME}/.config/bat"
   ["eza"]="${HOME}/.config/eza"
   ["fd"]="${HOME}/.config/fd"
@@ -471,7 +471,7 @@ apply_json_values "${HOME}/Library/Application Support/Claude/claude_desktop_con
 	{
 	  "preferences": {
 	    "menuBarEnabled": false,
-			"quickEntryShortcut": "off"
+	    "quickEntryShortcut": "off"
 	  }
 	}
 EOF

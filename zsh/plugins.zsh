@@ -9,18 +9,16 @@ readonly -a ZSH_PLUGINS=(
 )
 
 for plugin_entry in "${ZSH_PLUGINS[@]}"; do
-  local parts=("${(@s:|:)plugin_entry}")
-  local plugin="${parts[1]}"
-  local git_repository="${parts[2]}"
-  local source_file="${parts[3]}"
-  local plugin_dir="${HOME}/.zsh/plugins/${plugin}"
+  typeset parts=("${(@s:|:)plugin_entry}")
+  typeset plugin="${parts[1]}"
+  typeset git_repository="${parts[2]}"
+  typeset source_file="${parts[3]}"
+  typeset plugin_dir="${HOME}/.zsh/plugins/${plugin}"
 
   if [[ ! -d "${plugin_dir}" ]]; then
     print -P "Installing %B${plugin}%b..."
 
-    git clone "${git_repository}" "${plugin_dir}"
-
-    if [[ $? -ne 0 ]]; then
+    if ! git clone "${git_repository}" "${plugin_dir}"; then
       print -u2 "\n${plugin} installation failed.\n"
       continue
     fi
@@ -31,6 +29,8 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
   if [[ -f "${plugin_dir}/${source_file}" ]]; then
     source "${plugin_dir}/${source_file}"
   else
-    print "Warning: Plugin file ${source_file} not found for ${plugin}\n"
+    print -u2 "Warning: Plugin file ${source_file} not found for ${plugin}\n"
   fi
 done
+
+unset plugin_entry parts plugin git_repository source_file plugin_dir

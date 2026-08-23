@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-local script_name="${RUN_UTIL_COMMAND_NAME:-${0:t}}"
+typeset script_name="${RUN_UTIL_COMMAND_NAME:-${0:t}}"
 
 function print_usage() {
   cat <<-EOF
@@ -15,7 +15,7 @@ function print_usage() {
 }
 
 function die() {
-  print -u2 -- "Error: $1"
+  print -u2 "Error: $1"
   exit ${2:-1}
 }
 
@@ -25,7 +25,7 @@ if ! zparseopts -D -F \
   {B,-build-only}=flag_build_only \
   {h,-help}=flag_help \
   2>/dev/null; then
-  print -u2 -- "Error: Invalid option(s).\n"
+  print -u2 "Error: Invalid option(s).\n"
   print_usage >&2
   exit 1
 fi
@@ -36,17 +36,17 @@ if (($#flag_help)); then
 fi
 
 if (($# < 1)); then
-  print -u2 -- "Error: No command specified.\n"
+  print -u2 "Error: No command specified.\n"
   print_usage >&2
   exit 1
 fi
 
-local util_name="${1:t:r}"
+typeset util_name="${1:t:r}"
 shift
 
-local sources_dir="${0:A:h}/sources"
-local bin_dir="${0:A:h}/bin"
-local -a candidate_source_files=("${sources_dir}/${util_name}".*(N.))
+typeset sources_dir="${0:A:h}/sources"
+typeset bin_dir="${0:A:h}/bin"
+typeset -a candidate_source_files=("${sources_dir}/${util_name}".*(N.))
 
 if ((${#candidate_source_files[@]} == 0)); then
   die "Missing source file for utility."
@@ -54,9 +54,9 @@ elif ((${#candidate_source_files[@]} > 1)); then
   print -u2 "Warning: Multiple source files found for '${util_name}'. Using \"${candidate_source_files[1]:t}\"."
 fi
 
-local source_file="${candidate_source_files[1]}"
-local source_file_extension="${source_file##*.}"
-local bin_path="${bin_dir}/${util_name}"
+typeset source_file="${candidate_source_files[1]}"
+typeset source_file_extension="${source_file##*.}"
+typeset bin_path="${bin_dir}/${util_name}"
 
 if [[ "${source_file_extension}" == "applescript" ]]; then
   bin_path="${bin_path}.scpt"

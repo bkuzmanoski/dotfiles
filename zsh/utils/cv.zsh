@@ -87,22 +87,24 @@ function cv() {
   local original_size="$(stat -f %z "${input_file}")"
   local output_file="${input_file%.*}_compressed.mp4"
 
-  ${base_command} \
-    -hide_banner \
-    -stats \
-    -loglevel error \
-    -i "${input_file}" \
-    -r "${fps}" \
-    -c:v "${codec}" \
-    -preset "${preset}" \
-    -crf "${crf}" \
-    -pix_fmt yuv420p \
-    -tag:v "${tag}" \
-    -c:a aac \
-    -b:a "${audio_bitrate}" \
+  local -a compress_cmd=(
+    "${base_command}"
+    -hide_banner
+    -stats
+    -loglevel error
+    -i "${input_file}"
+    -r "${fps}"
+    -c:v "${codec}"
+    -preset "${preset}"
+    -crf "${crf}"
+    -pix_fmt yuv420p
+    -tag:v "${tag}"
+    -c:a aac
+    -b:a "${audio_bitrate}"
     "${output_file}"
+  )
 
-  if [[ $? -ne 0 ]]; then
+  if ! "${compress_cmd[@]}"; then
     print -u2 "\nFailed to compress video."
     return 1
   fi
