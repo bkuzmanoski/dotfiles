@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "davidanson.vscode-markdownlint",
+    "idleberg.applescript",
+    "llvm-vs-code-extensions.lldb-dap",
+    "mkhl.shfmt",
+    "sumneko.lua",
+    "swiftlang.swift-vscode",
+    "timonwong.shellcheck"
+  ]
+}

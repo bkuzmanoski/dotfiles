@@ -5,13 +5,13 @@ function cv() {
 			  cv [options] <video>
 
 			Options:
-			  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
-			  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
-			  -f, --fps <value>      Set frame rate [default: 30]
-			  -c, --codec <value>    Set codec (h264, h265) [default: h264]
-			  -a, --audio <value>    Set audio bitrate [default: 128k]
-			  -o, --overwrite        Overwrite input file with compressed version
-			  -h, --help             Show this help message
+			  -p, --preset <value>     Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
+			  -q, --quality <value>    Set quality (0-51, lower = better quality) [default: 23]
+			  -f, --fps <value>        Set frame rate [default: 30]
+			  -c, --codec <value>      Set codec (h264, h265) [default: h264]
+			  -a, --audio <value>      Set audio bitrate [default: 128k]
+			  -o, --overwrite          Overwrite input file with compressed version
+			  -h, --help               Show this help message
 		EOF
   }
 
@@ -39,7 +39,7 @@ function cv() {
     print -u2 "Error: Invalid or missing option(s).\n"
     print_usage >&2
 
-    return 1
+    return 64
   fi
 
   if ((${#flag_help} > 0)); then

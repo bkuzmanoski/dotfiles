@@ -17,14 +17,14 @@ function udmg() {
     print -u2 "Error: Invalid option(s).\n"
     print_usage >&2
 
-    return 1
+    return 64
   fi
 
   if (($# > 0)); then
     print -u2 "Error: Unexpected argument: $1\n"
     print_usage >&2
 
-    return 1
+    return 64
   fi
 
   if ((${#flag_help} > 0)); then

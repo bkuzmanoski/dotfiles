@@ -5,8 +5,8 @@ function cf() {
 			  cf [options] [rg options]
 
 			Options:
-			  -o, --output  Specify an output file to write the output to (default: copy to clipboard)
-			  -h, --help    Show this help message
+			  -o, --output    Specify an output file to write the output to (default: copy to clipboard)
+			  -h, --help      Show this help message
 		EOF
   }
 
@@ -22,7 +22,7 @@ function cf() {
     print -u2 "Error: Invalid option(s).\n"
     print_usage >&2
 
-    return 1
+    return 64
   fi
 
   if [[ -n "${flag_help}" ]]; then

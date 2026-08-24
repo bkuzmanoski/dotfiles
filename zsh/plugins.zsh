@@ -33,4 +33,9 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
   fi
 done
 
-unset plugin_entry parts plugin git_repository source_file plugin_dir
+unset plugin_entry
+unset parts
+unset plugin
+unset git_repository
+unset source_file
+unset plugin_dir

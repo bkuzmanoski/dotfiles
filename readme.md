@@ -4,9 +4,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
 ## Installation
 
-1. **Set up git**
-
-   You will be prompted to install Xcode Command Line Tools when you first run `git`.
+1. **Set up Git and Xcode Command Line Tools**
 
    ```zsh
    git config --global user.name "Brian Kuzmanoski"
@@ -21,6 +19,8 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
    ```
 
    Associate the SSH key on your clipboard with your Github account in [Github Settings](https://github.com/settings/keys).
+
+   You will be prompted to install Xcode Command Line Tools when you first run `git`.
 
 2. **Clone this repository**
 
@@ -124,12 +124,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Nudge Amount… → Set "Big nudge" to 8px
       - Turn off "Show Figma in Menu Bar"
 
-  - FineTune
-    - Set HypetheSonics EQ preset
-    - Settings → General
-      - Set "Icon Style" to speaker
-      - Set "Popup Size" to "Compact"
-
   - Ghostty
     - Grant Full Disk Access permission
 
@@ -189,3 +183,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
   - Xcode
     - Install [Additional Tools for Xcode](https://developer.apple.com/download/all/?q=additional%20tools)
+
+## Development of Swift utilities
+
+Every utility in `utils/sources` is a single standalone file built on demand by `utils/run_util.sh` (aliased to `ru`).
+
+Swift utilities are not part of a Swift package, so editor support requires a `compile_commands.json` file to provide SourceKit-LSP with the build settings for each file. This file is automatically rewritten when a Swift utility is compiled, but it can also be regenerated manually by running `ru --compile-commands`.

@@ -5,9 +5,9 @@ function oi() {
 			  oi [options] <image|directory> ...
 
 			Options:
-			  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
-			  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
-			  -h, --help             Show this help message
+			  -z, --zopfli             Use Zopfli compression for PNGs (slower but better compression)
+			  -q, --quality <value>    Set JPEG quality (0-100, lower = smaller file)
+			  -h, --help               Show this help message
 		EOF
   }
 
@@ -45,7 +45,7 @@ function oi() {
     print -u2 "Error: Invalid or missing option(s).\n"
     print_usage >&2
 
-    return 1
+    return 64
   fi
 
   if ((${#flag_help} > 0)); then
