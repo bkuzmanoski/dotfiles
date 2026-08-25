@@ -1020,12 +1020,30 @@ final class FocusManager {
   }
 
   func logDiagnosticReport() {
-    let suspendingWindowsInActiveSpace = suspendingWindows[activeSpaceID, default: []].sorted()
+    let suspendingWindowIDsInActiveSpace = suspendingWindows[activeSpaceID, default: []]
+    let suspendingWindowOwnerNames =
+      (CGWindowListCopyWindowInfo(
+        [.optionOnScreenOnly, .excludeDesktopElements],
+        kCGNullWindowID
+      ) as? [[String: Any]] ?? [])
+      .reduce(into: [CGWindowID: String]()) { result, windowInfo in
+        if let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
+          suspendingWindowIDsInActiveSpace.contains(windowID)
+        {
+          result[windowID] = windowInfo[kCGWindowOwnerName as String] as? String ?? "<unknown>"
+        }
+      }
+
+    let suspendingWindowsInActiveSpace =
+      suspendingWindowIDsInActiveSpace
+      .sorted()
+      .map { "\($0) (\(suspendingWindowOwnerNames[$0] ?? "<unknown>"))" }
+
     let suspendingWindowsInOtherSpaces =
       suspendingWindows
       .filter { $0.key != activeSpaceID && !$0.value.isEmpty }
       .sorted { $0.key < $1.key }
-      .map { "\($0.key): \($0.value.sorted())" }
+      .map { "    Space \($0.key): \($0.value.sorted())" }
 
     Log.message(
       """
@@ -1037,8 +1055,8 @@ final class FocusManager {
         Suspended: \(isSuspended)
           Command key pressed: \(isCommandKeyPressed)
           Mission Control active: \(isMissionControlActive)
-          Suspending windows in active space: \(suspendingWindowsInActiveSpace.isEmpty ? "none" : "\(suspendingWindowsInActiveSpace)")
-        Suspending windows in other spaces: \(suspendingWindowsInOtherSpaces.isEmpty ? "none" : suspendingWindowsInOtherSpaces.joined(separator: ", "))
+          Suspending windows in active space: \(suspendingWindowsInActiveSpace.isEmpty ? "none" : "\(suspendingWindowsInActiveSpace.joined(separator: ", "))")
+        Suspending windows in other spaces: \(suspendingWindowsInOtherSpaces.isEmpty ? "none" : "\n\(suspendingWindowsInOtherSpaces.joined(separator: "\n"))")
         Focus pending: \(isFocusPending)
         Hover delay: \(hoverDelay)
       """
@@ -1066,6 +1084,7 @@ final class FocusManager {
         ) as? [[String: Any]],
           let windowInfo = windowsInfo.first,
           windowInfo[kCGWindowIsOnscreen as String] as? Bool == true,
+          windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0,
           let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
           suspendingWindowLevels.contains(windowLayer)
         {
@@ -1260,7 +1279,7 @@ final class FocusManager {
 
     guard
       !trackedWindowIDs.isEmpty,
-      let windowListInfo = CGWindowListCopyWindowInfo(
+      let windowsInfo = CGWindowListCopyWindowInfo(
         [.optionOnScreenOnly, .excludeDesktopElements],
         kCGNullWindowID
       ) as? [[String: Any]]
@@ -1268,7 +1287,7 @@ final class FocusManager {
       return
     }
 
-    let onScreenWindowIDs = Set(windowListInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
+    let onScreenWindowIDs = Set(windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
 
     self.suspendingWindows[activeSpaceID] = trackedWindowIDs.intersection(onScreenWindowIDs)
   }

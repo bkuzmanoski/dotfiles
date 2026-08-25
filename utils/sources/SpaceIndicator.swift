@@ -550,7 +550,7 @@ final class SpaceIndicatorModel {
     let orphanedAppsInfo =
       runningApps
       .filter { !trackedProcessIdentifiers.contains($0.key) }
-      .map { "\($0.value.name) (pid \($0.key))" }
+      .map { "\($0.value.name) (PID: \($0.key))" }
       .sorted()
 
     lines.append("Orphaned apps: \(orphanedAppsInfo.count)")
