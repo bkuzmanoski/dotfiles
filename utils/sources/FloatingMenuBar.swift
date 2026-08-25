@@ -1,4 +1,5 @@
 import AppKit
+import Synchronization
 import System
 
 enum Configuration {
@@ -10,24 +11,76 @@ enum Configuration {
   static let minimumMenuWidth: CGFloat = 160.0
 }
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -67,10 +120,7 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print(
-        "Failed to close lock file descriptor: \(error.localizedDescription)",
-        to: &FileDescriptorOutputStream.standardError
-      )
+      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
     }
   }
 }
@@ -120,10 +170,8 @@ extension AXUIElement {
     }
   }
 
-  static let systemWideElement = AXUIElementCreateSystemWide()
-
   static func setGlobalMessagingTimeout(seconds timeoutInSeconds: Float) {
-    AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
+    AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), timeoutInSeconds)
   }
 
   static func element(for pid: pid_t) -> AXUIElement {
@@ -489,7 +537,7 @@ final class AppMenu {
       do {
         try (representedObject as! AXUIElement).performAction(.press)
       } catch {
-        print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+        Log.error(error.localizedDescription)
       }
     }
   }
@@ -497,6 +545,7 @@ final class AppMenu {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  private let startDate = Date.now
   private let singleInstanceLock: SingleInstanceLock
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
@@ -508,7 +557,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard AXIsProcessTrustedWithOptions(nil) else {
-      print("Accessibility permission not granted.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Accessibility permission not granted.")
       exit(EXIT_FAILURE)
     }
 
@@ -525,21 +574,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return Unmanaged.passUnretained(event)
           }
 
-          return
+          return MainActor.assumeIsolated {
             Unmanaged<AppDelegate>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
+          }
             ? nil
             : Unmanaged.passUnretained(event)
         },
         userInfo: Unmanaged.passUnretained(self).toOpaque()
       )
     else {
-      print("Failed to create event tap.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to create event tap.")
       exit(EXIT_FAILURE)
     }
 
     guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
       CFMachPortInvalidate(eventTap)
-      print("Failed to create run loop source for event tap.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to create run loop source for event tap.")
       exit(EXIT_FAILURE)
     }
 
@@ -563,13 +613,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     CFMachPortInvalidate(eventTap)
   }
 
+  func logDiagnosticReport() {
+    Log.message(
+      """
+      Diagnostic report:
+        Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AXIsProcessTrustedWithOptions(nil))
+        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+      """
+    )
+  }
+
   private func handleEvent(_ event: CGEvent) -> Bool {
     switch event.type {
     case .rightMouseDown where event.flags.intersection(CGEventFlags.modifierFlagsMask) == Configuration.modifierKey:
       do {
         try AppMenu.popUp(at: NSEvent.mouseLocation, minimumWidth: Configuration.minimumMenuWidth)
       } catch {
-        print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+        Log.error(error.localizedDescription)
       }
 
       return true
@@ -616,7 +677,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
-    case .printLog: break
+    case .printLog: logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -645,24 +706,13 @@ do {
 
     if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
-        let fd = try FileDescriptor.open(
-          FilePath(
+        try Log.redirectOutput(
+          to: FilePath(
             FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          ),
-          .writeOnly,
-          options: [.create, .truncate],
-          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+          )
         )
-
-        try fd.closeAfter {
-          _ = try fd.duplicate(as: .standardOutput)
-          _ = try fd.duplicate(as: .standardError)
-        }
-
-        setvbuf(stdout, nil, _IONBF, 0)
-        setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to redirect output: \(error.localizedDescription)")
       }
     }
 
@@ -680,25 +730,29 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    print("Already running.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Already running.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Too many arguments.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    print("Unknown command.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Unknown command.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
+  ipcCommand.send()
+
   if case .printLog = ipcCommand {
+    Thread.sleep(forTimeInterval: 0.2)
+
     let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
 
     guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      print("Log file does not exist.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Log file does not exist.")
       exit(EX_NOINPUT)
     }
 
@@ -713,16 +767,14 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to read log file: \(error.localizedDescription)")
       exit(EXIT_FAILURE)
     }
-  } else {
-    ipcCommand.send()
   }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+  Log.error(error.localizedDescription)
   exit(EXIT_FAILURE)
 }

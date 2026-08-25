@@ -1,4 +1,5 @@
 import ScreenCaptureKit
+import Synchronization
 import System
 
 enum Configuration {
@@ -15,24 +16,76 @@ enum Configuration {
   static let spanMeasurementRGBDifferenceThreshold = 20
 }
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -89,7 +142,7 @@ extension NSScreen {
 }
 
 extension NSCursor {
-  static let screenshotSelection: NSCursor? = named("screenshotselection")
+  @MainActor static let screenshotSelection: NSCursor? = named("screenshotselection")
 
   static func named(_ name: String) -> NSCursor? {
     let cursorDirectory = URL(
@@ -1058,8 +1111,9 @@ final class MeasurementSession {
             return Unmanaged.passUnretained(event)
           }
 
-          return
+          return MainActor.assumeIsolated {
             Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
+          }
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -1203,10 +1257,7 @@ final class MeasurementSession {
       if let newScreen = NSScreen.screenContainingMouse ?? .main {
         move(to: newScreen)
       } else {
-        print(
-          "Failed to determine screen after screen parameters changed.",
-          to: &FileDescriptorOutputStream.standardError
-        )
+        Log.error("Failed to determine screen after screen parameters changed.")
         NSApplication.shared.terminate(nil)
       }
 
@@ -1354,7 +1405,7 @@ final class MeasurementSession {
 
         measureSpan()
       } catch {
-        print("Failed to capture screen: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to capture screen: \(error.localizedDescription)")
         NSApplication.shared.terminate(nil)
       }
     }
@@ -1480,7 +1531,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     guard let screen = NSScreen.screenContainingMouse ?? .main else {
-      print("Failed to determine screen for measurement session.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to determine screen for measurement session.")
       exit(EXIT_FAILURE)
     }
 
@@ -1507,7 +1558,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       )
       observeIPCCommands()
     } catch {
-      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+      Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
   }
@@ -1536,7 +1587,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch command {
     case .activate(let appMode):
       guard let screen = NSScreen.screenContainingMouse ?? .main else {
-        print("Failed to determine screen for measurement session.", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to determine screen for measurement session.")
         NSApplication.shared.terminate(nil)
 
         return
@@ -1601,7 +1652,7 @@ let usageDescription = """
   """
 
 guard arguments.count <= 1 else {
-  print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+  Log.error("Too many arguments.\n\n\(usageDescription)")
   exit(EX_USAGE)
 }
 
@@ -1620,13 +1671,13 @@ if let argument = arguments.first {
     exit(EXIT_SUCCESS)
 
   default:
-    print("Unknown argument: \(argument)\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Unknown argument: \(argument)\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 }
 
 guard let executablePath = CommandLine.arguments.first else {
-  print("Executable path not found in command line arguments.", to: &FileDescriptorOutputStream.standardError)
+  Log.error("Executable path not found in command line arguments.")
   exit(EXIT_FAILURE)
 }
 

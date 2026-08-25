@@ -1,35 +1,85 @@
 import AppKit
 import Carbon.HIToolbox
+import Synchronization
 import System
 
 enum Configuration {
   static let subsystem = "industries.britown.LineDeleteGuard"
   static let exemptBundleIdentifiers: Set<String> = ["com.raycast.macos"]
-  static let synthesizedMarker: Int64 = 0x4c44_4744
-  static let settlingDelay: Duration = .milliseconds(50)
-  static let repeatSafetyMargin: Duration = .milliseconds(10)
-  static let fallbackKeyRepeat = 6
-  static let fallbackInitialKeyRepeat = 25
+  static let fallbackKeyRepeatInterval = 6
+  static let fallbackKeyRepeatInitialDelay = 25
 }
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -69,10 +119,7 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print(
-        "Failed to close lock file descriptor: \(error.localizedDescription)",
-        to: &FileDescriptorOutputStream.standardError
-      )
+      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
     }
   }
 }
@@ -122,17 +169,15 @@ extension AXUIElement {
     }
   }
 
-  static let systemWideElement = AXUIElementCreateSystemWide()
-
   static func setGlobalMessagingTimeout(seconds timeoutInSeconds: Float) {
-    AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
+    AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), timeoutInSeconds)
   }
 
   static func focusedApplicationBundleIdentifier() throws -> String? {
     var rawValue: CFTypeRef?
 
     try AXUIElementCopyAttributeValue(
-      systemWideElement,
+      AXUIElementCreateSystemWide(),
       kAXFocusedApplicationAttribute as CFString,
       &rawValue
     ).throwIfFailed()
@@ -204,11 +249,12 @@ struct KeyRepeatSettings {
       Self.tick
       * Self.ticks(
         forKey: "InitialKeyRepeat",
-        fallback: Configuration.fallbackInitialKeyRepeat,
+        fallback: Configuration.fallbackKeyRepeatInitialDelay,
         userDefaults: userDefaults
       )
     self.interval =
-      Self.tick * Self.ticks(forKey: "KeyRepeat", fallback: Configuration.fallbackKeyRepeat, userDefaults: userDefaults)
+      Self.tick
+      * Self.ticks(forKey: "KeyRepeat", fallback: Configuration.fallbackKeyRepeatInterval, userDefaults: userDefaults)
   }
 
   private static func ticks(forKey key: String, fallback: Int, userDefaults: UserDefaults = .standard) -> Int {
@@ -236,17 +282,17 @@ final class LineDeleteManager {
     }
   }
 
+  private let startDate = Date.now
+  private let synthesizedEventMarker: Int64 = 0x4c44_4744
   private let exemptBundleIdentifiers: Set<String>
-  private let settlingDelay: Duration
   private let keyRepeatSettings: KeyRepeatSettings
+  private let eventSettlingDelay: Duration = .milliseconds(30)
+  private let effectiveKeyRepeatInterval: Duration
+  private let delayBeforeFirstRepeat: Duration
+  private let delayBetweenRepeats: Duration
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
-
-  private var repeatTask: Task<Void, Never>?
-  private var didSwallowKeyDown = false
-  private var interceptedCount = 0
-  private var cadence: Duration { max(keyRepeatSettings.interval, settlingDelay + Configuration.repeatSafetyMargin) }
-  private var interSequenceDelay: Duration { cadence - settlingDelay }
+  private var keyRepeatTask: Task<Void, Never>?
 
   private var isExemptApplicationFocused: Bool {
     do {
@@ -259,22 +305,24 @@ final class LineDeleteManager {
 
       return exemptBundleIdentifiers.contains(bundleIdentifier)
     } catch {
-      print(
-        "Failed to retrieve focused application bundle identifier: \(error.localizedDescription)",
-        to: &FileDescriptorOutputStream.standardError
-      )
+      Log.error("Failed to retrieve focused application bundle identifier: \(error.localizedDescription)")
       return false
     }
   }
 
-  init(exemptBundleIdentifiers: Set<String>, settlingDelay: Duration, keyRepeatSettings: KeyRepeatSettings) throws {
+  init(exemptBundleIdentifiers: Set<String>, keyRepeatSettings: KeyRepeatSettings) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionNotGranted
     }
 
     self.exemptBundleIdentifiers = exemptBundleIdentifiers
-    self.settlingDelay = settlingDelay
     self.keyRepeatSettings = keyRepeatSettings
+    self.effectiveKeyRepeatInterval = max(keyRepeatSettings.interval, eventSettlingDelay * 2)
+    self.delayBeforeFirstRepeat = max(
+      eventSettlingDelay,
+      keyRepeatSettings.initialDelay - eventSettlingDelay
+    )
+    self.delayBetweenRepeats = effectiveKeyRepeatInterval - eventSettlingDelay
 
     AXUIElement.setGlobalMessagingTimeout(seconds: 0.05)
 
@@ -294,8 +342,9 @@ final class LineDeleteManager {
             return Unmanaged.passUnretained(event)
           }
 
-          return
+          return MainActor.assumeIsolated {
             Unmanaged<LineDeleteManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
+          }
             ? nil
             : Unmanaged.passUnretained(event)
         },
@@ -317,12 +366,32 @@ final class LineDeleteManager {
     self.runLoopSource = runLoopSource
   }
 
-  deinit {
+  isolated deinit {
     if let eventTap, let runLoopSource {
       CGEvent.tapEnable(tap: eventTap, enable: false)
       CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
       CFMachPortInvalidate(eventTap)
     }
+  }
+
+  func logDiagnosticReport() {
+    Log.message(
+      """
+      Diagnostic report:
+        Started: \(startDate.formatted(.dateTime))
+        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+        Exempt applications: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
+        Exempt application focused: \(isExemptApplicationFocused)
+        Performing key sequences: \(keyRepeatTask != nil)
+        Key repeat:
+          Initial delay: \(keyRepeatSettings.initialDelay) (system)
+          Interval: \(effectiveKeyRepeatInterval) (system: \(keyRepeatSettings.interval))
+        Key sequence:
+          Settling delay: \(eventSettlingDelay)
+          Delay before first repeat: \(delayBeforeFirstRepeat)
+          Delay between repeats: \(delayBetweenRepeats)
+      """
+    )
   }
 
   private func handleEvent(_ event: CGEvent) -> Bool {
@@ -335,58 +404,56 @@ final class LineDeleteManager {
     }
 
     guard
-      event.getIntegerValueField(.eventSourceUserData) != Configuration.synthesizedMarker,
+      event.getIntegerValueField(.eventSourceUserData) != synthesizedEventMarker,
       CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == CGKeyCode(kVK_Delete)
     else {
       return false
     }
 
     guard event.type == .keyDown else {
-      guard didSwallowKeyDown else {
+      guard keyRepeatTask != nil else {
         return false
       }
 
-      self.didSwallowKeyDown = false
-
-      stopRepeating()
+      stopPerformingKeySequences()
 
       return true
     }
 
-    guard
-      event.flags.intersection(.modifierFlagsMask) == .maskCommand,
-      isExemptApplicationFocused
-    else {
+    guard event.flags.intersection(.modifierFlagsMask) == .maskCommand else {
+      stopPerformingKeySequences()
       return false
     }
 
-    self.didSwallowKeyDown = true
-
     guard event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else {
-      return true
+      return keyRepeatTask != nil
     }
 
-    startRepeating()
+    guard isExemptApplicationFocused else {
+      return false
+    }
+
+    startPerformingKeySequences()
 
     return true
   }
 
-  private func startRepeating() {
-    repeatTask?.cancel()
-    self.repeatTask = Task {
-      guard await performSequence() else {
+  private func startPerformingKeySequences() {
+    keyRepeatTask?.cancel()
+    self.keyRepeatTask = Task {
+      guard await performKeySequence() else {
         return
       }
 
       do {
-        try await Task.sleep(for: keyRepeatSettings.initialDelay)
+        try await Task.sleep(for: delayBeforeFirstRepeat)
 
         while !Task.isCancelled {
-          guard await performSequence() else {
+          guard await performKeySequence() else {
             return
           }
 
-          try await Task.sleep(for: interSequenceDelay)
+          try await Task.sleep(for: delayBetweenRepeats)
         }
       } catch {
         return
@@ -394,30 +461,28 @@ final class LineDeleteManager {
     }
   }
 
-  private func stopRepeating() {
-    repeatTask?.cancel()
-    repeatTask = nil
+  private func stopPerformingKeySequences() {
+    keyRepeatTask?.cancel()
+    keyRepeatTask = nil
   }
 
-  private func performSequence() async -> Bool {
-    guard post(virtualKey: CGKeyCode(kVK_LeftArrow), flags: [.maskCommand, .maskShift]) else {
-      print("Failed to synthesize selection event.", to: &FileDescriptorOutputStream.standardError)
+  private func performKeySequence() async -> Bool {
+    guard postEvent(virtualKey: CGKeyCode(kVK_LeftArrow), flags: [.maskCommand, .maskShift]) else {
+      Log.error("Failed to synthesize selection event.")
       return false
     }
 
-    self.interceptedCount += 1
+    try? await Task.sleep(for: eventSettlingDelay)
 
-    try? await Task.sleep(for: settlingDelay)
-
-    guard post(virtualKey: CGKeyCode(kVK_Delete), flags: []) else {
-      print("Failed to synthesize delete event.", to: &FileDescriptorOutputStream.standardError)
+    guard postEvent(virtualKey: CGKeyCode(kVK_Delete), flags: []) else {
+      Log.error("Failed to synthesize delete event.")
       return false
     }
 
     return true
   }
 
-  private func post(virtualKey: CGKeyCode, flags: CGEventFlags) -> Bool {
+  private func postEvent(virtualKey: CGKeyCode, flags: CGEventFlags) -> Bool {
     let events = [true, false].compactMap { isKeyDown in
       CGEvent(keyboardEventSource: nil, virtualKey: virtualKey, keyDown: isKeyDown)
     }
@@ -428,7 +493,7 @@ final class LineDeleteManager {
 
     for event in events {
       event.flags = flags
-      event.setIntegerValueField(.eventSourceUserData, value: Configuration.synthesizedMarker)
+      event.setIntegerValueField(.eventSourceUserData, value: synthesizedEventMarker)
       event.post(tap: .cghidEventTap)
     }
 
@@ -450,11 +515,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.lineDeleteManager = try LineDeleteManager(
         exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers,
-        settlingDelay: Configuration.settlingDelay,
         keyRepeatSettings: KeyRepeatSettings()
       )
     } catch {
-      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+      Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
 
@@ -497,7 +561,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
-    case .printLog: break
+    case .printLog: lineDeleteManager?.logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -526,24 +590,13 @@ do {
 
     if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
-        let fd = try FileDescriptor.open(
-          FilePath(
+        try Log.redirectOutput(
+          to: FilePath(
             FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          ),
-          .writeOnly,
-          options: [.create, .truncate],
-          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+          )
         )
-
-        try fd.closeAfter {
-          _ = try fd.duplicate(as: .standardOutput)
-          _ = try fd.duplicate(as: .standardError)
-        }
-
-        setvbuf(stdout, nil, _IONBF, 0)
-        setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to redirect output: \(error.localizedDescription)")
       }
     }
 
@@ -561,25 +614,29 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    print("Already running.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Already running.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Too many arguments.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    print("Unknown command.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Unknown command.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
+  ipcCommand.send()
+
   if case .printLog = ipcCommand {
+    Thread.sleep(forTimeInterval: 0.2)
+
     let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
 
     guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      print("Log file does not exist.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Log file does not exist.")
       exit(EX_NOINPUT)
     }
 
@@ -594,16 +651,14 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to read log file: \(error.localizedDescription)")
       exit(EXIT_FAILURE)
     }
-  } else {
-    ipcCommand.send()
   }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+  Log.error(error.localizedDescription)
   exit(EXIT_FAILURE)
 }

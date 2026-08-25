@@ -1,4 +1,5 @@
 import SwiftUI
+import Synchronization
 import System
 import UniformTypeIdentifiers
 
@@ -6,24 +7,76 @@ enum Configuration {
   static let subsystem = "industries.britown.SpaceIndicator"
 }
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -63,10 +116,7 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print(
-        "Failed to close lock file descriptor: \(error.localizedDescription)",
-        to: &FileDescriptorOutputStream.standardError
-      )
+      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
     }
   }
 }
@@ -102,6 +152,16 @@ enum ProcessSignals {
     }
 
     return stream
+  }
+}
+
+extension MainActor {
+  static func runOrDispatch(_ body: @escaping @Sendable @MainActor () -> Void) {
+    if Thread.isMainThread {
+      MainActor.assumeIsolated(body)
+    } else {
+      DispatchQueue.main.async(execute: body)
+    }
   }
 }
 
@@ -274,7 +334,7 @@ final class SpaceMonitor {
     }
   }
 
-  enum Event {
+  enum Event: Sendable {
     case spacesChanged
     case mainScreenChanged
     case currentSpaceChanged(spaceID: SpaceID)
@@ -283,15 +343,19 @@ final class SpaceMonitor {
   }
 
   private let cgsNotifyProc: CGSNotifyProc = { eventType, data, dataLength, context in
-    guard let event = CGSEventType(rawValue: eventType), let context else {
+    guard
+      let eventType = CGSEventType(rawValue: eventType),
+      let context,
+      let event = event(for: eventType, data: data, dataLength: dataLength)
+    else {
       return
     }
 
-    Unmanaged<SpaceMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
-      event,
-      data: data,
-      dataLength: dataLength
-    )
+    let monitor = Unmanaged<SpaceMonitor>.fromOpaque(context).takeUnretainedValue()
+
+    MainActor.runOrDispatch {
+      monitor.continuation?.yield(event)
+    }
   }
 
   private var registeredEventTypes: [CGSEventType] = []
@@ -336,51 +400,40 @@ final class SpaceMonitor {
     return stream
   }
 
-  private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
-    guard let continuation else {
-      return
-    }
-
-    switch event {
+  private nonisolated static func event(
+    for eventType: CGSEventType,
+    data: UnsafeMutableRawPointer?,
+    dataLength: UInt32
+  ) -> Event? {
+    switch eventType {
     case .packagesStatusBarSpaceChanged:
-      continuation.yield(.mainScreenChanged)
+      return .mainScreenChanged
 
-    case .spaceWindowCreated:
+    case .spaceWindowCreated, .spaceWindowDestroyed:
       guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
-        return
+        return nil
       }
 
       let spaceID = data.load(as: SpaceID.self)
       let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
-      continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
-
-    case .spaceWindowDestroyed:
-      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
-        return
-      }
-
-      let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
-
-      continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
+      return eventType == .spaceWindowCreated
+        ? .windowAdded(windowID: windowID, spaceID: spaceID)
+        : .windowRemoved(windowID: windowID, spaceID: spaceID)
 
     case .spaceCreated, .spaceDestroyed:
-      continuation.yield(.spacesChanged)
+      return .spacesChanged
 
     case .spaceCurrentChanged:
-      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
-        return
+      guard
+        let data,
+        dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size,
+        data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self) != 0
+      else {
+        return nil
       }
 
-      let spaceID = data.load(as: SpaceID.self)
-      let isCurrentFlag = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self)
-
-      guard isCurrentFlag != 0 else {
-        return
-      }
-
-      continuation.yield(.currentSpaceChanged(spaceID: spaceID))
+      return .currentSpaceChanged(spaceID: data.load(as: SpaceID.self))
     }
   }
 
@@ -394,29 +447,17 @@ final class SpaceMonitor {
   }
 }
 
-struct SpaceIndicatorView: View {
-  private enum IconMetrics {
-    static let size: CGFloat = 17.0
-    static let paddingCropScale: CGFloat = 32 / 28
-    static let cornerRatio: CGFloat = 7 / 28
-    static let overlapGap: CGFloat = 1.0
-    static let cutoutMaskSize: CGFloat = size + (overlapGap * 2)
-    static let cutoutMaskCornerRadius: CGFloat = (cutoutMaskSize * cornerRatio) + (overlapGap / 2)
-  }
+@MainActor
+@Observable
+final class SpaceIndicatorModel {
+  private(set) var mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
+  private(set) var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
+  private(set) var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
+  private(set) var spaceWindows: [SpaceID: Set<Window>] = [:]
+  private(set) var runningApps: [pid_t: App] = [:]
+  private(set) var isRefreshPending = true
 
-  let spaceMonitor: SpaceMonitor
-  let onWidthChanged: (CGFloat) -> Void
-
-  @State private var cgsConnectionID = CGSMainConnectionID()
-  @State private var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
-  @State private var runningApps: [pid_t: App] = [:]
-  @State private var spaceWindows: [SpaceID: Set<Window>] = [:]
-  @State private var mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
-  @State private var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
-  @State private var spacesChangedEpoch: UInt64 = 0
-  @State private var isRefreshPending = true
-
-  private var mainScreenSpaces: [Space] {
+  var mainScreenSpaces: [Space] {
     guard let mainScreenDisplayIdentifier else {
       return []
     }
@@ -431,128 +472,97 @@ struct SpaceIndicatorView: View {
     }
   }
 
-  var body: some View {
-    HStack(spacing: 12) {
-      ForEach(mainScreenSpaces.enumerated(), id: \.element.id) { index, space in
-        HStack(spacing: 6) {
-          Text("\(index + 1)")
-            .font(.subheadline)
-            .fontWeight(space.isCurrent ? .medium : .regular)
-            .foregroundStyle(Color(.textColor))
-            .frame(width: 8)
+  private let spaceMonitor: SpaceMonitor
+  private let cgsConnectionID = CGSMainConnectionID()
+  @ObservationIgnored private var monitoringTask: Task<Void, Never>?
+  @ObservationIgnored private var refreshTask: Task<Void, Never>?
 
-          if !space.apps.isEmpty {
-            HStack(spacing: -4) {
-              ForEach(space.apps) { app in
-                Image(nsImage: app.icon)
-                  .resizable()
-                  .scaleEffect(IconMetrics.paddingCropScale)
-                  .frame(width: IconMetrics.size, height: IconMetrics.size)
-                  .clipShape(.rect(cornerRadius: IconMetrics.size * IconMetrics.cornerRatio))
-                  .background {
-                    RoundedRectangle(cornerRadius: IconMetrics.cutoutMaskCornerRadius)
-                      .fill(.black)
-                      .frame(width: IconMetrics.cutoutMaskSize, height: IconMetrics.cutoutMaskSize)
-                      .blendMode(.destinationOut)
-                  }
-              }
-            }
-            .compositingGroup()
-            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
-          }
-        }
-        .opacity(space.isCurrent ? 1 : 0.45)
-        .animation(.snappy(duration: 0.2), value: space.isCurrent)
-      }
-    }
-    .padding(.horizontal, 14)
-    .fixedSize()
-    .onGeometryChange(for: CGFloat.self) { proxy in
-      proxy.size.width
-    } action: { newWidth in
-      onWidthChanged(newWidth)
-    }
-    .task(id: spacesChangedEpoch) {
-      self.isRefreshPending = true
-
-      try? await Task.sleep(for: .milliseconds(100))
-
-      guard !Task.isCancelled else {
-        return
-      }
-
-      refreshSpaces()
-      refreshWindows()
-
-      self.isRefreshPending = false
-    }
-    .task {
+  init(spaceMonitor: SpaceMonitor) {
+    self.spaceMonitor = spaceMonitor
+    self.monitoringTask = Task { [weak self] in
       await withDiscardingTaskGroup { group in
-        group.addTask { await monitorSpaces() }
-        group.addTask { await monitorAppTerminations() }
+        group.addTask { await self?.monitorSpaces() }
+        group.addTask { await self?.monitorAppTerminations() }
       }
     }
+
+    scheduleRefresh()
   }
 
-  private func refreshSpaces() {
-    guard
-      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        cgsConnectionID,
-        nil
-      )?.takeRetainedValue() as? [[String: Any]]
-    else {
-      return
-    }
-
-    var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
-    var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
-
-    for displayInfo in managedDisplaySpaces {
-      guard
-        let displayIdentifier = displayInfo["Display Identifier"] as? String,
-        let spacesInfo = displayInfo["Spaces"] as? [[String: Any]]
-      else {
-        continue
-      }
-
-      displaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
-
-      if let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-        let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID
-      {
-        currentSpaceIDs[displayIdentifier] = currentSpaceID
-      }
-    }
-
-    self.displaySpaces = displaySpaces
-    self.currentSpaceIDs = currentSpaceIDs
+  deinit {
+    monitoringTask?.cancel()
+    refreshTask?.cancel()
   }
 
-  private func refreshWindows() {
-    guard
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionAll, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]]
-    else {
-      return
+  func diagnosticReport() -> [String] {
+    let liveSpacesInfo = spacesInfo(cgsConnectionID: cgsConnectionID)
+    let liveWindowIDs = Set(
+      windowsInfo(cgsConnectionID: cgsConnectionID).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
+    )
+
+    var lines = [
+      "Tracked windows: \(spaceWindows.values.reduce(0) { $0 + $1.count })",
+      "Tracked apps: \(runningApps.count)",
+      "Refresh pending: \(isRefreshPending)"
+    ]
+
+    for displayIdentifier in Set(displaySpaces.keys).union(liveSpacesInfo.displaySpaces.keys).sorted() {
+      let cachedCurrentSpaceID = currentSpaceIDs[displayIdentifier].map(String.init) ?? "<none>"
+      let liveCurrentSpaceID = liveSpacesInfo.currentSpaceIDs[displayIdentifier].map(String.init) ?? "<none>"
+      let mainScreenMarker = displayIdentifier == mainScreenDisplayIdentifier ? " (main)" : ""
+
+      lines.append("Display \(displayIdentifier)\(mainScreenMarker):")
+      lines.append("  Cached spaces: \(displaySpaces[displayIdentifier] ?? []), current: \(cachedCurrentSpaceID)")
+      lines.append(
+        "  Live spaces: \(liveSpacesInfo.displaySpaces[displayIdentifier] ?? []), current: \(liveCurrentSpaceID)"
+      )
+
+      for spaceID in displaySpaces[displayIdentifier] ?? [] {
+        let windows = spaceWindows[spaceID] ?? []
+        let appNames = Set(windows.map(\.processIdentifier)).compactMap { runningApps[$0]?.name }.sorted()
+
+        lines.append(
+          "  Space \(spaceID): \(windows.count) window(s)\(appNames.isEmpty ? "" : " (\(appNames.joined(separator: ", ")))")"
+        )
+      }
     }
 
-    self.spaceWindows.removeAll()
-
-    for windowInfo in windowsInfo {
-      guard let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
-        continue
+    let staleWindowsInfo =
+      spaceWindows
+      .mapValues { windows in
+        windows.filter { !liveWindowIDs.contains($0.id) }
+          .map {
+            "\($0.id) (\(runningApps[$0.processIdentifier]?.name ?? String($0.processIdentifier)))"
+          }
       }
 
-      trackWindow(window)
-    }
+    lines.append("Stale windows: \(staleWindowsInfo.values.reduce(0) { $0 + $1.count })")
+    Array(staleWindowsInfo.keys)
+      .sorted(by: <)
+      .forEach { spaceID in
+        if let windows = staleWindowsInfo[spaceID], !windows.isEmpty {
+          lines.append("  Space \(spaceID): \(windows.count) window(s)")
+          windows.forEach { lines.append("   \($0)") }
+        }
+      }
+
+    let trackedProcessIdentifiers = Set(spaceWindows.values.flatMap { $0 }.map(\.processIdentifier))
+    let orphanedAppsInfo =
+      runningApps
+      .filter { !trackedProcessIdentifiers.contains($0.key) }
+      .map { "\($0.value.name) (pid \($0.key))" }
+      .sorted()
+
+    lines.append("Orphaned apps: \(orphanedAppsInfo.count)")
+    orphanedAppsInfo.forEach { lines.append("  \($0)") }
+
+    return lines
   }
 
   private func monitorSpaces() async {
     for await event in spaceMonitor.events() {
       switch event {
-      case .spacesChanged: self.spacesChangedEpoch += 1
+      case .spacesChanged: scheduleRefresh()
       case .mainScreenChanged: self.mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
       case .currentSpaceChanged(let spaceID): handleCurrentSpaceChanged(spaceID: spaceID)
       case .windowAdded(let windowID, let spaceID): handleWindowAdded(windowID: windowID, spaceID: spaceID)
@@ -574,6 +584,96 @@ struct SpaceIndicatorView: View {
       for (trackedSpaceID, windows) in spaceWindows {
         self.spaceWindows[trackedSpaceID] = windows.filter { $0.processIdentifier != app.processIdentifier }
       }
+    }
+  }
+
+  private func spacesInfo(
+    cgsConnectionID: CGSConnectionID
+  ) -> (displaySpaces: [DisplayIdentifier: [SpaceID]], currentSpaceIDs: [DisplayIdentifier: SpaceID]) {
+    guard
+      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
+        cgsConnectionID,
+        nil
+      )?.takeRetainedValue()
+        as? [[String: Any]]
+    else {
+      return ([:], [:])
+    }
+
+    var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
+    var spaceIDs: [DisplayIdentifier: SpaceID] = [:]
+
+    for displayInfo in managedDisplaySpaces {
+      guard
+        let displayIdentifier = displayInfo["Display Identifier"] as? DisplayIdentifier,
+        let spacesInfo = displayInfo["Spaces"] as? [[String: Any]]
+      else {
+        continue
+      }
+
+      displaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
+
+      if let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
+        let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID
+      {
+        spaceIDs[displayIdentifier] = currentSpaceID
+      }
+    }
+
+    return (displaySpaces, spaceIDs)
+  }
+
+  private func windowsInfo(cgsConnectionID: CGSConnectionID) -> [[String: Any]] {
+    guard
+      let windowsInfo = CGWindowListCopyWindowInfo(
+        [.optionAll, .excludeDesktopElements],
+        kCGNullWindowID
+      ) as? [[String: Any]]
+    else {
+      return []
+    }
+
+    return windowsInfo
+  }
+
+  private func refreshSpaces() {
+    let spacesInfo = spacesInfo(cgsConnectionID: cgsConnectionID)
+
+    guard !spacesInfo.displaySpaces.isEmpty else {
+      return
+    }
+
+    self.displaySpaces = spacesInfo.displaySpaces
+    self.currentSpaceIDs = spacesInfo.currentSpaceIDs
+  }
+
+  private func refreshWindows() {
+    self.spaceWindows.removeAll()
+
+    for windowInfo in windowsInfo(cgsConnectionID: cgsConnectionID) {
+      guard let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
+        continue
+      }
+
+      trackWindow(window)
+    }
+  }
+
+  private func scheduleRefresh() {
+    self.isRefreshPending = true
+
+    refreshTask?.cancel()
+    self.refreshTask = Task { [weak self] in
+      try? await Task.sleep(for: .milliseconds(100))
+
+      guard !Task.isCancelled, let self else {
+        return
+      }
+
+      refreshSpaces()
+      refreshWindows()
+
+      self.isRefreshPending = false
     }
   }
 
@@ -647,18 +747,79 @@ struct SpaceIndicatorView: View {
   }
 }
 
+struct SpaceIndicatorView: View {
+  private enum IconMetrics {
+    static let size: CGFloat = 17.0
+    static let paddingCropScale: CGFloat = 32 / 28
+    static let cornerRatio: CGFloat = 7 / 28
+    static let overlapGap: CGFloat = 1.0
+    static let cutoutMaskSize: CGFloat = size + (overlapGap * 2)
+    static let cutoutMaskCornerRadius: CGFloat = (cutoutMaskSize * cornerRatio) + (overlapGap / 2)
+  }
+
+  let model: SpaceIndicatorModel
+  let onWidthChanged: (CGFloat) -> Void
+
+  var body: some View {
+    HStack(spacing: 12) {
+      ForEach(model.mainScreenSpaces.enumerated(), id: \.element.id) { index, space in
+        HStack(spacing: 6) {
+          Text("\(index + 1)")
+            .font(.subheadline)
+            .fontWeight(space.isCurrent ? .medium : .regular)
+            .foregroundStyle(Color(.textColor))
+            .frame(width: 8)
+
+          if !space.apps.isEmpty {
+            HStack(spacing: -4) {
+              ForEach(space.apps) { app in
+                Image(nsImage: app.icon)
+                  .resizable()
+                  .scaleEffect(IconMetrics.paddingCropScale)
+                  .frame(width: IconMetrics.size, height: IconMetrics.size)
+                  .clipShape(.rect(cornerRadius: IconMetrics.size * IconMetrics.cornerRatio))
+                  .background {
+                    RoundedRectangle(cornerRadius: IconMetrics.cutoutMaskCornerRadius)
+                      .fill(.black)
+                      .frame(width: IconMetrics.cutoutMaskSize, height: IconMetrics.cutoutMaskSize)
+                      .blendMode(.destinationOut)
+                  }
+              }
+            }
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
+          }
+        }
+        .opacity(space.isCurrent ? 1 : 0.45)
+        .animation(.snappy(duration: 0.2), value: space.isCurrent)
+      }
+    }
+    .padding(.horizontal, 14)
+    .fixedSize()
+    .onGeometryChange(for: CGFloat.self) { proxy in
+      proxy.size.width
+    } action: { newWidth in
+      onWidthChanged(newWidth)
+    }
+  }
+}
+
 @MainActor
 final class StatusItemManager {
   private static let autosaveName = "SpaceIndicator"
   private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
 
+  private let startDate = Date.now
+  private let spaceIndicatorModel: SpaceIndicatorModel
   private var hostingView: NSHostingView<SpaceIndicatorView>?
   private var statusItem: NSStatusItem?
   private var lastReportedWidth: CGFloat = .zero
 
-  init(spaceMonitor: SpaceMonitor) {
+  init(spaceIndicatorModel: SpaceIndicatorModel) {
+    self.spaceIndicatorModel = spaceIndicatorModel
+
     let spaceIndicatorView = SpaceIndicatorView(
-      spaceMonitor: spaceMonitor,
+      model: spaceIndicatorModel,
       onWidthChanged: { [weak self] width in
         self?.setStatusItemWidth(to: width)
       }
@@ -672,6 +833,19 @@ final class StatusItemManager {
 
     self.hostingView = hostingView
     self.statusItem = statusItem
+  }
+
+  func logDiagnosticReport() {
+    Log.message(
+      """
+      Diagnostic report:
+        Started: \(startDate.formatted(.dateTime))
+        Status item present: \(statusItem != nil)
+        Status item visible: \(statusItem.map { "\($0.isVisible)" } ?? "<none>")
+        Last reported width: \(lastReportedWidth)
+      \(spaceIndicatorModel.diagnosticReport().map { "  \($0)" }.joined(separator: "\n"))
+      """
+    )
   }
 
   func toggleVisibility() {
@@ -713,11 +887,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
       let spaceMonitor = try SpaceMonitor()
-      let statusItemManager = StatusItemManager(spaceMonitor: spaceMonitor)
+      let spaceIndicatorModel = SpaceIndicatorModel(spaceMonitor: spaceMonitor)
 
-      self.statusItemManager = statusItemManager
+      self.statusItemManager = StatusItemManager(spaceIndicatorModel: spaceIndicatorModel)
     } catch {
-      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+      Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
     observeProcessSignals()
@@ -760,7 +934,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: statusItemManager?.toggleVisibility()
-    case .printLog: break
+    case .printLog: statusItemManager?.logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -790,24 +964,13 @@ do {
 
     if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
-        let fd = try FileDescriptor.open(
-          FilePath(
+        try Log.redirectOutput(
+          to: FilePath(
             FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          ),
-          .writeOnly,
-          options: [.create, .truncate],
-          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+          )
         )
-
-        try fd.closeAfter {
-          _ = try fd.duplicate(as: .standardOutput)
-          _ = try fd.duplicate(as: .standardError)
-        }
-
-        setvbuf(stdout, nil, _IONBF, 0)
-        setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to redirect output: \(error.localizedDescription)")
       }
     }
 
@@ -825,25 +988,29 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    print("Already running.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Already running.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Too many arguments.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    print("Unknown command.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Unknown command.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
+  ipcCommand.send()
+
   if case .printLog = ipcCommand {
+    Thread.sleep(forTimeInterval: 0.2)
+
     let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
 
     guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      print("Log file does not exist.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Log file does not exist.")
       exit(EX_NOINPUT)
     }
 
@@ -858,16 +1025,14 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to read log file: \(error.localizedDescription)")
       exit(EXIT_FAILURE)
     }
-  } else {
-    ipcCommand.send()
   }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+  Log.error(error.localizedDescription)
   exit(EXIT_FAILURE)
 }

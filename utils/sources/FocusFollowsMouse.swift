@@ -1,4 +1,5 @@
 import AppKit
+import Synchronization
 import System
 
 enum Configuration {
@@ -7,24 +8,76 @@ enum Configuration {
   static let jitterThreshold = 3
 }
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -64,10 +117,7 @@ final class SingleInstanceLock {
     do {
       try lockFileDescriptor.close()
     } catch {
-      print(
-        "Failed to close lock file descriptor: \(error.localizedDescription)",
-        to: &FileDescriptorOutputStream.standardError
-      )
+      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
     }
   }
 }
@@ -106,6 +156,16 @@ enum ProcessSignals {
   }
 }
 
+extension MainActor {
+  static func runOrDispatch(_ body: @escaping @Sendable @MainActor () -> Void) {
+    if Thread.isMainThread {
+      MainActor.assumeIsolated(body)
+    } else {
+      DispatchQueue.main.async(execute: body)
+    }
+  }
+}
+
 struct ProcessSerialNumber {
   var highLongOfPSN: UInt32 = 0
   var lowLongOfPSN: UInt32 = 0
@@ -135,10 +195,8 @@ extension AXUIElement {
     }
   }
 
-  static let systemWideElement = AXUIElementCreateSystemWide()
-
   static func setGlobalMessagingTimeout(seconds timeoutInSeconds: Float) {
-    AXUIElementSetMessagingTimeout(systemWideElement, timeoutInSeconds)
+    AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), timeoutInSeconds)
   }
 
   func windowID() throws -> CGWindowID {
@@ -533,7 +591,7 @@ final class WorkspaceMonitor {
     }
   }
 
-  enum Event {
+  enum Event: Sendable {
     case mainScreenChanged
     case currentSpaceChanged
     case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
@@ -543,15 +601,19 @@ final class WorkspaceMonitor {
   private let skyLightProxy: SkyLightProxy
 
   private let slsNotifyProc: SLSNotifyProc = { eventType, data, dataLength, context in
-    guard let event = CGSEventType(rawValue: eventType), let context else {
+    guard
+      let eventType = CGSEventType(rawValue: eventType),
+      let context,
+      let event = event(for: eventType, data: data, dataLength: dataLength)
+    else {
       return
     }
 
-    Unmanaged<WorkspaceMonitor>.fromOpaque(context).takeUnretainedValue().handleEvent(
-      event,
-      data: data,
-      dataLength: dataLength
-    )
+    let monitor = Unmanaged<WorkspaceMonitor>.fromOpaque(context).takeUnretainedValue()
+
+    MainActor.runOrDispatch {
+      monitor.handleEvent(event)
+    }
   }
 
   private var registeredEventTypes: [CGSEventType] = []
@@ -596,48 +658,42 @@ final class WorkspaceMonitor {
     return stream
   }
 
-  private func handleEvent(_ event: CGSEventType, data: UnsafeMutableRawPointer?, dataLength: UInt32) {
-    guard let continuation else {
-      return
-    }
-
-    switch event {
+  private nonisolated static func event(
+    for eventType: CGSEventType,
+    data: UnsafeMutableRawPointer?,
+    dataLength: UInt32
+  ) -> Event? {
+    switch eventType {
     case .packagesStatusBarSpaceChanged:
-      continuation.yield(.mainScreenChanged)
+      return .mainScreenChanged
 
-    case .spaceWindowCreated:
+    case .spaceWindowCreated, .spaceWindowDestroyed:
       guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
-        return
+        return nil
       }
 
       let spaceID = data.load(as: SpaceID.self)
       let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
 
-      continuation.yield(.windowAdded(windowID: windowID, spaceID: spaceID))
-
-    case .spaceWindowDestroyed:
-      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
-        return
-      }
-
-      let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
-
-      continuation.yield(.windowRemoved(windowID: windowID, spaceID: spaceID))
+      return eventType == .spaceWindowCreated
+        ? .windowAdded(windowID: windowID, spaceID: spaceID)
+        : .windowRemoved(windowID: windowID, spaceID: spaceID)
 
     case .spaceCurrentChanged:
-      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size else {
-        return
+      guard
+        let data,
+        dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size,
+        data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self) != 0
+      else {
+        return nil
       }
 
-      let isCurrentFlag = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self)
-
-      guard isCurrentFlag != 0 else {
-        return
-      }
-
-      continuation.yield(.currentSpaceChanged)
+      return .currentSpaceChanged
     }
+  }
+
+  private func handleEvent(_ event: Event) {
+    continuation?.yield(event)
   }
 
   private func unregisterNotifyProc() {
@@ -710,7 +766,7 @@ final class MissionControlMonitor {
           continuation?.yield(.deactivated)
           try startObserver()
         } catch {
-          print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+          Log.error(error.localizedDescription)
         }
       }
     }
@@ -757,9 +813,11 @@ final class MissionControlMonitor {
           return
         }
 
-        Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleNotification(
-          NSAccessibility.Notification(rawValue: notification as String)
-        )
+        MainActor.assumeIsolated {
+          Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleNotification(
+            NSAccessibility.Notification(rawValue: notification as String)
+          )
+        }
       },
       &axObserver
     )
@@ -843,12 +901,19 @@ final class FocusManager {
 
   private(set) var isEnabled = true
 
-  private let hoverDelay: DispatchTimeInterval
-  private let jitterThresholdSquared: CGFloat
+  private let startDate = Date.now
   private let skyLightProxy: SkyLightProxy
   private let workspaceMonitor: WorkspaceMonitor
   private let missionControlMonitor: MissionControlMonitor
   private let debounceTimer: any DispatchSourceTimer
+  private let suspendingWindowLevels: Set<CGWindowLevel> = [
+    CGWindowLevelForKey(.modalPanelWindow),
+    CGWindowLevelForKey(.popUpMenuWindow),
+    CGWindowLevelForKey(.screenSaverWindow),
+    CGWindowLevelForKey(.overlayWindow)
+  ]
+  private let hoverDelay: DispatchTimeInterval
+  private let jitterThresholdSquared: CGFloat
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var systemObservationTask: Task<Void, Never>?
@@ -856,13 +921,13 @@ final class FocusManager {
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
   private var activeSpaceID: SpaceID
-  private var floatingWindows: [SpaceID: Set<CGWindowID>] = [:]
+  private var suspendingWindows: [SpaceID: Set<CGWindowID>] = [:]
   private var isMissionControlActive = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
   private var isSuspended: Bool {
-    isCommandKeyPressed || isMissionControlActive || !floatingWindows[activeSpaceID, default: []].isEmpty
+    isCommandKeyPressed || isMissionControlActive || !suspendingWindows[activeSpaceID, default: []].isEmpty
   }
 
   init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int) throws {
@@ -895,7 +960,9 @@ final class FocusManager {
         ),
         callback: { _, _, event, refcon in
           if let refcon {
-            Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
+            MainActor.assumeIsolated {
+              Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
+            }
           }
 
           return Unmanaged.passUnretained(event)
@@ -932,7 +999,7 @@ final class FocusManager {
     self.systemObservationTask = systemObservationTask
   }
 
-  deinit {
+  isolated deinit {
     if let eventTap, let runLoopSource {
       if CGEvent.tapIsEnabled(tap: eventTap) {
         CGEvent.tapEnable(tap: eventTap, enable: false)
@@ -952,6 +1019,32 @@ final class FocusManager {
     updateEventTapState()
   }
 
+  func logDiagnosticReport() {
+    let suspendingWindowsInActiveSpace = suspendingWindows[activeSpaceID, default: []].sorted()
+    let suspendingWindowsInOtherSpaces =
+      suspendingWindows
+      .filter { $0.key != activeSpaceID && !$0.value.isEmpty }
+      .sorted { $0.key < $1.key }
+      .map { "\($0.key): \($0.value.sorted())" }
+
+    Log.message(
+      """
+      Diagnostic report:
+        Started: \(startDate.formatted(.dateTime))
+        Enabled: \(isEnabled)
+        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+        Suspended: \(isSuspended)
+          Command key pressed: \(isCommandKeyPressed)
+          Mission Control active: \(isMissionControlActive)
+          Suspending windows in active space: \(suspendingWindowsInActiveSpace.isEmpty ? "none" : "\(suspendingWindowsInActiveSpace)")
+        Active space ID: \(activeSpaceID)
+        Suspending windows in other spaces: \(suspendingWindowsInOtherSpaces.isEmpty ? "none" : suspendingWindowsInOtherSpaces.joined(separator: ", "))
+        Focus pending: \(isFocusPending)
+        Hover delay: \(hoverDelay)
+      """
+    )
+  }
+
   private func monitorWorkspace() async {
     for await event in workspaceMonitor.events() {
       switch event {
@@ -963,7 +1056,7 @@ final class FocusManager {
 
           self.activeSpaceID = activeSpaceID
 
-          pruneRemovedFloatingWindowsInActiveSpace()
+          pruneRemovedSuspendingWindowsInActiveSpace()
         }
 
       case .windowAdded(let windowID, let spaceID):
@@ -974,17 +1067,13 @@ final class FocusManager {
           let windowInfo = windowsInfo.first,
           windowInfo[kCGWindowIsOnscreen as String] as? Bool == true,
           let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
-          windowLayer > kCGNormalWindowLevel,
-          windowLayer <= kCGScreenSaverWindowLevel,
-          windowLayer != kCGFloatingWindowLevel,
-          windowLayer != kCGStatusWindowLevel + 1,
-          windowLayer != kCGOverlayWindowLevel + 1
+          suspendingWindowLevels.contains(windowLayer)
         {
-          floatingWindows[spaceID, default: []].insert(windowID)
+          suspendingWindows[spaceID, default: []].insert(windowID)
         }
 
       case .windowRemoved(let windowID, let spaceID):
-        floatingWindows[spaceID]?.remove(windowID)
+        suspendingWindows[spaceID]?.remove(windowID)
       }
     }
   }
@@ -1112,12 +1201,13 @@ final class FocusManager {
         focusedWindowID = try AXUIElementCreateApplication(targetPID)
           .value(for: .focusedWindow, as: AXUIElement.self)
           .windowID()
+
+      } catch AXError.noValue {
+        focusedWindowID = nil
+
       } catch {
         focusedWindowID = nil
-        print(
-          "Failed to retrieve focused window for PID \(targetPID): \(error.localizedDescription)",
-          to: &FileDescriptorOutputStream.standardError
-        )
+        Log.error("Failed to retrieve focused window for PID \(targetPID): \(error.localizedDescription)")
       }
 
       if let focusedWindowID {
@@ -1165,8 +1255,8 @@ final class FocusManager {
     self.focusTask = nil
   }
 
-  private func pruneRemovedFloatingWindowsInActiveSpace() {
-    let trackedWindowIDs = floatingWindows[activeSpaceID, default: []]
+  private func pruneRemovedSuspendingWindowsInActiveSpace() {
+    let trackedWindowIDs = suspendingWindows[activeSpaceID, default: []]
 
     guard
       !trackedWindowIDs.isEmpty,
@@ -1180,7 +1270,7 @@ final class FocusManager {
 
     let onScreenWindowIDs = Set(windowListInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
 
-    self.floatingWindows[activeSpaceID] = trackedWindowIDs.intersection(onScreenWindowIDs)
+    self.suspendingWindows[activeSpaceID] = trackedWindowIDs.intersection(onScreenWindowIDs)
   }
 }
 
@@ -1201,7 +1291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         jitterThreshold: Configuration.jitterThreshold
       )
     } catch {
-      print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+      Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
 
@@ -1245,7 +1335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: focusManager?.toggleEnabled()
-    case .printLog: break
+    case .printLog: focusManager?.logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
@@ -1275,24 +1365,13 @@ do {
 
     if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
-        let fd = try FileDescriptor.open(
-          FilePath(
+        try Log.redirectOutput(
+          to: FilePath(
             FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          ),
-          .writeOnly,
-          options: [.create, .truncate],
-          permissions: [.ownerReadWrite, .groupRead, .otherRead]
+          )
         )
-
-        try fd.closeAfter {
-          _ = try fd.duplicate(as: .standardOutput)
-          _ = try fd.duplicate(as: .standardError)
-        }
-
-        setvbuf(stdout, nil, _IONBF, 0)
-        setvbuf(stderr, nil, _IONBF, 0)
       } catch {
-        print("Failed to redirect output: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+        Log.error("Failed to redirect output: \(error.localizedDescription)")
       }
     }
 
@@ -1310,25 +1389,29 @@ do {
     "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
 
   guard let argument = arguments.first else {
-    print("Already running.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Already running.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard arguments.dropFirst().isEmpty else {
-    print("Too many arguments.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Too many arguments.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
   guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    print("Unknown command.\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+    Log.error("Unknown command.\n\n\(usageDescription)")
     exit(EX_USAGE)
   }
 
+  ipcCommand.send()
+
   if case .printLog = ipcCommand {
+    Thread.sleep(forTimeInterval: 0.2)
+
     let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
 
     guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      print("Log file does not exist.", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Log file does not exist.")
       exit(EX_NOINPUT)
     }
 
@@ -1343,16 +1426,14 @@ do {
         print(logContents)
       }
     } catch {
-      print("Failed to read log file: \(error.localizedDescription)", to: &FileDescriptorOutputStream.standardError)
+      Log.error("Failed to read log file: \(error.localizedDescription)")
       exit(EXIT_FAILURE)
     }
-  } else {
-    ipcCommand.send()
   }
 
   exit(EXIT_SUCCESS)
 
 } catch {
-  print(error.localizedDescription, to: &FileDescriptorOutputStream.standardError)
+  Log.error(error.localizedDescription)
   exit(EXIT_FAILURE)
 }

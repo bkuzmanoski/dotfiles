@@ -1,24 +1,77 @@
 import AppKit
+import Synchronization
 import System
 
-struct FileDescriptorOutputStream: TextOutputStream {
-  static var standardOutput = FileDescriptorOutputStream(.standardOutput)
-  static var standardError = FileDescriptorOutputStream(.standardError)
+enum Log {
+  enum Error: Swift.Error, LocalizedError {
+    case outputAlreadyRedirected
 
-  let fileDescriptor: FileDescriptor
-  var errorHandler: ((any Error) -> Void)?
-
-  init(_ fileDescriptor: FileDescriptor, errorHandler: ((any Error) -> Void)? = nil) {
-    self.fileDescriptor = fileDescriptor
-    self.errorHandler = errorHandler
+    var errorDescription: String? {
+      switch self {
+      case .outputAlreadyRedirected: "Output has already been redirected."
+      }
+    }
   }
 
-  mutating func write(_ string: String) {
-    do {
-      try fileDescriptor.writeAll(string.utf8)
-    } catch {
-      errorHandler?(error)
+  private static let timestampStyle =
+    isatty(FileDescriptor.standardOutput.rawValue) == 0
+    ? Date.ISO8601FormatStyle(
+      dateTimeSeparator: .space,
+      includingFractionalSeconds: true,
+      timeZone: .current
+    ) : nil
+  private static let isRedirected = Atomic(false)
+
+  static func redirectOutput(to filePath: FilePath) throws {
+    let (exchanged, _) = isRedirected.compareExchange(
+      expected: false,
+      desired: true,
+      ordering: .acquiringAndReleasing
+    )
+
+    guard exchanged else {
+      throw Error.outputAlreadyRedirected
     }
+
+    do {
+      let fileDescriptor = try FileDescriptor.open(
+        filePath,
+        .writeOnly,
+        options: [.create, .truncate, .append],
+        permissions: [.ownerReadWrite, .groupRead, .otherRead]
+      )
+
+      try fileDescriptor.closeAfter {
+        _ = try fileDescriptor.duplicate(as: .standardOutput)
+        _ = try fileDescriptor.duplicate(as: .standardError)
+      }
+
+      setvbuf(stdout, nil, _IONBF, 0)
+      setvbuf(stderr, nil, _IONBF, 0)
+    } catch {
+      isRedirected.store(false, ordering: .releasing)
+      throw error
+    }
+  }
+
+  static func message(_ message: String) {
+    write(message, to: .standardOutput)
+  }
+
+  static func error(_ message: String) {
+    write(message, to: .standardError)
+  }
+
+  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
+    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
+  }
+
+  private static func line(for message: String) -> String {
+    guard let timestampStyle else {
+      return "\(message)\n"
+    }
+
+    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
   }
 }
 
@@ -94,7 +147,7 @@ extension NSColor {
 }
 
 func printUsageErrorAndExit(_ message: String) -> Never {
-  print("\(message)\n\n\(usageDescription)", to: &FileDescriptorOutputStream.standardError)
+  Log.error("\(message)\n\n\(usageDescription)")
   exit(EX_USAGE)
 }
 
@@ -140,21 +193,23 @@ while let argument = arguments.next() {
 }
 
 NSColorSampler().show { color in
-  if let color {
-    guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
-      print("Failed to convert color to the specified color space.", to: &FileDescriptorOutputStream.standardError)
-      exit(EXIT_FAILURE)
+  MainActor.assumeIsolated {
+    if let color {
+      guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
+        Log.error("Failed to convert color to the specified color space.")
+        exit(EXIT_FAILURE)
+      }
+
+      let result = color.formatted(outputFormat)
+
+      NSPasteboard.general.clearContents()
+      NSPasteboard.general.setString(result, forType: .string)
+
+      print(result)
     }
 
-    let result = color.formatted(outputFormat)
-
-    NSPasteboard.general.clearContents()
-    NSPasteboard.general.setString(result, forType: .string)
-
-    print(result)
+    NSApplication.shared.terminate(nil)
   }
-
-  NSApplication.shared.terminate(nil)
 }
 
 let application = NSApplication.shared
