@@ -42,6 +42,7 @@ cask "1password-cli"
 cask "1password"
 cask "affinity"
 cask "alt-tab"
+cask "andreypudov/core-eq/core-eq", trusted: true
 cask "apparency"
 cask "archaeology"
 cask "asset-catalog-tinkerer"
