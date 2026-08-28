@@ -5,12 +5,14 @@ function udmg() {
 			  udmg [options]
 
 			Options:
-			  -f, --force    Force detach (unmount) even if the disk is busy
+			  -a, --all      Include system images
+			  -f, --force    Force unmount even if the disk is busy
 			  -h, --help     Show this help message
 		EOF
   }
 
   if ! zparseopts -D -E -F \
+    {a,-all}=flag_all \
     {f,-force}=flag_force \
     {h,-help}=flag_help \
     2>/dev/null; then
@@ -39,9 +41,48 @@ function udmg() {
     return 0
   fi
 
+  local -a system_image_patterns=(
+    "/System/"
+    "/Library/Apple/"
+    "/Library/Developer/CoreSimulator/"
+    "/private/var/db/"
+  )
   local -a mounted_dmgs=(${(f)raw_output})
+  local -i skipped_count=0
 
-  local dmg
+  if ((${#flag_all} == 0)); then
+    local -a user_dmgs=()
+
+    for entry in "${mounted_dmgs[@]}"; do
+      local -i is_system=0
+
+      for pattern in "${system_image_patterns[@]}"; do
+        if [[ "${entry#*$'\t'}" == ${pattern}* ]]; then
+          is_system=1
+          break
+        fi
+      done
+
+      if ((is_system)); then
+        ((skipped_count++))
+      else
+        user_dmgs+=("${entry}")
+      fi
+    done
+
+    mounted_dmgs=("${user_dmgs[@]}")
+  fi
+
+  if ((${#mounted_dmgs[@]} == 0)); then
+    if ((skipped_count > 0)); then
+      print "No user-mounted DMG images found (skipped ${skipped_count} system image[s])."
+    else
+      print "No mounted DMG images found."
+    fi
+
+    return 0
+  fi
+
   local device
   local dmg_path
   local -i fail_count=0
@@ -60,10 +101,10 @@ function udmg() {
       detach_cmd+=(-force)
     fi
 
-    print -P "Detaching %B${device}%b (${dmg_path:t})..."
+    print -P "Unmounting %B${device}%b (${dmg_path:t})..."
 
     if ! "${detach_cmd[@]}"; then
-      print -u2 -P "%F{1}Error:%f Failed to detach ${dmg_path}"
+      print -u2 -P "%F{1}Error:%f Failed to unmount ${dmg_path}"
       ((fail_count++))
     fi
 
