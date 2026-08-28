@@ -6,7 +6,7 @@ function udmg() {
 
 			Options:
 			  -a, --all      Include system images
-			  -f, --force    Force unmount even if the disk is busy
+			  -f, --force    Force unmount even if the image is busy
 			  -h, --help     Show this help message
 		EOF
   }
