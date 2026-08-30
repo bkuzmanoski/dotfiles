@@ -16,6 +16,7 @@ local edgeType = {
   screenTop = "screenTop",
   screenBottom = "screenBottom"
 }
+local snapThreshold = 8
 local validSubroles = {
   ["AXStandardWindow"] = true,
   ["AXDialog"] = true,
@@ -25,7 +26,7 @@ local validSubroles = {
 }
 
 local keyboardTap, mouseTap
-local topOffset, padding, snapThreshold, moveModifiers, resizeModifiers, excludedApps
+local topOffset, padding, moveModifiers, resizeModifiers, excludedApps
 local activeOperation, activeWindow, initialWindowFrame, initialMousePosition, screen, allWindows
 
 local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
@@ -232,7 +233,6 @@ function module.init(config)
 
   topOffset = config.topOffset or 0
   padding = config.padding or 0
-  snapThreshold = config.snapThreshold or 0
   moveModifiers = config.moveModifiers
   resizeModifiers = config.resizeModifiers
   excludedApps = {}

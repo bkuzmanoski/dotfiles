@@ -9,6 +9,7 @@ local sizeConfigs = {
   [size.large] = { fillScreen = true },
   [size.current] = { keepCurrentSize = true }
 }
+local minimumMargin = 1
 
 local bindings = {}
 local topOffset, padding, splitRatios
@@ -72,8 +73,9 @@ local function position(targetDirection)
     currentSplitRatio = utils.cycleNext(splitRatios, currentSplitRatio)
   end
 
+  local margin = math.max(padding, minimumMargin)
   local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
-  screenFrame.w = screenFrame.w - padding
+  screenFrame.w = screenFrame.w - margin
 
   local leftFrame = screenFrame:copy()
   leftFrame.w = math.floor(
@@ -81,7 +83,7 @@ local function position(targetDirection)
   )
 
   local rightFrame = screenFrame:copy()
-  rightFrame.x = screenFrame.x + leftFrame.w + padding
+  rightFrame.x = screenFrame.x + leftFrame.w + margin
   rightFrame.w = screenFrame.w - leftFrame.w
 
   if targetDirection == direction.left then

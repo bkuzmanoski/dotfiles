@@ -2,6 +2,7 @@ local module = {}
 
 local utils = require("utils")
 local edge = { left = "left", right = "right", top = "top", bottom = "bottom" }
+local minimumMargin = 1
 
 local bindings = {}
 local screenWatcher, applicationWatcher, windowFilter, debounceTimer
@@ -148,6 +149,7 @@ local function setFrameWithConstraints(window, targetFrame, screenBounds)
 end
 
 local function applyLayout(screen, tilingState)
+  local margin = math.max(padding, minimumMargin)
   local screenFrame = utils.getAdjustedScreenFrame(screen, topOffset, padding)
   local managedWindows = tilingState.managedWindows
 
@@ -164,7 +166,7 @@ local function applyLayout(screen, tilingState)
       screenFrame,
       tilingState.splitRatio,
       tilingState.mainWindowEdge,
-      padding
+      margin
     )
     table.insert(newWindowStates, { window = managedWindows[1].window, frame = mainWindowFrame })
 
@@ -177,7 +179,7 @@ local function applyLayout(screen, tilingState)
 
     if #stackWindows > 0 then
       local isHorizontal = tilingState.mainWindowEdge == edge.top or tilingState.mainWindowEdge == edge.bottom
-      local stackFrames = layoutStackWindows(stackWindows, stackBoundingRect, padding, isHorizontal)
+      local stackFrames = layoutStackWindows(stackWindows, stackBoundingRect, margin, isHorizontal)
 
       hs.fnutils.each(stackFrames, function(stackFrame)
         table.insert(newWindowStates, stackFrame)
