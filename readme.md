@@ -107,14 +107,14 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Screenshots
           - Set "Capture Area" shortcut to ⇧⌘2
           - Set "Capture Fullscreen" shortcut to ⇧⌘1
-      - Screen Recording
-        - Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
-      - OCR
-        - Set "Capture Text" shortcut to ⇧⌘4
-      - Annotate
-        - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
-        - Clear "Save" shortcut
-        - Set "Save as" shortcut to ⌘S
+        - Screen Recording
+          - Set "Record Screen / Stop Recording" shortcut to ⇧⌘5
+        - OCR
+          - Set "Capture Text" shortcut to ⇧⌘4
+        - Annotate
+          - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
+          - Clear "Save" shortcut
+          - Set "Save as" shortcut to ⌘S
 
   - Figma
     - Settings

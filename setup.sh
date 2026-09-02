@@ -432,8 +432,9 @@ defaults_write pl.maketheweb.cleanshotx freezeScreen -bool true
 defaults_write pl.maketheweb.cleanshotx keyboardOverlaySize -int 27
 defaults_write pl.maketheweb.cleanshotx rememberRecordingArea -bool false
 defaults_write pl.maketheweb.cleanshotx screenshotSound -int 3
-defaults_write pl.maketheweb.cleanshotx showKeystrokes -bool true
 defaults_write pl.maketheweb.cleanshotx showMenubarIcon -bool false
+defaults_write pl.maketheweb.cleanshotx SUAutomaticallyUpdate -bool true
+defaults_write pl.maketheweb.cleanshotx SUEnableAutomaticChecks -bool true
 defaults_write pl.maketheweb.cleanshotx videoFPS -int 30
 
 open "/Applications/Dropover.app"
