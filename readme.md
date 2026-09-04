@@ -83,6 +83,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Shortcut 1 → Trigger → Set "Hold" to "⌘"
         - Shortcut 2 → Trigger → Set "Hold" to "⌘"
 
+  - CoreEQ
+    - Create custom preset
+
   - Claude
     - Settings
       - Cowork → Turn on "Dispatch"
