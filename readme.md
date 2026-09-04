@@ -83,9 +83,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Shortcut 1 → Trigger → Set "Hold" to "⌘"
         - Shortcut 2 → Trigger → Set "Hold" to "⌘"
 
-  - CoreEQ
-    - Create custom preset
-
   - Claude
     - Settings
       - Cowork → Turn on "Dispatch"
@@ -118,6 +115,9 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
           - Set "Annotate Last Screenshot" shortcut to ⇧⌘3
           - Clear "Save" shortcut
           - Set "Save as" shortcut to ⌘S
+
+  - CoreEQ
+    - Create custom preset
 
   - Figma
     - Settings
