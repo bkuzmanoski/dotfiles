@@ -7,9 +7,12 @@ function oi() {
 			Options:
 			  -z, --zopfli             Use Zopfli compression for PNGs (slower but better compression)
 			  -q, --quality <value>    Set JPEG quality (0-100, lower = smaller file)
+			  -r, --recursive          Recurse into subdirectories
 			  -h, --help               Show this help message
 		EOF
   }
+
+  setopt localoptions extendedglob
 
   local missing_tools=()
   local install_instructions=()
@@ -25,7 +28,7 @@ function oi() {
   fi
 
   if [[ ${#missing_tools[@]} -gt 0 ]]; then
-    print "Required tools missing:"
+    print -u2 "Required tools missing:"
 
     for instruction in "${install_instructions[@]}"; do
       print -u2 -P "  - ${instruction}"
@@ -40,6 +43,7 @@ function oi() {
   if ! zparseopts -D -E -F \
     {z,-zopfli}=flag_zopfli \
     {q,-quality}:=option_quality \
+    {r,-recursive}=flag_recursive \
     {h,-help}=flag_help \
     2>/dev/null; then
     print -u2 "Error: Invalid or missing option(s).\n"
@@ -61,38 +65,64 @@ function oi() {
     quality="${option_quality[-1]}"
   fi
 
+  if (($# == 0)); then
+    print -u2 "Error: No input file(s) specified.\n"
+    print_usage >&2
+
+    return 64
+  fi
+
+  local extensions="jpg|jpeg|png"
+  local recursive_glob=""
   local -a files
+  local -i unsupported_count=0
+
+  if ((${#flag_recursive} > 0)); then
+    recursive_glob="**/"
+  fi
 
   for input in "$@"; do
-    if [[ ! -e ${input} ]]; then
-      continue
-    fi
-
     if [[ -d ${input} ]]; then
-      local dir_files=("${input}"/**/*.(jpg|jpeg|png)(N))
-      files+=("${dir_files[@]}")
-    elif [[ -f ${input} && ${input} == *.(jpg|jpeg|png) ]]; then
+      files+=("${input}"/${~recursive_glob}*.(#i)(${~extensions})(N.^D))
+
+    elif [[ -f ${input} ]]; then
+      if [[ ${input:l} != *.(${~extensions}) ]]; then
+        print -u2 "Skipping unsupported file: \"${input}\""
+
+        ((unsupported_count++))
+
+        continue
+      fi
+
       files+=("${input}")
+
+    else
+      print -u2 "Error: File \"${input}\" not found."
+      return 1
     fi
   done
+
+  files=("${(u)files[@]}")
 
   local image_count="${#files[@]}"
 
   if [[ ${image_count} -eq 0 ]]; then
-    print -u2 "Didn't find any JP(E)G or PNG files to optimize."
+    if ((unsupported_count > 0)); then
+      print -u2
+    fi
+
+    print -u2 "No JP(E)G or PNG files found to optimize."
     return 1
   fi
 
   print "Found ${image_count} image$([[ ${image_count} -eq 1 ]] || print "s") to optimize..."
 
   local -i processed_count=0
-  local -A original_sizes
+  local -i failed_count=0
+  local -i total_size_before=0
+  local -i total_size_after=0
   local -a jpeg_opts=("--all-progressive" "--strip-exif" "--strip-com")
   local -a oxipng_opts=("--strip" "safe")
-
-  for file in "${files[@]}"; do
-    original_sizes["${file}"]="$(stat -f %z "${file}")"
-  done
 
   if [[ -n "${quality}" ]]; then
     jpeg_opts+=("--max=${quality}")
@@ -103,29 +133,56 @@ function oi() {
   fi
 
   for file in "${files[@]}"; do
-    printf "\n\033[1m%d/%d\033[0m\n" "$((processed_count + 1))" "${image_count}"
-
-    case "${file:l}" in
-    *.jpg | *.jpeg) jpegoptim ${jpeg_opts[@]} "${file}" ;;
-    *.png) oxipng ${oxipng_opts[@]} "${file}" ;;
-    esac
+    local -i original_size="$(stat -f %z "${file}")"
+    local -a optimize_command=()
 
     ((processed_count++))
+
+    printf "\n\033[1m%d/%d\033[0m %s\n" "${processed_count}" "${image_count}" "${file}"
+
+    case "${file:l}" in
+    *.jpg | *.jpeg) optimize_command=(jpegoptim ${jpeg_opts[@]} "${file}") ;;
+    *.png) optimize_command=(oxipng ${oxipng_opts[@]} "${file}") ;;
+    esac
+
+    if ! "${optimize_command[@]}"; then
+      print -u2 "Failed to optimize \"${file}\"."
+
+      ((failed_count++))
+
+      continue
+    fi
+
+    local -i optimized_size="$(stat -f %z "${file}")"
+
+    ((total_size_before += original_size))
+    ((total_size_after += optimized_size))
   done
 
-  local total_size_before=0
-  local total_size_after=0
+  local optimized_count="$((image_count - failed_count))"
 
-  for file in "${files[@]}"; do
-    ((total_size_before += original_sizes["${file}"]))
-    ((total_size_after += "$(stat -f %z "${file}")"))
-  done
+  if [[ ${optimized_count} -eq 0 ]]; then
+    if [[ ${image_count} -gt 1 ]]; then
+      print -u2 "\nFailed to optimize any images."
+    fi
 
+    return 1
+  fi
+
+  local summary_suffix=""
   local size_reduction="$((total_size_before - total_size_after))"
   local size_reduction_percent="$((size_reduction * 100 / total_size_before))"
 
-  printf "\n\033[1mProcessed %d image%s\033[0m\n" "${image_count}" "$([[ ${image_count} -eq 1 ]] || print "s")"
+  if [[ ${failed_count} -gt 0 ]]; then
+    summary_suffix=" (${failed_count} failed)"
+  fi
+
+  printf "\n\033[1mProcessed %d image%s\033[0m%s\n" "${optimized_count}" "$([[ ${optimized_count} -eq 1 ]] || print "s")" "${summary_suffix}"
   printf "Total size before: %.2f MB\n" $((total_size_before / 1000000.0))
   printf "Total size after:  %.2f MB\n" $((total_size_after / 1000000.0))
   printf "Size reduction:    %.2f MB (%d%%)\n" $((size_reduction / 1000000.0)) "${size_reduction_percent}"
+
+  if [[ ${failed_count} -gt 0 ]]; then
+    return 1
+  fi
 }
