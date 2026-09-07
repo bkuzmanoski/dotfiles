@@ -28,10 +28,10 @@ function backup_if_needed() {
 function defaults_write() {
   zparseopts -D -E -sudo=use_sudo -currentHost=use_currentHost
 
-  local -a write_cmd=(${use_sudo:+"sudo"} "defaults" "${use_currentHost:+" -currentHost"}" "write" "$@")
+  local -a write_command=(${use_sudo:+"sudo"} "defaults" "${use_currentHost:+" -currentHost"}" "write" "$@")
 
-  log --info "Executing: ${write_cmd[*]}"
-  "${write_cmd[@]}"
+  log --info "Executing: ${write_command[*]}"
+  "${write_command[@]}"
 }
 
 function plistbuddy_execute() {
