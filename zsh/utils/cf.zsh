@@ -31,10 +31,10 @@ function cf() {
   fi
 
   local return_message return_code
-  local -a rg_cmd=("rg" "--heading" "--line-number" "--max-columns=0" "--color=never" "${@}" ".")
+  local -a rg_command=("rg" "--heading" "--line-number" "--max-columns=0" "--color=never" "${@}" ".")
   local rg_output
 
-  rg_output="$("${rg_cmd[@]}")"
+  rg_output="$("${rg_command[@]}")"
 
   local rg_status="$?"
 
