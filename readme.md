@@ -170,8 +170,12 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Advanced → Perform the following actions → Add "Mark as Read"
 
   - Raycast
-    - Import settings file
-    - Disable unused extensions/commands
+    - Enable Cloud Sync
+    - Position window in the lower third of the screen
+    - Settings
+      - Review enabled extensions and commands
+      - AI → API Keys → Add API keys
+      - Script Commands → Add `~/.dotfiles/raycast` to "Script Folders"
 
   - RunCat Neo
     - Settings
@@ -181,8 +185,8 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn off "Enable Battery Status Monitoring"
 
   - VS Code
-    - Sync settings and extensions
-    - Position Command Center in center of window
+    - Enable Settings Sync
+    - Position Command Center in the center of the window
 
   - Xcode
     - Install [Additional Tools for Xcode](https://developer.apple.com/download/all/?q=additional%20tools)

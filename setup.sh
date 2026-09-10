@@ -403,16 +403,13 @@ defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New Tab to the 
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000"          # Remove keyboard shortcut for "New tab" (conflicts with ⌘T)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f"       # Map "Search Tabs…" keyboard shortcut to ⇧⌘F
 
-defaults_write com.lwouis.alt-tab-macos "NSStatusItem Visible Item-0" -int 0 #
-defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2               # Set appearance to "Titles"
-defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1          # Set appearance visibility to "High"
-defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true             #
-defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true     #
-defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true           #
-defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0            #
-
-defaults_write com.raycast.macos "NSStatusItem Visible raycastIcon" -int 0 #
-defaults_write com.raycast.macos raycastGlobalHotkey -string "Command-49"  # Set hotkey to ⌘␣
+defaults_write com.lwouis.alt-tab-macos "NSStatusItem VisibleCC Item-0" -int 0 #
+defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2                 # Set appearance to "Titles"
+defaults_write com.lwouis.alt-tab-macos appearanceVisibility -int 1            # Set appearance visibility to "High"
+defaults_write com.lwouis.alt-tab-macos hideAppBadges -bool true               #
+defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true       #
+defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true             #
+defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0              #
 
 defaults_write com.superultra.Homerow auto-activate-mission-control -bool false #
 defaults_write com.superultra.Homerow enableSoundEffects -bool false            #
@@ -483,6 +480,7 @@ utiluti type set public.css com.microsoft.VSCode
 utiluti type set public.json com.microsoft.VSCode
 utiluti type set public.mpeg-2-transport-stream com.microsoft.VSCode
 utiluti type set public.svg-image com.google.Chrome
+utiluti type set public.yaml com.microsoft.VSCode
 
 # =============================================================================
 # Finalization
