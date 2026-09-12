@@ -5,8 +5,8 @@ function oi() {
 			  oi [options] <image|directory> ...
 
 			Options:
-			  -z, --zopfli             Use Zopfli compression for PNGs (slower but better compression)
 			  -q, --quality <value>    Set JPEG quality (0-100, lower = smaller file)
+			  -z, --zopfli             Use Zopfli compression for PNGs (slower but better compression)
 			  -r, --recursive          Recurse into subdirectories
 			  -h, --help               Show this help message
 		EOF
@@ -17,14 +17,14 @@ function oi() {
   local missing_tools=()
   local install_instructions=()
 
-  if ! command -v oxipng >/dev/null; then
-    missing_tools+=("oxipng")
-    install_instructions+=("%Boxipng%b: brew install oxipng")
-  fi
-
   if ! command -v jpegoptim >/dev/null; then
     missing_tools+=("jpegoptim")
     install_instructions+=("%Bjpegoptim%b: brew install jpegoptim")
+  fi
+
+  if ! command -v oxipng >/dev/null; then
+    missing_tools+=("oxipng")
+    install_instructions+=("%Boxipng%b: brew install oxipng")
   fi
 
   if [[ ${#missing_tools[@]} -gt 0 ]]; then
@@ -41,8 +41,8 @@ function oi() {
   local quality=""
 
   if ! zparseopts -D -E -F \
-    {z,-zopfli}=flag_zopfli \
     {q,-quality}:=option_quality \
+    {z,-zopfli}=flag_zopfli \
     {r,-recursive}=flag_recursive \
     {h,-help}=flag_help \
     2>/dev/null; then
@@ -57,12 +57,12 @@ function oi() {
     return 0
   fi
 
-  if ((${#flag_zopfli} > 0)); then
-    use_zopfli=1
-  fi
-
   if ((${#option_quality} > 0)); then
     quality="${option_quality[-1]}"
+  fi
+
+  if ((${#flag_zopfli} > 0)); then
+    use_zopfli=1
   fi
 
   if (($# == 0)); then
@@ -121,12 +121,14 @@ function oi() {
   local -i failed_count=0
   local -i total_size_before=0
   local -i total_size_after=0
+
   local -a jpeg_opts=("--all-progressive" "--strip-exif" "--strip-com")
-  local -a oxipng_opts=("--strip" "safe")
 
   if [[ -n "${quality}" ]]; then
     jpeg_opts+=("--max=${quality}")
   fi
+
+  local -a oxipng_opts=("--strip" "safe")
 
   if [[ ${use_zopfli} -eq 1 ]]; then
     oxipng_opts+=("--zopfli")
