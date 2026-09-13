@@ -149,7 +149,7 @@ enum ProcessSignals {
     }
 
     continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
+      for source in sources {
         source.cancel()
       }
     }

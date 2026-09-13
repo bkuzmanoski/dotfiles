@@ -147,7 +147,7 @@ enum ProcessSignals {
     }
 
     continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
+      for source in sources {
         source.cancel()
       }
     }
@@ -855,7 +855,7 @@ final class MissionControlMonitor {
 
   private func stopObserverIfNeeded() {
     if let axObserver, let dockElement {
-      observedNotifications.forEach { notification in
+      for notification in observedNotifications {
         AXObserverRemoveNotification(axObserver, dockElement, notification as CFString)
       }
     }

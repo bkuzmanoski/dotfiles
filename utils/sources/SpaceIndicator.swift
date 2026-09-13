@@ -146,7 +146,7 @@ enum ProcessSignals {
     }
 
     continuation.onTermination = { [sources] _ in
-      sources.forEach { source in
+      for source in sources {
         source.cancel()
       }
     }
@@ -537,14 +537,15 @@ final class SpaceIndicatorModel {
       }
 
     lines.append("Stale windows: \(staleWindowsInfo.values.reduce(0) { $0 + $1.count })")
-    Array(staleWindowsInfo.keys)
-      .sorted(by: <)
-      .forEach { spaceID in
-        if let windows = staleWindowsInfo[spaceID], !windows.isEmpty {
-          lines.append("  Space \(spaceID): \(windows.count) window(s)")
-          windows.forEach { lines.append("   \($0)") }
+    for spaceID in staleWindowsInfo.keys.sorted(by: <) {
+      if let windows = staleWindowsInfo[spaceID], !windows.isEmpty {
+        lines.append("  Space \(spaceID): \(windows.count) window(s)")
+
+        for window in windows {
+          lines.append("   \(window)")
         }
       }
+    }
 
     let trackedProcessIdentifiers = Set(spaceWindows.values.flatMap { $0 }.map(\.processIdentifier))
     let orphanedAppsInfo =
@@ -554,7 +555,9 @@ final class SpaceIndicatorModel {
       .sorted()
 
     lines.append("Orphaned apps: \(orphanedAppsInfo.count)")
-    orphanedAppsInfo.forEach { lines.append("  \($0)") }
+    for orphanedAppInfo in orphanedAppsInfo {
+      lines.append("  \(orphanedAppInfo)")
+    }
 
     return lines
   }
