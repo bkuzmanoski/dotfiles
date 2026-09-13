@@ -1513,9 +1513,9 @@ struct ResourceUsageTableRenderer {
         title: "Memory",
         fields: [
           SummaryField(byteCount: system.memory.usedBytes, label: "used"),
+          SummaryField(byteCount: system.memory.wiredBytes, label: "wired"),
           SummaryField(byteCount: system.memory.compressedBytes, label: "compressed"),
-          SummaryField(byteCount: system.memory.totalBytes, label: "total"),
-          SummaryField(byteCount: system.memory.wiredBytes, label: "wired")
+          SummaryField(byteCount: system.memory.totalBytes, label: "total")
         ]
       ),
       SummaryRow(
@@ -1548,14 +1548,8 @@ struct ResourceUsageTableRenderer {
     outboundLabel: String
   ) -> [SummaryField] {
     return [
-      SummaryField(
-        bytesPerSecond: transferRates.inboundBytesPerSecond,
-        label: "\(TransferRates.inboundSymbol) \(inboundLabel)"
-      ),
-      SummaryField(
-        bytesPerSecond: transferRates.outboundBytesPerSecond,
-        label: "\(TransferRates.outboundSymbol) \(outboundLabel)"
-      )
+      SummaryField(bytesPerSecond: transferRates.inboundBytesPerSecond, label: inboundLabel),
+      SummaryField(bytesPerSecond: transferRates.outboundBytesPerSecond, label: outboundLabel)
     ]
   }
 
