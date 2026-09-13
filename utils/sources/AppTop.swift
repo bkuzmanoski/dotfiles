@@ -137,22 +137,10 @@ enum TextEmphasis {
 
   func applied(to text: String) -> String {
     switch self {
-    case .bold: ANSIEscapeSequence.bold + text + ANSIEscapeSequence.normalIntensity
-    case .underline: ANSIEscapeSequence.underline + text + ANSIEscapeSequence.noUnderline
-    case .deemphasized: ANSIEscapeSequence.faint + text + ANSIEscapeSequence.normalIntensity
+    case .bold: return ANSIEscapeSequence.bold + text + ANSIEscapeSequence.normalIntensity
+    case .underline: return ANSIEscapeSequence.underline + text + ANSIEscapeSequence.noUnderline
+    case .deemphasized: return ANSIEscapeSequence.faint + text + ANSIEscapeSequence.normalIntensity
     }
-  }
-}
-
-extension Substring {
-  func trimmingTrailingSpaces() -> Substring {
-    var trimmedText = self
-
-    while trimmedText.last == " " {
-      trimmedText.removeLast()
-    }
-
-    return trimmedText
   }
 }
 
@@ -178,9 +166,9 @@ extension String {
     return characterCount
   }
 
-  func truncated(toVisibleWidth width: Int) -> String? {
+  func truncated(toVisibleWidth width: Int, trimsWhitespaceBeforeEllipsis: Bool = false) -> String {
     guard width > 0, utf8.count > width else {
-      return nil
+      return self
     }
 
     var characterCount = 0
@@ -197,13 +185,12 @@ extension String {
     }
 
     guard characterCount > width else {
-      return nil
+      return self
     }
 
-    let truncatedText = self[..<ellipsisIndex]
-    let endsWithWhitespace = truncatedText.last == " "
+    let visiblePrefix = String(self[..<ellipsisIndex])
 
-    return String(truncatedText.trimmingTrailingSpaces()) + (endsWithWhitespace ? " …" : "…")
+    return (trimsWhitespaceBeforeEllipsis ? visiblePrefix.trimmingCharacters(in: .whitespaces) : visiblePrefix) + "…"
   }
 
   private func forEachVisibleCharacterIndex(_ body: (Index) -> Bool) {
@@ -1117,7 +1104,7 @@ struct ResourceUsageAccumulator {
     self.disk += usage.disk.increment(since: previousUsage?.disk ?? TransferByteCounts())
   }
 
-  func entry(overElapsedAbsoluteTime elapsedAbsoluteTime: UInt64) -> ResourceUsageEntry {
+  func entry(elapsedAbsoluteTime: UInt64) -> ResourceUsageEntry {
     let elapsedSeconds = MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
     return ResourceUsageEntry(
       owner: owner,
@@ -1210,7 +1197,7 @@ final class ResourceUsageSampler {
     }
 
     let elapsedAbsoluteTime = previousSampleTime.map { sampleTime - $0 } ?? 0
-    let entries = accumulators.values.map { $0.entry(overElapsedAbsoluteTime: elapsedAbsoluteTime) }
+    let entries = accumulators.values.map { $0.entry(elapsedAbsoluteTime: elapsedAbsoluteTime) }
     let systemResourceUsage = systemResourceSampler.sample(
       elapsedSeconds: MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
     )
@@ -1272,23 +1259,34 @@ enum UsageColumn: String, CaseIterable {
 
   func formattedValue(for entry: ResourceUsageEntry) -> String {
     switch self {
-    case .pid: String(entry.owner.processIdentifier)
-    case .name: entry.owner.name
-    case .cpu: Self.deemphasizedIfZero(entry.cpuPercentage.formatted(.fixedPoint(fractionLength: 1)))
-    case .memory: Self.deemphasizedIfZero(Double(entry.memoryFootprint).formatted(.abbreviatedByteCount))
-    case .disk: Self.formattedTransferRates(entry.disk)
-    case .network: Self.formattedTransferRates(entry.network)
+    case .pid: return String(entry.owner.processIdentifier)
+    case .name: return entry.owner.name
+    case .cpu: return Self.deemphasizedIfZero(entry.cpuPercentage.formatted(.fixedPoint(fractionLength: 1)))
+    case .memory: return Self.deemphasizedIfZero(Double(entry.memoryFootprint).formatted(.abbreviatedByteCount))
+    case .disk: return Self.formattedTransferRates(entry.disk)
+    case .network: return Self.formattedTransferRates(entry.network)
     }
   }
 
-  func areInIncreasingOrder(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
+  func precedes(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
     switch self {
-    case .pid: lhs.owner.processIdentifier < rhs.owner.processIdentifier
-    case .name: Self.areInIncreasingOrderByName(lhs, rhs)
-    case .cpu: Self.areInDecreasingOrder(lhs.cpuPercentage, rhs.cpuPercentage, lhs, rhs)
-    case .memory: Self.areInDecreasingOrder(lhs.memoryFootprint, rhs.memoryFootprint, lhs, rhs)
-    case .disk: Self.areInDecreasingOrder(lhs.disk.totalBytesPerSecond, rhs.disk.totalBytesPerSecond, lhs, rhs)
-    case .network: Self.areInDecreasingOrder(lhs.network.totalBytesPerSecond, rhs.network.totalBytesPerSecond, lhs, rhs)
+    case .pid:
+      return lhs.owner.processIdentifier < rhs.owner.processIdentifier
+
+    case .name:
+      return Self.precedesByName(lhs, rhs)
+
+    case .cpu:
+      return Self.precedes(lhs.cpuPercentage, rhs.cpuPercentage, lhs, rhs, descending: true)
+
+    case .memory:
+      return Self.precedes(lhs.memoryFootprint, rhs.memoryFootprint, lhs, rhs, descending: true)
+
+    case .disk:
+      return Self.precedes(lhs.disk.totalBytesPerSecond, rhs.disk.totalBytesPerSecond, lhs, rhs, descending: true)
+
+    case .network:
+      return Self.precedes(lhs.network.totalBytesPerSecond, rhs.network.totalBytesPerSecond, lhs, rhs, descending: true)
     }
   }
 
@@ -1317,24 +1315,25 @@ enum UsageColumn: String, CaseIterable {
     return zeroFormattedValues.contains(formattedValue) ? TextEmphasis.deemphasized.applied(to: text) : text
   }
 
-  private static func areInDecreasingOrder<Value: Comparable>(
+  private static func precedes<Value: Comparable>(
     _ lhsValue: Value,
     _ rhsValue: Value,
     _ lhs: ResourceUsageEntry,
-    _ rhs: ResourceUsageEntry
+    _ rhs: ResourceUsageEntry,
+    descending: Bool = false
   ) -> Bool {
     guard lhsValue == rhsValue else {
-      return lhsValue > rhsValue
+      return descending ? lhsValue > rhsValue : lhsValue < rhsValue
     }
 
-    return areInIncreasingOrderByName(lhs, rhs)
+    return precedesByName(lhs, rhs)
   }
 
-  private static func areInIncreasingOrderByName(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
+  private static func precedesByName(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
     switch lhs.owner.name.localizedStandardCompare(rhs.owner.name) {
-    case .orderedAscending: true
-    case .orderedDescending: false
-    case .orderedSame: lhs.owner.processIdentifier < rhs.owner.processIdentifier
+    case .orderedAscending: return true
+    case .orderedDescending: return false
+    case .orderedSame: return lhs.owner.processIdentifier < rhs.owner.processIdentifier
     }
   }
 }
@@ -1342,16 +1341,16 @@ enum UsageColumn: String, CaseIterable {
 struct ResourceUsageEntryOrdering {
   private var entryPositions: [ProcessOwner.ID: Int] = [:]
 
-  mutating func arrange(_ entries: inout [ResourceUsageEntry], sortedBy column: UsageColumn, resorting: Bool) {
-    if resorting {
-      entries.sort(by: column.areInIncreasingOrder)
+  mutating func arrange(_ entries: inout [ResourceUsageEntry], sortedBy column: UsageColumn, shouldReSort: Bool) {
+    if shouldReSort {
+      entries.sort(by: column.precedes)
     } else {
       entries.sort { lhs, rhs in
         switch (entryPositions[lhs.id], entryPositions[rhs.id]) {
-        case (let lhsPosition?, let rhsPosition?): lhsPosition < rhsPosition
-        case (.some, .none): true
-        case (.none, .some): false
-        case (.none, .none): column.areInIncreasingOrder(lhs, rhs)
+        case (let lhsPosition?, let rhsPosition?): return lhsPosition < rhsPosition
+        case (.some, .none): return true
+        case (.none, .some): return false
+        case (.none, .none): return column.precedes(lhs, rhs)
         }
       }
     }
@@ -1430,7 +1429,7 @@ struct ResourceUsageTableRenderer {
       + ANSIEscapeSequence.moveCursorToHome
       + ANSIEscapeSequence.clearLine
       + visibleLines
-      .map { fitted($0, toWidth: size.columns) }
+      .map { $0.truncated(toVisibleWidth: size.columns) + ANSIEscapeSequence.resetAttributes }
       .joined(separator: "\n" + ANSIEscapeSequence.clearLine)
 
     if visibleLines.count < size.rows {
@@ -1570,22 +1569,14 @@ struct ResourceUsageTableRenderer {
     alignment: UsageColumn.Alignment,
     emphasis: TextEmphasis? = nil
   ) -> String {
-    let visibleText = text.truncated(toVisibleWidth: width) ?? text
+    let visibleText = text.truncated(toVisibleWidth: width, trimsWhitespaceBeforeEllipsis: true)
     let padding = String(repeating: " ", count: max(width - visibleText.visibleCharacterCount, 0))
     let styledText = emphasis?.applied(to: visibleText) ?? visibleText
 
     switch alignment {
-    case .leading: return styledText + padding
-    case .trailing: return padding + styledText
+    case .leading: return "\(styledText)\(padding)"
+    case .trailing: return "\(padding)\(styledText)"
     }
-  }
-
-  private func fitted(_ line: String, toWidth width: Int) -> String {
-    guard let truncatedLine = line.truncated(toVisibleWidth: width) else {
-      return line
-    }
-
-    return truncatedLine + ANSIEscapeSequence.resetAttributes
   }
 }
 
@@ -1759,7 +1750,7 @@ enum MonitorEvent {
 
 struct MonitorOptions {
   var refreshInterval: Duration = .seconds(1)
-  var resortInterval: Duration?
+  var reSortInterval: Duration?
   var sortColumn: UsageColumn = .cpu
   var showsApplicationsOnly = false
 }
@@ -1769,18 +1760,18 @@ final class ResourceUsageMonitor {
   private static let maximumInitialRefreshDelay: Duration = .milliseconds(500)
 
   private let options: MonitorOptions
-  private let minimumTimeBetweenResorts: Duration
+  private let minimumReSortInterval: Duration
   private let terminalSession: TerminalSession
   private let sampler: ResourceUsageSampler
   private let renderer: ResourceUsageTableRenderer
   private var entryOrdering = ResourceUsageEntryOrdering()
-  private var lastResortInstant: ContinuousClock.Instant?
+  private var lastReSortInstant: ContinuousClock.Instant?
   private var latestSnapshot: ResourceUsageSnapshot?
 
   init(options: MonitorOptions) throws {
     self.options = options
-    self.minimumTimeBetweenResorts =
-      (options.resortInterval ?? options.refreshInterval) - options.refreshInterval / 2
+    self.minimumReSortInterval =
+      (options.reSortInterval ?? options.refreshInterval) - options.refreshInterval / 2
     self.terminalSession = try TerminalSession()
     self.sampler = ResourceUsageSampler(networkStatisticsMonitor: try NetworkStatisticsMonitor())
     self.renderer = ResourceUsageTableRenderer(sortColumn: options.sortColumn)
@@ -1818,12 +1809,12 @@ final class ResourceUsageMonitor {
     }
 
     let now = ContinuousClock.now
-    let isResortDue = lastResortInstant.map { now - $0 >= minimumTimeBetweenResorts } ?? true
+    let isReSortDue = lastReSortInstant.map { now - $0 >= minimumReSortInterval } ?? true
 
-    entryOrdering.arrange(&snapshot.entries, sortedBy: options.sortColumn, resorting: isResortDue)
+    entryOrdering.arrange(&snapshot.entries, sortedBy: options.sortColumn, shouldReSort: isReSortDue)
 
-    if isResortDue {
-      self.lastResortInstant = now
+    if isReSortDue {
+      self.lastReSortInstant = now
     }
 
     self.latestSnapshot = snapshot
@@ -1871,7 +1862,7 @@ let usageDescription = """
 
   Options:
     -i, --interval <seconds>           Set refresh interval in seconds [default: 1]
-    -r, --resort-interval <seconds>    Set resort interval in seconds, no less than the refresh interval [default: refresh interval]
+    -r, --re-sort-interval <seconds>   Set re-sort interval in seconds, greater than or equal to the refresh interval [default: refresh interval]
     -s, --sort <column>                Set sort column (\(sortColumnNames)) [default: cpu]
     -a, --applications-only            Only show applications
     -h, --help                         Show this help message
@@ -1885,8 +1876,8 @@ while let argument = arguments.next() {
   case "-i", "--interval":
     options.refreshInterval = duration(fromSecondsValue: arguments.next(), for: argument)
 
-  case "-r", "--resort-interval":
-    options.resortInterval = duration(fromSecondsValue: arguments.next(), for: argument)
+  case "-r", "--re-sort-interval":
+    options.reSortInterval = duration(fromSecondsValue: arguments.next(), for: argument)
 
   case "-s", "--sort":
     guard let value = arguments.next() else {
@@ -1911,8 +1902,8 @@ while let argument = arguments.next() {
   }
 }
 
-if let resortInterval = options.resortInterval, resortInterval < options.refreshInterval {
-  printUsageErrorAndExit("Resort interval must be no less than the refresh interval.")
+if let reSortInterval = options.reSortInterval, reSortInterval < options.refreshInterval {
+  printUsageErrorAndExit("Re-sort interval must be greater than or equal to the refresh interval.")
 }
 
 do {
