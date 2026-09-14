@@ -156,9 +156,11 @@ enum ProcessSignals {
 
 typealias CGSConnectionID = UInt32
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSMainConnectionID")
 func CGSMainConnectionID() -> CGSConnectionID
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSCopyManagedDisplaySpaces")
 func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 

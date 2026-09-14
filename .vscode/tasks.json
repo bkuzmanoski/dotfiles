@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Lint Swift utils",
+      "type": "shell",
+      "command": "swift",
+      "args": ["format", "lint", "--recursive", "--parallel", "utils/sources"],
+      "group": { "kind": "build", "isDefault": "**/*.swift" },
+      "presentation": { "reveal": "silent", "clear": true },
+      "problemMatcher": {
+        "owner": "swift-format",
+        "source": "swift-format",
+        "fileLocation": "autoDetect",
+        "pattern": {
+          "regexp": "^(.+?):(\\d+):(\\d+): (warning|error): \\[(\\w+)\\] (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "code": 5,
+          "message": 6
+        }
+      }
+    }
+  ]
+}

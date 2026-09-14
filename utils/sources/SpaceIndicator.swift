@@ -175,12 +175,15 @@ typealias CGSNotifyProc =
     _ context: UnsafeMutableRawPointer?
   ) -> Void
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSMainConnectionID")
 func CGSMainConnectionID() -> CGSConnectionID
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSCopyManagedDisplaySpaces")
 func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSCopySpacesForWindows")
 func CGSCopySpacesForWindows(
   _ connectionID: CGSConnectionID,
@@ -188,10 +191,12 @@ func CGSCopySpacesForWindows(
   _ windowsIDs: CFArray
 ) -> Unmanaged<CFArray>?
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSRegisterNotifyProc")
 @discardableResult
 func CGSRegisterNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSRemoveNotifyProc")
 @discardableResult
 func CGSRemoveNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError

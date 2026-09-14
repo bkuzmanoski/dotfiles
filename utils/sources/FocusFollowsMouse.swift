@@ -171,9 +171,11 @@ struct ProcessSerialNumber {
   var lowLongOfPSN: UInt32 = 0
 }
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("GetProcessForPID")
 func GetProcessForPID(_ pid: pid_t, _ psn: UnsafeMutablePointer<ProcessSerialNumber>) -> OSStatus
 
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("SameProcess")
 func SameProcess(
   _ psn1: UnsafePointer<ProcessSerialNumber>,
@@ -181,6 +183,7 @@ func SameProcess(
   _ result: UnsafeMutablePointer<DarwinBoolean>
 ) -> OSStatus
 
+// swift-format-ignore: NoLeadingUnderscores
 @_silgen_name("_AXUIElementGetWindow")
 func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
 
@@ -433,7 +436,9 @@ struct SkyLightProxy {
       _ eventType: CGSEventType.RawValue,
       _ context: UnsafeMutableRawPointer?
     ) -> CGError
+  // swift-format-ignore: NoLeadingUnderscores
   private typealias _SLPSGetFrontProcess = @convention(c) (_ psn: UnsafeMutableRawPointer) -> CGError
+  // swift-format-ignore: NoLeadingUnderscores
   private typealias _SLPSSetFrontProcessWithOptions =
     @convention(c) (
       _ psn: UnsafeMutableRawPointer,
@@ -452,7 +457,9 @@ struct SkyLightProxy {
   private let slsCopyAssociatedWindows: SLSCopyAssociatedWindows
   private let slsRegisterNotifyProc: SLSRegisterNotifyProc
   private let slsRemoveNotifyProc: SLSRemoveNotifyProc
+  // swift-format-ignore: NoLeadingUnderscores
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
+  // swift-format-ignore: NoLeadingUnderscores
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
   private let slpsPostEventRecordTo: SLPSPostEventRecordTo
 
@@ -492,10 +499,12 @@ struct SkyLightProxy {
       throw Error.symbolNotFound("SLSRemoveNotifyProc")
     }
 
+    // swift-format-ignore: NoLeadingUnderscores
     guard let _slpsGetFrontProcessSymbol = dlsym(skyLightHandle, "_SLPSGetFrontProcess") else {
       throw Error.symbolNotFound("_SLPSGetFrontProcess")
     }
 
+    // swift-format-ignore: NoLeadingUnderscores
     guard let _slpsSetFrontProcessWithOptionsSymbol = dlsym(skyLightHandle, "_SLPSSetFrontProcessWithOptions") else {
       throw Error.symbolNotFound("_SLPSSetFrontProcessWithOptions")
     }
