@@ -1,5 +1,6 @@
 import Foundation
 import IOKit
+import IOKit.storage
 import Synchronization
 import System
 
@@ -110,126 +111,9 @@ enum ProcessSignals {
   }
 }
 
-enum ANSIEscapeSequence {
-  static let enterAlternateScreen = "\u{1B}[?1049h"
-  static let exitAlternateScreen = "\u{1B}[?1049l"
-  static let hideCursor = "\u{1B}[?25l"
-  static let showCursor = "\u{1B}[?25h"
-  static let disableLineWrapping = "\u{1B}[?7l"
-  static let enableLineWrapping = "\u{1B}[?7h"
-  static let beginSynchronizedUpdate = "\u{1B}[?2026h"
-  static let endSynchronizedUpdate = "\u{1B}[?2026l"
-  static let moveCursorToHome = "\u{1B}[H"
-  static let clearLine = "\u{1B}[2K"
-  static let clearToEndOfScreen = "\u{1B}[J"
-  static let bold = "\u{1B}[1m"
-  static let faint = "\u{1B}[2m"
-  static let normalIntensity = "\u{1B}[22m"
-  static let underline = "\u{1B}[4m"
-  static let noUnderline = "\u{1B}[24m"
-  static let resetAttributes = "\u{1B}[0m"
-}
-
-enum TextEmphasis {
-  case bold
-  case underline
-  case deemphasized
-
-  func applied(to text: String) -> String {
-    switch self {
-    case .bold: return ANSIEscapeSequence.bold + text + ANSIEscapeSequence.normalIntensity
-    case .underline: return ANSIEscapeSequence.underline + text + ANSIEscapeSequence.noUnderline
-    case .deemphasized: return ANSIEscapeSequence.faint + text + ANSIEscapeSequence.normalIntensity
-    }
-  }
-}
-
-extension String {
-  private enum EscapeSequenceParsingState {
-    case text
-    case escapeSequence
-    case controlSequence
-  }
-
-  var visibleCharacterCount: Int {
-    guard utf8.contains(0x1B) else {
-      return count
-    }
-
-    var characterCount = 0
-
-    forEachVisibleCharacterIndex { _ in
-      characterCount += 1
-      return true
-    }
-
-    return characterCount
-  }
-
-  func truncated(toVisibleWidth width: Int, trimsWhitespaceBeforeEllipsis: Bool = false) -> String {
-    guard width > 0, utf8.count > width else {
-      return self
-    }
-
-    var characterCount = 0
-    var ellipsisIndex = startIndex
-
-    forEachVisibleCharacterIndex { index in
-      characterCount += 1
-
-      if characterCount == width {
-        ellipsisIndex = index
-      }
-
-      return characterCount <= width
-    }
-
-    guard characterCount > width else {
-      return self
-    }
-
-    let visiblePrefix = String(self[..<ellipsisIndex])
-
-    return (trimsWhitespaceBeforeEllipsis ? visiblePrefix.trimmingCharacters(in: .whitespaces) : visiblePrefix) + "…"
-  }
-
-  private func forEachVisibleCharacterIndex(_ body: (Index) -> Bool) {
-    var parsingState = EscapeSequenceParsingState.text
-
-    for (index, character) in zip(indices, self) {
-      switch parsingState {
-      case .escapeSequence:
-        parsingState = character == "[" ? .controlSequence : .text
-
-      case .controlSequence:
-        if let asciiValue = character.asciiValue, (0x40...0x7E).contains(asciiValue) {
-          parsingState = .text
-        }
-
-      case .text:
-        guard character != "\u{1B}" else {
-          parsingState = .escapeSequence
-          continue
-        }
-
-        guard body(index) else {
-          return
-        }
-      }
-    }
-  }
-}
-
 extension UnsignedInteger {
-  func increment(since earlierValue: Self) -> Self {
+  func delta(since earlierValue: Self) -> Self {
     return self > earlierValue ? self - earlierValue : 0
-  }
-}
-
-extension DispatchTimeInterval {
-  init(_ duration: Duration) {
-    let (seconds, attoseconds) = duration.components
-    self = .nanoseconds(Int(seconds) * 1_000_000_000 + Int(attoseconds / 1_000_000_000))
   }
 }
 
@@ -251,23 +135,41 @@ extension CFDictionary {
 
     return int64Value
   }
+
+  func byteCount(forKey key: CFString) -> UInt64 {
+    return UInt64(clamping: int64Value(forKey: key) ?? 0)
+  }
 }
 
 extension FilePath {
   var applicationBundleName: String? {
-    let trailingComponents = Array(components.suffix(4))
+    var reversedComponents = components.reversed().makeIterator()
 
     guard
-      trailingComponents.count == 4,
-      trailingComponents[0].extension == "app",
-      trailingComponents[1] == "Contents",
-      trailingComponents[2] == "MacOS"
+      reversedComponents.next() != nil,
+      reversedComponents.next() == "MacOS",
+      reversedComponents.next() == "Contents",
+      let bundleComponent = reversedComponents.next(),
+      bundleComponent.extension == "app"
     else {
       return nil
     }
 
-    return trailingComponents[0].string
+    return bundleComponent.string
   }
+}
+
+extension FileDescriptor {
+  func waitUntilReadable(timeout: Duration) -> Bool {
+    var pollDescriptor = pollfd(fd: rawValue, events: Int16(POLLIN), revents: 0)
+    return poll(&pollDescriptor, 1, Int32(timeout.attoseconds / 1_000_000_000_000_000)) > 0
+  }
+}
+
+extension host_cpu_load_info {
+  var userTicks: UInt32 { cpu_ticks.0 &+ cpu_ticks.3 }
+  var systemTicks: UInt32 { cpu_ticks.1 }
+  var idleTicks: UInt32 { cpu_ticks.2 }
 }
 
 enum MachAbsoluteTime {
@@ -286,119 +188,12 @@ enum MachAbsoluteTime {
   }
 }
 
-struct FixedPointFormatStyle: FormatStyle {
-  typealias FormatInput = Double
-  typealias FormatOutput = String
-
-  var fractionLength: Int
-
-  func format(_ value: Double) -> String {
-    var multiplier = 1
-
-    for _ in 0..<fractionLength {
-      multiplier *= 10
-    }
-
-    let scaledValue = Int((value * Double(multiplier)).rounded())
-
-    guard fractionLength > 0 else {
-      return String(scaledValue)
-    }
-
-    let fractionDigits = String(scaledValue % multiplier)
-    let paddedFractionDigits = String(repeating: "0", count: fractionLength - fractionDigits.count) + fractionDigits
-
-    return "\(scaledValue / multiplier).\(paddedFractionDigits)"
-  }
-}
-
-extension FormatStyle where Self == FixedPointFormatStyle {
-  static func fixedPoint(fractionLength: Int) -> FixedPointFormatStyle {
-    return FixedPointFormatStyle(fractionLength: fractionLength)
-  }
-}
-
-struct AbbreviatedByteCountFormatStyle: FormatStyle {
-  typealias FormatInput = Double
-  typealias FormatOutput = String
-
-  private static let units = ["B", "KB", "MB", "GB", "TB"]
-
-  var isRate: Bool
-
-  func format(_ byteCount: Double) -> String {
-    var value = byteCount
-    var unitIndex = 0
-
-    while value >= 999.95, unitIndex < Self.units.count - 1 {
-      value /= 1024
-      unitIndex += 1
-    }
-
-    let formattedValue = value.formatted(.fixedPoint(fractionLength: unitIndex == 0 ? 0 : 1))
-
-    return "\(formattedValue) \(Self.units[unitIndex])\(isRate ? "/s" : "")"
-  }
-}
-
-extension FormatStyle where Self == AbbreviatedByteCountFormatStyle {
-  static var abbreviatedByteCount: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: false) }
-  static var abbreviatedByteRate: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: true) }
-}
-
-struct TransferByteCounts {
-  var inbound: UInt64 = 0
-  var outbound: UInt64 = 0
-
-  static func += (lhs: inout TransferByteCounts, rhs: TransferByteCounts) {
-    lhs.inbound += rhs.inbound
-    lhs.outbound += rhs.outbound
-  }
-
-  func increment(since earlierByteCounts: TransferByteCounts) -> TransferByteCounts {
-    return TransferByteCounts(
-      inbound: inbound.increment(since: earlierByteCounts.inbound),
-      outbound: outbound.increment(since: earlierByteCounts.outbound)
-    )
-  }
-}
-
-struct TransferRates {
-  static let inboundSymbol = "↓"
-  static let outboundSymbol = "↑"
-  static let zero = TransferRates(inboundBytesPerSecond: 0, outboundBytesPerSecond: 0)
-
-  let inboundBytesPerSecond: Double
-  let outboundBytesPerSecond: Double
-
-  var totalBytesPerSecond: Double { inboundBytesPerSecond + outboundBytesPerSecond }
-}
-
-extension TransferRates {
-  init(byteCounts: TransferByteCounts, elapsedSeconds: Double) {
-    guard elapsedSeconds > 0 else {
-      self = .zero
-      return
-    }
-
-    self.init(
-      inboundBytesPerSecond: Double(byteCounts.inbound) / elapsedSeconds,
-      outboundBytesPerSecond: Double(byteCounts.outbound) / elapsedSeconds
-    )
-  }
-}
-
-extension host_cpu_load_info {
-  var userTicks: UInt32 { cpu_ticks.0 &+ cpu_ticks.3 }
-  var systemTicks: UInt32 { cpu_ticks.1 }
-  var idleTicks: UInt32 { cpu_ticks.2 }
-}
-
 enum MachHost {
   private static let port = mach_host_self()
 
   static let pageSize: UInt64 = {
     var pageSize: vm_size_t = 0
+
     host_page_size(port, &pageSize)
 
     return UInt64(pageSize)
@@ -431,442 +226,11 @@ enum MachHost {
   }
 }
 
-struct CPUUsage {
-  static let zero = CPUUsage(userPercentage: 0, systemPercentage: 0, idlePercentage: 0)
-
-  let userPercentage: Double
-  let systemPercentage: Double
-  let idlePercentage: Double
-
-  init(loadInfo: host_cpu_load_info, previousLoadInfo: host_cpu_load_info) {
-    let userTicks = Double(loadInfo.userTicks &- previousLoadInfo.userTicks)
-    let systemTicks = Double(loadInfo.systemTicks &- previousLoadInfo.systemTicks)
-    let idleTicks = Double(loadInfo.idleTicks &- previousLoadInfo.idleTicks)
-    let totalTicks = userTicks + systemTicks + idleTicks
-
-    guard totalTicks > 0 else {
-      self = .zero
-      return
-    }
-
-    self.init(
-      userPercentage: userTicks / totalTicks * 100,
-      systemPercentage: systemTicks / totalTicks * 100,
-      idlePercentage: idleTicks / totalTicks * 100
-    )
-  }
-
-  private init(userPercentage: Double, systemPercentage: Double, idlePercentage: Double) {
-    self.userPercentage = userPercentage
-    self.systemPercentage = systemPercentage
-    self.idlePercentage = idlePercentage
-  }
-}
-
-struct LoadAverages {
-  let oneMinute: Double
-  let fiveMinutes: Double
-  let fifteenMinutes: Double
-
-  static var current: LoadAverages {
-    return withUnsafeTemporaryAllocation(of: Double.self, capacity: 3) { loadAverages in
-      guard let baseAddress = loadAverages.baseAddress, getloadavg(baseAddress, 3) == 3 else {
-        return LoadAverages(oneMinute: 0, fiveMinutes: 0, fifteenMinutes: 0)
-      }
-
-      return LoadAverages(oneMinute: loadAverages[0], fiveMinutes: loadAverages[1], fifteenMinutes: loadAverages[2])
-    }
-  }
-}
-
-struct MemoryUsage {
-  let usedBytes: UInt64
-  let wiredBytes: UInt64
-  let compressedBytes: UInt64
-  let totalBytes: UInt64
-
-  static var current: MemoryUsage {
-    let totalBytes = ProcessInfo.processInfo.physicalMemory
-
-    guard let statistics = MachHost.virtualMemoryStatistics() else {
-      return MemoryUsage(usedBytes: 0, wiredBytes: 0, compressedBytes: 0, totalBytes: totalBytes)
-    }
-
-    let applicationPageCount = UInt64(statistics.internal_page_count).increment(
-      since: UInt64(statistics.purgeable_count)
-    )
-    let wiredBytes = UInt64(statistics.wire_count) * MachHost.pageSize
-    let compressedBytes = UInt64(statistics.compressor_page_count) * MachHost.pageSize
-
-    return MemoryUsage(
-      usedBytes: applicationPageCount * MachHost.pageSize + wiredBytes + compressedBytes,
-      wiredBytes: wiredBytes,
-      compressedBytes: compressedBytes,
-      totalBytes: totalBytes
-    )
-  }
-}
-
-enum BlockStorageStatistics {
-  static func cumulativeByteCounts() -> TransferByteCounts {
-    var iterator: io_iterator_t = 0
-
-    guard
-      IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOBlockStorageDriver"), &iterator)
-        == KERN_SUCCESS
-    else {
-      return TransferByteCounts()
-    }
-
-    defer {
-      IOObjectRelease(iterator)
-    }
-
-    var byteCounts = TransferByteCounts()
-
-    while case let service = IOIteratorNext(iterator), service != 0 {
-      defer {
-        IOObjectRelease(service)
-      }
-
-      guard
-        let statistics = IORegistryEntryCreateCFProperty(
-          service,
-          "Statistics" as CFString,
-          kCFAllocatorDefault,
-          0
-        )?.takeRetainedValue(),
-        CFGetTypeID(statistics) == CFDictionaryGetTypeID()
-      else {
-        continue
-      }
-
-      let statisticsDictionary = unsafeDowncast(statistics, to: CFDictionary.self)
-
-      byteCounts += TransferByteCounts(
-        inbound: UInt64(clamping: statisticsDictionary.int64Value(forKey: "Bytes (Read)" as CFString) ?? 0),
-        outbound: UInt64(clamping: statisticsDictionary.int64Value(forKey: "Bytes (Write)" as CFString) ?? 0)
-      )
-    }
-
-    return byteCounts
-  }
-}
-
-struct NetworkInterfaceStatistics {
-  private struct InterfaceByteCounters {
-    let inbound: UInt32
-    let outbound: UInt32
-
-    func increment(since earlierCounters: InterfaceByteCounters) -> TransferByteCounts {
-      return TransferByteCounts(
-        inbound: UInt64(inbound &- earlierCounters.inbound),
-        outbound: UInt64(outbound &- earlierCounters.outbound)
-      )
-    }
-  }
-
-  private var interfaceListBuffer = [UInt8](repeating: 0, count: 4096)
-  private var previousInterfaceByteCounters: [UInt16: InterfaceByteCounters] = [:]
-
-  mutating func byteCountsSinceLastSample() -> TransferByteCounts {
-    guard let interfaceListLength = readInterfaceList() else {
-      return TransferByteCounts()
-    }
-
-    let interfaceListBuffer = interfaceListBuffer
-
-    var byteCounts = TransferByteCounts()
-
-    interfaceListBuffer.withUnsafeBytes { bytes in
-      var offset = 0
-
-      while offset + MemoryLayout<if_msghdr>.size <= interfaceListLength {
-        let messageHeader = bytes.loadUnaligned(fromByteOffset: offset, as: if_msghdr.self)
-
-        guard messageHeader.ifm_msglen > 0 else {
-          break
-        }
-
-        if Int32(messageHeader.ifm_type) == RTM_IFINFO2,
-          offset + MemoryLayout<if_msghdr2>.size <= interfaceListLength
-        {
-          let interfaceMessage = bytes.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
-
-          if Int32(interfaceMessage.ifm_data.ifi_type) == IFT_ETHER {
-            let interfaceByteCounters = InterfaceByteCounters(
-              inbound: UInt32(truncatingIfNeeded: interfaceMessage.ifm_data.ifi_ibytes),
-              outbound: UInt32(truncatingIfNeeded: interfaceMessage.ifm_data.ifi_obytes)
-            )
-
-            if let previousByteCounters = previousInterfaceByteCounters[interfaceMessage.ifm_index] {
-              byteCounts += interfaceByteCounters.increment(since: previousByteCounters)
-            }
-
-            previousInterfaceByteCounters[interfaceMessage.ifm_index] = interfaceByteCounters
-          }
-        }
-
-        offset += Int(messageHeader.ifm_msglen)
-      }
-    }
-
-    return byteCounts
-  }
-
-  private mutating func readInterfaceList() -> Int? {
-    var managementInformationBase: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
-
-    while true {
-      var length = interfaceListBuffer.count
-
-      let result = interfaceListBuffer.withUnsafeMutableBytes { buffer in
-        sysctl(&managementInformationBase, UInt32(managementInformationBase.count), buffer.baseAddress, &length, nil, 0)
-      }
-
-      if result == 0 {
-        return length
-      }
-
-      guard errno == ENOMEM else {
-        return nil
-      }
-
-      self.interfaceListBuffer = [UInt8](repeating: 0, count: interfaceListBuffer.count * 2)
-    }
-  }
-}
-
-struct SystemResourceUsage {
-  let cpu: CPUUsage
-  let loadAverages: LoadAverages
-  let memory: MemoryUsage
-  let disk: TransferRates
-  let network: TransferRates
-}
-
-struct SystemResourceSampler {
-  private var networkInterfaceStatistics = NetworkInterfaceStatistics()
-  private var previousCPULoadInfo: host_cpu_load_info?
-  private var previousDiskByteCounts: TransferByteCounts?
-
-  mutating func sample(elapsedSeconds: Double) -> SystemResourceUsage {
-    let cpuLoadInfo = MachHost.cpuLoadInfo()
-    let diskByteCounts = BlockStorageStatistics.cumulativeByteCounts()
-    let networkByteCounts = networkInterfaceStatistics.byteCountsSinceLastSample()
-    let cpuUsage: CPUUsage
-
-    if let cpuLoadInfo, let previousCPULoadInfo {
-      cpuUsage = CPUUsage(loadInfo: cpuLoadInfo, previousLoadInfo: previousCPULoadInfo)
-    } else {
-      cpuUsage = .zero
-    }
-
-    let diskByteCountIncrement =
-      previousDiskByteCounts.map { diskByteCounts.increment(since: $0) } ?? TransferByteCounts()
-
-    self.previousCPULoadInfo = cpuLoadInfo
-    self.previousDiskByteCounts = diskByteCounts
-
-    return SystemResourceUsage(
-      cpu: cpuUsage,
-      loadAverages: .current,
-      memory: .current,
-      disk: TransferRates(byteCounts: diskByteCountIncrement, elapsedSeconds: elapsedSeconds),
-      network: TransferRates(byteCounts: networkByteCounts, elapsedSeconds: elapsedSeconds)
-    )
-  }
-}
-
-struct ProcessResourceUsage {
-  let startTime: UInt64
-  let cpuTime: UInt64
-  let memoryFootprint: UInt64
-  let disk: TransferByteCounts
-}
-
-struct RunningProcess {
-  private typealias ResponsibilityGetPIDResponsibleForPID = @convention(c) (pid_t) -> pid_t
-
-  private static let responsibilityGetPIDResponsibleForPID: ResponsibilityGetPIDResponsibleForPID? = {
-    guard
-      let responsibilityGetPIDResponsibleForPIDSymbol = dlsym(
-        UnsafeMutableRawPointer(bitPattern: -1),
-        "responsibility_get_pid_responsible_for_pid"
-      )
-    else {
-      return nil
-    }
-
-    return unsafeBitCast(
-      responsibilityGetPIDResponsibleForPIDSymbol,
-      to: ResponsibilityGetPIDResponsibleForPID.self
-    )
-  }()
-
-  let processIdentifier: pid_t
-
-  var executablePath: FilePath? {
-    return withUnsafeTemporaryAllocation(of: CChar.self, capacity: 4 * Int(MAXPATHLEN)) { buffer in
-      guard
-        let baseAddress = buffer.baseAddress,
-        proc_pidpath(processIdentifier, baseAddress, UInt32(buffer.count)) > 0
-      else {
-        return nil
-      }
-
-      return FilePath(platformString: baseAddress)
-    }
-  }
-
-  var commandName: String? {
-    guard let shortInfo else {
-      return nil
-    }
-
-    return withUnsafeBytes(of: shortInfo.pbsi_comm) { bytes in
-      String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self)
-    }
-  }
-
-  var parentProcess: RunningProcess? {
-    guard let shortInfo, pid_t(shortInfo.pbsi_ppid) != processIdentifier else {
-      return nil
-    }
-
-    return RunningProcess(processIdentifier: pid_t(shortInfo.pbsi_ppid))
-  }
-
-  var responsibleProcess: RunningProcess? {
-    guard let responsibilityGetPIDResponsibleForPID = Self.responsibilityGetPIDResponsibleForPID else {
-      return nil
-    }
-
-    let responsibleProcessIdentifier = responsibilityGetPIDResponsibleForPID(processIdentifier)
-
-    guard responsibleProcessIdentifier > 0, responsibleProcessIdentifier != processIdentifier else {
-      return nil
-    }
-
-    return RunningProcess(processIdentifier: responsibleProcessIdentifier)
-  }
-
-  private var shortInfo: proc_bsdshortinfo? {
-    var shortInfo = proc_bsdshortinfo()
-
-    let size = Int32(MemoryLayout<proc_bsdshortinfo>.size)
-
-    guard proc_pidinfo(processIdentifier, PROC_PIDT_SHORTBSDINFO, 0, &shortInfo, size) == size else {
-      return nil
-    }
-
-    return shortInfo
-  }
-
-  static func listAllProcessIdentifiers(into buffer: inout [pid_t]) -> Int {
-    while true {
-      let count = Int(buffer.withUnsafeMutableBytes { proc_listallpids($0.baseAddress, Int32($0.count)) })
-
-      guard count >= buffer.count else {
-        return max(count, 0)
-      }
-
-      buffer = [pid_t](repeating: 0, count: buffer.count * 2)
-    }
-  }
-
-  func resourceUsage() throws(Errno) -> ProcessResourceUsage {
-    var resourceUsage = rusage_info_v4()
-
-    let result = withUnsafeMutablePointer(to: &resourceUsage) { pointer in
-      pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { reboundPointer in
-        proc_pid_rusage(processIdentifier, RUSAGE_INFO_V4, reboundPointer)
-      }
-    }
-
-    guard result == 0 else {
-      throw Errno(rawValue: errno)
-    }
-
-    return ProcessResourceUsage(
-      startTime: resourceUsage.ri_proc_start_abstime,
-      cpuTime: resourceUsage.ri_user_time + resourceUsage.ri_system_time,
-      memoryFootprint: resourceUsage.ri_phys_footprint,
-      disk: TransferByteCounts(
-        inbound: resourceUsage.ri_diskio_bytesread,
-        outbound: resourceUsage.ri_diskio_byteswritten
-      )
-    )
-  }
-}
-
-struct ProcessOwner: Identifiable {
-  enum Kind: Hashable {
-    case application
-    case process
-  }
-
-  struct ID: Hashable {
-    let processIdentifier: pid_t
-    let kind: Kind
-  }
-
-  let processIdentifier: pid_t
-  let kind: Kind
-  let name: String
-
-  var id: ID { ID(processIdentifier: processIdentifier, kind: kind) }
-}
-
-extension ProcessOwner {
-  init?(of process: RunningProcess) {
-    let executablePath = process.executablePath
-
-    guard let processName = executablePath?.lastComponent?.string ?? process.commandName else {
-      return nil
-    }
-
-    if let responsibleProcess = process.responsibleProcess,
-      let application = Self.application(running: responsibleProcess, executablePath: responsibleProcess.executablePath)
-    {
-      self = application
-    } else if let application = Self.application(running: process, executablePath: executablePath) {
-      self = application
-    } else if let application = Self.application(runningAncestorOf: process) {
-      self = application
-    } else {
-      self = ProcessOwner(processIdentifier: process.processIdentifier, kind: .process, name: processName)
-    }
-  }
-
-  private static func application(running process: RunningProcess, executablePath: FilePath?) -> ProcessOwner? {
-    guard let applicationBundleName = executablePath?.applicationBundleName else {
-      return nil
-    }
-
-    return ProcessOwner(processIdentifier: process.processIdentifier, kind: .application, name: applicationBundleName)
-  }
-
-  private static func application(runningAncestorOf process: RunningProcess) -> ProcessOwner? {
-    var visitedProcessIdentifiers: Set<pid_t> = [process.processIdentifier]
-    var ancestorProcess = process.parentProcess
-
-    while let currentProcess = ancestorProcess,
-      currentProcess.processIdentifier > 1,
-      visitedProcessIdentifiers.insert(currentProcess.processIdentifier).inserted
-    {
-      if let application = application(running: currentProcess, executablePath: currentProcess.executablePath) {
-        return application
-      }
-
-      ancestorProcess = currentProcess.parentProcess
-    }
-
-    return nil
-  }
-}
-
-struct NetworkStatisticsFramework: @unchecked Sendable {
+// swift-format-ignore: AlwaysUseLowerCamelCase
+@_silgen_name("responsibility_get_pid_responsible_for_pid")
+func responsibility_get_pid_responsible_for_pid(_ processIdentifier: pid_t) -> pid_t
+
+struct NetworkStatisticsFramework {
   enum Error: Swift.Error, LocalizedError {
     case failedToLoadFramework
     case missingSymbol(name: String)
@@ -947,6 +311,560 @@ struct NetworkStatisticsFramework: @unchecked Sendable {
   }
 }
 
+struct FixedPointFormatStyle: FormatStyle {
+  typealias FormatInput = Double
+  typealias FormatOutput = String
+
+  var fractionLength: Int
+
+  func format(_ value: Double) -> String {
+    var multiplier = 1
+
+    for _ in 0..<fractionLength {
+      multiplier *= 10
+    }
+
+    let scaledValue = Int((value * Double(multiplier)).rounded())
+
+    guard fractionLength > 0 else {
+      return String(scaledValue)
+    }
+
+    let fractionDigits = String(scaledValue % multiplier)
+    let fractionPadding = String(repeating: "0", count: fractionLength - fractionDigits.count)
+
+    return "\(scaledValue / multiplier).\(fractionPadding)\(fractionDigits)"
+  }
+}
+
+extension FormatStyle where Self == FixedPointFormatStyle {
+  static func fixedPoint(fractionLength: Int) -> FixedPointFormatStyle {
+    return FixedPointFormatStyle(fractionLength: fractionLength)
+  }
+}
+
+struct AbbreviatedByteCountFormatStyle: FormatStyle {
+  typealias FormatInput = Double
+  typealias FormatOutput = String
+
+  private static let units = ["B", "KB", "MB", "GB", "TB"]
+
+  var isRate: Bool
+
+  func format(_ byteCount: Double) -> String {
+    var value = byteCount
+    var unitIndex = 0
+
+    while unitIndex < Self.units.count - 1, value >= (unitIndex == 0 ? 999.5 : 999.95) {
+      value /= 1024
+      unitIndex += 1
+    }
+
+    let formattedValue = value.formatted(.fixedPoint(fractionLength: unitIndex == 0 ? 0 : 1))
+
+    return "\(formattedValue) \(Self.units[unitIndex])\(isRate ? "/s" : "")"
+  }
+}
+
+extension FormatStyle where Self == AbbreviatedByteCountFormatStyle {
+  static var abbreviatedByteCount: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: false) }
+  static var abbreviatedByteRate: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: true) }
+}
+
+struct TransferByteCounts {
+  static let zero = TransferByteCounts(inbound: 0, outbound: 0)
+
+  var inbound: UInt64
+  var outbound: UInt64
+
+  static func += (lhs: inout TransferByteCounts, rhs: TransferByteCounts) {
+    lhs.inbound += rhs.inbound
+    lhs.outbound += rhs.outbound
+  }
+
+  func delta(since earlierByteCounts: TransferByteCounts) -> TransferByteCounts {
+    return TransferByteCounts(
+      inbound: inbound.delta(since: earlierByteCounts.inbound),
+      outbound: outbound.delta(since: earlierByteCounts.outbound)
+    )
+  }
+}
+
+struct TransferRates {
+  static let inboundSymbol = "↓"
+  static let outboundSymbol = "↑"
+  static let zero = TransferRates(inboundBytesPerSecond: 0, outboundBytesPerSecond: 0)
+
+  let inboundBytesPerSecond: Double
+  let outboundBytesPerSecond: Double
+
+  var totalBytesPerSecond: Double { inboundBytesPerSecond + outboundBytesPerSecond }
+
+  init(inboundBytesPerSecond: Double, outboundBytesPerSecond: Double) {
+    self.inboundBytesPerSecond = inboundBytesPerSecond
+    self.outboundBytesPerSecond = outboundBytesPerSecond
+  }
+
+  init(byteCounts: TransferByteCounts, elapsedSeconds: Double) {
+    guard elapsedSeconds > 0 else {
+      self = .zero
+      return
+    }
+
+    self.init(
+      inboundBytesPerSecond: Double(byteCounts.inbound) / elapsedSeconds,
+      outboundBytesPerSecond: Double(byteCounts.outbound) / elapsedSeconds
+    )
+  }
+}
+
+struct CPUUsage {
+  static let zero = CPUUsage(userPercentage: 0, systemPercentage: 0, idlePercentage: 0)
+
+  let userPercentage: Double
+  let systemPercentage: Double
+  let idlePercentage: Double
+
+  init(loadInfo: host_cpu_load_info, previousLoadInfo: host_cpu_load_info) {
+    let userTicks = Double(loadInfo.userTicks &- previousLoadInfo.userTicks)
+    let systemTicks = Double(loadInfo.systemTicks &- previousLoadInfo.systemTicks)
+    let idleTicks = Double(loadInfo.idleTicks &- previousLoadInfo.idleTicks)
+    let totalTicks = userTicks + systemTicks + idleTicks
+
+    guard totalTicks > 0 else {
+      self = .zero
+      return
+    }
+
+    self.init(
+      userPercentage: userTicks / totalTicks * 100,
+      systemPercentage: systemTicks / totalTicks * 100,
+      idlePercentage: idleTicks / totalTicks * 100
+    )
+  }
+
+  private init(userPercentage: Double, systemPercentage: Double, idlePercentage: Double) {
+    self.userPercentage = userPercentage
+    self.systemPercentage = systemPercentage
+    self.idlePercentage = idlePercentage
+  }
+}
+
+struct LoadAverages {
+  static let zero = LoadAverages(oneMinute: 0, fiveMinutes: 0, fifteenMinutes: 0)
+
+  let oneMinute: Double
+  let fiveMinutes: Double
+  let fifteenMinutes: Double
+
+  static var current: LoadAverages {
+    withUnsafeTemporaryAllocation(of: Double.self, capacity: 3) { loadAverages in
+      guard let baseAddress = loadAverages.baseAddress, getloadavg(baseAddress, 3) == 3 else {
+        return .zero
+      }
+
+      return LoadAverages(oneMinute: loadAverages[0], fiveMinutes: loadAverages[1], fifteenMinutes: loadAverages[2])
+    }
+  }
+}
+
+struct MemoryUsage {
+  let usedBytes: UInt64
+  let wiredBytes: UInt64
+  let compressedBytes: UInt64
+  let totalBytes: UInt64
+
+  static var current: MemoryUsage {
+    let totalBytes = ProcessInfo.processInfo.physicalMemory
+
+    guard let statistics = MachHost.virtualMemoryStatistics() else {
+      return MemoryUsage(usedBytes: 0, wiredBytes: 0, compressedBytes: 0, totalBytes: totalBytes)
+    }
+
+    let internalPageCount = UInt64(statistics.internal_page_count)
+    let purgeablePageCount = min(UInt64(statistics.purgeable_count), internalPageCount)
+    let wiredBytes = UInt64(statistics.wire_count) * MachHost.pageSize
+    let compressedBytes = UInt64(statistics.compressor_page_count) * MachHost.pageSize
+
+    return MemoryUsage(
+      usedBytes: (internalPageCount - purgeablePageCount) * MachHost.pageSize + wiredBytes + compressedBytes,
+      wiredBytes: wiredBytes,
+      compressedBytes: compressedBytes,
+      totalBytes: totalBytes
+    )
+  }
+}
+
+struct BlockStorageStatistics {
+  private var previousDriveByteCounts: [UInt64: TransferByteCounts] = [:]
+
+  mutating func byteCountsSinceLastSample() -> TransferByteCounts {
+    let driveByteCounts = Self.driveByteCounts()
+
+    var byteCounts = TransferByteCounts.zero
+
+    for (driveID, currentByteCounts) in driveByteCounts {
+      if let previousByteCounts = previousDriveByteCounts[driveID] {
+        byteCounts += currentByteCounts.delta(since: previousByteCounts)
+      }
+    }
+
+    self.previousDriveByteCounts = driveByteCounts
+
+    return byteCounts
+  }
+
+  private static func driveByteCounts() -> [UInt64: TransferByteCounts] {
+    var iterator: io_iterator_t = 0
+
+    guard
+      IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOBlockStorageDriver"), &iterator)
+        == KERN_SUCCESS
+    else {
+      return [:]
+    }
+
+    defer {
+      IOObjectRelease(iterator)
+    }
+
+    var driveByteCounts: [UInt64: TransferByteCounts] = [:]
+
+    while case let service = IOIteratorNext(iterator), service != 0 {
+      defer {
+        IOObjectRelease(service)
+      }
+
+      var driveID: UInt64 = 0
+
+      guard
+        IORegistryEntryGetRegistryEntryID(service, &driveID) == KERN_SUCCESS,
+        let statistics = IORegistryEntryCreateCFProperty(
+          service,
+          kIOBlockStorageDriverStatisticsKey as CFString,
+          kCFAllocatorDefault,
+          0
+        )?.takeRetainedValue(),
+        CFGetTypeID(statistics) == CFDictionaryGetTypeID()
+      else {
+        continue
+      }
+
+      let statisticsDictionary = unsafeDowncast(statistics, to: CFDictionary.self)
+
+      driveByteCounts[driveID] = TransferByteCounts(
+        inbound: statisticsDictionary.byteCount(forKey: kIOBlockStorageDriverStatisticsBytesReadKey as CFString),
+        outbound: statisticsDictionary.byteCount(forKey: kIOBlockStorageDriverStatisticsBytesWrittenKey as CFString)
+      )
+    }
+
+    return driveByteCounts
+  }
+}
+
+struct NetworkInterfaceStatistics {
+  private var interfaceListBuffer = [UInt8](repeating: 0, count: 4096)
+  private var previousInterfaceByteCounts: [UInt16: TransferByteCounts] = [:]
+
+  mutating func byteCountsSinceLastSample() -> TransferByteCounts {
+    guard let interfaceListLength = readInterfaceList() else {
+      return .zero
+    }
+
+    let interfaceListBuffer = interfaceListBuffer
+
+    var byteCounts = TransferByteCounts.zero
+
+    interfaceListBuffer.withUnsafeBytes { bytes in
+      var offset = 0
+
+      while offset + MemoryLayout<if_msghdr>.size <= interfaceListLength {
+        let messageHeader = bytes.loadUnaligned(fromByteOffset: offset, as: if_msghdr.self)
+
+        guard messageHeader.ifm_msglen > 0 else {
+          break
+        }
+
+        if Int32(messageHeader.ifm_type) == RTM_IFINFO2,
+          offset + MemoryLayout<if_msghdr2>.size <= interfaceListLength
+        {
+          let interfaceMessage = bytes.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
+
+          if Int32(interfaceMessage.ifm_data.ifi_type) == IFT_ETHER {
+            let interfaceByteCounts = TransferByteCounts(
+              inbound: interfaceMessage.ifm_data.ifi_ibytes,
+              outbound: interfaceMessage.ifm_data.ifi_obytes
+            )
+
+            if let previousByteCounts = previousInterfaceByteCounts[interfaceMessage.ifm_index] {
+              byteCounts += TransferByteCounts(
+                inbound: Self.truncatedCounterDelta(interfaceByteCounts.inbound, since: previousByteCounts.inbound),
+                outbound: Self.truncatedCounterDelta(interfaceByteCounts.outbound, since: previousByteCounts.outbound)
+              )
+            }
+
+            self.previousInterfaceByteCounts[interfaceMessage.ifm_index] = interfaceByteCounts
+          }
+        }
+
+        offset += Int(messageHeader.ifm_msglen)
+      }
+    }
+
+    return byteCounts
+  }
+
+  private mutating func readInterfaceList() -> Int? {
+    var managementInformationBase: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+
+    while true {
+      var length = interfaceListBuffer.count
+
+      let result = interfaceListBuffer.withUnsafeMutableBytes { buffer in
+        sysctl(&managementInformationBase, UInt32(managementInformationBase.count), buffer.baseAddress, &length, nil, 0)
+      }
+
+      if result == 0 {
+        return length
+      }
+
+      guard errno == ENOMEM else {
+        return nil
+      }
+
+      self.interfaceListBuffer = [UInt8](repeating: 0, count: interfaceListBuffer.count * 2)
+    }
+  }
+
+  private static func truncatedCounterDelta(_ counter: UInt64, since previousCounter: UInt64) -> UInt64 {
+    return UInt64(UInt32(truncatingIfNeeded: counter) &- UInt32(truncatingIfNeeded: previousCounter))
+  }
+}
+
+struct SystemResourceUsage {
+  let cpu: CPUUsage
+  let loadAverages: LoadAverages
+  let memory: MemoryUsage
+  let disk: TransferRates
+  let network: TransferRates
+}
+
+struct SystemResourceSampler {
+  private var previousCPULoadInfo: host_cpu_load_info?
+  private var blockStorageStatistics = BlockStorageStatistics()
+  private var networkInterfaceStatistics = NetworkInterfaceStatistics()
+
+  mutating func sample(elapsedSeconds: Double) -> SystemResourceUsage {
+    let cpuLoadInfo = MachHost.cpuLoadInfo()
+    let diskByteCounts = blockStorageStatistics.byteCountsSinceLastSample()
+    let networkByteCounts = networkInterfaceStatistics.byteCountsSinceLastSample()
+
+    let cpuUsage: CPUUsage
+
+    if let cpuLoadInfo, let previousCPULoadInfo {
+      cpuUsage = CPUUsage(loadInfo: cpuLoadInfo, previousLoadInfo: previousCPULoadInfo)
+    } else {
+      cpuUsage = .zero
+    }
+
+    self.previousCPULoadInfo = cpuLoadInfo
+
+    return SystemResourceUsage(
+      cpu: cpuUsage,
+      loadAverages: .current,
+      memory: .current,
+      disk: TransferRates(byteCounts: diskByteCounts, elapsedSeconds: elapsedSeconds),
+      network: TransferRates(byteCounts: networkByteCounts, elapsedSeconds: elapsedSeconds)
+    )
+  }
+}
+
+struct ProcessResourceUsageSample {
+  let startTime: UInt64
+  let cpuTime: UInt64
+  let memoryFootprint: UInt64
+  let disk: TransferByteCounts
+}
+
+struct RunningProcess {
+  let processIdentifier: pid_t
+
+  var executablePath: FilePath? {
+    withUnsafeTemporaryAllocation(of: CChar.self, capacity: 4 * Int(MAXPATHLEN)) { buffer in
+      guard
+        let baseAddress = buffer.baseAddress,
+        proc_pidpath(processIdentifier, baseAddress, UInt32(buffer.count)) > 0
+      else {
+        return nil
+      }
+
+      return FilePath(platformString: baseAddress)
+    }
+  }
+
+  var commandName: String? {
+    guard let shortInfo else {
+      return nil
+    }
+
+    return withUnsafeBytes(of: shortInfo.pbsi_comm) { bytes in
+      String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self)
+    }
+  }
+
+  var parentProcess: RunningProcess? {
+    guard let shortInfo, pid_t(shortInfo.pbsi_ppid) != processIdentifier else {
+      return nil
+    }
+
+    return RunningProcess(processIdentifier: pid_t(shortInfo.pbsi_ppid))
+  }
+
+  var responsibleProcess: RunningProcess? {
+    let responsibleProcessIdentifier = responsibility_get_pid_responsible_for_pid(processIdentifier)
+
+    guard responsibleProcessIdentifier > 0, responsibleProcessIdentifier != processIdentifier else {
+      return nil
+    }
+
+    return RunningProcess(processIdentifier: responsibleProcessIdentifier)
+  }
+
+  private var shortInfo: proc_bsdshortinfo? {
+    var shortInfo = proc_bsdshortinfo()
+
+    let size = Int32(MemoryLayout<proc_bsdshortinfo>.size)
+
+    guard proc_pidinfo(processIdentifier, PROC_PIDT_SHORTBSDINFO, 0, &shortInfo, size) == size else {
+      return nil
+    }
+
+    return shortInfo
+  }
+
+  static func listAllProcessIdentifiers(into buffer: inout [pid_t]) -> Int {
+    while true {
+      let count = Int(buffer.withUnsafeMutableBytes { proc_listallpids($0.baseAddress, Int32($0.count)) })
+
+      guard count >= buffer.count else {
+        return max(count, 0)
+      }
+
+      buffer = [pid_t](repeating: 0, count: buffer.count * 2)
+    }
+  }
+
+  func resourceUsage() throws(Errno) -> ProcessResourceUsageSample {
+    var resourceUsage = rusage_info_v4()
+
+    let result = withUnsafeMutablePointer(to: &resourceUsage) { pointer in
+      pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { reboundPointer in
+        proc_pid_rusage(processIdentifier, RUSAGE_INFO_V4, reboundPointer)
+      }
+    }
+
+    guard result == 0 else {
+      throw Errno(rawValue: errno)
+    }
+
+    return ProcessResourceUsageSample(
+      startTime: resourceUsage.ri_proc_start_abstime,
+      cpuTime: resourceUsage.ri_user_time + resourceUsage.ri_system_time,
+      memoryFootprint: resourceUsage.ri_phys_footprint,
+      disk: TransferByteCounts(
+        inbound: resourceUsage.ri_diskio_bytesread,
+        outbound: resourceUsage.ri_diskio_byteswritten
+      )
+    )
+  }
+}
+
+struct ProcessOwner: Identifiable {
+  enum Kind {
+    case application
+    case process
+  }
+
+  struct ID: Hashable {
+    let processIdentifier: pid_t
+    let kind: Kind
+  }
+
+  let processIdentifier: pid_t
+  let kind: Kind
+  let name: String
+  let sortKey: String
+
+  var id: ID { ID(processIdentifier: processIdentifier, kind: kind) }
+
+  init(processIdentifier: pid_t, kind: Kind, name: String) {
+    self.processIdentifier = processIdentifier
+    self.kind = kind
+    self.name = name
+    self.sortKey = name.lowercased()
+  }
+
+  init(of process: RunningProcess, executablePath: FilePath?, processName: String) {
+    if let responsibleProcess = process.responsibleProcess,
+      let application = Self.application(running: responsibleProcess, executablePath: responsibleProcess.executablePath)
+    {
+      self = application
+    } else if let application = Self.application(running: process, executablePath: executablePath) {
+      self = application
+    } else if let application = Self.application(runningAncestorOf: process) {
+      self = application
+    } else {
+      self = ProcessOwner(processIdentifier: process.processIdentifier, kind: .process, name: processName)
+    }
+  }
+
+  private static func application(running process: RunningProcess, executablePath: FilePath?) -> ProcessOwner? {
+    guard let applicationBundleName = executablePath?.applicationBundleName else {
+      return nil
+    }
+
+    return ProcessOwner(processIdentifier: process.processIdentifier, kind: .application, name: applicationBundleName)
+  }
+
+  private static func application(runningAncestorOf process: RunningProcess) -> ProcessOwner? {
+    var visitedProcessIdentifiers: Set<pid_t> = [process.processIdentifier]
+    var ancestorProcess = process.parentProcess
+
+    while let currentProcess = ancestorProcess,
+      currentProcess.processIdentifier > 1,
+      visitedProcessIdentifiers.insert(currentProcess.processIdentifier).inserted
+    {
+      if let application = application(running: currentProcess, executablePath: currentProcess.executablePath) {
+        return application
+      }
+
+      ancestorProcess = currentProcess.parentProcess
+    }
+
+    return nil
+  }
+}
+
+struct ProcessMetadata {
+  let processIdentifier: pid_t
+  let name: String
+  let parentProcessIdentifier: pid_t?
+  let owner: ProcessOwner
+
+  init?(of process: RunningProcess) {
+    let executablePath = process.executablePath
+
+    guard let name = executablePath?.lastComponent?.string ?? process.commandName else {
+      return nil
+    }
+
+    self.processIdentifier = process.processIdentifier
+    self.name = name
+    self.parentProcessIdentifier = process.parentProcess?.processIdentifier
+    self.owner = ProcessOwner(of: process, executablePath: executablePath, processName: name)
+  }
+}
+
 @MainActor
 final class NetworkStatisticsMonitor {
   enum Error: Swift.Error, LocalizedError {
@@ -962,7 +880,7 @@ final class NetworkStatisticsMonitor {
   @MainActor
   private final class Flow {
     var processIdentifier: pid_t = 0
-    var byteCounts = TransferByteCounts()
+    var byteCounts = TransferByteCounts.zero
     var accountedByteCounts: TransferByteCounts?
     var isRemoved = false
   }
@@ -980,13 +898,11 @@ final class NetworkStatisticsMonitor {
         nil,
         .main,
         { [weak self] source, _ in
-          guard let source else {
+          guard let self, let source else {
             return
           }
 
-          MainActor.assumeIsolated {
-            self?.trackFlow(for: source)
-          }
+          trackFlow(for: source)
         }
       )
     else {
@@ -1019,12 +935,11 @@ final class NetworkStatisticsMonitor {
     var byteCounts: [pid_t: TransferByteCounts] = [:]
 
     for flow in flows {
-      let accountedByteCounts =
-        flow.accountedByteCounts ?? (hasEstablishedBaseline ? TransferByteCounts() : flow.byteCounts)
-      let byteCountIncrement = flow.byteCounts.increment(since: accountedByteCounts)
+      let accountedByteCounts = flow.accountedByteCounts ?? (hasEstablishedBaseline ? .zero : flow.byteCounts)
+      let byteCountDelta = flow.byteCounts.delta(since: accountedByteCounts)
 
-      if flow.processIdentifier > 0, byteCountIncrement.inbound > 0 || byteCountIncrement.outbound > 0 {
-        byteCounts[flow.processIdentifier, default: TransferByteCounts()] += byteCountIncrement
+      if flow.processIdentifier > 0, byteCountDelta.inbound > 0 || byteCountDelta.outbound > 0 {
+        byteCounts[flow.processIdentifier, default: .zero] += byteCountDelta
       }
 
       flow.accountedByteCounts = flow.byteCounts
@@ -1044,27 +959,19 @@ final class NetworkStatisticsMonitor {
       let processIdentifier = pid_t(
         truncatingIfNeeded: description.int64Value(forKey: framework.processIdentifierKey) ?? 0
       )
-
-      MainActor.assumeIsolated {
-        flow.processIdentifier = processIdentifier
-      }
+      flow.processIdentifier = processIdentifier
     }
 
     framework.setSourceCountsHandler(source) { counts in
       let byteCounts = TransferByteCounts(
-        inbound: UInt64(clamping: counts.int64Value(forKey: framework.receivedBytesKey) ?? 0),
-        outbound: UInt64(clamping: counts.int64Value(forKey: framework.sentBytesKey) ?? 0)
+        inbound: counts.byteCount(forKey: framework.receivedBytesKey),
+        outbound: counts.byteCount(forKey: framework.sentBytesKey)
       )
-
-      MainActor.assumeIsolated {
-        flow.byteCounts = byteCounts
-      }
+      flow.byteCounts = byteCounts
     }
 
     framework.setSourceRemovedHandler(source) {
-      MainActor.assumeIsolated {
-        flow.isRemoved = true
-      }
+      flow.isRemoved = true
     }
 
     framework.querySourceDescription(source)
@@ -1073,41 +980,55 @@ final class NetworkStatisticsMonitor {
   }
 }
 
-struct ResourceUsageEntry: Identifiable {
-  let owner: ProcessOwner
+struct ResourceUsage {
   let cpuPercentage: Double
   let memoryFootprint: UInt64
   let disk: TransferRates
   let network: TransferRates
+}
+
+struct ProcessOwnerResourceUsage: Identifiable {
+  let owner: ProcessOwner
+  let usage: ResourceUsage
 
   var id: ProcessOwner.ID { owner.id }
 }
 
+struct ProcessResourceUsage {
+  let metadata: ProcessMetadata
+  let usage: ResourceUsage
+}
+
 struct ResourceUsageSnapshot {
-  var entries: [ResourceUsageEntry]
+  var owners: [ProcessOwnerResourceUsage]
+  let processes: [ProcessResourceUsage]
   let system: SystemResourceUsage
   let applicationCount: Int
-  let processCount: Int
   let restrictedProcessCount: Int
 }
 
 struct ResourceUsageAccumulator {
-  let owner: ProcessOwner
   var cpuTime: UInt64 = 0
   var memoryFootprint: UInt64 = 0
-  var disk = TransferByteCounts()
-  var network = TransferByteCounts()
+  var disk = TransferByteCounts.zero
+  var network = TransferByteCounts.zero
 
-  mutating func addUsage(_ usage: ProcessResourceUsage, since previousUsage: ProcessResourceUsage?) {
-    self.cpuTime += usage.cpuTime.increment(since: previousUsage?.cpuTime ?? 0)
-    self.memoryFootprint += usage.memoryFootprint
-    self.disk += usage.disk.increment(since: previousUsage?.disk ?? TransferByteCounts())
+  static func += (lhs: inout ResourceUsageAccumulator, rhs: ResourceUsageAccumulator) {
+    lhs.cpuTime += rhs.cpuTime
+    lhs.memoryFootprint += rhs.memoryFootprint
+    lhs.disk += rhs.disk
+    lhs.network += rhs.network
   }
 
-  func entry(elapsedAbsoluteTime: UInt64) -> ResourceUsageEntry {
+  mutating func addUsage(_ usage: ProcessResourceUsageSample, since previousUsage: ProcessResourceUsageSample?) {
+    self.cpuTime += usage.cpuTime.delta(since: previousUsage?.cpuTime ?? 0)
+    self.memoryFootprint += usage.memoryFootprint
+    self.disk += usage.disk.delta(since: previousUsage?.disk ?? .zero)
+  }
+
+  func resourceUsage(elapsedAbsoluteTime: UInt64) -> ResourceUsage {
     let elapsedSeconds = MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
-    return ResourceUsageEntry(
-      owner: owner,
+    return ResourceUsage(
       cpuPercentage: elapsedAbsoluteTime > 0 ? Double(cpuTime) / Double(elapsedAbsoluteTime) * 100 : 0,
       memoryFootprint: memoryFootprint,
       disk: TransferRates(byteCounts: disk, elapsedSeconds: elapsedSeconds),
@@ -1119,9 +1040,14 @@ struct ResourceUsageAccumulator {
 @MainActor
 final class ResourceUsageSampler {
   private struct TrackedProcess {
-    let owner: ProcessOwner
-    let usage: ProcessResourceUsage
+    let metadata: ProcessMetadata
+    let usage: ProcessResourceUsageSample
     let sampleGeneration: UInt64
+  }
+
+  private struct OwnerResourceUsageAccumulator {
+    let owner: ProcessOwner
+    var accumulator = ResourceUsageAccumulator()
   }
 
   private let networkStatisticsMonitor: NetworkStatisticsMonitor
@@ -1137,20 +1063,26 @@ final class ResourceUsageSampler {
   }
 
   func sample() async -> ResourceUsageSnapshot {
-    let networkByteCounts = await networkStatisticsMonitor.byteCountsSinceLastSample()
+    var networkByteCounts = await networkStatisticsMonitor.byteCountsSinceLastSample()
+
     let sampleTime = MachAbsoluteTime.now
     let isBaselineSample = previousSampleTime == nil
+    let elapsedAbsoluteTime = previousSampleTime.map { sampleTime - $0 } ?? 0
     let processIdentifierCount = RunningProcess.listAllProcessIdentifiers(into: &processIdentifierBuffer)
-    var accumulators: [ProcessOwner.ID: ResourceUsageAccumulator] = [:]
-    var processCount = 0
+
+    var ownerResourceUsageAccumulators: [ProcessOwner.ID: OwnerResourceUsageAccumulator] = [:]
+    ownerResourceUsageAccumulators.reserveCapacity(previousOwnerCount)
+
+    var processes: [ProcessResourceUsage] = []
+    processes.reserveCapacity(trackedProcesses.count)
+
     var restrictedProcessCount = 0
 
-    accumulators.reserveCapacity(previousOwnerCount)
     self.sampleGeneration &+= 1
 
     for processIdentifier in processIdentifierBuffer[..<processIdentifierCount] {
       let process = RunningProcess(processIdentifier: processIdentifier)
-      let usage: ProcessResourceUsage
+      let usage: ProcessResourceUsageSample
 
       do throws(Errno) {
         usage = try process.resourceUsage()
@@ -1162,65 +1094,229 @@ final class ResourceUsageSampler {
         continue
       }
 
-      let owner: ProcessOwner
-      let previousUsage: ProcessResourceUsage?
+      let metadata: ProcessMetadata
+      let previousUsage: ProcessResourceUsageSample?
 
       if let trackedProcess = trackedProcesses[processIdentifier], trackedProcess.usage.startTime == usage.startTime {
-        owner = trackedProcess.owner
+        metadata = trackedProcess.metadata
         previousUsage = trackedProcess.usage
-      } else if let resolvedOwner = ProcessOwner(of: process) {
-        owner = resolvedOwner
+      } else if let resolvedMetadata = ProcessMetadata(of: process) {
+        metadata = resolvedMetadata
         previousUsage = isBaselineSample ? usage : nil
       } else {
         continue
       }
 
-      trackedProcesses[processIdentifier] = TrackedProcess(
-        owner: owner,
+      var processResourceUsageAccumulator = ResourceUsageAccumulator()
+
+      processResourceUsageAccumulator.addUsage(usage, since: previousUsage)
+
+      if let processNetworkByteCounts = networkByteCounts.removeValue(forKey: processIdentifier) {
+        processResourceUsageAccumulator.network += processNetworkByteCounts
+      }
+
+      self.trackedProcesses[processIdentifier] = TrackedProcess(
+        metadata: metadata,
         usage: usage,
         sampleGeneration: sampleGeneration
       )
-      accumulators[owner.id, default: ResourceUsageAccumulator(owner: owner)].addUsage(usage, since: previousUsage)
-      processCount += 1
+
+      ownerResourceUsageAccumulators[
+        metadata.owner.id,
+        default: OwnerResourceUsageAccumulator(owner: metadata.owner)
+      ].accumulator += processResourceUsageAccumulator
+      processes.append(
+        ProcessResourceUsage(
+          metadata: metadata,
+          usage: processResourceUsageAccumulator.resourceUsage(elapsedAbsoluteTime: elapsedAbsoluteTime)
+        )
+      )
     }
 
     for (processIdentifier, byteCounts) in networkByteCounts {
-      guard let owner = trackedProcesses[processIdentifier]?.owner else {
+      guard let owner = trackedProcesses[processIdentifier]?.metadata.owner else {
         continue
       }
 
-      accumulators[owner.id, default: ResourceUsageAccumulator(owner: owner)].network += byteCounts
+      ownerResourceUsageAccumulators[
+        owner.id,
+        default: OwnerResourceUsageAccumulator(owner: owner)
+      ].accumulator.network += byteCounts
     }
 
-    if trackedProcesses.count != processCount {
+    if trackedProcesses.count != processes.count {
       self.trackedProcesses = trackedProcesses.filter { $0.value.sampleGeneration == sampleGeneration }
     }
 
-    let elapsedAbsoluteTime = previousSampleTime.map { sampleTime - $0 } ?? 0
-    let entries = accumulators.values.map { $0.entry(elapsedAbsoluteTime: elapsedAbsoluteTime) }
-    let systemResourceUsage = systemResourceSampler.sample(
+    let owners = ownerResourceUsageAccumulators.values.map { ownerResourceUsageAccumulator in
+      ProcessOwnerResourceUsage(
+        owner: ownerResourceUsageAccumulator.owner,
+        usage: ownerResourceUsageAccumulator.accumulator.resourceUsage(elapsedAbsoluteTime: elapsedAbsoluteTime)
+      )
+    }
+    let systemResourceUsage = self.systemResourceSampler.sample(
       elapsedSeconds: MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
     )
 
     self.previousSampleTime = sampleTime
-    self.previousOwnerCount = accumulators.count
+    self.previousOwnerCount = ownerResourceUsageAccumulators.count
 
     return ResourceUsageSnapshot(
-      entries: entries,
+      owners: owners,
+      processes: processes,
       system: systemResourceUsage,
-      applicationCount: entries.count { $0.owner.kind == .application },
-      processCount: processCount,
+      applicationCount: owners.count { $0.owner.kind == .application },
       restrictedProcessCount: restrictedProcessCount
     )
   }
 }
 
-enum UsageColumn: String, CaseIterable {
-  enum Alignment {
-    case leading
-    case trailing
+enum ANSIEscapeSequence {
+  static let enterAlternateScreen = "\u{1B}[?1049h"
+  static let exitAlternateScreen = "\u{1B}[?1049l"
+  static let hideCursor = "\u{1B}[?25l"
+  static let showCursor = "\u{1B}[?25h"
+  static let disableLineWrapping = "\u{1B}[?7l"
+  static let enableLineWrapping = "\u{1B}[?7h"
+  static let enableGraphemeClustering = "\u{1B}[?2027h"
+  static let disableGraphemeClustering = "\u{1B}[?2027l"
+  static let enableApplicationCursorKeys = "\u{1B}[?1h"
+  static let disableApplicationCursorKeys = "\u{1B}[?1l"
+  static let beginSynchronizedUpdate = "\u{1B}[?2026h"
+  static let endSynchronizedUpdate = "\u{1B}[?2026l"
+  static let moveCursorToHome = "\u{1B}[H"
+  static let clearEntireLine = "\u{1B}[2K"
+  static let clearToEndOfScreen = "\u{1B}[J"
+  static let bold = "\u{1B}[1m"
+  static let faint = "\u{1B}[2m"
+  static let normalIntensity = "\u{1B}[22m"
+  static let underline = "\u{1B}[4m"
+  static let noUnderline = "\u{1B}[24m"
+  static let reverseVideo = "\u{1B}[7m"
+  static let noReverseVideo = "\u{1B}[27m"
+  static let resetAttributes = "\u{1B}[0m"
+}
+
+enum TextEmphasis {
+  case bold
+  case underline
+  case deemphasized
+  case inverse
+
+  func applied(to text: String) -> String {
+    switch self {
+    case .bold: return "\(ANSIEscapeSequence.bold)\(text)\(ANSIEscapeSequence.normalIntensity)"
+    case .underline: return "\(ANSIEscapeSequence.underline)\(text)\(ANSIEscapeSequence.noUnderline)"
+    case .deemphasized: return "\(ANSIEscapeSequence.faint)\(text)\(ANSIEscapeSequence.normalIntensity)"
+    case .inverse: return "\(ANSIEscapeSequence.reverseVideo)\(text)\(ANSIEscapeSequence.noReverseVideo)"
+    }
+  }
+}
+
+enum TextAlignment {
+  case leading
+  case trailing
+}
+
+extension Character {
+  var terminalColumnWidth: Int {
+    guard let scalar = unicodeScalars.first, !scalar.isASCII else {
+      return 1
+    }
+
+    if scalar.properties.isEmojiPresentation || unicodeScalars.contains("\u{FE0F}") {
+      return 2
+    }
+
+    return max(Int(wcwidth(wchar_t(scalar.value))), 0)
+  }
+}
+
+extension String {
+  private enum EscapeSequenceParsingState {
+    case text
+    case escapeSequence
+    case controlSequence
   }
 
+  var visibleWidth: Int {
+    guard utf8.contains(where: { $0 >= 0x80 || $0 == 0x1B }) else {
+      return utf8.count
+    }
+
+    var width = 0
+
+    forEachVisibleCharacter { _, character in
+      width += character.terminalColumnWidth
+      return true
+    }
+
+    return width
+  }
+
+  func truncated(toVisibleWidth width: Int, trimsWhitespaceBeforeEllipsis: Bool = false) -> String {
+    guard width > 0, utf8.count > width else {
+      return self
+    }
+
+    var columnCount = 0
+    var ellipsisIndex: Index?
+
+    forEachVisibleCharacter { index, character in
+      let characterWidth = character.terminalColumnWidth
+
+      if ellipsisIndex == nil, columnCount + characterWidth >= width {
+        ellipsisIndex = index
+      }
+
+      columnCount += characterWidth
+
+      return columnCount <= width
+    }
+
+    guard let ellipsisIndex, columnCount > width else {
+      return self
+    }
+
+    var visiblePrefix = self[..<ellipsisIndex]
+
+    if trimsWhitespaceBeforeEllipsis {
+      while visiblePrefix.last?.isWhitespace == true {
+        visiblePrefix.removeLast()
+      }
+    }
+
+    return "\(visiblePrefix)…"
+  }
+
+  private func forEachVisibleCharacter(_ body: (Index, Character) -> Bool) {
+    var parsingState = EscapeSequenceParsingState.text
+
+    for (index, character) in zip(indices, self) {
+      switch parsingState {
+      case .escapeSequence:
+        parsingState = character == "[" ? .controlSequence : .text
+
+      case .controlSequence:
+        if let asciiValue = character.asciiValue, (0x40...0x7E).contains(asciiValue) {
+          parsingState = .text
+        }
+
+      case .text:
+        guard character != "\u{1B}" else {
+          parsingState = .escapeSequence
+          continue
+        }
+
+        guard body(index, character) else {
+          return
+        }
+      }
+    }
+  }
+}
+
+enum ResourceUsageColumn: String, CaseIterable {
   case pid
   case name
   case cpu
@@ -1229,15 +1325,11 @@ enum UsageColumn: String, CaseIterable {
   case network
 
   private static let transferRateValueWidth = 8
-  private static let zeroFormattedValues: Set = [
-    Double.zero.formatted(.fixedPoint(fractionLength: 1)),
-    Double.zero.formatted(.abbreviatedByteCount)
-  ]
 
   var title: String {
     switch self {
     case .pid: "PID"
-    case .name: "NAME"
+    case .name: "APPLICATION"
     case .cpu: "CPU %"
     case .memory: "MEMORY"
     case .disk: "DISK /s"
@@ -1255,38 +1347,44 @@ enum UsageColumn: String, CaseIterable {
     }
   }
 
-  var alignment: Alignment { self == .name ? .leading : .trailing }
+  var alignment: TextAlignment { self == .name ? .leading : .trailing }
 
-  func formattedValue(for entry: ResourceUsageEntry) -> String {
+  func formattedValue(processIdentifier: pid_t?, name: String, usage: ResourceUsage) -> String {
     switch self {
-    case .pid: return String(entry.owner.processIdentifier)
-    case .name: return entry.owner.name
-    case .cpu: return Self.deemphasizedIfZero(entry.cpuPercentage.formatted(.fixedPoint(fractionLength: 1)))
-    case .memory: return Self.deemphasizedIfZero(Double(entry.memoryFootprint).formatted(.abbreviatedByteCount))
-    case .disk: return Self.formattedTransferRates(entry.disk)
-    case .network: return Self.formattedTransferRates(entry.network)
+    case .pid:
+      return processIdentifier.map { String($0) } ?? ""
+
+    case .name:
+      return name
+
+    case .cpu:
+      return Self.deemphasized(
+        usage.cpuPercentage.formatted(.fixedPoint(fractionLength: 1)),
+        if: (usage.cpuPercentage * 10).rounded() == 0
+      )
+
+    case .memory:
+      return Self.deemphasized(
+        Double(usage.memoryFootprint).formatted(.abbreviatedByteCount),
+        if: usage.memoryFootprint == 0
+      )
+
+    case .disk:
+      return Self.formattedTransferRates(usage.disk)
+
+    case .network:
+      return Self.formattedTransferRates(usage.network)
     }
   }
 
-  func precedes(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
+  func precedes(_ lhs: ProcessOwnerResourceUsage, _ rhs: ProcessOwnerResourceUsage) -> Bool {
     switch self {
-    case .pid:
-      return lhs.owner.processIdentifier < rhs.owner.processIdentifier
-
-    case .name:
-      return Self.precedesByName(lhs, rhs)
-
-    case .cpu:
-      return Self.precedes(lhs.cpuPercentage, rhs.cpuPercentage, lhs, rhs, descending: true)
-
-    case .memory:
-      return Self.precedes(lhs.memoryFootprint, rhs.memoryFootprint, lhs, rhs, descending: true)
-
-    case .disk:
-      return Self.precedes(lhs.disk.totalBytesPerSecond, rhs.disk.totalBytesPerSecond, lhs, rhs, descending: true)
-
-    case .network:
-      return Self.precedes(lhs.network.totalBytesPerSecond, rhs.network.totalBytesPerSecond, lhs, rhs, descending: true)
+    case .pid: return lhs.owner.processIdentifier < rhs.owner.processIdentifier
+    case .name: return Self.precedesByName(lhs, rhs)
+    case .cpu: return Self.precedes(lhs, rhs, descendingBy: \.usage.cpuPercentage)
+    case .memory: return Self.precedes(lhs, rhs, descendingBy: \.usage.memoryFootprint)
+    case .disk: return Self.precedes(lhs, rhs, descendingBy: \.usage.disk.totalBytesPerSecond)
+    case .network: return Self.precedes(lhs, rhs, descendingBy: \.usage.network.totalBytesPerSecond)
     }
   }
 
@@ -1303,50 +1401,55 @@ enum UsageColumn: String, CaseIterable {
     return "\(formattedInboundTransferRate) \(formattedOutboundTransferRate)"
   }
 
-  private static func formattedTransferRate(_ bytesPerSecond: Double, symbol: String) -> String {
-    let formattedValue = bytesPerSecond.formatted(.abbreviatedByteCount)
-    let padding = String(repeating: " ", count: max(transferRateValueWidth - formattedValue.count, 0))
-
-    return padding + deemphasizedIfZero(formattedValue, suffix: " \(symbol)")
-  }
-
-  private static func deemphasizedIfZero(_ formattedValue: String, suffix: String = "") -> String {
-    let text = formattedValue + suffix
-    return zeroFormattedValues.contains(formattedValue) ? TextEmphasis.deemphasized.applied(to: text) : text
-  }
-
   private static func precedes<Value: Comparable>(
-    _ lhsValue: Value,
-    _ rhsValue: Value,
-    _ lhs: ResourceUsageEntry,
-    _ rhs: ResourceUsageEntry,
-    descending: Bool = false
+    _ lhs: ProcessOwnerResourceUsage,
+    _ rhs: ProcessOwnerResourceUsage,
+    descendingBy keyPath: KeyPath<ProcessOwnerResourceUsage, Value>
   ) -> Bool {
+    let lhsValue = lhs[keyPath: keyPath]
+    let rhsValue = rhs[keyPath: keyPath]
+
     guard lhsValue == rhsValue else {
-      return descending ? lhsValue > rhsValue : lhsValue < rhsValue
+      return lhsValue > rhsValue
     }
 
     return precedesByName(lhs, rhs)
   }
 
-  private static func precedesByName(_ lhs: ResourceUsageEntry, _ rhs: ResourceUsageEntry) -> Bool {
-    switch lhs.owner.name.localizedStandardCompare(rhs.owner.name) {
-    case .orderedAscending: return true
-    case .orderedDescending: return false
-    case .orderedSame: return lhs.owner.processIdentifier < rhs.owner.processIdentifier
+  private static func precedesByName(_ lhs: ProcessOwnerResourceUsage, _ rhs: ProcessOwnerResourceUsage) -> Bool {
+    guard lhs.owner.sortKey != rhs.owner.sortKey else {
+      return lhs.owner.processIdentifier < rhs.owner.processIdentifier
     }
+
+    return lhs.owner.sortKey < rhs.owner.sortKey
+  }
+
+  private static func formattedTransferRate(_ bytesPerSecond: Double, symbol: String) -> String {
+    let formattedValue = bytesPerSecond.formatted(.abbreviatedByteCount)
+    let padding = String(repeating: " ", count: max(transferRateValueWidth - formattedValue.count, 0))
+    let styledValue = deemphasized("\(formattedValue) \(symbol)", if: bytesPerSecond.rounded() == 0)
+
+    return "\(padding)\(styledValue)"
+  }
+
+  private static func deemphasized(_ text: String, if condition: Bool) -> String {
+    return condition ? TextEmphasis.deemphasized.applied(to: text) : text
   }
 }
 
-struct ResourceUsageEntryOrdering {
-  private var entryPositions: [ProcessOwner.ID: Int] = [:]
+struct ProcessOwnerResourceUsageOrdering {
+  private var ownerPositions: [ProcessOwner.ID: Int] = [:]
 
-  mutating func arrange(_ entries: inout [ResourceUsageEntry], sortedBy column: UsageColumn, shouldReSort: Bool) {
+  mutating func arrange(
+    _ owners: inout [ProcessOwnerResourceUsage],
+    sortedBy column: ResourceUsageColumn,
+    shouldReSort: Bool
+  ) {
     if shouldReSort {
-      entries.sort(by: column.precedes)
+      owners.sort(by: column.precedes)
     } else {
-      entries.sort { lhs, rhs in
-        switch (entryPositions[lhs.id], entryPositions[rhs.id]) {
+      owners.sort { lhs, rhs in
+        switch (ownerPositions[lhs.id], ownerPositions[rhs.id]) {
         case (let lhsPosition?, let rhsPosition?): return lhsPosition < rhsPosition
         case (.some, .none): return true
         case (.none, .some): return false
@@ -1355,15 +1458,194 @@ struct ResourceUsageEntryOrdering {
       }
     }
 
-    entryPositions.removeAll(keepingCapacity: true)
+    self.ownerPositions.removeAll(keepingCapacity: true)
 
-    for (position, entry) in entries.enumerated() {
-      entryPositions[entry.id] = position
+    for (position, owner) in owners.enumerated() {
+      self.ownerPositions[owner.id] = position
     }
   }
 }
 
-struct ResourceUsageTableRenderer {
+struct ResourceUsageTableRow: Identifiable {
+  enum ID: Hashable {
+    case owner(ProcessOwner.ID)
+    case process(pid_t)
+  }
+
+  let id: ID
+  let processIdentifier: pid_t
+  let name: String
+  let usage: ResourceUsage
+
+  init(processIdentifier: pid_t, name: String, usage: ResourceUsage) {
+    self.id = .process(processIdentifier)
+    self.processIdentifier = processIdentifier
+    self.name = name
+    self.usage = usage
+  }
+
+  init(ownerResourceUsage: ProcessOwnerResourceUsage) {
+    self.id = .owner(ownerResourceUsage.id)
+    self.processIdentifier = ownerResourceUsage.owner.processIdentifier
+    self.name = ownerResourceUsage.owner.name
+    self.usage = ownerResourceUsage.usage
+  }
+}
+
+struct ResourceUsageTable {
+  let nameColumnTitle: String
+  let sortColumn: ResourceUsageColumn?
+  let caption: String?
+  let rows: [ResourceUsageTableRow]
+  let totalUsage: ResourceUsage?
+}
+
+struct TableSelection {
+  enum Destination {
+    case previous
+    case next
+    case first
+    case last
+  }
+
+  private(set) var selectedRowID: ResourceUsageTableRow.ID?
+  private(set) var scrollOffset = 0
+  private var rowIndex = 0
+
+  var selectedRowIndex: Int? { selectedRowID == nil ? nil : rowIndex }
+
+  mutating func reconcile(with rows: [ResourceUsageTableRow], visibleRowCount: Int) {
+    if let selectedRowID {
+      if let matchingRowIndex = rows.firstIndex(where: { $0.id == selectedRowID }) {
+        self.rowIndex = matchingRowIndex
+      } else if rows.isEmpty {
+        self.selectedRowID = nil
+      } else {
+        self.rowIndex = min(rowIndex, rows.count - 1)
+        self.selectedRowID = rows[rowIndex].id
+      }
+    }
+
+    scrollToSelection(rowCount: rows.count, visibleRowCount: visibleRowCount)
+  }
+
+  mutating func move(to destination: Destination, in rows: [ResourceUsageTableRow], visibleRowCount: Int) {
+    guard !rows.isEmpty else {
+      return
+    }
+
+    reconcile(with: rows, visibleRowCount: visibleRowCount)
+
+    switch destination {
+    case .first:
+      self.rowIndex = 0
+
+    case .last:
+      self.rowIndex = rows.count - 1
+
+    case .previous where selectedRowID == nil, .next where selectedRowID == nil:
+      self.rowIndex = min(scrollOffset, rows.count - 1)
+
+    case .previous:
+      self.rowIndex = max(rowIndex - 1, 0)
+
+    case .next:
+      self.rowIndex = min(rowIndex + 1, rows.count - 1)
+    }
+
+    self.selectedRowID = rows[rowIndex].id
+
+    scrollToSelection(rowCount: rows.count, visibleRowCount: visibleRowCount)
+  }
+
+  mutating func clear() {
+    self.selectedRowID = nil
+    self.rowIndex = 0
+    self.scrollOffset = 0
+  }
+
+  private mutating func scrollToSelection(rowCount: Int, visibleRowCount: Int) {
+    if selectedRowID != nil, visibleRowCount > 0 {
+      if rowIndex < scrollOffset {
+        self.scrollOffset = rowIndex
+      } else if rowIndex >= scrollOffset + visibleRowCount {
+        self.scrollOffset = rowIndex - visibleRowCount + 1
+      }
+    }
+
+    self.scrollOffset = min(scrollOffset, max(rowCount - visibleRowCount, 0))
+  }
+}
+
+enum ProcessTree {
+  private static let branchPrefix = "├─ "
+  private static let lastBranchPrefix = "└─ "
+  private static let continuationPrefix = "│  "
+  private static let emptyPrefix = "   "
+
+  static func rows(for processes: [ProcessResourceUsage], ownedBy owner: ProcessOwner) -> [ResourceUsageTableRow] {
+    let processIdentifiers = Set(processes.map(\.metadata.processIdentifier))
+
+    var childProcessesByParentIdentifier: [pid_t: [ProcessResourceUsage]] = [:]
+    var rootProcesses: [ProcessResourceUsage] = []
+
+    for process in processes {
+      if let parentProcessIdentifier = process.metadata.parentProcessIdentifier,
+        processIdentifiers.contains(parentProcessIdentifier)
+      {
+        childProcessesByParentIdentifier[parentProcessIdentifier, default: []].append(process)
+      } else {
+        rootProcesses.append(process)
+      }
+    }
+
+    var rows: [ResourceUsageTableRow] = []
+    rows.reserveCapacity(processes.count)
+
+    func appendRows(for process: ProcessResourceUsage, namePrefix: String, descendantPrefix: String) {
+      rows.append(
+        ResourceUsageTableRow(
+          processIdentifier: process.metadata.processIdentifier,
+          name: "\(namePrefix)\(process.metadata.name)",
+          usage: process.usage
+        )
+      )
+
+      let childProcesses = childProcessesByParentIdentifier[
+        process.metadata.processIdentifier,
+        default: []
+      ].sorted { $0.metadata.processIdentifier < $1.metadata.processIdentifier }
+
+      for (index, childProcess) in childProcesses.enumerated() {
+        let isLastChildProcess = index == childProcesses.count - 1
+        appendRows(
+          for: childProcess,
+          namePrefix: "\(descendantPrefix)\(isLastChildProcess ? lastBranchPrefix : branchPrefix)",
+          descendantPrefix: "\(descendantPrefix)\(isLastChildProcess ? emptyPrefix : continuationPrefix)"
+        )
+      }
+    }
+
+    let sortedRootProcesses = rootProcesses.sorted { lhs, rhs in
+      let lhsIsOwnerProcess = lhs.metadata.processIdentifier == owner.processIdentifier
+      let rhsIsOwnerProcess = rhs.metadata.processIdentifier == owner.processIdentifier
+
+      guard lhsIsOwnerProcess == rhsIsOwnerProcess else {
+        return lhsIsOwnerProcess
+      }
+
+      return lhs.metadata.processIdentifier < rhs.metadata.processIdentifier
+    }
+
+    for rootProcess in sortedRootProcesses {
+      appendRows(for: rootProcess, namePrefix: "", descendantPrefix: "")
+    }
+
+    return rows
+  }
+}
+
+enum ResourceUsageTableRenderer {
   private struct SummaryField {
     let value: String
     let valueWidth: Int
@@ -1371,6 +1653,10 @@ struct ResourceUsageTableRenderer {
 
     init(count: Int, label: String) {
       self.init(value: String(count), valueWidth: 5, label: label)
+    }
+
+    init(count: Int, of totalCount: Int, label: String) {
+      self.init(value: "\(count)/\(totalCount)", valueWidth: 9, label: label)
     }
 
     init(percentage: Double, label: String) {
@@ -1403,49 +1689,98 @@ struct ResourceUsageTableRenderer {
   }
 
   private static let columnSeparator = "  "
-  private static let minimumNameColumnWidth = 8
+  private static let minimumNameColumnWidth = 6
+  private static let scrollbarThumbCell = " │"
+  private static let scrollbarColumnWidth = scrollbarThumbCell.count
   private static let fixedColumnsWidth =
-    UsageColumn.allCases.compactMap(\.fixedWidth).reduce(0, +)
-    + (UsageColumn.allCases.count - 1) * columnSeparator.count
+    ResourceUsageColumn.allCases.compactMap(\.fixedWidth).reduce(0, +)
+    + (ResourceUsageColumn.allCases.count - 1) * columnSeparator.count
+  private static let minimumTableWidth = fixedColumnsWidth + minimumNameColumnWidth + scrollbarColumnWidth
+  private static let tableLeadingLineCount = 3
+  private static let estimatedEscapeSequenceBytesPerLine = 64
 
-  let sortColumn: UsageColumn
-
-  func frame(for snapshot: ResourceUsageSnapshot, size: TerminalSession.Size) -> String {
-    let nameColumnWidth = max(size.columns - Self.fixedColumnsWidth, Self.minimumNameColumnWidth)
-
-    var lines = summaryLines(for: snapshot)
-
-    lines.append("")
-    lines.append(headerLine(nameColumnWidth: nameColumnWidth))
-
-    for entry in snapshot.entries.prefix(max(size.rows - lines.count, 0)) {
-      lines.append(row(for: entry, nameColumnWidth: nameColumnWidth))
-    }
-
-    let visibleLines = lines.prefix(size.rows)
-
-    var frame =
-      ANSIEscapeSequence.beginSynchronizedUpdate
-      + ANSIEscapeSequence.moveCursorToHome
-      + ANSIEscapeSequence.clearLine
-      + visibleLines
-      .map { $0.truncated(toVisibleWidth: size.columns) + ANSIEscapeSequence.resetAttributes }
-      .joined(separator: "\n" + ANSIEscapeSequence.clearLine)
-
-    if visibleLines.count < size.rows {
-      frame += "\n" + ANSIEscapeSequence.clearToEndOfScreen
-    }
-
-    return frame + ANSIEscapeSequence.endSynchronizedUpdate
+  static func visibleRowCount(
+    for table: ResourceUsageTable,
+    summaryLineCount: Int,
+    size: TerminalSession.Size
+  ) -> Int {
+    let trailingLineCount = table.totalUsage == nil ? 0 : 1
+    return max(size.rows - summaryLineCount - tableLeadingLineCount - trailingLineCount, 0)
   }
 
-  private func summaryLines(for snapshot: ResourceUsageSnapshot) -> [String] {
+  static func frame(
+    summaryLines: [String],
+    table: ResourceUsageTable,
+    selection: TableSelection,
+    size: TerminalSession.Size
+  ) -> String {
+    let nameColumnWidth = max(size.columns - fixedColumnsWidth - scrollbarColumnWidth, minimumNameColumnWidth)
+    let rowCapacity = visibleRowCount(for: table, summaryLineCount: summaryLines.count, size: size)
+    let visibleRows = table.rows.dropFirst(selection.scrollOffset).prefix(rowCapacity)
+    let thumbRange = scrollbarThumbRange(
+      rowCount: table.rows.count,
+      rowCapacity: rowCapacity,
+      scrollOffset: selection.scrollOffset
+    )
+    let truncatesTableLines = size.columns < minimumTableWidth
+
+    var frame = "\(ANSIEscapeSequence.beginSynchronizedUpdate)\(ANSIEscapeSequence.moveCursorToHome)"
+    frame.reserveCapacity(size.rows * (size.columns + estimatedEscapeSequenceBytesPerLine))
+
+    var lineCount = 0
+
+    func appendLine(_ line: String, truncates: Bool = true) {
+      guard lineCount < size.rows else {
+        return
+      }
+
+      if lineCount > 0 {
+        frame += "\n"
+      }
+
+      frame += ANSIEscapeSequence.clearEntireLine
+      frame += truncates ? line.truncated(toVisibleWidth: size.columns) : line
+      frame += ANSIEscapeSequence.resetAttributes
+      lineCount += 1
+    }
+
+    for summaryLine in summaryLines {
+      appendLine(summaryLine)
+    }
+
+    appendLine("")
+    appendLine(table.caption ?? "")
+    appendLine(headerLine(for: table, nameColumnWidth: nameColumnWidth), truncates: truncatesTableLines)
+
+    for (rowIndex, row) in zip(visibleRows.indices, visibleRows) {
+      let line = rowLine(for: row, nameColumnWidth: nameColumnWidth, isSelected: rowIndex == selection.selectedRowIndex)
+      let isScrollbarThumbRow = thumbRange?.contains(rowIndex - selection.scrollOffset) ?? false
+
+      appendLine(isScrollbarThumbRow ? "\(line)\(scrollbarThumbCell)" : line, truncates: truncatesTableLines)
+    }
+
+    if let totalUsage = table.totalUsage {
+      appendLine(totalLine(for: totalUsage, nameColumnWidth: nameColumnWidth), truncates: truncatesTableLines)
+    }
+
+    if lineCount < size.rows {
+      frame += "\n\(ANSIEscapeSequence.clearToEndOfScreen)"
+    }
+
+    frame += ANSIEscapeSequence.endSynchronizedUpdate
+
+    return frame
+  }
+
+  static func summaryLines(for snapshot: ResourceUsageSnapshot) -> [String] {
     let rows = summaryRows(for: snapshot)
     let titleWidth = rows.map(\.title.count).max() ?? 0
     let fieldCount = rows.map(\.fields.count).max() ?? 0
+
     let valueWidths = (0..<fieldCount).map { index in
       rows.compactMap { $0.fields.indices.contains(index) ? $0.fields[index].valueWidth : nil }.max() ?? 0
     }
+
     let labelWidths = (0..<fieldCount).map { index in
       rows.compactMap { $0.fields.indices.contains(index) ? $0.fields[index].label.count : nil }.max() ?? 0
     }
@@ -1467,30 +1802,31 @@ struct ResourceUsageTableRenderer {
       }
 
       let formattedTitle = cell(row.title, width: titleWidth, alignment: .leading, emphasis: .bold)
-      let joinedFormattedFields = formattedFields.joined(separator: Self.columnSeparator)
-      let formattedTrailingNote = row.trailingNote.map { Self.columnSeparator + $0 } ?? ""
+      let joinedFormattedFields = formattedFields.joined(separator: columnSeparator)
+      let formattedTrailingNote =
+        row.trailingNote.map { "\(columnSeparator)\(TextEmphasis.deemphasized.applied(to: $0))" } ?? ""
 
-      return "\(formattedTitle)\(Self.columnSeparator)\(joinedFormattedFields)\(formattedTrailingNote)"
+      return "\(formattedTitle)\(columnSeparator)\(joinedFormattedFields)\(formattedTrailingNote)"
     }
   }
 
-  private func summaryRows(for snapshot: ResourceUsageSnapshot) -> [SummaryRow] {
+  private static func summaryRows(for snapshot: ResourceUsageSnapshot) -> [SummaryRow] {
     let system = snapshot.system
-
-    var processFields = [
-      SummaryField(count: snapshot.processCount, label: "accessible"),
-      SummaryField(count: snapshot.applicationCount, label: "applications")
-    ]
-
-    if snapshot.restrictedProcessCount > 0 {
-      processFields.append(SummaryField(count: snapshot.restrictedProcessCount, label: "restricted"))
-    }
+    let hasRestrictedProcesses = snapshot.restrictedProcessCount > 0
+    let processCountField =
+      hasRestrictedProcesses
+      ? SummaryField(
+        count: snapshot.processes.count,
+        of: snapshot.processes.count + snapshot.restrictedProcessCount,
+        label: "visible"
+      )
+      : SummaryField(count: snapshot.processes.count, label: "total")
 
     return [
       SummaryRow(
         title: "Processes",
-        fields: processFields,
-        trailingNote: snapshot.restrictedProcessCount > 0 ? "(run with sudo to include)" : nil
+        fields: [processCountField, SummaryField(count: snapshot.applicationCount, label: "applications")],
+        trailingNote: hasRestrictedProcesses ? "(run with sudo to show all)" : nil
       ),
       SummaryRow(
         title: "CPU",
@@ -1528,20 +1864,7 @@ struct ResourceUsageTableRenderer {
     ]
   }
 
-  private func headerLine(nameColumnWidth: Int) -> String {
-    let cells = UsageColumn.allCases.map { column in
-      cell(
-        column.title,
-        width: column.fixedWidth ?? nameColumnWidth,
-        alignment: column.alignment,
-        emphasis: column == sortColumn ? .underline : nil
-      )
-    }
-
-    return ANSIEscapeSequence.bold + cells.joined(separator: Self.columnSeparator) + ANSIEscapeSequence.resetAttributes
-  }
-
-  private func transferRateFields(
+  private static func transferRateFields(
     for transferRates: TransferRates,
     inboundLabel: String,
     outboundLabel: String
@@ -1552,31 +1875,70 @@ struct ResourceUsageTableRenderer {
     ]
   }
 
-  private func row(for entry: ResourceUsageEntry, nameColumnWidth: Int) -> String {
-    return UsageColumn.allCases.map { column in
-      cell(
-        column.formattedValue(for: entry),
-        width: column.fixedWidth ?? nameColumnWidth,
-        alignment: column.alignment
-      )
+  private static func tableLine(
+    nameColumnWidth: Int,
+    content: (ResourceUsageColumn) -> (text: String, emphasis: TextEmphasis?)
+  ) -> String {
+    return ResourceUsageColumn.allCases.map { column in
+      let (text, emphasis) = content(column)
+      return cell(text, width: column.fixedWidth ?? nameColumnWidth, alignment: column.alignment, emphasis: emphasis)
     }
-    .joined(separator: Self.columnSeparator)
+    .joined(separator: columnSeparator)
   }
 
-  private func cell(
+  private static func headerLine(for table: ResourceUsageTable, nameColumnWidth: Int) -> String {
+    let line = tableLine(nameColumnWidth: nameColumnWidth) { column in
+      (column == .name ? table.nameColumnTitle : column.title, column == table.sortColumn ? .underline : nil)
+    }
+    return TextEmphasis.bold.applied(to: line)
+  }
+
+  private static func rowLine(for row: ResourceUsageTableRow, nameColumnWidth: Int, isSelected: Bool) -> String {
+    let line = tableLine(nameColumnWidth: nameColumnWidth) { column in
+      (column.formattedValue(processIdentifier: row.processIdentifier, name: row.name, usage: row.usage), nil)
+    }
+    return isSelected ? TextEmphasis.inverse.applied(to: line) : line
+  }
+
+  private static func totalLine(for usage: ResourceUsage, nameColumnWidth: Int) -> String {
+    return tableLine(nameColumnWidth: nameColumnWidth) { column in
+      (column.formattedValue(processIdentifier: nil, name: "Total", usage: usage), column == .name ? .bold : nil)
+    }
+  }
+
+  private static func cell(
     _ text: String,
     width: Int,
-    alignment: UsageColumn.Alignment,
+    alignment: TextAlignment,
     emphasis: TextEmphasis? = nil
   ) -> String {
-    let visibleText = text.truncated(toVisibleWidth: width, trimsWhitespaceBeforeEllipsis: true)
-    let padding = String(repeating: " ", count: max(width - visibleText.visibleCharacterCount, 0))
+    var visibleText = text
+    var visibleWidth = text.visibleWidth
+
+    if visibleWidth > width {
+      visibleText = text.truncated(toVisibleWidth: width, trimsWhitespaceBeforeEllipsis: true)
+      visibleWidth = visibleText.visibleWidth
+    }
+
+    let padding = String(repeating: " ", count: max(width - visibleWidth, 0))
     let styledText = emphasis?.applied(to: visibleText) ?? visibleText
 
     switch alignment {
     case .leading: return "\(styledText)\(padding)"
     case .trailing: return "\(padding)\(styledText)"
     }
+  }
+
+  private static func scrollbarThumbRange(rowCount: Int, rowCapacity: Int, scrollOffset: Int) -> Range<Int>? {
+    guard rowCapacity > 0, rowCount > rowCapacity else {
+      return nil
+    }
+
+    let thumbLength = max(Int((Double(rowCapacity * rowCapacity) / Double(rowCount)).rounded()), 1)
+    let maximumScrollOffset = rowCount - rowCapacity
+    let thumbOffset = Int((Double((rowCapacity - thumbLength) * scrollOffset) / Double(maximumScrollOffset)).rounded())
+
+    return thumbOffset..<(thumbOffset + thumbLength)
   }
 }
 
@@ -1626,6 +1988,8 @@ final class TerminalSession {
       throw Error.notInteractive
     }
 
+    setlocale(LC_CTYPE, "UTF-8")
+
     var attributes = termios()
 
     guard tcgetattr(FileDescriptor.standardInput.rawValue, &attributes) == 0 else {
@@ -1646,13 +2010,18 @@ final class TerminalSession {
 
     var attributes = originalAttributes
 
-    attributes.c_lflag &= ~tcflag_t(ICANON | ECHO)
+    attributes.c_iflag &= ~tcflag_t(IXON)
+    attributes.c_lflag &= ~tcflag_t(ICANON | ECHO | IEXTEN)
 
     tcsetattr(FileDescriptor.standardInput.rawValue, TCSANOW, &attributes)
     write(
-      ANSIEscapeSequence.enterAlternateScreen
-        + ANSIEscapeSequence.hideCursor
-        + ANSIEscapeSequence.disableLineWrapping
+      """
+      \(ANSIEscapeSequence.enterAlternateScreen)\
+      \(ANSIEscapeSequence.hideCursor)\
+      \(ANSIEscapeSequence.disableLineWrapping)\
+      \(ANSIEscapeSequence.enableGraphemeClustering)\
+      \(ANSIEscapeSequence.enableApplicationCursorKeys)
+      """
     )
 
     self.isActive = true
@@ -1667,9 +2036,13 @@ final class TerminalSession {
 
     tcsetattr(FileDescriptor.standardInput.rawValue, TCSANOW, &attributes)
     write(
-      ANSIEscapeSequence.enableLineWrapping
-        + ANSIEscapeSequence.showCursor
-        + ANSIEscapeSequence.exitAlternateScreen
+      """
+      \(ANSIEscapeSequence.disableApplicationCursorKeys)\
+      \(ANSIEscapeSequence.disableGraphemeClustering)\
+      \(ANSIEscapeSequence.enableLineWrapping)\
+      \(ANSIEscapeSequence.showCursor)\
+      \(ANSIEscapeSequence.exitAlternateScreen)
+      """
     )
 
     self.isActive = false
@@ -1688,93 +2061,275 @@ final class TerminalSession {
   }
 }
 
-enum MonitorEvent {
-  case refresh
-  case redraw
-  case suspend
+enum KeyboardCommand: Equatable {
+  case moveSelection(to: TableSelection.Destination)
+  case openSelection
+  case goBack
   case quit
 
-  static func stream(refreshInterval: Duration, initialRefreshDelay: Duration) -> AsyncStream<MonitorEvent> {
-    let (stream, continuation) = AsyncStream.makeStream(of: MonitorEvent.self)
-    let processSignals = ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP, SIGWINCH, SIGTSTP)
-    let refreshTimerSource = DispatchSource.makeTimerSource(queue: .main)
-    let keyboardInputSource = DispatchSource.makeReadSource(
-      fileDescriptor: FileDescriptor.standardInput.rawValue,
-      queue: .main
-    )
+  private static let escape: UInt8 = 0x1B
+  private static let introducerBytes: [UInt8] = [UInt8(ascii: "["), UInt8(ascii: "O")]
+  private static let finalByteRange: ClosedRange<UInt8> = 0x40...0x7E
+  private static let escapeSequenceTimeout: Duration = .milliseconds(25)
 
-    refreshTimerSource.setEventHandler {
-      continuation.yield(.refresh)
-    }
+  static func readCommands(from fileDescriptor: FileDescriptor) -> [KeyboardCommand]? {
+    var input: [UInt8] = []
 
-    refreshTimerSource.schedule(
-      deadline: .now() + DispatchTimeInterval(initialRefreshDelay),
-      repeating: DispatchTimeInterval(refreshInterval),
-      leeway: DispatchTimeInterval(refreshInterval / 20)
-    )
+    repeat {
+      let byteCount = withUnsafeTemporaryAllocation(byteCount: 256, alignment: 1) { buffer in
+        let bytesRead = (try? fileDescriptor.read(into: buffer)) ?? 0
 
-    keyboardInputSource.setEventHandler {
-      withUnsafeTemporaryAllocation(byteCount: 64, alignment: 1) { buffer in
-        guard let byteCount = try? FileDescriptor.standardInput.read(into: buffer) else {
-          return
-        }
+        input.append(contentsOf: buffer[..<bytesRead])
 
-        if byteCount == 0 || buffer.prefix(byteCount).contains(UInt8(ascii: "q")) {
-          continuation.yield(.quit)
-        }
+        return bytesRead
       }
-    }
 
-    let processSignalsTask = Task {
-      for await signal in processSignals {
-        switch signal {
-        case SIGWINCH: continuation.yield(.redraw)
-        case SIGTSTP: continuation.yield(.suspend)
-        default: continuation.yield(.quit)
-        }
+      guard byteCount > 0 else {
+        return input.isEmpty ? nil : commands(in: input)
       }
-    }
+    } while endsWithIncompleteEscapeSequence(input) && fileDescriptor.waitUntilReadable(timeout: escapeSequenceTimeout)
 
-    continuation.onTermination = { _ in
-      refreshTimerSource.cancel()
-      keyboardInputSource.cancel()
-      processSignalsTask.cancel()
-    }
-
-    refreshTimerSource.resume()
-    keyboardInputSource.resume()
-
-    return stream
+    return commands(in: input)
   }
-}
 
-struct MonitorOptions {
-  var refreshInterval: Duration = .seconds(1)
-  var reSortInterval: Duration?
-  var sortColumn: UsageColumn = .cpu
-  var showsApplicationsOnly = false
+  static func commands(in input: [UInt8]) -> [KeyboardCommand] {
+    var commands: [KeyboardCommand] = []
+    var index = input.startIndex
+
+    while index < input.endIndex {
+      let byte = input[index]
+
+      index += 1
+
+      switch byte {
+      case escape:
+        guard index < input.endIndex, introducerBytes.contains(input[index]) else {
+          commands.append(.goBack)
+          continue
+        }
+
+        let parametersStartIndex = index + 1
+
+        guard
+          let finalByteIndex = input[parametersStartIndex...].firstIndex(where: { finalByteRange.contains($0) })
+        else {
+          index = input.endIndex
+          continue
+        }
+
+        let isModified = modifierValue(in: input[parametersStartIndex..<finalByteIndex]) > 1
+
+        index = finalByteIndex + 1
+
+        switch input[finalByteIndex] {
+        case UInt8(ascii: "A"): commands.append(.moveSelection(to: isModified ? .first : .previous))
+        case UInt8(ascii: "B"): commands.append(.moveSelection(to: isModified ? .last : .next))
+        default: break
+        }
+
+      case UInt8(ascii: "k"): commands.append(.moveSelection(to: .previous))
+      case UInt8(ascii: "j"): commands.append(.moveSelection(to: .next))
+      case UInt8(ascii: "K"): commands.append(.moveSelection(to: .first))
+      case UInt8(ascii: "J"): commands.append(.moveSelection(to: .last))
+      case UInt8(ascii: " "), UInt8(ascii: "\r"), UInt8(ascii: "\n"): commands.append(.openSelection)
+      case UInt8(ascii: "q"): commands.append(.quit)
+      default: break
+      }
+    }
+
+    return commands
+  }
+
+  private static func modifierValue(in parameters: ArraySlice<UInt8>) -> Int {
+    let parameterValues = parameters.split(separator: UInt8(ascii: ";"))
+
+    guard
+      parameterValues.count > 1,
+      let modifierValue = Int(String(decoding: parameterValues[1], as: UTF8.self))
+    else {
+      return 1
+    }
+
+    return modifierValue
+  }
+
+  private static func endsWithIncompleteEscapeSequence(_ input: [UInt8]) -> Bool {
+    guard let escapeIndex = input.lastIndex(of: escape) else {
+      return false
+    }
+
+    let sequence = input[(escapeIndex + 1)...]
+
+    guard let introducer = sequence.first else {
+      return true
+    }
+
+    return introducerBytes.contains(introducer) && !sequence.dropFirst().contains { finalByteRange.contains($0) }
+  }
 }
 
 @MainActor
 final class ResourceUsageMonitor {
-  private static let maximumInitialRefreshDelay: Duration = .milliseconds(500)
+  struct Options {
+    private static let intervalSecondsRange = 0.5...86_400.0
+    private static let sortColumnNames = ResourceUsageColumn.allCases.map(\.rawValue).joined(separator: ", ")
+    private static let usageDescription = """
+      Usage:
+        \(ProcessInfo.processInfo.processName) [options]
 
-  private let options: MonitorOptions
+      Options:
+        -i, --interval <seconds>           Set refresh interval in seconds [default: 2]
+        -r, --re-sort-interval <seconds>   Set re-sort interval in seconds (≥ refresh interval) [default: refresh interval]
+        -s, --sort <column>                Set sort column (\(sortColumnNames)) [default: cpu]
+        -a, --applications-only            Only show applications
+        -h, --help                         Show this help message
+
+      Keys:
+        ↑/↓, k/j                           Move the selection
+        shift + ↑/↓, K/J                   Move the selection to the top or bottom
+        return, space                      Show the process tree of the selected application
+        esc                                Clear the selection or return to the application list
+        q                                  Quit
+      """
+
+    var refreshInterval: Duration = .seconds(2)
+    var reSortInterval: Duration?
+    var sortColumn: ResourceUsageColumn = .cpu
+    var showsApplicationsOnly = false
+
+    init(arguments: some Sequence<String>) {
+      var arguments = arguments.makeIterator()
+
+      while let argument = arguments.next() {
+        switch argument {
+        case "-i", "--interval":
+          self.refreshInterval = Self.duration(fromSecondsValue: arguments.next(), for: argument)
+
+        case "-r", "--re-sort-interval":
+          self.reSortInterval = Self.duration(fromSecondsValue: arguments.next(), for: argument)
+
+        case "-s", "--sort":
+          guard let value = arguments.next() else {
+            Self.printUsageErrorAndExit("Missing value for '\(argument)'.")
+          }
+
+          guard let column = ResourceUsageColumn(rawValue: value.lowercased()) else {
+            Self.printUsageErrorAndExit("Invalid sort column '\(value)'. Expected one of: \(Self.sortColumnNames).")
+          }
+
+          self.sortColumn = column
+
+        case "-a", "--applications-only":
+          self.showsApplicationsOnly = true
+
+        case "-h", "--help":
+          print(Self.usageDescription)
+          exit(EXIT_SUCCESS)
+
+        default:
+          Self.printUsageErrorAndExit("Unknown argument: \(argument)")
+        }
+      }
+
+      if let reSortInterval, reSortInterval < refreshInterval {
+        Self.printUsageErrorAndExit("Re-sort interval must be greater than or equal to the refresh interval.")
+      }
+    }
+
+    private static func duration(fromSecondsValue value: String?, for argument: String) -> Duration {
+      guard let value else {
+        printUsageErrorAndExit("Missing value for '\(argument)'.")
+      }
+
+      guard let seconds = Double(value), intervalSecondsRange.contains(seconds) else {
+        printUsageErrorAndExit(
+          "Invalid value '\(value)' for '\(argument)'. Expected \(intervalSecondsRange.lowerBound) to \(Int(intervalSecondsRange.upperBound)) seconds."
+        )
+      }
+
+      return .seconds(seconds)
+    }
+
+    private static func printUsageErrorAndExit(_ message: String) -> Never {
+      Log.error("Error: \(message)\n\n\(usageDescription)")
+      exit(EX_USAGE)
+    }
+  }
+
+  private enum Event {
+    case redraw
+    case suspend
+    case keyboardCommands([KeyboardCommand])
+    case quit
+
+    static func stream() -> AsyncStream<Event> {
+      let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
+
+      let processSignals = ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP, SIGWINCH, SIGTSTP)
+      let processSignalsTask = Task {
+        for await signal in processSignals {
+          switch signal {
+          case SIGWINCH: continuation.yield(.redraw)
+          case SIGTSTP: continuation.yield(.suspend)
+          default: continuation.yield(.quit)
+          }
+        }
+      }
+
+      let keyboardInputSource = DispatchSource.makeReadSource(
+        fileDescriptor: FileDescriptor.standardInput.rawValue,
+        queue: .main
+      )
+
+      keyboardInputSource.setEventHandler {
+        guard let commands = KeyboardCommand.readCommands(from: .standardInput) else {
+          continuation.yield(.quit)
+          return
+        }
+
+        if !commands.isEmpty {
+          continuation.yield(.keyboardCommands(commands))
+        }
+      }
+
+      continuation.onTermination = { _ in
+        processSignalsTask.cancel()
+        keyboardInputSource.cancel()
+      }
+
+      keyboardInputSource.resume()
+
+      return stream
+    }
+  }
+
+  private enum Screen {
+    case processOwners
+    case processTree(owner: ProcessOwner)
+  }
+
+  private static let maximumInitialRefreshDelay: Duration = .milliseconds(500)
+  private static let maximumRefreshTolerance: Duration = .milliseconds(100)
+
+  private let options: Options
   private let minimumReSortInterval: Duration
   private let terminalSession: TerminalSession
   private let sampler: ResourceUsageSampler
-  private let renderer: ResourceUsageTableRenderer
-  private var entryOrdering = ResourceUsageEntryOrdering()
-  private var lastReSortInstant: ContinuousClock.Instant?
   private var latestSnapshot: ResourceUsageSnapshot?
+  private var lastReSortInstant: ContinuousClock.Instant?
+  private var summaryLines: [String] = []
+  private var screen = Screen.processOwners
+  private var table: ResourceUsageTable?
+  private var ownerOrdering = ProcessOwnerResourceUsageOrdering()
+  private var tableSelection = TableSelection()
+  private var processOwnersSelection = TableSelection()
 
-  init(options: MonitorOptions) throws {
+  init(options: Options) throws {
     self.options = options
     self.minimumReSortInterval =
       (options.reSortInterval ?? options.refreshInterval) - options.refreshInterval / 2
     self.terminalSession = try TerminalSession()
     self.sampler = ResourceUsageSampler(networkStatisticsMonitor: try NetworkStatisticsMonitor())
-    self.renderer = ResourceUsageTableRenderer(sortColumn: options.sortColumn)
   }
 
   func run() async {
@@ -1786,17 +2341,56 @@ final class ResourceUsageMonitor {
       terminalSession.deactivate()
     }
 
-    let events = MonitorEvent.stream(
-      refreshInterval: options.refreshInterval,
-      initialRefreshDelay: min(options.refreshInterval, Self.maximumInitialRefreshDelay)
-    )
+    let refreshTask = Task {
+      await refreshPeriodically()
+    }
 
-    for await event in events {
+    defer {
+      refreshTask.cancel()
+    }
+
+    for await event in Event.stream() {
       switch event {
-      case .refresh: await refresh()
       case .redraw: draw()
       case .suspend: suspend()
       case .quit: return
+      case .keyboardCommands(let commands) where commands.contains(.quit): return
+      case .keyboardCommands(let commands): perform(commands)
+      }
+    }
+  }
+
+  private func perform(_ commands: [KeyboardCommand]) {
+    for command in commands {
+      switch command {
+      case .moveSelection(let destination): moveSelection(to: destination)
+      case .openSelection: openSelection()
+      case .goBack: goBack()
+      case .quit: break
+      }
+    }
+
+    draw()
+  }
+
+  private func refreshPeriodically() async {
+    let clock = ContinuousClock()
+    let tolerance = min(options.refreshInterval / 20, Self.maximumRefreshTolerance)
+    var deadline = clock.now + min(options.refreshInterval, Self.maximumInitialRefreshDelay)
+
+    while true {
+      do {
+        try await Task.sleep(until: deadline, tolerance: tolerance, clock: clock)
+      } catch {
+        return
+      }
+
+      await refresh()
+
+      deadline += options.refreshInterval
+
+      if deadline < clock.now {
+        deadline = clock.now + options.refreshInterval
       }
     }
   }
@@ -1805,29 +2399,124 @@ final class ResourceUsageMonitor {
     var snapshot = await sampler.sample()
 
     if options.showsApplicationsOnly {
-      snapshot.entries.removeAll { $0.owner.kind != .application }
+      snapshot.owners.removeAll { $0.owner.kind != .application }
     }
 
     let now = ContinuousClock.now
     let isReSortDue = lastReSortInstant.map { now - $0 >= minimumReSortInterval } ?? true
 
-    entryOrdering.arrange(&snapshot.entries, sortedBy: options.sortColumn, shouldReSort: isReSortDue)
+    ownerOrdering.arrange(&snapshot.owners, sortedBy: options.sortColumn, shouldReSort: isReSortDue)
 
     if isReSortDue {
       self.lastReSortInstant = now
     }
 
     self.latestSnapshot = snapshot
+    self.summaryLines = ResourceUsageTableRenderer.summaryLines(for: snapshot)
 
+    updateTable()
     draw()
   }
 
-  private func draw() {
+  private func moveSelection(to destination: TableSelection.Destination) {
+    guard let table else {
+      return
+    }
+
+    let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
+      for: table,
+      summaryLineCount: summaryLines.count,
+      size: terminalSession.size
+    )
+
+    tableSelection.move(to: destination, in: table.rows, visibleRowCount: visibleRowCount)
+  }
+
+  private func openSelection() {
+    guard
+      case .processOwners = screen,
+      case .owner(let selectedOwnerID) = tableSelection.selectedRowID,
+      let selectedOwnerResourceUsage = latestSnapshot?.owners.first(where: { $0.id == selectedOwnerID })
+    else {
+      return
+    }
+
+    self.processOwnersSelection = tableSelection
+    self.tableSelection = TableSelection()
+    self.screen = .processTree(owner: selectedOwnerResourceUsage.owner)
+
+    updateTable()
+  }
+
+  private func goBack() {
+    if tableSelection.selectedRowID != nil {
+      self.tableSelection.clear()
+    } else if case .processTree = screen {
+      showProcessOwners()
+    }
+  }
+
+  private func showProcessOwners() {
+    self.screen = .processOwners
+    self.tableSelection = processOwnersSelection
+
+    updateTable()
+  }
+
+  private func updateTable() {
     guard let latestSnapshot else {
       return
     }
 
-    terminalSession.draw(renderer.frame(for: latestSnapshot, size: terminalSession.size))
+    switch screen {
+    case .processOwners:
+      self.table = ResourceUsageTable(
+        nameColumnTitle: ResourceUsageColumn.name.title,
+        sortColumn: options.sortColumn,
+        caption: nil,
+        rows: latestSnapshot.owners.map(ResourceUsageTableRow.init(ownerResourceUsage:)),
+        totalUsage: nil
+      )
+
+    case .processTree(let owner):
+      let ownedProcesses = latestSnapshot.processes.filter { $0.metadata.owner.id == owner.id }
+
+      guard !ownedProcesses.isEmpty else {
+        showProcessOwners()
+        return
+      }
+
+      let rows = ProcessTree.rows(for: ownedProcesses, ownedBy: owner)
+      let processCountDescription = "\(rows.count) \(rows.count == 1 ? "process" : "processes")"
+      let formattedOwnerName = TextEmphasis.bold.applied(to: owner.name)
+      let formattedNavigationHint = TextEmphasis.deemphasized.applied(to: "(esc to go back)")
+
+      self.table = ResourceUsageTable(
+        nameColumnTitle: "PROCESS",
+        sortColumn: nil,
+        caption: "\(formattedOwnerName)  \(processCountDescription)  \(formattedNavigationHint)",
+        rows: rows,
+        totalUsage: latestSnapshot.owners.first { $0.id == owner.id }?.usage
+      )
+    }
+  }
+
+  private func draw() {
+    guard let table else {
+      return
+    }
+
+    let size = terminalSession.size
+    let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
+      for: table,
+      summaryLineCount: summaryLines.count,
+      size: size
+    )
+
+    tableSelection.reconcile(with: table.rows, visibleRowCount: visibleRowCount)
+    terminalSession.draw(
+      ResourceUsageTableRenderer.frame(summaryLines: summaryLines, table: table, selection: tableSelection, size: size)
+    )
   }
 
   private func suspend() {
@@ -1838,73 +2527,7 @@ final class ResourceUsageMonitor {
   }
 }
 
-func printUsageErrorAndExit(_ message: String) -> Never {
-  Log.error("Error: \(message)\n\n\(usageDescription)")
-  exit(EX_USAGE)
-}
-
-func duration(fromSecondsValue value: String?, for argument: String) -> Duration {
-  guard let value else {
-    printUsageErrorAndExit("Missing value for '\(argument)'.")
-  }
-
-  guard let seconds = Double(value), seconds.isFinite, seconds > 0 else {
-    printUsageErrorAndExit("Invalid value '\(value)' for '\(argument)'. Expected a positive number of seconds.")
-  }
-
-  return .seconds(seconds)
-}
-
-let sortColumnNames = UsageColumn.allCases.map(\.rawValue).joined(separator: ", ")
-let usageDescription = """
-  Usage:
-    \(ProcessInfo.processInfo.processName) [options]
-
-  Options:
-    -i, --interval <seconds>           Set refresh interval in seconds [default: 1]
-    -r, --re-sort-interval <seconds>   Set re-sort interval in seconds, greater than or equal to the refresh interval [default: refresh interval]
-    -s, --sort <column>                Set sort column (\(sortColumnNames)) [default: cpu]
-    -a, --applications-only            Only show applications
-    -h, --help                         Show this help message
-  """
-
-var options = MonitorOptions()
-var arguments = CommandLine.arguments.dropFirst().makeIterator()
-
-while let argument = arguments.next() {
-  switch argument {
-  case "-i", "--interval":
-    options.refreshInterval = duration(fromSecondsValue: arguments.next(), for: argument)
-
-  case "-r", "--re-sort-interval":
-    options.reSortInterval = duration(fromSecondsValue: arguments.next(), for: argument)
-
-  case "-s", "--sort":
-    guard let value = arguments.next() else {
-      printUsageErrorAndExit("Missing value for '\(argument)'.")
-    }
-
-    guard let column = UsageColumn(rawValue: value.lowercased()) else {
-      printUsageErrorAndExit("Invalid sort column '\(value)'. Expected one of: \(sortColumnNames).")
-    }
-
-    options.sortColumn = column
-
-  case "-a", "--applications-only":
-    options.showsApplicationsOnly = true
-
-  case "-h", "--help":
-    print(usageDescription)
-    exit(EXIT_SUCCESS)
-
-  default:
-    printUsageErrorAndExit("Unknown argument: \(argument)")
-  }
-}
-
-if let reSortInterval = options.reSortInterval, reSortInterval < options.refreshInterval {
-  printUsageErrorAndExit("Re-sort interval must be greater than or equal to the refresh interval.")
-}
+let options = ResourceUsageMonitor.Options(arguments: CommandLine.arguments.dropFirst())
 
 do {
   let resourceUsageMonitor = try ResourceUsageMonitor(options: options)
