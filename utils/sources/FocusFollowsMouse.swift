@@ -471,7 +471,12 @@ struct SkyLightProxy {
   }
 
   init() throws {
-    guard let skyLightHandle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_NOW) else {
+    guard
+      let skyLightHandle: UnsafeMutableRawPointer = dlopen(
+        "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight",
+        RTLD_LAZY
+      )
+    else {
       throw Error.frameworkNotFound
     }
 
