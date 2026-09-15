@@ -262,6 +262,12 @@ extension NSScreen {
   }
 }
 
+extension NSRunningApplication {
+  var isSystemAgent: Bool {
+    activationPolicy != .regular && bundleURL?.path.hasPrefix("/System/") == true
+  }
+}
+
 typealias SpaceID = UInt64
 
 struct Space: Identifiable, Equatable {
@@ -280,6 +286,7 @@ struct App: Identifiable, Equatable {
   init?(processIdentifier: pid_t) {
     guard
       let runningApplication = NSRunningApplication(processIdentifier: processIdentifier),
+      !runningApplication.isSystemAgent,
       let name = runningApplication.localizedName
     else {
       return nil
@@ -749,11 +756,15 @@ final class SpaceIndicatorModel {
   }
 
   private func trackWindow(_ window: Window) {
-    self.spaceWindows[window.spaceID, default: []].insert(window)
+    if runningApps[window.processIdentifier] == nil {
+      guard let app = App(processIdentifier: window.processIdentifier) else {
+        return
+      }
 
-    if runningApps[window.processIdentifier] == nil, let app = App(processIdentifier: window.processIdentifier) {
       self.runningApps[app.id] = app
     }
+
+    self.spaceWindows[window.spaceID, default: []].insert(window)
   }
 }
 
@@ -814,19 +825,27 @@ struct SpaceIndicatorView: View {
   }
 }
 
+final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
+  override func hitTest(_ point: NSPoint) -> NSView? {
+    return nil
+  }
+}
+
 @MainActor
-final class StatusItemManager {
+final class StatusItemManager: NSObject {
   private static let autosaveName = "SpaceIndicator"
   private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
+  private static let missionControlBundleIdentifier = "com.apple.exposelauncher"
 
   private let startDate = Date.now
   private let spaceIndicatorModel: SpaceIndicatorModel
-  private var hostingView: NSHostingView<SpaceIndicatorView>?
+  private var hostingView: PassthroughHostingView<SpaceIndicatorView>?
   private var statusItem: NSStatusItem?
   private var lastReportedWidth: CGFloat = .zero
 
   init(spaceIndicatorModel: SpaceIndicatorModel) {
     self.spaceIndicatorModel = spaceIndicatorModel
+    super.init()
 
     let spaceIndicatorView = SpaceIndicatorView(
       model: spaceIndicatorModel,
@@ -834,11 +853,12 @@ final class StatusItemManager {
         self?.setStatusItemWidth(to: width)
       }
     )
-    let hostingView = NSHostingView(rootView: spaceIndicatorView)
+    let hostingView = PassthroughHostingView(rootView: spaceIndicatorView)
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     statusItem.autosaveName = Self.autosaveName
     statusItem.behavior = .terminationOnRemoval
-    statusItem.button?.isEnabled = false
+    statusItem.button?.target = self
+    statusItem.button?.action = #selector(openMissionControl)
     statusItem.button?.addSubview(hostingView)
 
     self.hostingView = hostingView
@@ -868,6 +888,26 @@ final class StatusItemManager {
     }
 
     statusItem?.isVisible.toggle()
+  }
+
+  @objc private func openMissionControl() {
+    guard
+      let missionControlURL = NSWorkspace.shared.urlForApplication(
+        withBundleIdentifier: Self.missionControlBundleIdentifier
+      )
+    else {
+      Log.error("Failed to locate Mission Control.")
+      return
+    }
+
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.addsToRecentItems = false
+
+    NSWorkspace.shared.openApplication(at: missionControlURL, configuration: configuration) { _, error in
+      if let error {
+        Log.error("Failed to open Mission Control: \(error.localizedDescription)")
+      }
+    }
   }
 
   private func setStatusItemWidth(to width: CGFloat) {
