@@ -167,18 +167,13 @@ func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdent
 extension CGEventField {
   static let cgsEventType = CGEventField(rawValue: 55)!
   static let gestureHIDType = CGEventField(rawValue: 110)!
-  static let gestureScrollY = CGEventField(rawValue: 119)!
   static let gestureSwipeMotion = CGEventField(rawValue: 123)!
   static let gestureSwipeProgress = CGEventField(rawValue: 124)!
   static let gestureSwipeVelocityX = CGEventField(rawValue: 129)!
-  static let gestureSwipeVelocityY = CGEventField(rawValue: 130)!
   static let gesturePhase = CGEventField(rawValue: 132)!
-  static let scrollGestureFlagBits = CGEventField(rawValue: 135)!
-  static let gestureZoomDeltaX = CGEventField(rawValue: 139)!
 }
 
 extension CGEventType {
-  static let gesture = CGEventType(rawValue: 29)!
   static let dockControl = CGEventType(rawValue: 30)!
 }
 
@@ -220,12 +215,83 @@ extension NSScreen {
   }
 }
 
-enum IOHIDEventType: Int64 {
+enum IOHIDEventType: UInt32 {
+  case velocity = 9
   case dockSwipe = 23
 }
 
-enum CGGestureMotion: Int64 {
+enum IOHIDGestureMotion: UInt16 {
   case horizontal = 1
+}
+
+struct DockSwipeHIDEvent {
+  private static let size = 0x44
+  private static let sizeWithVelocity = 0x60
+  private static let cgEventDataKey: UInt16 = 0x106d
+  private static let dockSwipeEventSize: UInt32 = 0x28
+  private static let velocityEventSize: UInt32 = 0x1c
+  private static let dockSwipeFlavor: UInt16 = 3
+  private static let positionX = 0.1
+
+  private enum Offset {
+    static let timestamp = 0x00
+    static let eventCount = 0x18
+    static let dockSwipeEventSize = 0x1c
+    static let dockSwipeEventType = 0x20
+    static let dockSwipeOptions = 0x24
+    static let dockSwipePositionX = 0x2c
+    static let dockSwipeMotion = 0x3c
+    static let dockSwipeFlavor = 0x3e
+    static let dockSwipeProgress = 0x40
+    static let velocityEventSize = 0x44
+    static let velocityEventType = 0x48
+    static let velocityEventDepth = 0x50
+    static let velocityX = 0x54
+  }
+
+  private var bytes: [UInt8]
+
+  init(phase: CGGesturePhase, progress: Double, velocity: Double?) {
+    self.bytes = [UInt8](repeating: 0, count: velocity == nil ? Self.size : Self.sizeWithVelocity)
+
+    setValue(mach_absolute_time(), at: Offset.timestamp)
+    setValue(UInt32(velocity == nil ? 1 : 2), at: Offset.eventCount)
+    setValue(Self.dockSwipeEventSize, at: Offset.dockSwipeEventSize)
+    setValue(IOHIDEventType.dockSwipe.rawValue, at: Offset.dockSwipeEventType)
+    setValue(phase.rawValue << 24, at: Offset.dockSwipeOptions)
+    setValue(Self.fixedPoint(Self.positionX), at: Offset.dockSwipePositionX)
+    setValue(IOHIDGestureMotion.horizontal.rawValue, at: Offset.dockSwipeMotion)
+    setValue(Self.dockSwipeFlavor, at: Offset.dockSwipeFlavor)
+    setValue(Self.fixedPoint(progress), at: Offset.dockSwipeProgress)
+
+    if let velocity {
+      setValue(Self.velocityEventSize, at: Offset.velocityEventSize)
+      setValue(IOHIDEventType.velocity.rawValue, at: Offset.velocityEventType)
+      setValue(UInt32(1), at: Offset.velocityEventDepth)
+      setValue(Self.fixedPoint(velocity), at: Offset.velocityX)
+    }
+  }
+
+  func attach(to event: CGEvent) -> CGEvent? {
+    guard var eventData = event.data as Data? else {
+      return nil
+    }
+
+    withUnsafeBytes(of: UInt16(bytes.count).bigEndian) { eventData.append(contentsOf: $0) }
+    withUnsafeBytes(of: Self.cgEventDataKey.bigEndian) { eventData.append(contentsOf: $0) }
+    eventData.append(contentsOf: bytes)
+
+    return CGEvent(withDataAllocator: nil, data: eventData as CFData)
+  }
+
+  private mutating func setValue<T: FixedWidthInteger>(_ value: T, at offset: Int) {
+    bytes.withUnsafeMutableBytes { $0.storeBytes(of: value.littleEndian, toByteOffset: offset, as: T.self) }
+  }
+
+  private static func fixedPoint(_ value: Double) -> Int32 {
+    let fixedPointValue = Int32((value * 65536).rounded(.towardZero))
+    return fixedPointValue == 0 && value != 0 ? (value < 0 ? -1 : 1) : fixedPointValue
+  }
 }
 
 final class SpaceSwitcher {
@@ -298,9 +364,12 @@ final class SpaceSwitcher {
 
   @discardableResult
   private func performSpaceSwitchGesture(direction: Direction) -> Bool {
+    let isNaturalScrolling = UserDefaults.standard.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true
+    let sign: Double = (direction == .right) == isNaturalScrolling ? -1.0 : 1.0
+
     guard
-      performSpaceSwitchGesture(phase: .began, direction: direction),
-      performSpaceSwitchGesture(phase: .ended, direction: direction)
+      performSpaceSwitchGesture(phase: .began, sign: sign),
+      performSpaceSwitchGesture(phase: .ended, sign: sign)
     else {
       return false
     }
@@ -308,32 +377,37 @@ final class SpaceSwitcher {
     return true
   }
 
-  private func performSpaceSwitchGesture(phase: CGGesturePhase, direction: Direction) -> Bool {
-    guard let dockControlEvent = CGEvent(source: nil), let gestureEvent = CGEvent(source: nil) else {
+  private func performSpaceSwitchGesture(phase: CGGesturePhase, sign: Double) -> Bool {
+    let progress = sign * 1.6e-5
+    let velocity: Double? = phase == .ended ? sign * 500.0 : nil
+
+    guard let dockControlEvent = CGEvent(source: nil) else {
       Log.error("Failed to create CGEvent for space switch gesture.")
       return false
     }
 
-    dockControlEvent.type = .dockControl
     dockControlEvent.setIntegerValueField(.cgsEventType, value: Int64(CGEventType.dockControl.rawValue))
-    dockControlEvent.setIntegerValueField(.gestureHIDType, value: IOHIDEventType.dockSwipe.rawValue)
+    dockControlEvent.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.dockSwipe.rawValue))
     dockControlEvent.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
-    dockControlEvent.setIntegerValueField(.scrollGestureFlagBits, value: direction == .right ? 1 : 0)
-    dockControlEvent.setIntegerValueField(.gestureSwipeMotion, value: CGGestureMotion.horizontal.rawValue)
-    dockControlEvent.setDoubleValueField(.gestureScrollY, value: 0.0)
-    dockControlEvent.setDoubleValueField(.gestureZoomDeltaX, value: Double(Float.leastNonzeroMagnitude))
+    dockControlEvent.setIntegerValueField(.gestureSwipeMotion, value: Int64(IOHIDGestureMotion.horizontal.rawValue))
+    dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: progress)
 
-    if phase == .ended {
-      dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: direction == .right ? 2.0 : -2.0)
-      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityX, value: direction == .right ? 400.0 : -400.0)
-      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityY, value: 0.0)
+    if let velocity {
+      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityX, value: velocity)
     }
 
-    gestureEvent.type = .gesture
-    gestureEvent.setIntegerValueField(.cgsEventType, value: Int64(CGEventType.gesture.rawValue))
+    guard
+      let hidDockControlEvent = DockSwipeHIDEvent(
+        phase: phase,
+        progress: progress,
+        velocity: velocity
+      ).attach(to: dockControlEvent)
+    else {
+      Log.error("Failed to attach HID event data to space switch gesture.")
+      return false
+    }
 
-    dockControlEvent.post(tap: .cgSessionEventTap)
-    gestureEvent.post(tap: .cgSessionEventTap)
+    hidDockControlEvent.post(tap: .cgSessionEventTap)
 
     return true
   }
