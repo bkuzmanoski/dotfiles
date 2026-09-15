@@ -470,15 +470,15 @@ struct LoadAverages {
 
 struct MemoryUsage {
   let usedBytes: UInt64
-  let compressedBytes: UInt64
   let wiredBytes: UInt64
+  let compressedBytes: UInt64
   let totalBytes: UInt64
 
   static var current: MemoryUsage {
     let totalBytes = ProcessInfo.processInfo.physicalMemory
 
     guard let statistics = MachHost.virtualMemoryStatistics() else {
-      return MemoryUsage(usedBytes: 0,  compressedBytes: 0, wiredBytes: 0, totalBytes: totalBytes)
+      return MemoryUsage(usedBytes: 0,  wiredBytes: 0,compressedBytes: 0,  totalBytes: totalBytes)
     }
 
     let internalPageCount = UInt64(statistics.internal_page_count)
@@ -488,8 +488,8 @@ struct MemoryUsage {
 
     return MemoryUsage(
       usedBytes: (internalPageCount - purgeablePageCount) * MachHost.pageSize + wiredBytes + compressedBytes,
-      compressedBytes: compressedBytes,
       wiredBytes: wiredBytes,
+      compressedBytes: compressedBytes,
       totalBytes: totalBytes
     )
   }
