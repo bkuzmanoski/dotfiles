@@ -95,15 +95,17 @@ function udmg() {
       continue
     fi
 
-    local -a detach_command=(hdiutil detach "${device}")
+    local -a eject_command=(diskutil eject)
 
     if ((${#flag_force} > 0)); then
-      detach_command+=(-force)
+      eject_command+=(force)
     fi
+
+    eject_command+=("${device}")
 
     print -P "Unmounting %B${device}%b (${dmg_path:t})..."
 
-    if ! "${detach_command[@]}"; then
+    if ! "${eject_command[@]}"; then
       print -u2 -P "%F{1}Error:%f Failed to unmount ${dmg_path}"
       ((fail_count++))
     fi

@@ -28,7 +28,7 @@ function backup_if_needed() {
 function defaults_write() {
   zparseopts -D -E -sudo=use_sudo -currentHost=use_currentHost
 
-  local -a write_command=(${use_sudo:+"sudo"} "defaults" "${use_currentHost:+" -currentHost"}" "write" "$@")
+  local -a write_command=(${use_sudo:+"sudo"} "defaults" ${use_currentHost:+"-currentHost"} "write" "$@")
 
   log --info "Executing: ${write_command[*]}"
   "${write_command[@]}"
@@ -344,7 +344,6 @@ defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false #
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false #
 defaults_write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false   #
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true    # Expand save panel by default
-defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true   #
 defaults_write NSGlobalDomain NavPanelFileListModeForOpenMode -int 2           # Set open panel view to list view
 defaults_write NSGlobalDomain NSNavPanelFileListModeForOpenMode2 -int 2        #
 defaults_write NSGlobalDomain NSNavPanelFileLastListModeForOpenModeKey -int 2  #
