@@ -261,8 +261,6 @@ defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGes
 
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
 
-defaults_write --currentHost com.apple.controlcenter BatteryShowPercentage -bool true
-
 defaults_write com.apple.dock autohide-time-modifier -float 0.15     # Increase Dock show/hide animation speed
 defaults_write com.apple.dock mineffect -string "scale"              # Set minimize/maximize window effect to "scale"
 defaults_write com.apple.dock mru-spaces -bool false                 # Disable automatic rearranging of Spaces based on most recent use
