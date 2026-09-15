@@ -1035,6 +1035,7 @@ final class FocusManager {
 
   func logDiagnosticReport() {
     let suspendingWindowIDsInActiveSpace = suspendingWindows[activeSpaceID, default: []]
+
     let suspendingWindowOwnerNames =
       (CGWindowListCopyWindowInfo(
         [.optionOnScreenOnly, .excludeDesktopElements],
@@ -1052,7 +1053,6 @@ final class FocusManager {
       suspendingWindowIDsInActiveSpace
       .sorted()
       .map { "\($0) (\(suspendingWindowOwnerNames[$0] ?? "<unknown>"))" }
-
     let suspendingWindowsInOtherSpaces =
       suspendingWindows
       .filter { $0.key != activeSpaceID && !$0.value.isEmpty }
