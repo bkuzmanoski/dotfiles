@@ -484,6 +484,7 @@ final class AppMenu {
     if let submenuElement = menuItemData.children?.first {
       if showsSubmenuImages {
         menuItem.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+        menuItem.preferredImageVisibility = .visible
       }
 
       menuItem.submenu = try buildMenu(
