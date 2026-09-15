@@ -4,7 +4,8 @@
   "lineLength": 120,
   "multiElementCollectionTrailingCommas": false,
   "orderedImports": {
-    "includeConditionalImports": true
+    "includeConditionalImports": true,
+    "shouldGroupImports": true
   },
   "prioritizeKeepingFunctionOutputTogether": true,
   "respectsExistingLineBreaks": true,

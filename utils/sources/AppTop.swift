@@ -478,7 +478,7 @@ struct MemoryUsage {
     let totalBytes = ProcessInfo.processInfo.physicalMemory
 
     guard let statistics = MachHost.virtualMemoryStatistics() else {
-      return MemoryUsage(usedBytes: 0,  wiredBytes: 0,compressedBytes: 0,  totalBytes: totalBytes)
+      return MemoryUsage(usedBytes: 0, wiredBytes: 0, compressedBytes: 0, totalBytes: totalBytes)
     }
 
     let internalPageCount = UInt64(statistics.internal_page_count)
