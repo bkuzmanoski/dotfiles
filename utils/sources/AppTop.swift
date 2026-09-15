@@ -483,8 +483,8 @@ struct MemoryUsage {
 
     let internalPageCount = UInt64(statistics.internal_page_count)
     let purgeablePageCount = min(UInt64(statistics.purgeable_count), internalPageCount)
-    let compressedBytes = UInt64(statistics.compressor_page_count) * MachHost.pageSize
     let wiredBytes = UInt64(statistics.wire_count) * MachHost.pageSize
+    let compressedBytes = UInt64(statistics.compressor_page_count) * MachHost.pageSize
 
     return MemoryUsage(
       usedBytes: (internalPageCount - purgeablePageCount) * MachHost.pageSize + wiredBytes + compressedBytes,
