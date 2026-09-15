@@ -156,10 +156,11 @@ enum ProcessSignals {
 
 @MainActor
 final class MenuBarItemManager {
-  private let startDate = Date.now
-  private let menuBarPreferencesPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+  private static let menuBarPreferencesPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
     "Library/Group Containers/com.apple.MenuBar/Library/Preferences/com.apple.MenuBar.plist"
   ).path
+
+  private let startDate = Date.now
   private let boundaryStatusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private var spacerStatusItems: [NSStatusItem] = []
   private var screenParametersObservationTask: Task<Void, Never>?
@@ -261,7 +262,7 @@ final class MenuBarItemManager {
       return nil
     }
 
-    let domain = menuBarPreferencesPath as CFString
+    let domain = Self.menuBarPreferencesPath as CFString
 
     CFPreferencesAppSynchronize(domain)
 
