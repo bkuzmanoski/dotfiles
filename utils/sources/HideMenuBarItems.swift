@@ -155,31 +155,78 @@ enum ProcessSignals {
 }
 
 @MainActor
-final class StatusItemManager {
+final class MenuBarItemManager {
   private let startDate = Date.now
-  private let statusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+  private let menuBarPreferencesPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
+    "Library/Group Containers/com.apple.MenuBar/Library/Preferences/com.apple.MenuBar.plist"
+  ).path
+  private let boundaryStatusItem: NSStatusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+  private var spacerStatusItems: [NSStatusItem] = []
+  private var screenParametersObservationTask: Task<Void, Never>?
+
+  private var isHidingItems: Bool { boundaryStatusItem.length != NSStatusItem.variableLength }
 
   init() {
-    statusItem.behavior = .terminationOnRemoval
-    statusItem.button?.isEnabled = false
+    boundaryStatusItem.behavior = .terminationOnRemoval
+    boundaryStatusItem.button?.isEnabled = false
+
+    self.screenParametersObservationTask = Task { [weak self] in
+      for await _ in NotificationCenter.default.notifications(
+        named: NSApplication.didChangeScreenParametersNotification
+      ) {
+        guard let self = self else {
+          break
+        }
+
+        guard isHidingItems else {
+          return
+        }
+
+        hideItems()
+      }
+    }
   }
 
   isolated deinit {
-    NSStatusBar.system.removeStatusItem(statusItem)
+    NSStatusBar.system.removeStatusItem(boundaryStatusItem)
+    removeSpacerStatusItems()
+    screenParametersObservationTask?.cancel()
   }
 
-  func showStatusItem() {
-    statusItem.length = NSStatusItem.variableLength
-    statusItem.button?.title = "􂉏"
+  func showItems() {
+    boundaryStatusItem.length = NSStatusItem.variableLength
+    boundaryStatusItem.button?.title = "􂉏"
+
+    removeSpacerStatusItems()
   }
 
-  func hideStatusItem() {
-    statusItem.length = 6016
-    statusItem.button?.title = ""
+  func hideItems() {
+    let screenWidths = NSScreen.screens.map(\.frame.width)
+    let maximumSpacerStatusItemLength = ((screenWidths.min() ?? 0) / 2).rounded(.down)
+
+    guard maximumSpacerStatusItemLength > 0 else {
+      return
+    }
+
+    let spacerStatusItemCount = max(
+      Int(((screenWidths.max() ?? 0) / maximumSpacerStatusItemLength).rounded(.up)) - 1,
+      1
+    )
+
+    if spacerStatusItems.count != spacerStatusItemCount {
+      removeSpacerStatusItems()
+      addSpacerStatusItems(count: spacerStatusItemCount)
+    }
+
+    boundaryStatusItem.button?.title = ""
+
+    for statusItem in [boundaryStatusItem] + spacerStatusItems {
+      setLength(of: statusItem, to: maximumSpacerStatusItemLength)
+    }
   }
 
-  func toggleStatusItemVisibility() {
-    statusItem.length == NSStatusItem.variableLength ? hideStatusItem() : showStatusItem()
+  func toggleItemVisibility() {
+    isHidingItems ? showItems() : hideItems()
   }
 
   func logDiagnosticReport() {
@@ -187,18 +234,86 @@ final class StatusItemManager {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
-        Menu Bar items hidden: \(statusItem.length != NSStatusItem.variableLength)
-        Status item visible: \(statusItem.isVisible)
-        Status item length: \(statusItem.length)
+        Menu Bar items hidden: \(isHidingItems)
+        Boundary status item visible: \(boundaryStatusItem.isVisible)
+        Boundary status item length: \(boundaryStatusItem.length)
+        Boundary status item window width: \(boundaryStatusItem.button?.window?.frame.width ?? 0)
+        Boundary status item MenuBarAgent position: \(menuBarAgentPosition(of: boundaryStatusItem).map { "\($0)" } ?? "<none>")
+        Spacer status items: \(spacerStatusItems.map { "\($0.autosaveName ?? "<none>") (\($0.button?.window?.frame.width ?? 0))" }.joined(separator: ", "))
       """
     )
+  }
+
+  private func setLength(of statusItem: NSStatusItem, to length: CGFloat) {
+    statusItem.length = length
+
+    if let windowWidth = statusItem.button?.window?.frame.width, windowWidth > length {
+      statusItem.length -= windowWidth - length
+    }
+  }
+
+  private func preferredPositionKey(for autosaveName: String) -> String {
+    return "NSStatusItem Preferred Position \(autosaveName)"
+  }
+
+  private func menuBarAgentPosition(of item: NSStatusItem) -> Double? {
+    guard let autosaveName = item.autosaveName else {
+      return nil
+    }
+
+    let domain = menuBarPreferencesPath as CFString
+
+    CFPreferencesAppSynchronize(domain)
+
+    let positions = CFPreferencesCopyAppValue("TrailingItemPreferredPositions" as CFString, domain) as? [String: Double]
+
+    return positions?["status:\(ProcessInfo.processInfo.processName)::\(autosaveName)"]
+  }
+
+  private func addSpacerStatusItems(count: Int) {
+    guard spacerStatusItems.isEmpty else {
+      return
+    }
+
+    let boundaryStatusItemPosition =
+      menuBarAgentPosition(of: boundaryStatusItem)
+      ?? UserDefaults.standard.object(forKey: preferredPositionKey(for: boundaryStatusItem.autosaveName))
+      as? Double
+
+    for index in 0..<count {
+      let spacerItem = NSStatusBar.system.statusItem(withLength: 1)
+
+      if let boundaryStatusItemPosition {
+        let autosaveName = "Spacer-\(Int(boundaryStatusItemPosition))-\(index)"
+
+        UserDefaults.standard.set(
+          boundaryStatusItemPosition + Double(index + 1) * 0.1,
+          forKey: preferredPositionKey(for: autosaveName)
+        )
+
+        spacerItem.autosaveName = autosaveName
+      }
+
+      spacerItem.behavior = .terminationOnRemoval
+      spacerItem.button?.isEnabled = false
+
+      self.spacerStatusItems.append(spacerItem)
+    }
+  }
+
+  private func removeSpacerStatusItems() {
+    for spacerItem in spacerStatusItems {
+      NSStatusBar.system.removeStatusItem(spacerItem)
+    }
+
+    self.spacerStatusItems.removeAll()
   }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
   private var singleInstanceLock: SingleInstanceLock?
-  private var statusItemManager: StatusItemManager?
+  private var menuBarItemManager: MenuBarItemManager?
 
   init(singleInstanceLock: SingleInstanceLock) {
     self.singleInstanceLock = singleInstanceLock
@@ -206,9 +321,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    self.statusItemManager = StatusItemManager()
+    self.menuBarItemManager = MenuBarItemManager()
 
-    statusItemManager?.hideStatusItem()
+    menuBarItemManager?.hideItems()
 
     observeProcessSignals()
     observeIPCCommands()
@@ -216,7 +331,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     self.singleInstanceLock = nil
-    self.statusItemManager = nil
+    self.menuBarItemManager = nil
   }
 
   private func observeProcessSignals() {
@@ -229,11 +344,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeIPCCommands() {
     Task {
-      for await notification
-        in DistributedNotificationCenter
-        .default()
-        .notifications(named: IPCCommand.notificationName)
-      {
+      for await notification in DistributedNotificationCenter.default().notifications(
+        named: IPCCommand.notificationName
+      ) {
         guard
           let userInfo = notification.userInfo,
           let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
@@ -249,8 +362,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
-    case .toggle: statusItemManager?.toggleStatusItemVisibility()
-    case .printLog: statusItemManager?.logDiagnosticReport()
+    case .toggle: menuBarItemManager?.toggleItemVisibility()
+    case .printLog: menuBarItemManager?.logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
     }
   }
