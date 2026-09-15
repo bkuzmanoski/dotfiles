@@ -921,11 +921,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func observeIPCCommands() {
     Task {
-      for await notification
-        in DistributedNotificationCenter
-        .default()
-        .notifications(named: IPCCommand.notificationName)
-      {
+      for await notification in DistributedNotificationCenter.default().notifications(
+        named: IPCCommand.notificationName
+      ) {
         guard
           let userInfo = notification.userInfo,
           let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
