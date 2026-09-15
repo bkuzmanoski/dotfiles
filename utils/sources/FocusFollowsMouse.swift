@@ -156,6 +156,12 @@ enum ProcessSignals {
   }
 }
 
+extension NSRunningApplication {
+  var isSystemAgent: Bool {
+    activationPolicy != .regular && bundleURL?.path.hasPrefix("/System/") == true
+  }
+}
+
 extension MainActor {
   static func runOrDispatch(_ body: @escaping @Sendable @MainActor () -> Void) {
     if Thread.isMainThread {
@@ -257,13 +263,6 @@ extension AXError {
       throw self
     }
   }
-}
-
-extension NSAccessibility.Notification {
-  static let exposeShowAllWindows = NSAccessibility.Notification(rawValue: "AXExposeShowAllWindows")
-  static let exposeShowFrontWindows = NSAccessibility.Notification(rawValue: "AXExposeShowFrontWindows")
-  static let exposeShowDesktop = NSAccessibility.Notification(rawValue: "AXExposeShowDesktop")
-  static let exposeExit = NSAccessibility.Notification(rawValue: "AXExposeExit")
 }
 
 extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
@@ -725,179 +724,6 @@ final class WorkspaceMonitor {
 }
 
 @MainActor
-final class MissionControlMonitor {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-    case dockProcessNotFound
-    case failedToCreateObserver(underlyingError: AXError)
-    case failedToAddNotification(notification: NSAccessibility.Notification, underlyingError: AXError)
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted:
-        "Accessibility permission not granted."
-
-      case .dockProcessNotFound:
-        "Dock process not found."
-
-      case .failedToCreateObserver:
-        "Failed to create observer for Dock process."
-
-      case .failedToAddNotification(let notification, let underlyingError):
-        "Failed to observe '\(notification.rawValue)' notifications: \(underlyingError)"
-      }
-    }
-  }
-
-  enum Event {
-    case activated
-    case deactivated
-  }
-
-  private var dockElement: AXUIElement?
-  private var axObserver: AXObserver?
-  private var observedNotifications = Set<NSAccessibility.Notification>()
-  private var runLoopSource: CFRunLoopSource?
-  private var dockRestartObservationTask: Task<Void, Never>?
-  private var continuation: AsyncStream<Event>.Continuation?
-
-  init() throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
-
-    try startObserver()
-
-    let dockRestartObservationTask = Task { [weak self] in
-      for await _ in NotificationCenter.default.notifications(
-        named: Notification.Name("NSApplicationDockDidRestartNotification")
-      ) {
-        guard let self else {
-          break
-        }
-
-        do {
-          continuation?.yield(.deactivated)
-          try startObserver()
-        } catch {
-          Log.error(error.localizedDescription)
-        }
-      }
-    }
-
-    self.dockRestartObservationTask = dockRestartObservationTask
-  }
-
-  isolated deinit {
-    continuation?.finish()
-    dockRestartObservationTask?.cancel()
-    stopObserverIfNeeded()
-  }
-
-  func events() -> AsyncStream<Event> {
-    continuation?.finish()
-
-    let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
-
-    self.continuation = continuation
-
-    return stream
-  }
-
-  private func startObserver() throws {
-    stopObserverIfNeeded()
-
-    guard
-      let dockPID =
-        NSRunningApplication
-        .runningApplications(withBundleIdentifier: "com.apple.dock")
-        .first?
-        .processIdentifier
-    else {
-      throw Error.dockProcessNotFound
-    }
-
-    let dockElement = AXUIElementCreateApplication(dockPID)
-
-    var axObserver: AXObserver?
-    let result = AXObserverCreate(
-      dockPID,
-      { _, _, notification, refcon in
-        guard let refcon else {
-          return
-        }
-
-        MainActor.assumeIsolated {
-          Unmanaged<MissionControlMonitor>.fromOpaque(refcon).takeUnretainedValue().handleNotification(
-            NSAccessibility.Notification(rawValue: notification as String)
-          )
-        }
-      },
-      &axObserver
-    )
-
-    guard result == .success, let axObserver else {
-      throw Error.failedToCreateObserver(underlyingError: result)
-    }
-
-    let selfPointer = Unmanaged.passUnretained(self).toOpaque()
-
-    for notification: NSAccessibility.Notification in [
-      .exposeShowAllWindows,
-      .exposeShowFrontWindows,
-      .exposeShowDesktop,
-      .exposeExit
-    ] {
-      let result = AXObserverAddNotification(axObserver, dockElement, notification as CFString, selfPointer)
-
-      guard result == .success else {
-        stopObserverIfNeeded()
-        throw Error.failedToAddNotification(notification: notification, underlyingError: result)
-      }
-
-      self.observedNotifications.insert(notification)
-    }
-
-    let runLoopSource = AXObserverGetRunLoopSource(axObserver)
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-
-    self.axObserver = axObserver
-    self.dockElement = dockElement
-    self.runLoopSource = runLoopSource
-  }
-
-  private func stopObserverIfNeeded() {
-    if let axObserver, let dockElement {
-      for notification in observedNotifications {
-        AXObserverRemoveNotification(axObserver, dockElement, notification as CFString)
-      }
-    }
-
-    if let runLoopSource {
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    }
-
-    self.axObserver = nil
-    self.dockElement = nil
-    self.observedNotifications.removeAll()
-    self.runLoopSource = nil
-  }
-
-  private func handleNotification(_ notification: NSAccessibility.Notification) {
-    guard let continuation else {
-      return
-    }
-
-    switch notification {
-    case .exposeShowAllWindows, .exposeShowFrontWindows, .exposeShowDesktop: continuation.yield(.activated)
-    case .exposeExit: continuation.yield(.deactivated)
-    default: break
-    }
-  }
-}
-
-@MainActor
 final class FocusManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
@@ -913,12 +739,13 @@ final class FocusManager {
     }
   }
 
+  private static let windowManagerBundleIdentifier = "com.apple.WindowManager"
+
   private(set) var isEnabled = true
 
   private let startDate = Date.now
   private let skyLightProxy: SkyLightProxy
   private let workspaceMonitor: WorkspaceMonitor
-  private let missionControlMonitor: MissionControlMonitor
   private let debounceTimer: any DispatchSourceTimer
   private let suspendingWindowLevels: Set<CGWindowLevel> = [
     CGWindowLevelForKey(.modalPanelWindow),
@@ -926,23 +753,21 @@ final class FocusManager {
     CGWindowLevelForKey(.screenSaverWindow),
     CGWindowLevelForKey(.overlayWindow)
   ]
+  private let windowManagerSuspendingWindowLevels: Set<CGWindowLevel> = [18, 19]
   private let hoverDelay: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
-  private var systemObservationTask: Task<Void, Never>?
+  private var workspaceMonitoringTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
   private var activeSpaceID: SpaceID
   private var suspendingWindows: [SpaceID: Set<CGWindowID>] = [:]
-  private var isMissionControlActive = false
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
-  private var isSuspended: Bool {
-    isCommandKeyPressed || isMissionControlActive || !suspendingWindows[activeSpaceID, default: []].isEmpty
-  }
+  private var isSuspended: Bool { isCommandKeyPressed || !suspendingWindows[activeSpaceID, default: []].isEmpty }
 
   init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
@@ -955,7 +780,6 @@ final class FocusManager {
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.skyLightProxy = try SkyLightProxy()
     self.workspaceMonitor = try WorkspaceMonitor(skyLightProxy: skyLightProxy)
-    self.missionControlMonitor = try MissionControlMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
     self.activeSpaceID = skyLightProxy.activeSpaceID
 
@@ -995,11 +819,8 @@ final class FocusManager {
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
 
-    let systemObservationTask = Task { [weak self] in
-      await withDiscardingTaskGroup { group in
-        group.addTask { await self?.monitorWorkspace() }
-        group.addTask { await self?.monitorMissionControl() }
-      }
+    let workspaceMonitoringTask = Task<Void, Never> { [weak self] in
+      await self?.monitorWorkspace()
     }
 
     debounceTimer.setEventHandler { [weak self] in
@@ -1010,7 +831,7 @@ final class FocusManager {
 
     self.eventTap = eventTap
     self.runLoopSource = runLoopSource
-    self.systemObservationTask = systemObservationTask
+    self.workspaceMonitoringTask = workspaceMonitoringTask
   }
 
   isolated deinit {
@@ -1023,7 +844,7 @@ final class FocusManager {
       CFMachPortInvalidate(eventTap)
     }
 
-    systemObservationTask?.cancel()
+    workspaceMonitoringTask?.cancel()
     debounceTimer.cancel()
     focusTask?.cancel()
   }
@@ -1068,7 +889,6 @@ final class FocusManager {
         Active space ID: \(activeSpaceID)
         Suspended: \(isSuspended)
           Command key pressed: \(isCommandKeyPressed)
-          Mission Control active: \(isMissionControlActive)
           Suspending windows in active space: \(suspendingWindowsInActiveSpace.isEmpty ? "none" : "\(suspendingWindowsInActiveSpace.joined(separator: ", "))")
         Suspending windows in other spaces: \(suspendingWindowsInOtherSpaces.isEmpty ? "none" : "\n\(suspendingWindowsInOtherSpaces.joined(separator: "\n"))")
         Focus pending: \(isFocusPending)
@@ -1097,29 +917,17 @@ final class FocusManager {
           windowID
         ) as? [[String: Any]],
           let windowInfo = windowsInfo.first,
-          windowInfo[kCGWindowIsOnscreen as String] as? Bool == true,
-          windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0,
-          let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel,
-          suspendingWindowLevels.contains(windowLayer)
+          isSuspendingWindow(info: windowInfo)
         {
           suspendingWindows[spaceID, default: []].insert(windowID)
+
+          if spaceID == activeSpaceID {
+            cancelPendingFocus()
+          }
         }
 
       case .windowRemoved(let windowID, let spaceID):
         suspendingWindows[spaceID]?.remove(windowID)
-      }
-    }
-  }
-
-  private func monitorMissionControl() async {
-    for await event in missionControlMonitor.events() {
-      switch event {
-      case .activated:
-        self.isMissionControlActive = true
-        cancelPendingFocus()
-
-      case .deactivated:
-        self.isMissionControlActive = false
       }
     }
   }
@@ -1214,6 +1022,7 @@ final class FocusManager {
       let windowInfo = windowsInfo.first,
       let targetPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
       windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
+      NSRunningApplication(processIdentifier: targetPID)?.isSystemAgent != true,
       !Task.isCancelled
     else {
       return
@@ -1221,10 +1030,13 @@ final class FocusManager {
 
     var targetPSN = ProcessSerialNumber()
 
+    guard GetProcessForPID(targetPID, &targetPSN) == noErr else {
+      return
+    }
+
     var isSameProcess: DarwinBoolean = false
 
-    if GetProcessForPID(targetPID, &targetPSN) == noErr,
-      var focusedPSN = skyLightProxy.frontProcess,
+    if var focusedPSN = skyLightProxy.frontProcess,
       SameProcess(&targetPSN, &focusedPSN, &isSameProcess) == noErr,
       isSameProcess.boolValue
     {
@@ -1286,6 +1098,23 @@ final class FocusManager {
 
     self.isFocusPending = false
     self.focusTask = nil
+  }
+
+  private func isSuspendingWindow(info windowInfo: [String: Any]) -> Bool {
+    guard let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel else {
+      return false
+    }
+
+    if windowManagerSuspendingWindowLevels.contains(windowLayer),
+      let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+      NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier == Self.windowManagerBundleIdentifier
+    {
+      return true
+    }
+
+    return suspendingWindowLevels.contains(windowLayer)
+      && windowInfo[kCGWindowIsOnscreen as String] as? Bool == true
+      && windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0
   }
 
   private func pruneRemovedSuspendingWindowsInActiveSpace() {
