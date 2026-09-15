@@ -542,6 +542,7 @@ final class SpaceIndicatorModel {
       }
 
     lines.append("Stale windows: \(staleWindowsInfo.values.reduce(0) { $0 + $1.count })")
+
     for spaceID in staleWindowsInfo.keys.sorted(by: <) {
       if let windows = staleWindowsInfo[spaceID], !windows.isEmpty {
         lines.append("  Space \(spaceID): \(windows.count) window(s)")
@@ -560,6 +561,7 @@ final class SpaceIndicatorModel {
       .sorted()
 
     lines.append("Orphaned apps: \(orphanedAppsInfo.count)")
+
     for orphanedAppInfo in orphanedAppsInfo {
       lines.append("  \(orphanedAppInfo)")
     }
