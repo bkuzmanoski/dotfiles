@@ -162,16 +162,6 @@ extension NSRunningApplication {
   }
 }
 
-extension MainActor {
-  static func runOrDispatch(_ body: @escaping @Sendable @MainActor () -> Void) {
-    if Thread.isMainThread {
-      MainActor.assumeIsolated(body)
-    } else {
-      DispatchQueue.main.async(execute: body)
-    }
-  }
-}
-
 struct ProcessSerialNumber {
   var highLongOfPSN: UInt32 = 0
   var lowLongOfPSN: UInt32 = 0
@@ -288,23 +278,6 @@ extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
   }
 }
 
-typealias SpaceID = UInt64
-
-enum CGSEventType: UInt32 {
-  case packagesStatusBarSpaceChanged = 1308
-  case spaceWindowCreated = 1325
-  case spaceWindowDestroyed = 1326
-  case spaceCurrentChanged = 1329
-}
-
-typealias SLSNotifyProc =
-  @convention(c) (
-    _ eventType: CGSEventType.RawValue,
-    _ data: UnsafeMutableRawPointer?,
-    _ dataLength: UInt32,
-    _ context: UnsafeMutableRawPointer?
-  ) -> Void
-
 struct CPSSetFrontProcessOptions: OptionSet {
   let rawValue: UInt32
 
@@ -406,7 +379,6 @@ struct SkyLightProxy {
 
   private typealias SLSConnectionID = UInt32
   private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
-  private typealias SLSGetActiveSpace = @convention(c) (_ connectionID: SLSConnectionID) -> SpaceID
   private typealias SLSFindWindowByGeometry =
     @convention(c) (
       _ connectionID: SLSConnectionID,
@@ -418,23 +390,22 @@ struct SkyLightProxy {
       _ outWindowID: UnsafeMutablePointer<CGWindowID>,
       _ outWindowConnectionID: UnsafeMutablePointer<SLSConnectionID>
     ) -> CGError
+  private typealias SLSGetWindowLevel =
+    @convention(c) (
+      _ connectionID: SLSConnectionID,
+      _ windowID: CGWindowID,
+      _ outLevel: UnsafeMutablePointer<CGWindowLevel>
+    ) -> CGError
+  private typealias SLSConnectionGetPID =
+    @convention(c) (
+      _ connectionID: SLSConnectionID,
+      _ outPID: UnsafeMutablePointer<pid_t>
+    ) -> CGError
   private typealias SLSCopyAssociatedWindows =
     @convention(c) (
       _ connectionID: SLSConnectionID,
       _ windowID: CGWindowID
     ) -> CFArray
-  private typealias SLSRegisterNotifyProc =
-    @convention(c) (
-      _ proc: SLSNotifyProc,
-      _ eventType: CGSEventType.RawValue,
-      _ context: UnsafeMutableRawPointer?
-    ) -> CGError
-  private typealias SLSRemoveNotifyProc =
-    @convention(c) (
-      _ proc: SLSNotifyProc,
-      _ eventType: CGSEventType.RawValue,
-      _ context: UnsafeMutableRawPointer?
-    ) -> CGError
   // swift-format-ignore: NoLeadingUnderscores
   private typealias _SLPSGetFrontProcess = @convention(c) (_ psn: UnsafeMutableRawPointer) -> CGError
   // swift-format-ignore: NoLeadingUnderscores
@@ -451,18 +422,15 @@ struct SkyLightProxy {
     ) -> CGError
 
   private let mainConnectionID: UInt32
-  private let slsGetActiveSpace: SLSGetActiveSpace
   private let slsFindWindowByGeometry: SLSFindWindowByGeometry
+  private let slsGetWindowLevel: SLSGetWindowLevel
+  private let slsConnectionGetPID: SLSConnectionGetPID
   private let slsCopyAssociatedWindows: SLSCopyAssociatedWindows
-  private let slsRegisterNotifyProc: SLSRegisterNotifyProc
-  private let slsRemoveNotifyProc: SLSRemoveNotifyProc
   // swift-format-ignore: NoLeadingUnderscores
   private let _slpsGetFrontProcess: _SLPSGetFrontProcess
   // swift-format-ignore: NoLeadingUnderscores
   private let _slpsSetFrontProcessWithOptions: _SLPSSetFrontProcessWithOptions
   private let slpsPostEventRecordTo: SLPSPostEventRecordTo
-
-  var activeSpaceID: SpaceID { slsGetActiveSpace(mainConnectionID) }
 
   var frontProcess: ProcessSerialNumber? {
     var processSerialNumber = ProcessSerialNumber()
@@ -483,24 +451,20 @@ struct SkyLightProxy {
       throw Error.symbolNotFound("SLSMainConnectionID")
     }
 
-    guard let slsGetActiveSpaceSymbol = dlsym(skyLightHandle, "SLSGetActiveSpace") else {
-      throw Error.symbolNotFound("SLSGetActiveSpace")
-    }
-
     guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
       throw Error.symbolNotFound("SLSFindWindowByGeometry")
     }
 
+    guard let slsGetWindowLevelSymbol = dlsym(skyLightHandle, "SLSGetWindowLevel") else {
+      throw Error.symbolNotFound("SLSGetWindowLevel")
+    }
+
+    guard let slsConnectionGetPIDSymbol = dlsym(skyLightHandle, "SLSConnectionGetPID") else {
+      throw Error.symbolNotFound("SLSConnectionGetPID")
+    }
+
     guard let slsCopyAssociatedWindowsSymbol = dlsym(skyLightHandle, "SLSCopyAssociatedWindows") else {
       throw Error.symbolNotFound("SLSCopyAssociatedWindows")
-    }
-
-    guard let slsRegisterNotifyProcSymbol = dlsym(skyLightHandle, "SLSRegisterNotifyProc") else {
-      throw Error.symbolNotFound("SLSRegisterNotifyProc")
-    }
-
-    guard let slsRemoveNotifyProcSymbol = dlsym(skyLightHandle, "SLSRemoveNotifyProc") else {
-      throw Error.symbolNotFound("SLSRemoveNotifyProc")
     }
 
     // swift-format-ignore: NoLeadingUnderscores
@@ -518,11 +482,10 @@ struct SkyLightProxy {
     }
 
     self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
-    self.slsGetActiveSpace = unsafeBitCast(slsGetActiveSpaceSymbol, to: SLSGetActiveSpace.self)
     self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
+    self.slsGetWindowLevel = unsafeBitCast(slsGetWindowLevelSymbol, to: SLSGetWindowLevel.self)
+    self.slsConnectionGetPID = unsafeBitCast(slsConnectionGetPIDSymbol, to: SLSConnectionGetPID.self)
     self.slsCopyAssociatedWindows = unsafeBitCast(slsCopyAssociatedWindowsSymbol, to: SLSCopyAssociatedWindows.self)
-    self.slsRegisterNotifyProc = unsafeBitCast(slsRegisterNotifyProcSymbol, to: SLSRegisterNotifyProc.self)
-    self.slsRemoveNotifyProc = unsafeBitCast(slsRemoveNotifyProcSymbol, to: SLSRemoveNotifyProc.self)
     self._slpsGetFrontProcess = unsafeBitCast(_slpsGetFrontProcessSymbol, to: _SLPSGetFrontProcess.self)
     self._slpsSetFrontProcessWithOptions = unsafeBitCast(
       _slpsSetFrontProcessWithOptionsSymbol,
@@ -531,17 +494,24 @@ struct SkyLightProxy {
     self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
   }
 
-  func findWindow(at point: CGPoint) -> CGWindowID? {
+  func findWindow(at point: CGPoint) -> (windowID: CGWindowID, ownerPID: pid_t)? {
     var screenPoint = point
     var windowPoint = CGPoint.zero
     var windowID: CGWindowID = 0
-    var windowCID: UInt32 = 0
+    var windowCID: SLSConnectionID = 0
+    var ownerPID: pid_t = 0
 
     return
       slsFindWindowByGeometry(mainConnectionID, 0, 1, 0, &screenPoint, &windowPoint, &windowID, &windowCID) == .success
       && windowID != 0
-      ? windowID
+      && slsConnectionGetPID(windowCID, &ownerPID) == .success
+      ? (windowID, ownerPID)
       : nil
+  }
+
+  func windowLevel(for windowID: CGWindowID) -> CGWindowLevel? {
+    var level: CGWindowLevel = 0
+    return slsGetWindowLevel(mainConnectionID, windowID, &level) == .success ? level : nil
   }
 
   func associatedWindows(for windowID: CGWindowID) -> [CGWindowID] {
@@ -550,24 +520,6 @@ struct SkyLightProxy {
     }
 
     return windowIDs.filter { $0 != windowID }
-  }
-
-  @discardableResult
-  func registerNotificationCallback(
-    _ callback: SLSNotifyProc,
-    for eventType: CGSEventType,
-    context: UnsafeMutableRawPointer?,
-  ) -> CGError {
-    return slsRegisterNotifyProc(callback, eventType.rawValue, context)
-  }
-
-  @discardableResult
-  func removeNotificationCallback(
-    _ callback: SLSNotifyProc,
-    for eventType: CGSEventType,
-    context: UnsafeMutableRawPointer?,
-  ) -> CGError {
-    return slsRemoveNotifyProc(callback, eventType.rawValue, context)
   }
 
   @discardableResult
@@ -592,138 +544,6 @@ struct SkyLightProxy {
 }
 
 @MainActor
-final class WorkspaceMonitor {
-  enum Error: Swift.Error, LocalizedError {
-    case failedToRegisterForNotifications(eventType: CGSEventType, underlyingError: CGError)
-
-    var errorDescription: String? {
-      switch self {
-      case .failedToRegisterForNotifications(let eventType, let underlyingError):
-        "Failed to register for '\(eventType)' notifications: \(underlyingError.localizedDescription)"
-      }
-    }
-  }
-
-  enum Event: Sendable {
-    case mainScreenChanged
-    case currentSpaceChanged
-    case windowAdded(windowID: CGWindowID, spaceID: SpaceID)
-    case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
-  }
-
-  private let skyLightProxy: SkyLightProxy
-
-  private let slsNotifyProc: SLSNotifyProc = { eventType, data, dataLength, context in
-    guard
-      let eventType = CGSEventType(rawValue: eventType),
-      let context,
-      let event = event(for: eventType, data: data, dataLength: dataLength)
-    else {
-      return
-    }
-
-    let monitor = Unmanaged<WorkspaceMonitor>.fromOpaque(context).takeUnretainedValue()
-
-    MainActor.runOrDispatch {
-      monitor.handleEvent(event)
-    }
-  }
-
-  private var registeredEventTypes: [CGSEventType] = []
-  private var continuation: AsyncStream<Event>.Continuation?
-
-  init(skyLightProxy: SkyLightProxy) throws {
-    self.skyLightProxy = skyLightProxy
-
-    for eventType: CGSEventType in [
-      .packagesStatusBarSpaceChanged,
-      .spaceWindowCreated,
-      .spaceWindowDestroyed,
-      .spaceCurrentChanged
-    ] {
-      let result = skyLightProxy.registerNotificationCallback(
-        slsNotifyProc,
-        for: eventType,
-        context: Unmanaged.passUnretained(self).toOpaque()
-      )
-
-      guard result == .success else {
-        unregisterNotifyProc()
-        throw Error.failedToRegisterForNotifications(eventType: eventType, underlyingError: result)
-      }
-
-      self.registeredEventTypes.append(eventType)
-    }
-  }
-
-  isolated deinit {
-    continuation?.finish()
-    unregisterNotifyProc()
-  }
-
-  func events() -> AsyncStream<Event> {
-    continuation?.finish()
-
-    let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
-
-    self.continuation = continuation
-
-    return stream
-  }
-
-  private nonisolated static func event(
-    for eventType: CGSEventType,
-    data: UnsafeMutableRawPointer?,
-    dataLength: UInt32
-  ) -> Event? {
-    switch eventType {
-    case .packagesStatusBarSpaceChanged:
-      return .mainScreenChanged
-
-    case .spaceWindowCreated, .spaceWindowDestroyed:
-      guard let data, dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<CGWindowID>.size else {
-        return nil
-      }
-
-      let spaceID = data.load(as: SpaceID.self)
-      let windowID = data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: CGWindowID.self)
-
-      return eventType == .spaceWindowCreated
-        ? .windowAdded(windowID: windowID, spaceID: spaceID)
-        : .windowRemoved(windowID: windowID, spaceID: spaceID)
-
-    case .spaceCurrentChanged:
-      guard
-        let data,
-        dataLength >= MemoryLayout<SpaceID>.size + MemoryLayout<UInt8>.size,
-        data.load(fromByteOffset: MemoryLayout<SpaceID>.size, as: UInt8.self) != 0
-      else {
-        return nil
-      }
-
-      return .currentSpaceChanged
-    }
-  }
-
-  private func handleEvent(_ event: Event) {
-    continuation?.yield(event)
-  }
-
-  private func unregisterNotifyProc() {
-    for eventType in registeredEventTypes {
-      skyLightProxy.removeNotificationCallback(
-        slsNotifyProc,
-        for: eventType,
-        context: Unmanaged.passUnretained(self).toOpaque()
-      )
-    }
-
-    self.registeredEventTypes.removeAll()
-    self.continuation = nil
-  }
-}
-
-@MainActor
 final class FocusManager {
   enum Error: Swift.Error, LocalizedError {
     case accessibilityPermissionNotGranted
@@ -739,13 +559,10 @@ final class FocusManager {
     }
   }
 
-  private static let windowManagerBundleIdentifier = "com.apple.WindowManager"
-
   private(set) var isEnabled = true
 
   private let startDate = Date.now
   private let skyLightProxy: SkyLightProxy
-  private let workspaceMonitor: WorkspaceMonitor
   private let debounceTimer: any DispatchSourceTimer
   private let suspendingWindowLevels: Set<CGWindowLevel> = [
     CGWindowLevelForKey(.modalPanelWindow),
@@ -758,16 +575,12 @@ final class FocusManager {
   private let jitterThresholdSquared: CGFloat
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
-  private var workspaceMonitoringTask: Task<Void, Never>?
+  private var spaceObservationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var activeSpaceID: SpaceID
-  private var suspendingWindows: [SpaceID: Set<CGWindowID>] = [:]
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
-
-  private var isSuspended: Bool { isCommandKeyPressed || !suspendingWindows[activeSpaceID, default: []].isEmpty }
 
   init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
@@ -779,9 +592,7 @@ final class FocusManager {
     self.hoverDelay = hoverDelay
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.skyLightProxy = try SkyLightProxy()
-    self.workspaceMonitor = try WorkspaceMonitor(skyLightProxy: skyLightProxy)
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
-    self.activeSpaceID = skyLightProxy.activeSpaceID
 
     guard
       let eventTap = CGEvent.tapCreate(
@@ -819,8 +630,16 @@ final class FocusManager {
     CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
     CGEvent.tapEnable(tap: eventTap, enable: true)
 
-    let workspaceMonitoringTask = Task<Void, Never> { [weak self] in
-      await self?.monitorWorkspace()
+    let spaceObservationTask = Task { [weak self] in
+      for await _ in NSWorkspace.shared.notificationCenter.notifications(
+        named: NSWorkspace.activeSpaceDidChangeNotification
+      ) {
+        guard let self else {
+          break
+        }
+
+        cancelPendingFocus()
+      }
     }
 
     debounceTimer.setEventHandler { [weak self] in
@@ -831,7 +650,7 @@ final class FocusManager {
 
     self.eventTap = eventTap
     self.runLoopSource = runLoopSource
-    self.workspaceMonitoringTask = workspaceMonitoringTask
+    self.spaceObservationTask = spaceObservationTask
   }
 
   isolated deinit {
@@ -844,7 +663,7 @@ final class FocusManager {
       CFMachPortInvalidate(eventTap)
     }
 
-    workspaceMonitoringTask?.cancel()
+    spaceObservationTask?.cancel()
     debounceTimer.cancel()
     focusTask?.cancel()
   }
@@ -855,30 +674,13 @@ final class FocusManager {
   }
 
   func logDiagnosticReport() {
-    let suspendingWindowIDsInActiveSpace = suspendingWindows[activeSpaceID, default: []]
+    let isScreenLocked = isScreenLocked()
+    let suspendingWindows = suspendingWindowsOnScreen().map { windowInfo in
+      let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID ?? kCGNullWindowID
+      let ownerName = windowInfo[kCGWindowOwnerName as String] as? String ?? "<unknown>"
 
-    let suspendingWindowOwnerNames =
-      (CGWindowListCopyWindowInfo(
-        [.optionOnScreenOnly, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]] ?? [])
-      .reduce(into: [CGWindowID: String]()) { result, windowInfo in
-        if let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-          suspendingWindowIDsInActiveSpace.contains(windowID)
-        {
-          result[windowID] = windowInfo[kCGWindowOwnerName as String] as? String ?? "<unknown>"
-        }
-      }
-
-    let suspendingWindowsInActiveSpace =
-      suspendingWindowIDsInActiveSpace
-      .sorted()
-      .map { "\($0) (\(suspendingWindowOwnerNames[$0] ?? "<unknown>"))" }
-    let suspendingWindowsInOtherSpaces =
-      suspendingWindows
-      .filter { $0.key != activeSpaceID && !$0.value.isEmpty }
-      .sorted { $0.key < $1.key }
-      .map { "    Space \($0.key): \($0.value.sorted())" }
+      return "\(windowID) (\(ownerName))"
+    }
 
     Log.message(
       """
@@ -886,50 +688,14 @@ final class FocusManager {
         Started: \(startDate.formatted(.dateTime))
         Enabled: \(isEnabled)
         Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
-        Active space ID: \(activeSpaceID)
-        Suspended: \(isSuspended)
+        Suspended: \(isCommandKeyPressed || isScreenLocked || !suspendingWindows.isEmpty)
           Command key pressed: \(isCommandKeyPressed)
-          Suspending windows in active space: \(suspendingWindowsInActiveSpace.isEmpty ? "none" : "\(suspendingWindowsInActiveSpace.joined(separator: ", "))")
-        Suspending windows in other spaces: \(suspendingWindowsInOtherSpaces.isEmpty ? "none" : "\n\(suspendingWindowsInOtherSpaces.joined(separator: "\n"))")
+          Screen locked: \(isScreenLocked)
+          Suspending windows on screen: \(suspendingWindows.isEmpty ? "none" : suspendingWindows.joined(separator: ", "))
         Focus pending: \(isFocusPending)
         Hover delay: \(hoverDelay)
       """
     )
-  }
-
-  private func monitorWorkspace() async {
-    for await event in workspaceMonitor.events() {
-      switch event {
-      case .mainScreenChanged, .currentSpaceChanged:
-        let activeSpaceID = skyLightProxy.activeSpaceID
-
-        if self.activeSpaceID != activeSpaceID {
-          cancelPendingFocus()
-
-          self.activeSpaceID = activeSpaceID
-
-          pruneRemovedSuspendingWindowsInActiveSpace()
-        }
-
-      case .windowAdded(let windowID, let spaceID):
-        if let windowsInfo = CGWindowListCopyWindowInfo(
-          [.optionIncludingWindow, .excludeDesktopElements],
-          windowID
-        ) as? [[String: Any]],
-          let windowInfo = windowsInfo.first,
-          isSuspendingWindow(info: windowInfo)
-        {
-          suspendingWindows[spaceID, default: []].insert(windowID)
-
-          if spaceID == activeSpaceID {
-            cancelPendingFocus()
-          }
-        }
-
-      case .windowRemoved(let windowID, let spaceID):
-        suspendingWindows[spaceID]?.remove(windowID)
-      }
-    }
   }
 
   private func updateEventTapState() {
@@ -944,7 +710,7 @@ final class FocusManager {
   private func handleCGEvent(_ event: CGEvent) {
     switch event.type {
     case .mouseMoved:
-      guard isEnabled, !isSuspended else {
+      guard isEnabled, !isCommandKeyPressed else {
         break
       }
 
@@ -990,7 +756,7 @@ final class FocusManager {
       return
     }
 
-    guard isEnabled, !isSuspended else {
+    guard isEnabled, !isCommandKeyPressed else {
       cancelPendingFocus()
       return
     }
@@ -1011,29 +777,17 @@ final class FocusManager {
   }
 
   private nonisolated func focusWindow(at point: CGPoint) async {
+    var targetPSN = ProcessSerialNumber()
+
     guard
-      let sessionInfo = CGSessionCopyCurrentDictionary() as? [String: Any],
-      sessionInfo["CGSSessionScreenIsLocked"] == nil,
-      let targetWindowID = skyLightProxy.findWindow(at: point),
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionIncludingWindow, .excludeDesktopElements],
-        targetWindowID
-      ) as? [[String: Any]],
-      let windowInfo = windowsInfo.first,
-      let targetPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-      NSRunningApplication(processIdentifier: targetPID)?.isSystemAgent != true,
-      !Task.isCancelled
+      let (targetWindowID, targetPID) = skyLightProxy.findWindow(at: point),
+      skyLightProxy.windowLevel(for: targetWindowID) == kCGNormalWindowLevel,
+      GetProcessForPID(targetPID, &targetPSN) == noErr
     else {
       return
     }
 
-    var targetPSN = ProcessSerialNumber()
-
-    guard GetProcessForPID(targetPID, &targetPSN) == noErr else {
-      return
-    }
-
+    var focusedWindow: (windowID: CGWindowID, processSerialNumber: ProcessSerialNumber)?
     var isSameProcess: DarwinBoolean = false
 
     if var focusedPSN = skyLightProxy.frontProcess,
@@ -1058,29 +812,39 @@ final class FocusManager {
       if let focusedWindowID {
         guard
           focusedWindowID != targetWindowID,
-          !skyLightProxy.associatedWindows(for: focusedWindowID).contains(targetWindowID),
-          !Task.isCancelled
+          !skyLightProxy.associatedWindows(for: focusedWindowID).contains(targetWindowID)
         else {
           return
         }
 
-        if skyLightProxy.postEvent(
-          .focusTransition(windowID: focusedWindowID, type: .resignKey),
-          to: focusedPSN
-        ) == .success {
-          try? await Task.sleep(for: .milliseconds(10))
-
-          guard !Task.isCancelled else {
-            return
-          }
-
-          skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
-        }
+        focusedWindow = (focusedWindowID, focusedPSN)
       }
     }
 
     guard
       !Task.isCancelled,
+      NSRunningApplication(processIdentifier: targetPID)?.isSystemAgent != true,
+      !isScreenLocked(),
+      suspendingWindowsOnScreen().isEmpty,
+      !Task.isCancelled
+    else {
+      return
+    }
+
+    if let focusedWindow,
+      skyLightProxy.postEvent(
+        .focusTransition(windowID: focusedWindow.windowID, type: .resignKey),
+        to: focusedWindow.processSerialNumber
+      ) == .success
+    {
+      await withTaskCancellationShield {
+        try? await Task.sleep(for: .milliseconds(10))
+      }
+
+      skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
+    }
+
+    guard
       skyLightProxy.setFrontProcess(targetPSN, windowID: targetWindowID, options: .userGenerated) == .success,
       skyLightProxy.postEvent(
         .simulatedClick(windowID: targetWindowID, type: .leftMouseDown),
@@ -1100,39 +864,33 @@ final class FocusManager {
     self.focusTask = nil
   }
 
-  private func isSuspendingWindow(info windowInfo: [String: Any]) -> Bool {
-    guard let windowLayer = windowInfo[kCGWindowLayer as String] as? CGWindowLevel else {
+  private nonisolated func isScreenLocked() -> Bool {
+    return (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] != nil
+  }
+
+  private nonisolated func suspendingWindowsOnScreen() -> [[String: Any]] {
+    let windowsInfo =
+      CGWindowListCopyWindowInfo(
+        [.optionOnScreenOnly, .excludeDesktopElements],
+        kCGNullWindowID
+      ) as? [[String: Any]] ?? []
+    return windowsInfo.filter { isSuspendingWindow(info: $0) }
+  }
+
+  private nonisolated func isSuspendingWindow(info windowInfo: [String: Any]) -> Bool {
+    guard let windowLevel = windowInfo[kCGWindowLayer as String] as? CGWindowLevel else {
       return false
     }
 
-    if windowManagerSuspendingWindowLevels.contains(windowLayer),
-      let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier == Self.windowManagerBundleIdentifier
-    {
-      return true
+    if windowManagerSuspendingWindowLevels.contains(windowLevel) {
+      guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else {
+        return false
+      }
+
+      return NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier == "com.apple.WindowManager"
     }
 
-    return suspendingWindowLevels.contains(windowLayer)
-      && windowInfo[kCGWindowIsOnscreen as String] as? Bool == true
-      && windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0
-  }
-
-  private func pruneRemovedSuspendingWindowsInActiveSpace() {
-    let trackedWindowIDs = suspendingWindows[activeSpaceID, default: []]
-
-    guard
-      !trackedWindowIDs.isEmpty,
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionOnScreenOnly, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]]
-    else {
-      return
-    }
-
-    let onScreenWindowIDs = Set(windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
-
-    self.suspendingWindows[activeSpaceID] = trackedWindowIDs.intersection(onScreenWindowIDs)
+    return suspendingWindowLevels.contains(windowLevel) && windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0
   }
 }
 
