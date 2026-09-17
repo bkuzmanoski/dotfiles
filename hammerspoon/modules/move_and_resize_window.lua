@@ -159,7 +159,7 @@ local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
 end
 
 local function startOperation(operation)
-  allWindows = hs.window.orderedWindows()
+  allWindows = utils.getOrderedWindows()
   activeWindow = utils.getWindowUnderMouse(allWindows, validSubroles)
 
   if

@@ -1,5 +1,7 @@
 local module = {}
 
+local utils = require("utils")
+
 local targetWindow = {
   frontmost = "frontmost",
   left = "left",
@@ -11,8 +13,25 @@ local alignmentTolerance = 8
 local bindings = {}
 local excludedWindowTitles
 
+local function activateWindow(window)
+  local app = window:application()
+
+  if app and app:pid() >= 0 then
+    window:focus()
+    return
+  end
+
+  local appElement = hs.axuielement.applicationElementForPID(window:pid())
+
+  window:becomeMain()
+
+  if appElement then
+    appElement:setAttributeValue("AXFrontmost", true)
+  end
+end
+
 local function focusWindow(target)
-  local windows = hs.window.orderedWindows()
+  local windows = utils.getOrderedWindows()
 
   if not windows or #windows == 0 then
     return
@@ -40,7 +59,7 @@ local function focusWindow(target)
   local frontmostWindow = filteredWindows[1]
 
   if target == targetWindow.frontmost or #filteredWindows == 1 then
-    frontmostWindow:focus()
+    activateWindow(frontmostWindow)
     return
   end
 
@@ -78,7 +97,7 @@ local function focusWindow(target)
     nextIndex = (currentIndex % #filteredWindows) + 1
   end
 
-  filteredWindows[nextIndex]:focus()
+  activateWindow(filteredWindows[nextIndex])
 end
 
 function module.init(config)

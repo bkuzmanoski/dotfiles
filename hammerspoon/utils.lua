@@ -73,6 +73,41 @@ function module.adjustWindowFrame(window, topOffset, padding)
   end
 end
 
+-- Build the ordered window list from CGWindowList owner PIDs because hs.window.orderedWindows() relies on
+-- NSRunningApplication, which reports an invalid process identifier for some apps (e.g., Device Hub).
+function module.getOrderedWindows()
+  local windows = {}
+  local windowsByID = {}
+  local visitedPIDs = {}
+
+  for _, info in ipairs(hs.window.list(false) or {}) do
+    local pid = info.kCGWindowOwnerPID
+
+    if info.kCGWindowLayer == 0 and info.kCGWindowIsOnscreen and pid and not visitedPIDs[pid] then
+      visitedPIDs[pid] = true
+
+      local appElement = hs.axuielement.applicationElementForPID(pid)
+
+      for _, windowElement in ipairs(appElement and appElement:attributeValue("AXWindows") or {}) do
+        local window = windowElement:asHSWindow()
+        local id = window and window:id()
+
+        if id then
+          windowsByID[id] = window
+        end
+      end
+    end
+
+    local window = windowsByID[info.kCGWindowNumber]
+
+    if window and info.kCGWindowLayer == 0 and info.kCGWindowIsOnscreen then
+      windows[#windows + 1] = window
+    end
+  end
+
+  return windows
+end
+
 function module.getWindowUnderMouse(windows, validSubroles)
   local rawMousePosition = hs.mouse.absolutePosition()
   local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)

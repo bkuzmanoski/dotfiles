@@ -40,10 +40,10 @@ modules.switchToSpace = require("modules/switch_to_space").init({
   right = { modifiers = settings.hyperKey, key = "p" },
   index = { modifiers = settings.hyperKey, maximumSpaces = 9 }
 })
-modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
-  topOffset = settings.screenTopOffset,
-  padding = settings.windowPadding
-})
+-- modules.adjustNewWindowPosition = require("modules/adjust_new_window_position").init({
+--   topOffset = settings.screenTopOffset,
+--   padding = settings.windowPadding
+-- })
 modules.positionWindow = require("modules/position_window").init({
   topOffset = settings.screenTopOffset,
   padding = settings.windowPadding,
@@ -73,7 +73,7 @@ modules.tileWindow = require("modules/tile_window").init({
     floatWindow = { modifiers = { "option", "shift", "command" }, key = "f" },
     stopTiling = { modifiers = { "option", "shift", "command" }, key = "space" }
   },
-  excludeApps = { "Activity Monitor", "CleanShot X", "Console", "Ghostty", "Hammerspoon", "System Settings" }
+  excludeApps = { "Activity Monitor", "CleanShot X", "Console", "Device Hub", "Ghostty", "Hammerspoon", "System Settings" }
 })
 modules.moveAndResizeWindow = require("modules/move_and_resize_window").init({
   topOffset = settings.screenTopOffset,
