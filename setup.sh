@@ -341,6 +341,7 @@ defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false     #
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false #
 defaults_write NSGlobalDomain NSAutomaticWindowAnimationsEnabled -bool false   #
+defaults_write NSGlobalDomain NSGlassTintAmount -float 1                       #
 defaults_write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true    # Expand save panel by default
 defaults_write NSGlobalDomain NavPanelFileListModeForOpenMode -int 2           # Set open panel view to list view
 defaults_write NSGlobalDomain NSNavPanelFileListModeForOpenMode2 -int 2        #
