@@ -358,7 +358,7 @@ set_system_hotkey 30 "false" 52 21 1179648                                     #
 set_system_hotkey 31 "false" 52 21 1441792                                     # Disable Copy picture of selected area to the clipboard
 set_system_hotkey 184 "false" 53 23 1179648                                    # Disable Screenshot and recording options
 set_system_hotkey 261 "false" 54 22 1179648                                    # Disable Ask Siri about selected area
-set_system_hotkey 263 "false" 32 49 1179648                                    # Disable Ask Siri about active window
+set_system_hotkey 263 "false" 65535 80 10354688                                # Disable Ask Siri about active window (and re-map the hotkey to ⌃⌥⇧⌘F19 because macOS likes to re-enable it without asking; default hotkey: `32 49 1179648`)
 
 write_file "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
 	{
