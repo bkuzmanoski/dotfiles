@@ -4,8 +4,8 @@ import Synchronization
 import System
 
 enum Configuration {
-  static let subsystem = "industries.britown.LineDeleteGuard"
-  static let exemptBundleIdentifiers: Set<String> = ["com.raycast.macos"]
+  static let subsystem = "industries.britown.LineDeleteShim"
+  static let targetBundleIdentifiers: Set<String> = ["com.raycast.macos"]
   static let fallbackKeyRepeatInterval = 6
   static let fallbackKeyRepeatInitialDelay = 25
 }
@@ -284,7 +284,7 @@ final class LineDeleteManager {
 
   private let startDate = Date.now
   private let synthesizedEventMarker: Int64 = 0x4c44_4744
-  private let exemptBundleIdentifiers: Set<String>
+  private let targetBundleIdentifiers: Set<String>
   private let keyRepeatSettings: KeyRepeatSettings
   private let eventSettlingDelay: Duration = .milliseconds(30)
   private let effectiveKeyRepeatInterval: Duration
@@ -294,7 +294,7 @@ final class LineDeleteManager {
   private var runLoopSource: CFRunLoopSource?
   private var keyRepeatTask: Task<Void, Never>?
 
-  private var isExemptApplicationFocused: Bool {
+  private var isTargetApplicationFocused: Bool {
     do {
       guard
         let bundleIdentifier = try AXUIElement.focusedApplicationBundleIdentifier()
@@ -303,19 +303,19 @@ final class LineDeleteManager {
         return false
       }
 
-      return exemptBundleIdentifiers.contains(bundleIdentifier)
+      return targetBundleIdentifiers.contains(bundleIdentifier)
     } catch {
       Log.error("Failed to retrieve focused application bundle identifier: \(error.localizedDescription)")
       return false
     }
   }
 
-  init(exemptBundleIdentifiers: Set<String>, keyRepeatSettings: KeyRepeatSettings) throws {
+  init(targetBundleIdentifiers: Set<String>, keyRepeatSettings: KeyRepeatSettings) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionNotGranted
     }
 
-    self.exemptBundleIdentifiers = exemptBundleIdentifiers
+    self.targetBundleIdentifiers = targetBundleIdentifiers
     self.keyRepeatSettings = keyRepeatSettings
     self.effectiveKeyRepeatInterval = max(keyRepeatSettings.interval, eventSettlingDelay * 2)
     self.delayBeforeFirstRepeat = max(
@@ -380,8 +380,8 @@ final class LineDeleteManager {
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
-        Exempt applications: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
-        Exempt application focused: \(isExemptApplicationFocused)
+        Target applications: \(targetBundleIdentifiers.sorted().joined(separator: ", "))
+        Target application focused: \(isTargetApplicationFocused)
         Performing key sequences: \(keyRepeatTask != nil)
         Key repeat:
           Initial delay: \(keyRepeatSettings.initialDelay) (system)
@@ -429,7 +429,7 @@ final class LineDeleteManager {
       return keyRepeatTask != nil
     }
 
-    guard isExemptApplicationFocused else {
+    guard isTargetApplicationFocused else {
       return false
     }
 
@@ -514,7 +514,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
       self.lineDeleteManager = try LineDeleteManager(
-        exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers,
+        targetBundleIdentifiers: Configuration.targetBundleIdentifiers,
         keyRepeatSettings: KeyRepeatSettings()
       )
     } catch {
