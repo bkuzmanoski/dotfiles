@@ -380,8 +380,8 @@ final class LineDeleteManager {
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
-        Target applications: \(targetBundleIdentifiers.sorted().joined(separator: ", "))
-        Target application focused: \(isTargetApplicationFocused)
+        Target bundle IDs: \(targetBundleIdentifiers.sorted().joined(separator: ", "))
+        Target app focused: \(isTargetApplicationFocused)
         Performing key sequences: \(keyRepeatTask != nil)
         Key repeat:
           Initial delay: \(keyRepeatSettings.initialDelay) (system)
