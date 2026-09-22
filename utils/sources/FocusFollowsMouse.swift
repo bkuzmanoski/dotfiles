@@ -4,6 +4,7 @@ import System
 
 enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
+  static let exemptBundleIdentifiers: Set<String> = ["com.anthropic.claudefordesktop"]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(200)
   static let jitterThreshold = 3
 }
@@ -573,6 +574,7 @@ final class FocusManager {
   private let windowManagerSuspendingWindowLevels: Set<CGWindowLevel> = [18, 19]
   private let hoverDelay: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
+  private let exemptBundleIdentifiers: Set<String>
   private var eventTap: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
   private var spaceObservationTask: Task<Void, Never>?
@@ -582,7 +584,7 @@ final class FocusManager {
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
-  init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int) throws {
+  init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int, exemptBundleIdentifiers: Set<String>) throws {
     guard AXIsProcessTrustedWithOptions(nil) else {
       throw Error.accessibilityPermissionNotGranted
     }
@@ -591,6 +593,7 @@ final class FocusManager {
 
     self.hoverDelay = hoverDelay
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
+    self.exemptBundleIdentifiers = exemptBundleIdentifiers
     self.skyLightProxy = try SkyLightProxy()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
 
@@ -694,6 +697,7 @@ final class FocusManager {
           Suspending windows on screen: \(suspendingWindows.isEmpty ? "none" : suspendingWindows.joined(separator: ", "))
         Focus pending: \(isFocusPending)
         Hover delay: \(hoverDelay)
+        Exempt bundle IDs: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
       """
     )
   }
@@ -821,9 +825,12 @@ final class FocusManager {
       }
     }
 
+    let targetApplication = NSRunningApplication(processIdentifier: targetPID)
+
     guard
       !Task.isCancelled,
-      NSRunningApplication(processIdentifier: targetPID)?.isSystemAgent != true,
+      targetApplication?.isSystemAgent != true,
+      !exemptBundleIdentifiers.contains(targetApplication?.bundleIdentifier ?? ""),
       !isScreenLocked(),
       suspendingWindowsOnScreen().isEmpty,
       !Task.isCancelled
@@ -908,7 +915,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     do {
       self.focusManager = try FocusManager(
         hoverDelay: Configuration.hoverDelay,
-        jitterThreshold: Configuration.jitterThreshold
+        jitterThreshold: Configuration.jitterThreshold,
+        exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers
       )
     } catch {
       Log.error(error.localizedDescription)
