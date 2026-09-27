@@ -111,36 +111,6 @@ enum ProcessSignals {
   }
 }
 
-extension UnsignedInteger {
-  func delta(since earlierValue: Self) -> Self {
-    return self > earlierValue ? self - earlierValue : 0
-  }
-}
-
-extension CFDictionary {
-  func int64Value(forKey key: CFString) -> Int64? {
-    guard let rawValue = CFDictionaryGetValue(self, Unmanaged.passUnretained(key).toOpaque()) else {
-      return nil
-    }
-
-    let value = Unmanaged<CFTypeRef>.fromOpaque(rawValue).takeUnretainedValue()
-    var int64Value: Int64 = 0
-
-    guard
-      CFGetTypeID(value) == CFNumberGetTypeID(),
-      CFNumberGetValue(unsafeDowncast(value, to: CFNumber.self), .sInt64Type, &int64Value)
-    else {
-      return nil
-    }
-
-    return int64Value
-  }
-
-  func byteCount(forKey key: CFString) -> UInt64 {
-    return UInt64(clamping: int64Value(forKey: key) ?? 0)
-  }
-}
-
 extension FilePath {
   var applicationBundleName: String? {
     var reversedComponents = components.reversed().makeIterator()
@@ -172,6 +142,204 @@ extension host_cpu_load_info {
   var idleTicks: UInt32 { cpu_ticks.2 }
 }
 
+extension CFDictionary {
+  func int64Value(forKey key: CFString) -> Int64? {
+    guard let rawValue = CFDictionaryGetValue(self, Unmanaged.passUnretained(key).toOpaque()) else {
+      return nil
+    }
+
+    let value = Unmanaged<CFTypeRef>.fromOpaque(rawValue).takeUnretainedValue()
+    var int64Value: Int64 = 0
+
+    guard
+      CFGetTypeID(value) == CFNumberGetTypeID(),
+      CFNumberGetValue(unsafeDowncast(value, to: CFNumber.self), .sInt64Type, &int64Value)
+    else {
+      return nil
+    }
+
+    return int64Value
+  }
+
+  func byteCount(forKey key: CFString) -> UInt64 {
+    return UInt64(clamping: int64Value(forKey: key) ?? 0)
+  }
+}
+
+extension UnsignedInteger {
+  func delta(since earlierValue: Self) -> Self {
+    return self > earlierValue ? self - earlierValue : 0
+  }
+}
+
+extension Double {
+  func divided(by divisor: Double) -> Double? {
+    return divisor > 0 ? self / divisor : nil
+  }
+
+  func percentage(of total: Double) -> Double? {
+    return divided(by: total).map { $0 * 100 }
+  }
+}
+
+extension Character {
+  var terminalColumnWidth: Int {
+    guard let scalar = unicodeScalars.first, !scalar.isASCII else {
+      return 1
+    }
+
+    if scalar.properties.isEmojiPresentation || unicodeScalars.contains("\u{FE0F}") {
+      return 2
+    }
+
+    return max(Int(wcwidth(wchar_t(scalar.value))), 0)
+  }
+}
+
+extension String {
+  private enum EscapeSequenceParsingState {
+    case text
+    case escapeSequence
+    case controlSequence
+  }
+
+  var visibleWidth: Int {
+    guard utf8.contains(where: { $0 >= 0x80 || $0 == 0x1B }) else {
+      return utf8.count
+    }
+
+    var width = 0
+
+    forEachVisibleCharacter { _, character in
+      width += character.terminalColumnWidth
+      return true
+    }
+
+    return width
+  }
+
+  func truncated(toVisibleWidth width: Int, trimsWhitespaceBeforeEllipsis: Bool = false) -> String {
+    guard width > 0, utf8.count > width else {
+      return self
+    }
+
+    var columnCount = 0
+    var ellipsisIndex: Index?
+
+    forEachVisibleCharacter { index, character in
+      let characterWidth = character.terminalColumnWidth
+
+      if ellipsisIndex == nil, columnCount + characterWidth >= width {
+        ellipsisIndex = index
+      }
+
+      columnCount += characterWidth
+
+      return columnCount <= width
+    }
+
+    guard let ellipsisIndex, columnCount > width else {
+      return self
+    }
+
+    var visiblePrefix = self[..<ellipsisIndex]
+
+    if trimsWhitespaceBeforeEllipsis {
+      while visiblePrefix.last?.isWhitespace == true {
+        visiblePrefix.removeLast()
+      }
+    }
+
+    return "\(visiblePrefix)…"
+  }
+
+  private func forEachVisibleCharacter(_ body: (Index, Character) -> Bool) {
+    var parsingState = EscapeSequenceParsingState.text
+
+    for (index, character) in zip(indices, self) {
+      switch parsingState {
+      case .escapeSequence:
+        parsingState = character == "[" ? .controlSequence : .text
+
+      case .controlSequence:
+        if let asciiValue = character.asciiValue, (0x40...0x7E).contains(asciiValue) {
+          parsingState = .text
+        }
+
+      case .text:
+        guard character != "\u{1B}" else {
+          parsingState = .escapeSequence
+          continue
+        }
+
+        guard body(index, character) else {
+          return
+        }
+      }
+    }
+  }
+}
+
+struct FixedPointFormatStyle: FormatStyle {
+  typealias FormatInput = Double
+  typealias FormatOutput = String
+
+  var fractionLength: Int
+
+  func format(_ value: Double) -> String {
+    var multiplier = 1
+
+    for _ in 0..<fractionLength {
+      multiplier *= 10
+    }
+
+    let scaledValue = Int((value * Double(multiplier)).rounded())
+
+    guard fractionLength > 0 else {
+      return String(scaledValue)
+    }
+
+    let fractionDigits = String(scaledValue % multiplier)
+    let fractionPadding = String(repeating: "0", count: fractionLength - fractionDigits.count)
+
+    return "\(scaledValue / multiplier).\(fractionPadding)\(fractionDigits)"
+  }
+}
+
+extension FormatStyle where Self == FixedPointFormatStyle {
+  static func fixedPoint(fractionLength: Int) -> FixedPointFormatStyle {
+    return FixedPointFormatStyle(fractionLength: fractionLength)
+  }
+}
+
+struct AbbreviatedByteCountFormatStyle: FormatStyle {
+  typealias FormatInput = Double
+  typealias FormatOutput = String
+
+  private static let units = ["B", "KB", "MB", "GB", "TB"]
+
+  var isRate: Bool
+
+  func format(_ byteCount: Double) -> String {
+    var value = byteCount
+    var unitIndex = 0
+
+    while unitIndex < Self.units.count - 1, value >= (unitIndex == 0 ? 999.5 : 999.95) {
+      value /= 1024
+      unitIndex += 1
+    }
+
+    let formattedValue = value.formatted(.fixedPoint(fractionLength: unitIndex == 0 ? 0 : 1))
+
+    return "\(formattedValue) \(Self.units[unitIndex])\(isRate ? "/s" : "")"
+  }
+}
+
+extension FormatStyle where Self == AbbreviatedByteCountFormatStyle {
+  static var abbreviatedByteCount: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: false) }
+  static var abbreviatedByteRate: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: true) }
+}
+
 enum MachAbsoluteTime {
   private static let timebase: mach_timebase_info_data_t = {
     var timebase = mach_timebase_info_data_t()
@@ -185,6 +353,101 @@ enum MachAbsoluteTime {
 
   static func seconds(from absoluteTime: UInt64) -> Double {
     return Double(absoluteTime) * Double(timebase.numer) / Double(timebase.denom) / 1_000_000_000
+  }
+}
+
+struct SampleInterval {
+  let absoluteTime: UInt64
+  let isBaseline: Bool
+
+  var seconds: Double { MachAbsoluteTime.seconds(from: absoluteTime) }
+  var nanoseconds: Double { seconds * 1_000_000_000 }
+}
+
+struct SampleClock {
+  private var previousSampleTime: UInt64?
+
+  mutating func nextInterval() -> SampleInterval {
+    let sampleTime = MachAbsoluteTime.now
+    let interval = SampleInterval(
+      absoluteTime: previousSampleTime.map { sampleTime - $0 } ?? 0,
+      isBaseline: previousSampleTime == nil
+    )
+
+    self.previousSampleTime = sampleTime
+
+    return interval
+  }
+}
+
+enum CoreType {
+  case superCore
+  case performanceCore
+  case efficiencyCore
+  case idle
+  case unknown
+
+  static var isSupported: Bool { !performanceLevels.isEmpty }
+
+  static let performanceLevels: [CoreType] = {
+    #if arch(arm64)
+      guard let performanceLevelCount = systemControlInteger(named: "hw.nperflevels") else {
+        return []
+      }
+
+      return (0..<performanceLevelCount).map { performanceLevel in
+        let name = systemControlString(named: "hw.perflevel\(performanceLevel).name") ?? ""
+
+        if name.hasPrefix("Super") {
+          return .superCore
+        } else if name.hasPrefix("Performance") {
+          return .performanceCore
+        } else if name.hasPrefix("Efficiency") {
+          return .efficiencyCore
+        } else {
+          return .unknown
+        }
+      }
+    #else
+      return []
+    #endif
+  }()
+
+  var title: String {
+    switch self {
+    case .superCore: "Super"
+    case .performanceCore: "Performance"
+    case .efficiencyCore: "Efficiency"
+    case .idle: "N/A"
+    case .unknown: "Unknown"
+    }
+  }
+
+  private static func systemControlInteger(named name: String) -> Int? {
+    var value: Int32 = 0
+    var size = MemoryLayout<Int32>.size
+
+    guard sysctlbyname(name, &value, &size, nil, 0) == 0 else {
+      return nil
+    }
+
+    return Int(value)
+  }
+
+  private static func systemControlString(named name: String) -> String? {
+    var size = 0
+
+    guard sysctlbyname(name, nil, &size, nil, 0) == 0, size > 0 else {
+      return nil
+    }
+
+    return withUnsafeTemporaryAllocation(of: CChar.self, capacity: size) { buffer in
+      guard let baseAddress = buffer.baseAddress, sysctlbyname(name, baseAddress, &size, nil, 0) == 0 else {
+        return nil
+      }
+
+      return String(decoding: UnsafeRawBufferPointer(buffer).prefix { $0 != 0 }, as: UTF8.self)
+    }
   }
 }
 
@@ -311,66 +574,6 @@ struct NetworkStatisticsFramework {
   }
 }
 
-struct FixedPointFormatStyle: FormatStyle {
-  typealias FormatInput = Double
-  typealias FormatOutput = String
-
-  var fractionLength: Int
-
-  func format(_ value: Double) -> String {
-    var multiplier = 1
-
-    for _ in 0..<fractionLength {
-      multiplier *= 10
-    }
-
-    let scaledValue = Int((value * Double(multiplier)).rounded())
-
-    guard fractionLength > 0 else {
-      return String(scaledValue)
-    }
-
-    let fractionDigits = String(scaledValue % multiplier)
-    let fractionPadding = String(repeating: "0", count: fractionLength - fractionDigits.count)
-
-    return "\(scaledValue / multiplier).\(fractionPadding)\(fractionDigits)"
-  }
-}
-
-extension FormatStyle where Self == FixedPointFormatStyle {
-  static func fixedPoint(fractionLength: Int) -> FixedPointFormatStyle {
-    return FixedPointFormatStyle(fractionLength: fractionLength)
-  }
-}
-
-struct AbbreviatedByteCountFormatStyle: FormatStyle {
-  typealias FormatInput = Double
-  typealias FormatOutput = String
-
-  private static let units = ["B", "KB", "MB", "GB", "TB"]
-
-  var isRate: Bool
-
-  func format(_ byteCount: Double) -> String {
-    var value = byteCount
-    var unitIndex = 0
-
-    while unitIndex < Self.units.count - 1, value >= (unitIndex == 0 ? 999.5 : 999.95) {
-      value /= 1024
-      unitIndex += 1
-    }
-
-    let formattedValue = value.formatted(.fixedPoint(fractionLength: unitIndex == 0 ? 0 : 1))
-
-    return "\(formattedValue) \(Self.units[unitIndex])\(isRate ? "/s" : "")"
-  }
-}
-
-extension FormatStyle where Self == AbbreviatedByteCountFormatStyle {
-  static var abbreviatedByteCount: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: false) }
-  static var abbreviatedByteRate: AbbreviatedByteCountFormatStyle { AbbreviatedByteCountFormatStyle(isRate: true) }
-}
-
 struct TransferByteCounts {
   static let zero = TransferByteCounts(inbound: 0, outbound: 0)
 
@@ -393,7 +596,6 @@ struct TransferByteCounts {
 struct TransferRates {
   static let inboundSymbol = "↓"
   static let outboundSymbol = "↑"
-  static let zero = TransferRates(inboundBytesPerSecond: 0, outboundBytesPerSecond: 0)
 
   let inboundBytesPerSecond: Double
   let outboundBytesPerSecond: Double
@@ -406,14 +608,9 @@ struct TransferRates {
   }
 
   init(byteCounts: TransferByteCounts, elapsedSeconds: Double) {
-    guard elapsedSeconds > 0 else {
-      self = .zero
-      return
-    }
-
     self.init(
-      inboundBytesPerSecond: Double(byteCounts.inbound) / elapsedSeconds,
-      outboundBytesPerSecond: Double(byteCounts.outbound) / elapsedSeconds
+      inboundBytesPerSecond: Double(byteCounts.inbound).divided(by: elapsedSeconds) ?? 0,
+      outboundBytesPerSecond: Double(byteCounts.outbound).divided(by: elapsedSeconds) ?? 0
     )
   }
 }
@@ -431,15 +628,10 @@ struct CPUUsage {
     let idleTicks = Double(loadInfo.idleTicks &- previousLoadInfo.idleTicks)
     let totalTicks = userTicks + systemTicks + idleTicks
 
-    guard totalTicks > 0 else {
-      self = .zero
-      return
-    }
-
     self.init(
-      userPercentage: userTicks / totalTicks * 100,
-      systemPercentage: systemTicks / totalTicks * 100,
-      idlePercentage: idleTicks / totalTicks * 100
+      userPercentage: userTicks.percentage(of: totalTicks) ?? 0,
+      systemPercentage: systemTicks.percentage(of: totalTicks) ?? 0,
+      idlePercentage: idleTicks.percentage(of: totalTicks) ?? 0
     )
   }
 
@@ -649,12 +841,14 @@ struct SystemResourceUsage {
   let network: TransferRates
 }
 
-struct SystemResourceSampler {
+struct SystemResourceUsageSampler {
+  private var sampleClock = SampleClock()
   private var previousCPULoadInfo: host_cpu_load_info?
   private var blockStorageStatistics = BlockStorageStatistics()
   private var networkInterfaceStatistics = NetworkInterfaceStatistics()
 
-  mutating func sample(elapsedSeconds: Double) -> SystemResourceUsage {
+  mutating func sample() -> SystemResourceUsage {
+    let elapsedSeconds = sampleClock.nextInterval().seconds
     let cpuLoadInfo = MachHost.cpuLoadInfo()
     let diskByteCounts = blockStorageStatistics.byteCountsSinceLastSample()
     let networkByteCounts = networkInterfaceStatistics.byteCountsSinceLastSample()
@@ -686,7 +880,20 @@ struct ProcessResourceUsageSample {
   let disk: TransferByteCounts
 }
 
+struct ThreadResourceUsageSample {
+  let threadIdentifier: UInt64
+  let name: String?
+  let cpuTime: UInt64
+}
+
 struct RunningProcess {
+  private static let listThreadIdentifiersFlavor: Int32 = 28
+  private static let threadCountsFlavor: Int32 = 34
+  private static let threadCountsHeaderWordCount = 1
+  private static let threadCountsWordsPerPerformanceLevel = 5
+  private static let threadCountsUserTimeWordOffset = 2
+  private static let threadCountsSystemTimeWordOffset = 3
+
   let processIdentifier: pid_t
 
   var executablePath: FilePath? {
@@ -776,6 +983,78 @@ struct RunningProcess {
         outbound: resourceUsage.ri_diskio_byteswritten
       )
     )
+  }
+
+  func listThreadIdentifiers(into buffer: inout [UInt64]) throws(Errno) -> Int {
+    while true {
+      let byteCount = buffer.withUnsafeMutableBytes { bytes in
+        proc_pidinfo(processIdentifier, Self.listThreadIdentifiersFlavor, 0, bytes.baseAddress, Int32(bytes.count))
+      }
+
+      guard byteCount > 0 else {
+        throw Errno(rawValue: errno)
+      }
+
+      let count = Int(byteCount) / MemoryLayout<UInt64>.stride
+
+      guard count >= buffer.count else {
+        return count
+      }
+
+      buffer = [UInt64](repeating: 0, count: buffer.count * 2)
+    }
+  }
+
+  func threadResourceUsage(threadIdentifier: UInt64) -> ThreadResourceUsageSample? {
+    var threadInfo = proc_threadinfo()
+
+    let size = Int32(MemoryLayout<proc_threadinfo>.size)
+
+    guard proc_pidinfo(processIdentifier, PROC_PIDTHREADID64INFO, threadIdentifier, &threadInfo, size) == size else {
+      return nil
+    }
+
+    let name = withUnsafeBytes(of: threadInfo.pth_name) { bytes in
+      String(decoding: bytes.prefix { $0 != 0 }, as: UTF8.self)
+    }
+
+    return ThreadResourceUsageSample(
+      threadIdentifier: threadIdentifier,
+      name: name.isEmpty ? nil : name,
+      cpuTime: threadInfo.pth_user_time + threadInfo.pth_system_time
+    )
+  }
+
+  func threadCPUTimesByPerformanceLevel(threadIdentifier: UInt64) -> [UInt64] {
+    let performanceLevelCount = CoreType.performanceLevels.count
+
+    guard performanceLevelCount > 0 else {
+      return []
+    }
+
+    let wordCount = Self.threadCountsHeaderWordCount + performanceLevelCount * Self.threadCountsWordsPerPerformanceLevel
+
+    return withUnsafeTemporaryAllocation(of: UInt64.self, capacity: wordCount) { words in
+      let byteCount = proc_pidinfo(
+        processIdentifier,
+        Self.threadCountsFlavor,
+        threadIdentifier,
+        words.baseAddress,
+        Int32(wordCount * MemoryLayout<UInt64>.stride)
+      )
+
+      guard byteCount > 0 else {
+        return []
+      }
+
+      let reportedPerformanceLevelCount = Int(UInt16(truncatingIfNeeded: words[0]))
+
+      return (0..<min(reportedPerformanceLevelCount, performanceLevelCount)).map { performanceLevel in
+        let offset = Self.threadCountsHeaderWordCount + performanceLevel * Self.threadCountsWordsPerPerformanceLevel
+        return words[offset + Self.threadCountsUserTimeWordOffset]
+          + words[offset + Self.threadCountsSystemTimeWordOffset]
+      }
+    }
   }
 }
 
@@ -999,10 +1278,9 @@ struct ProcessResourceUsage {
   let usage: ResourceUsage
 }
 
-struct ResourceUsageSnapshot {
+struct ProcessResourceUsageSnapshot {
   var owners: [ProcessOwnerResourceUsage]
   let processes: [ProcessResourceUsage]
-  let system: SystemResourceUsage
   let applicationCount: Int
   let restrictedProcessCount: Int
 }
@@ -1029,7 +1307,7 @@ struct ResourceUsageAccumulator {
   func resourceUsage(elapsedAbsoluteTime: UInt64) -> ResourceUsage {
     let elapsedSeconds = MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
     return ResourceUsage(
-      cpuPercentage: elapsedAbsoluteTime > 0 ? Double(cpuTime) / Double(elapsedAbsoluteTime) * 100 : 0,
+      cpuPercentage: Double(cpuTime).percentage(of: Double(elapsedAbsoluteTime)) ?? 0,
       memoryFootprint: memoryFootprint,
       disk: TransferRates(byteCounts: disk, elapsedSeconds: elapsedSeconds),
       network: TransferRates(byteCounts: network, elapsedSeconds: elapsedSeconds)
@@ -1038,7 +1316,7 @@ struct ResourceUsageAccumulator {
 }
 
 @MainActor
-final class ResourceUsageSampler {
+final class ProcessResourceUsageSampler {
   private struct TrackedProcess {
     let metadata: ProcessMetadata
     let usage: ProcessResourceUsageSample
@@ -1051,23 +1329,20 @@ final class ResourceUsageSampler {
   }
 
   private let networkStatisticsMonitor: NetworkStatisticsMonitor
-  private var systemResourceSampler = SystemResourceSampler()
+  private var sampleClock = SampleClock()
   private var trackedProcesses: [pid_t: TrackedProcess] = [:]
   private var processIdentifierBuffer = [pid_t](repeating: 0, count: 1024)
   private var sampleGeneration: UInt64 = 0
-  private var previousSampleTime: UInt64?
   private var previousOwnerCount = 0
 
   init(networkStatisticsMonitor: NetworkStatisticsMonitor) {
     self.networkStatisticsMonitor = networkStatisticsMonitor
   }
 
-  func sample() async -> ResourceUsageSnapshot {
+  func sample() async -> ProcessResourceUsageSnapshot {
     var networkByteCounts = await networkStatisticsMonitor.byteCountsSinceLastSample()
 
-    let sampleTime = MachAbsoluteTime.now
-    let isBaselineSample = previousSampleTime == nil
-    let elapsedAbsoluteTime = previousSampleTime.map { sampleTime - $0 } ?? 0
+    let sampleInterval = sampleClock.nextInterval()
     let processIdentifierCount = RunningProcess.listAllProcessIdentifiers(into: &processIdentifierBuffer)
 
     var ownerResourceUsageAccumulators: [ProcessOwner.ID: OwnerResourceUsageAccumulator] = [:]
@@ -1102,7 +1377,7 @@ final class ResourceUsageSampler {
         previousUsage = trackedProcess.usage
       } else if let resolvedMetadata = ProcessMetadata(of: process) {
         metadata = resolvedMetadata
-        previousUsage = isBaselineSample ? usage : nil
+        previousUsage = sampleInterval.isBaseline ? usage : nil
       } else {
         continue
       }
@@ -1128,7 +1403,7 @@ final class ResourceUsageSampler {
       processes.append(
         ProcessResourceUsage(
           metadata: metadata,
-          usage: processResourceUsageAccumulator.resourceUsage(elapsedAbsoluteTime: elapsedAbsoluteTime)
+          usage: processResourceUsageAccumulator.resourceUsage(elapsedAbsoluteTime: sampleInterval.absoluteTime)
         )
       )
     }
@@ -1151,23 +1426,154 @@ final class ResourceUsageSampler {
     let owners = ownerResourceUsageAccumulators.values.map { ownerResourceUsageAccumulator in
       ProcessOwnerResourceUsage(
         owner: ownerResourceUsageAccumulator.owner,
-        usage: ownerResourceUsageAccumulator.accumulator.resourceUsage(elapsedAbsoluteTime: elapsedAbsoluteTime)
+        usage: ownerResourceUsageAccumulator.accumulator.resourceUsage(
+          elapsedAbsoluteTime: sampleInterval.absoluteTime
+        )
       )
     }
-    let systemResourceUsage = self.systemResourceSampler.sample(
-      elapsedSeconds: MachAbsoluteTime.seconds(from: elapsedAbsoluteTime)
-    )
 
-    self.previousSampleTime = sampleTime
     self.previousOwnerCount = ownerResourceUsageAccumulators.count
 
-    return ResourceUsageSnapshot(
+    return ProcessResourceUsageSnapshot(
       owners: owners,
       processes: processes,
-      system: systemResourceUsage,
       applicationCount: owners.count { $0.owner.kind == .application },
       restrictedProcessCount: restrictedProcessCount
     )
+  }
+}
+
+struct ThreadResourceUsage: Identifiable {
+  let threadIdentifier: UInt64
+  let name: String?
+  let coreType: CoreType
+  let cpuPercentage: Double
+  let sharePercentage: Double
+
+  var id: UInt64 { threadIdentifier }
+
+  static func precedesByCPUUsage(_ lhs: ThreadResourceUsage, _ rhs: ThreadResourceUsage) -> Bool {
+    guard lhs.cpuPercentage == rhs.cpuPercentage else {
+      return lhs.cpuPercentage > rhs.cpuPercentage
+    }
+
+    return lhs.threadIdentifier < rhs.threadIdentifier
+  }
+}
+
+struct ThreadResourceUsageSnapshot {
+  var threads: [ThreadResourceUsage]
+  let cpuPercentage: Double
+  let isBaseline: Bool
+}
+
+struct ThreadResourceUsageSampler {
+  private struct ThreadCPUTimes {
+    let total: UInt64
+    let byPerformanceLevel: [UInt64]
+  }
+
+  private let process: RunningProcess
+  private let processStartTime: UInt64
+  private var threadIdentifierBuffer = [UInt64](repeating: 0, count: 256)
+  private var previousThreadCPUTimes: [UInt64: ThreadCPUTimes] = [:]
+  private var sampleClock = SampleClock()
+
+  init(process: RunningProcess) throws(Errno) {
+    self.process = process
+    self.processStartTime = try process.resourceUsage().startTime
+  }
+
+  mutating func sample() throws(Errno) -> ThreadResourceUsageSnapshot {
+    guard try process.resourceUsage().startTime == processStartTime else {
+      throw .noSuchProcess
+    }
+
+    let threadIdentifierCount = try process.listThreadIdentifiers(into: &threadIdentifierBuffer)
+    let sampleInterval = sampleClock.nextInterval()
+
+    var threadSamples: [(sample: ThreadResourceUsageSample, cpuTimeDelta: UInt64, coreType: CoreType)] = []
+    threadSamples.reserveCapacity(threadIdentifierCount)
+
+    var currentThreadCPUTimes: [UInt64: ThreadCPUTimes] = [:]
+    currentThreadCPUTimes.reserveCapacity(threadIdentifierCount)
+
+    var totalCPUTimeDelta: UInt64 = 0
+
+    for threadIdentifier in threadIdentifierBuffer[..<threadIdentifierCount] {
+      guard let threadSample = process.threadResourceUsage(threadIdentifier: threadIdentifier) else {
+        continue
+      }
+
+      let previousCPUTimes = previousThreadCPUTimes[threadIdentifier]
+      let cpuTimeDelta =
+        sampleInterval.isBaseline ? 0 : threadSample.cpuTime.delta(since: previousCPUTimes?.total ?? 0)
+      let cpuTimesByPerformanceLevel =
+        sampleInterval.isBaseline || cpuTimeDelta > 0
+        ? process.threadCPUTimesByPerformanceLevel(threadIdentifier: threadIdentifier)
+        : previousCPUTimes?.byPerformanceLevel ?? []
+      let coreType =
+        cpuTimeDelta > 0
+        ? Self.predominantCoreType(
+          cpuTimesByPerformanceLevel: cpuTimesByPerformanceLevel,
+          since: previousCPUTimes?.byPerformanceLevel ?? []
+        )
+        : CoreType.idle
+
+      threadSamples.append((threadSample, cpuTimeDelta, coreType))
+      currentThreadCPUTimes[threadIdentifier] = ThreadCPUTimes(
+        total: threadSample.cpuTime,
+        byPerformanceLevel: cpuTimesByPerformanceLevel
+      )
+      totalCPUTimeDelta += cpuTimeDelta
+    }
+
+    self.previousThreadCPUTimes = currentThreadCPUTimes
+
+    let threads = threadSamples.map { threadSample, cpuTimeDelta, coreType in
+      ThreadResourceUsage(
+        threadIdentifier: threadSample.threadIdentifier,
+        name: threadSample.name,
+        coreType: coreType,
+        cpuPercentage: Double(cpuTimeDelta).percentage(of: sampleInterval.nanoseconds) ?? 0,
+        sharePercentage: Double(cpuTimeDelta).percentage(of: Double(totalCPUTimeDelta)) ?? 0
+      )
+    }
+
+    return ThreadResourceUsageSnapshot(
+      threads: threads,
+      cpuPercentage: Double(totalCPUTimeDelta).percentage(of: sampleInterval.nanoseconds) ?? 0,
+      isBaseline: sampleInterval.isBaseline
+    )
+  }
+
+  private static func predominantCoreType(
+    cpuTimesByPerformanceLevel: [UInt64],
+    since previousCPUTimesByPerformanceLevel: [UInt64]
+  ) -> CoreType {
+    var predominantPerformanceLevel: Int?
+    var predominantCPUTimeDelta: UInt64 = 0
+
+    for (performanceLevel, cpuTime) in cpuTimesByPerformanceLevel.enumerated() {
+      let previousCPUTime =
+        previousCPUTimesByPerformanceLevel.indices.contains(performanceLevel)
+        ? previousCPUTimesByPerformanceLevel[performanceLevel] : 0
+      let cpuTimeDelta = cpuTime.delta(since: previousCPUTime)
+
+      if cpuTimeDelta > predominantCPUTimeDelta {
+        predominantPerformanceLevel = performanceLevel
+        predominantCPUTimeDelta = cpuTimeDelta
+      }
+    }
+
+    guard
+      let predominantPerformanceLevel,
+      CoreType.performanceLevels.indices.contains(predominantPerformanceLevel)
+    else {
+      return .unknown
+    }
+
+    return CoreType.performanceLevels[predominantPerformanceLevel]
   }
 }
 
@@ -1218,105 +1624,54 @@ enum TextAlignment {
   case trailing
 }
 
-extension Character {
-  var terminalColumnWidth: Int {
-    guard let scalar = unicodeScalars.first, !scalar.isASCII else {
-      return 1
-    }
+struct TableColumn {
+  let title: String
+  let fixedWidth: Int?
+  let alignment: TextAlignment
+}
 
-    if scalar.properties.isEmojiPresentation || unicodeScalars.contains("\u{FE0F}") {
-      return 2
-    }
+protocol TableColumnSet: CaseIterable, Hashable {
+  static var visibleColumns: [Self] { get }
 
-    return max(Int(wcwidth(wchar_t(scalar.value))), 0)
+  var title: String { get }
+  var fixedWidth: Int? { get }
+  var alignment: TextAlignment { get }
+}
+
+extension TableColumnSet {
+  static var visibleColumns: [Self] { Array(allCases) }
+
+  static func tableColumns(titles: [Self: String] = [:]) -> [TableColumn] {
+    return visibleColumns.map { column in
+      TableColumn(title: titles[column] ?? column.title, fixedWidth: column.fixedWidth, alignment: column.alignment)
+    }
+  }
+
+  static func columnIndex(of column: Self) -> Int? {
+    return visibleColumns.firstIndex(of: column)
   }
 }
 
-extension String {
-  private enum EscapeSequenceParsingState {
-    case text
-    case escapeSequence
-    case controlSequence
+struct TableCell {
+  static let empty = TableCell("")
+
+  let text: String
+  let emphasis: TextEmphasis?
+
+  init(_ text: String, emphasis: TextEmphasis? = nil) {
+    self.text = text
+    self.emphasis = emphasis
   }
 
-  var visibleWidth: Int {
-    guard utf8.contains(where: { $0 >= 0x80 || $0 == 0x1B }) else {
-      return utf8.count
-    }
-
-    var width = 0
-
-    forEachVisibleCharacter { _, character in
-      width += character.terminalColumnWidth
-      return true
-    }
-
-    return width
-  }
-
-  func truncated(toVisibleWidth width: Int, trimsWhitespaceBeforeEllipsis: Bool = false) -> String {
-    guard width > 0, utf8.count > width else {
-      return self
-    }
-
-    var columnCount = 0
-    var ellipsisIndex: Index?
-
-    forEachVisibleCharacter { index, character in
-      let characterWidth = character.terminalColumnWidth
-
-      if ellipsisIndex == nil, columnCount + characterWidth >= width {
-        ellipsisIndex = index
-      }
-
-      columnCount += characterWidth
-
-      return columnCount <= width
-    }
-
-    guard let ellipsisIndex, columnCount > width else {
-      return self
-    }
-
-    var visiblePrefix = self[..<ellipsisIndex]
-
-    if trimsWhitespaceBeforeEllipsis {
-      while visiblePrefix.last?.isWhitespace == true {
-        visiblePrefix.removeLast()
-      }
-    }
-
-    return "\(visiblePrefix)…"
-  }
-
-  private func forEachVisibleCharacter(_ body: (Index, Character) -> Bool) {
-    var parsingState = EscapeSequenceParsingState.text
-
-    for (index, character) in zip(indices, self) {
-      switch parsingState {
-      case .escapeSequence:
-        parsingState = character == "[" ? .controlSequence : .text
-
-      case .controlSequence:
-        if let asciiValue = character.asciiValue, (0x40...0x7E).contains(asciiValue) {
-          parsingState = .text
-        }
-
-      case .text:
-        guard character != "\u{1B}" else {
-          parsingState = .escapeSequence
-          continue
-        }
-
-        guard body(index, character) else {
-          return
-        }
-      }
-    }
+  init(percentage: Double) {
+    self.init(
+      percentage.formatted(.fixedPoint(fractionLength: 1)),
+      emphasis: (percentage * 10).rounded() == 0 ? .deemphasized : nil
+    )
   }
 }
 
-enum ResourceUsageColumn: String, CaseIterable {
+enum ResourceUsageColumn: String, TableColumnSet {
   case pid
   case name
   case cpu
@@ -1325,6 +1680,9 @@ enum ResourceUsageColumn: String, CaseIterable {
   case network
 
   private static let transferRateValueWidth = 8
+
+  static let ownerTableColumns = tableColumns()
+  static let processTableColumns = tableColumns(titles: [.name: "PROCESS"])
 
   var title: String {
     switch self {
@@ -1349,32 +1707,35 @@ enum ResourceUsageColumn: String, CaseIterable {
 
   var alignment: TextAlignment { self == .name ? .leading : .trailing }
 
-  func formattedValue(processIdentifier: pid_t?, name: String, usage: ResourceUsage) -> String {
-    switch self {
-    case .pid:
-      return processIdentifier.map { String($0) } ?? ""
+  static func cells(processIdentifier: pid_t?, name: TableCell, usage: ResourceUsage) -> [TableCell] {
+    return visibleColumns.map { column in
+      switch column {
+      case .pid:
+        TableCell(processIdentifier.map { String($0) } ?? "")
 
-    case .name:
-      return name
+      case .name:
+        name
 
-    case .cpu:
-      return Self.deemphasized(
-        usage.cpuPercentage.formatted(.fixedPoint(fractionLength: 1)),
-        if: (usage.cpuPercentage * 10).rounded() == 0
-      )
+      case .cpu:
+        TableCell(percentage: usage.cpuPercentage)
 
-    case .memory:
-      return Self.deemphasized(
-        Double(usage.memoryFootprint).formatted(.abbreviatedByteCount),
-        if: usage.memoryFootprint == 0
-      )
+      case .memory:
+        TableCell(
+          Double(usage.memoryFootprint).formatted(.abbreviatedByteCount),
+          emphasis: usage.memoryFootprint == 0 ? .deemphasized : nil
+        )
 
-    case .disk:
-      return Self.formattedTransferRates(usage.disk)
+      case .disk:
+        TableCell(formattedTransferRates(usage.disk))
 
-    case .network:
-      return Self.formattedTransferRates(usage.network)
+      case .network:
+        TableCell(formattedTransferRates(usage.network))
+      }
     }
+  }
+
+  static func totalCells(usage: ResourceUsage) -> [TableCell] {
+    return cells(processIdentifier: nil, name: TableCell("Total", emphasis: .bold), usage: usage)
   }
 
   func precedes(_ lhs: ProcessOwnerResourceUsage, _ rhs: ProcessOwnerResourceUsage) -> Bool {
@@ -1437,31 +1798,100 @@ enum ResourceUsageColumn: String, CaseIterable {
   }
 }
 
-struct ProcessOwnerResourceUsageOrdering {
-  private var ownerPositions: [ProcessOwner.ID: Int] = [:]
+enum ThreadColumn: TableColumnSet {
+  case identifier
+  case name
+  case core
+  case share
+  case cpu
+
+  static let visibleColumns: [ThreadColumn] = CoreType.isSupported ? allCases : allCases.filter { $0 != .core }
+  static let threadTableColumns = tableColumns()
+
+  var title: String {
+    switch self {
+    case .identifier: "ID"
+    case .name: "THREAD"
+    case .core: "CORE"
+    case .share: "SHARE %"
+    case .cpu: "CPU %"
+    }
+  }
+
+  var fixedWidth: Int? {
+    switch self {
+    case .identifier: 10
+    case .name: nil
+    case .core: 11
+    case .share: 7
+    case .cpu: 6
+    }
+  }
+
+  var alignment: TextAlignment {
+    switch self {
+    case .identifier, .name, .core: .leading
+    case .share, .cpu: .trailing
+    }
+  }
+
+  static func cells(for thread: ThreadResourceUsage, showsUsage: Bool) -> [TableCell] {
+    return visibleColumns.map { column in
+      switch column {
+      case .identifier: TableCell("0x\(String(thread.threadIdentifier, radix: 16))")
+      case .name: thread.name.map { TableCell($0) } ?? TableCell("Unnamed", emphasis: .deemphasized)
+      case .core: showsUsage ? coreCell(for: thread.coreType) : .empty
+      case .share: showsUsage ? TableCell(percentage: thread.sharePercentage) : .empty
+      case .cpu: showsUsage ? TableCell(percentage: thread.cpuPercentage) : .empty
+      }
+    }
+  }
+
+  static func totalCells(cpuPercentage: Double, showsUsage: Bool) -> [TableCell] {
+    return visibleColumns.map { column in
+      switch column {
+      case .identifier: .empty
+      case .name: TableCell("Total", emphasis: .bold)
+      case .core: .empty
+      case .share: .empty
+      case .cpu: showsUsage ? TableCell(percentage: cpuPercentage) : .empty
+      }
+    }
+  }
+
+  private static func coreCell(for coreType: CoreType) -> TableCell {
+    switch coreType {
+    case .superCore, .performanceCore, .efficiencyCore: TableCell(coreType.title)
+    case .idle, .unknown: TableCell(coreType.title, emphasis: .deemphasized)
+    }
+  }
+}
+
+struct StableOrdering<Element: Identifiable> {
+  private var positions: [Element.ID: Int] = [:]
 
   mutating func arrange(
-    _ owners: inout [ProcessOwnerResourceUsage],
-    sortedBy column: ResourceUsageColumn,
-    shouldReSort: Bool
+    _ elements: inout [Element],
+    shouldReSort: Bool,
+    by areInIncreasingOrder: (Element, Element) -> Bool
   ) {
     if shouldReSort {
-      owners.sort(by: column.precedes)
+      elements.sort(by: areInIncreasingOrder)
     } else {
-      owners.sort { lhs, rhs in
-        switch (ownerPositions[lhs.id], ownerPositions[rhs.id]) {
+      elements.sort { lhs, rhs in
+        switch (positions[lhs.id], positions[rhs.id]) {
         case (let lhsPosition?, let rhsPosition?): return lhsPosition < rhsPosition
         case (.some, .none): return true
         case (.none, .some): return false
-        case (.none, .none): return column.precedes(lhs, rhs)
+        case (.none, .none): return areInIncreasingOrder(lhs, rhs)
         }
       }
     }
 
-    self.ownerPositions.removeAll(keepingCapacity: true)
+    self.positions.removeAll(keepingCapacity: true)
 
-    for (position, owner) in owners.enumerated() {
-      self.ownerPositions[owner.id] = position
+    for (position, element) in elements.enumerated() {
+      self.positions[element.id] = position
     }
   }
 }
@@ -1470,34 +1900,57 @@ struct ResourceUsageTableRow: Identifiable {
   enum ID: Hashable {
     case owner(ProcessOwner.ID)
     case process(pid_t)
+    case thread(UInt64)
+  }
+
+  enum Content {
+    case processOwner(ProcessOwnerResourceUsage)
+    case process(processIdentifier: pid_t, name: String, usage: ResourceUsage)
+    case thread(ThreadResourceUsage, showsUsage: Bool)
   }
 
   let id: ID
-  let processIdentifier: pid_t
-  let name: String
-  let usage: ResourceUsage
+  let content: Content
+
+  var cells: [TableCell] {
+    switch content {
+    case .processOwner(let ownerResourceUsage):
+      ResourceUsageColumn.cells(
+        processIdentifier: ownerResourceUsage.owner.processIdentifier,
+        name: TableCell(ownerResourceUsage.owner.name),
+        usage: ownerResourceUsage.usage
+      )
+
+    case .process(let processIdentifier, let name, let usage):
+      ResourceUsageColumn.cells(processIdentifier: processIdentifier, name: TableCell(name), usage: usage)
+
+    case .thread(let thread, let showsUsage):
+      ThreadColumn.cells(for: thread, showsUsage: showsUsage)
+    }
+  }
+
+  init(processOwnerResourceUsage: ProcessOwnerResourceUsage) {
+    self.id = .owner(processOwnerResourceUsage.id)
+    self.content = .processOwner(processOwnerResourceUsage)
+  }
 
   init(processIdentifier: pid_t, name: String, usage: ResourceUsage) {
     self.id = .process(processIdentifier)
-    self.processIdentifier = processIdentifier
-    self.name = name
-    self.usage = usage
+    self.content = .process(processIdentifier: processIdentifier, name: name, usage: usage)
   }
 
-  init(ownerResourceUsage: ProcessOwnerResourceUsage) {
-    self.id = .owner(ownerResourceUsage.id)
-    self.processIdentifier = ownerResourceUsage.owner.processIdentifier
-    self.name = ownerResourceUsage.owner.name
-    self.usage = ownerResourceUsage.usage
+  init(threadResourceUsage: ThreadResourceUsage, showsUsage: Bool) {
+    self.id = .thread(threadResourceUsage.threadIdentifier)
+    self.content = .thread(threadResourceUsage, showsUsage: showsUsage)
   }
 }
 
 struct ResourceUsageTable {
-  let nameColumnTitle: String
-  let sortColumn: ResourceUsageColumn?
+  let columns: [TableColumn]
+  let sortColumnIndex: Int?
   let caption: String?
   let rows: [ResourceUsageTableRow]
-  let totalUsage: ResourceUsage?
+  let totalCells: [TableCell]?
 }
 
 struct TableSelection {
@@ -1689,13 +2142,9 @@ enum ResourceUsageTableRenderer {
   }
 
   private static let columnSeparator = "  "
-  private static let minimumNameColumnWidth = 6
+  private static let minimumFlexibleColumnWidth = 6
   private static let scrollbarThumbCell = " │"
   private static let scrollbarColumnWidth = scrollbarThumbCell.count
-  private static let fixedColumnsWidth =
-    ResourceUsageColumn.allCases.compactMap(\.fixedWidth).reduce(0, +)
-    + (ResourceUsageColumn.allCases.count - 1) * columnSeparator.count
-  private static let minimumTableWidth = fixedColumnsWidth + minimumNameColumnWidth + scrollbarColumnWidth
   private static let tableLeadingLineCount = 3
   private static let estimatedEscapeSequenceBytesPerLine = 64
 
@@ -1704,7 +2153,7 @@ enum ResourceUsageTableRenderer {
     summaryLineCount: Int,
     size: TerminalSession.Size
   ) -> Int {
-    let trailingLineCount = table.totalUsage == nil ? 0 : 1
+    let trailingLineCount = table.totalCells == nil ? 0 : 1
     return max(size.rows - summaryLineCount - tableLeadingLineCount - trailingLineCount, 0)
   }
 
@@ -1714,7 +2163,12 @@ enum ResourceUsageTableRenderer {
     selection: TableSelection,
     size: TerminalSession.Size
   ) -> String {
-    let nameColumnWidth = max(size.columns - fixedColumnsWidth - scrollbarColumnWidth, minimumNameColumnWidth)
+    let fixedColumnsWidth =
+      table.columns.reduce(0) { $0 + ($1.fixedWidth ?? 0) } + (table.columns.count - 1) * columnSeparator.count
+    let flexibleColumnWidth = max(
+      size.columns - fixedColumnsWidth - scrollbarColumnWidth,
+      minimumFlexibleColumnWidth
+    )
     let rowCapacity = visibleRowCount(for: table, summaryLineCount: summaryLines.count, size: size)
     let visibleRows = table.rows.dropFirst(selection.scrollOffset).prefix(rowCapacity)
     let thumbRange = scrollbarThumbRange(
@@ -1722,7 +2176,7 @@ enum ResourceUsageTableRenderer {
       rowCapacity: rowCapacity,
       scrollOffset: selection.scrollOffset
     )
-    let truncatesTableLines = size.columns < minimumTableWidth
+    let truncatesTableLines = size.columns < fixedColumnsWidth + minimumFlexibleColumnWidth + scrollbarColumnWidth
 
     var frame = "\(ANSIEscapeSequence.beginSynchronizedUpdate)\(ANSIEscapeSequence.moveCursorToHome)"
     frame.reserveCapacity(size.rows * (size.columns + estimatedEscapeSequenceBytesPerLine))
@@ -1750,17 +2204,25 @@ enum ResourceUsageTableRenderer {
 
     appendLine("")
     appendLine(table.caption ?? "")
-    appendLine(headerLine(for: table, nameColumnWidth: nameColumnWidth), truncates: truncatesTableLines)
+    appendLine(headerLine(for: table, flexibleColumnWidth: flexibleColumnWidth), truncates: truncatesTableLines)
 
     for (rowIndex, row) in zip(visibleRows.indices, visibleRows) {
-      let line = rowLine(for: row, nameColumnWidth: nameColumnWidth, isSelected: rowIndex == selection.selectedRowIndex)
+      let line = rowLine(
+        for: row,
+        columns: table.columns,
+        flexibleColumnWidth: flexibleColumnWidth,
+        isSelected: rowIndex == selection.selectedRowIndex
+      )
       let isScrollbarThumbRow = thumbRange?.contains(rowIndex - selection.scrollOffset) ?? false
 
       appendLine(isScrollbarThumbRow ? "\(line)\(scrollbarThumbCell)" : line, truncates: truncatesTableLines)
     }
 
-    if let totalUsage = table.totalUsage {
-      appendLine(totalLine(for: totalUsage, nameColumnWidth: nameColumnWidth), truncates: truncatesTableLines)
+    if let totalCells = table.totalCells {
+      appendLine(
+        tableLine(columns: table.columns, cells: totalCells, flexibleColumnWidth: flexibleColumnWidth),
+        truncates: truncatesTableLines
+      )
     }
 
     if lineCount < size.rows {
@@ -1772,8 +2234,11 @@ enum ResourceUsageTableRenderer {
     return frame
   }
 
-  static func summaryLines(for snapshot: ResourceUsageSnapshot) -> [String] {
-    let rows = summaryRows(for: snapshot)
+  static func summaryLines(
+    for snapshot: ProcessResourceUsageSnapshot,
+    systemUsage: SystemResourceUsage
+  ) -> [String] {
+    let rows = summaryRows(for: snapshot, systemUsage: systemUsage)
     let titleWidth = rows.map(\.title.count).max() ?? 0
     let fieldCount = rows.map(\.fields.count).max() ?? 0
 
@@ -1810,8 +2275,10 @@ enum ResourceUsageTableRenderer {
     }
   }
 
-  private static func summaryRows(for snapshot: ResourceUsageSnapshot) -> [SummaryRow] {
-    let system = snapshot.system
+  private static func summaryRows(
+    for snapshot: ProcessResourceUsageSnapshot,
+    systemUsage system: SystemResourceUsage
+  ) -> [SummaryRow] {
     let hasRestrictedProcesses = snapshot.restrictedProcessCount > 0
     let processCountField =
       hasRestrictedProcesses
@@ -1875,35 +2342,36 @@ enum ResourceUsageTableRenderer {
     ]
   }
 
-  private static func tableLine(
-    nameColumnWidth: Int,
-    content: (ResourceUsageColumn) -> (text: String, emphasis: TextEmphasis?)
-  ) -> String {
-    return ResourceUsageColumn.allCases.map { column in
-      let (text, emphasis) = content(column)
-      return cell(text, width: column.fixedWidth ?? nameColumnWidth, alignment: column.alignment, emphasis: emphasis)
+  private static func tableLine(columns: [TableColumn], cells: [TableCell], flexibleColumnWidth: Int) -> String {
+    return zip(columns, cells).map { column, tableCell in
+      cell(
+        tableCell.text,
+        width: column.fixedWidth ?? flexibleColumnWidth,
+        alignment: column.alignment,
+        emphasis: tableCell.emphasis
+      )
     }
     .joined(separator: columnSeparator)
   }
 
-  private static func headerLine(for table: ResourceUsageTable, nameColumnWidth: Int) -> String {
-    let line = tableLine(nameColumnWidth: nameColumnWidth) { column in
-      (column == .name ? table.nameColumnTitle : column.title, column == table.sortColumn ? .underline : nil)
+  private static func headerLine(for table: ResourceUsageTable, flexibleColumnWidth: Int) -> String {
+    let cells = table.columns.enumerated().map { index, column in
+      TableCell(column.title, emphasis: index == table.sortColumnIndex ? .underline : nil)
     }
+
+    let line = tableLine(columns: table.columns, cells: cells, flexibleColumnWidth: flexibleColumnWidth)
+
     return TextEmphasis.bold.applied(to: line)
   }
 
-  private static func rowLine(for row: ResourceUsageTableRow, nameColumnWidth: Int, isSelected: Bool) -> String {
-    let line = tableLine(nameColumnWidth: nameColumnWidth) { column in
-      (column.formattedValue(processIdentifier: row.processIdentifier, name: row.name, usage: row.usage), nil)
-    }
+  private static func rowLine(
+    for row: ResourceUsageTableRow,
+    columns: [TableColumn],
+    flexibleColumnWidth: Int,
+    isSelected: Bool
+  ) -> String {
+    let line = tableLine(columns: columns, cells: row.cells, flexibleColumnWidth: flexibleColumnWidth)
     return isSelected ? TextEmphasis.inverse.applied(to: line) : line
-  }
-
-  private static func totalLine(for usage: ResourceUsage, nameColumnWidth: Int) -> String {
-    return tableLine(nameColumnWidth: nameColumnWidth) { column in
-      (column.formattedValue(processIdentifier: nil, name: "Total", usage: usage), column == .name ? .bold : nil)
-    }
   }
 
   private static func cell(
@@ -2187,8 +2655,8 @@ final class ResourceUsageMonitor {
       Keys:
         ↑/↓, k/j                           Move the selection
         shift + ↑/↓, K/J                   Move the selection to the top or bottom
-        return, space                      Show the process tree of the selected application
-        esc                                Clear the selection or return to the application list
+        return, space                      Show the processes or threads of the selection
+        esc                                Clear the selection or return to the previous view
         q                                  Quit
       """
 
@@ -2306,6 +2774,19 @@ final class ResourceUsageMonitor {
   private enum Screen {
     case processOwners
     case processTree(owner: ProcessOwner)
+    case processThreads(process: ProcessMetadata)
+  }
+
+  private struct ScreenHistoryEntry {
+    let screen: Screen
+    let selection: TableSelection
+  }
+
+  private struct ThreadScreenState {
+    var sampler: ThreadResourceUsageSampler
+    var snapshot: ThreadResourceUsageSnapshot?
+    var ordering = StableOrdering<ThreadResourceUsage>()
+    var initialRefreshTask: Task<Void, Never>?
   }
 
   private static let maximumInitialRefreshDelay: Duration = .milliseconds(500)
@@ -2314,26 +2795,31 @@ final class ResourceUsageMonitor {
   private let options: Options
   private let minimumReSortInterval: Duration
   private let terminalSession: TerminalSession
-  private let sampler: ResourceUsageSampler
-  private var latestSnapshot: ResourceUsageSnapshot?
+  private let processResourceUsageSampler: ProcessResourceUsageSampler
+  private var systemResourceUsageSampler = SystemResourceUsageSampler()
+  private var latestProcessResourceUsageSnapshot: ProcessResourceUsageSnapshot?
   private var lastReSortInstant: ContinuousClock.Instant?
   private var summaryLines: [String] = []
   private var screen = Screen.processOwners
-  private var table: ResourceUsageTable?
-  private var ownerOrdering = ProcessOwnerResourceUsageOrdering()
+  private var screenHistory: [ScreenHistoryEntry] = []
+  private var resourceUsageTable: ResourceUsageTable?
+  private var ownerOrdering = StableOrdering<ProcessOwnerResourceUsage>()
   private var tableSelection = TableSelection()
-  private var processOwnersSelection = TableSelection()
+  private var threadScreenState: ThreadScreenState?
 
   init(options: Options) throws {
     self.options = options
     self.minimumReSortInterval =
       (options.reSortInterval ?? options.refreshInterval) - options.refreshInterval / 2
     self.terminalSession = try TerminalSession()
-    self.sampler = ResourceUsageSampler(networkStatisticsMonitor: try NetworkStatisticsMonitor())
+    self.processResourceUsageSampler = ProcessResourceUsageSampler(
+      networkStatisticsMonitor: try NetworkStatisticsMonitor()
+    )
   }
 
   func run() async {
-    _ = await sampler.sample()
+    _ = systemResourceUsageSampler.sample()
+    _ = await processResourceUsageSampler.sample()
 
     terminalSession.activate()
 
@@ -2396,126 +2882,280 @@ final class ResourceUsageMonitor {
   }
 
   private func refresh() async {
-    var snapshot = await sampler.sample()
+    let systemResourceUsage = systemResourceUsageSampler.sample()
+    var processResourceUsageSnapshot = await processResourceUsageSampler.sample()
 
     if options.showsApplicationsOnly {
-      snapshot.owners.removeAll { $0.owner.kind != .application }
+      processResourceUsageSnapshot.owners.removeAll { $0.owner.kind != .application }
     }
 
     let now = ContinuousClock.now
     let isReSortDue = lastReSortInstant.map { now - $0 >= minimumReSortInterval } ?? true
 
-    ownerOrdering.arrange(&snapshot.owners, sortedBy: options.sortColumn, shouldReSort: isReSortDue)
+    ownerOrdering.arrange(
+      &processResourceUsageSnapshot.owners,
+      shouldReSort: isReSortDue,
+      by: options.sortColumn.precedes
+    )
 
     if isReSortDue {
       self.lastReSortInstant = now
     }
 
-    self.latestSnapshot = snapshot
-    self.summaryLines = ResourceUsageTableRenderer.summaryLines(for: snapshot)
+    if case .processThreads = screen {
+      refreshThreads(shouldReSort: isReSortDue)
+    }
+
+    self.latestProcessResourceUsageSnapshot = processResourceUsageSnapshot
+    self.summaryLines = ResourceUsageTableRenderer.summaryLines(
+      for: processResourceUsageSnapshot,
+      systemUsage: systemResourceUsage
+    )
 
     updateTable()
     draw()
   }
 
   private func moveSelection(to destination: TableSelection.Destination) {
-    guard let table else {
+    guard let resourceUsageTable else {
       return
     }
 
     let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
-      for: table,
+      for: resourceUsageTable,
       summaryLineCount: summaryLines.count,
       size: terminalSession.size
     )
 
-    tableSelection.move(to: destination, in: table.rows, visibleRowCount: visibleRowCount)
+    tableSelection.move(to: destination, in: resourceUsageTable.rows, visibleRowCount: visibleRowCount)
+  }
+
+  private func refreshThreads(shouldReSort: Bool) {
+    guard var threadResourceUsageSnapshot = try? threadScreenState?.sampler.sample() else {
+      clearThreadScreenState()
+      return
+    }
+
+    let shouldReSortThreads = shouldReSort || threadScreenState?.snapshot?.isBaseline == true
+
+    threadScreenState?.ordering.arrange(
+      &threadResourceUsageSnapshot.threads,
+      shouldReSort: shouldReSortThreads,
+      by: ThreadResourceUsage.precedesByCPUUsage
+    )
+
+    self.threadScreenState?.snapshot = threadResourceUsageSnapshot
+  }
+
+  private func clearThreadScreenState() {
+    threadScreenState?.initialRefreshTask?.cancel()
+    self.threadScreenState = nil
   }
 
   private func openSelection() {
+    switch (screen, tableSelection.selectedRowID) {
+    case (.processOwners, .owner(let selectedOwnerID)?):
+      guard
+        let selectedOwner = latestProcessResourceUsageSnapshot?.owners.first(where: { $0.id == selectedOwnerID })?.owner
+      else {
+        return
+      }
+
+      if selectedOwner.kind == .process {
+        showThreads(ofProcessWithIdentifier: selectedOwner.processIdentifier)
+      } else {
+        show(.processTree(owner: selectedOwner))
+      }
+
+    case (.processTree, .process(let selectedProcessIdentifier)?):
+      showThreads(ofProcessWithIdentifier: selectedProcessIdentifier)
+
+    default:
+      break
+    }
+  }
+
+  private func showThreads(ofProcessWithIdentifier processIdentifier: pid_t) {
     guard
-      case .processOwners = screen,
-      case .owner(let selectedOwnerID) = tableSelection.selectedRowID,
-      let selectedOwnerResourceUsage = latestSnapshot?.owners.first(where: { $0.id == selectedOwnerID })
+      let process = latestProcessResourceUsageSnapshot?.processes.first(where: {
+        $0.metadata.processIdentifier == processIdentifier
+      }),
+      let sampler = try? ThreadResourceUsageSampler(process: RunningProcess(processIdentifier: processIdentifier))
     else {
       return
     }
 
-    self.processOwnersSelection = tableSelection
-    self.tableSelection = TableSelection()
-    self.screen = .processTree(owner: selectedOwnerResourceUsage.owner)
+    clearThreadScreenState()
 
-    updateTable()
+    self.threadScreenState = ThreadScreenState(sampler: sampler)
+
+    refreshThreads(shouldReSort: true)
+
+    guard threadScreenState != nil else {
+      return
+    }
+
+    show(.processThreads(process: process.metadata))
+    scheduleInitialThreadRefresh()
+  }
+
+  private func scheduleInitialThreadRefresh() {
+    threadScreenState?.initialRefreshTask?.cancel()
+    self.threadScreenState?.initialRefreshTask = Task {
+      do {
+        try await Task.sleep(for: min(options.refreshInterval, Self.maximumInitialRefreshDelay))
+      } catch {
+        return
+      }
+
+      guard threadScreenState?.snapshot?.isBaseline == true else {
+        return
+      }
+
+      refreshThreads(shouldReSort: true)
+      updateTable()
+      draw()
+    }
   }
 
   private func goBack() {
     if tableSelection.selectedRowID != nil {
       self.tableSelection.clear()
-    } else if case .processTree = screen {
-      showProcessOwners()
+    } else {
+      showPreviousScreen()
     }
   }
 
-  private func showProcessOwners() {
-    self.screen = .processOwners
-    self.tableSelection = processOwnersSelection
+  private func show(_ screen: Screen) {
+    self.screenHistory.append(ScreenHistoryEntry(screen: self.screen, selection: tableSelection))
+    self.screen = screen
+    self.tableSelection = TableSelection()
+
+    updateTable()
+  }
+
+  private func showPreviousScreen() {
+    guard let historyEntry = screenHistory.popLast() else {
+      return
+    }
+
+    clearThreadScreenState()
+
+    self.screen = historyEntry.screen
+    self.tableSelection = historyEntry.selection
 
     updateTable()
   }
 
   private func updateTable() {
-    guard let latestSnapshot else {
+    guard let latestProcessResourceUsageSnapshot else {
       return
     }
 
     switch screen {
     case .processOwners:
-      self.table = ResourceUsageTable(
-        nameColumnTitle: ResourceUsageColumn.name.title,
-        sortColumn: options.sortColumn,
-        caption: nil,
-        rows: latestSnapshot.owners.map(ResourceUsageTableRow.init(ownerResourceUsage:)),
-        totalUsage: nil
-      )
+      self.resourceUsageTable = processOwnersTable(snapshot: latestProcessResourceUsageSnapshot)
 
     case .processTree(let owner):
-      let ownedProcesses = latestSnapshot.processes.filter { $0.metadata.owner.id == owner.id }
-
-      guard !ownedProcesses.isEmpty else {
-        showProcessOwners()
+      guard let table = processTreeTable(owner: owner, snapshot: latestProcessResourceUsageSnapshot) else {
+        showPreviousScreen()
         return
       }
 
-      let rows = ProcessTree.rows(for: ownedProcesses, ownedBy: owner)
-      let processCountDescription = "\(rows.count) \(rows.count == 1 ? "process" : "processes")"
-      let formattedOwnerName = TextEmphasis.bold.applied(to: owner.name)
-      let formattedNavigationHint = TextEmphasis.deemphasized.applied(to: "(esc to go back)")
+      self.resourceUsageTable = table
 
-      self.table = ResourceUsageTable(
-        nameColumnTitle: "PROCESS",
-        sortColumn: nil,
-        caption: "\(formattedOwnerName)  \(processCountDescription)  \(formattedNavigationHint)",
-        rows: rows,
-        totalUsage: latestSnapshot.owners.first { $0.id == owner.id }?.usage
-      )
+    case .processThreads(let process):
+      guard let table = processThreadsTable(process: process) else {
+        showPreviousScreen()
+        return
+      }
+
+      self.resourceUsageTable = table
     }
   }
 
+  private func processOwnersTable(snapshot: ProcessResourceUsageSnapshot) -> ResourceUsageTable {
+    return ResourceUsageTable(
+      columns: ResourceUsageColumn.ownerTableColumns,
+      sortColumnIndex: ResourceUsageColumn.columnIndex(of: options.sortColumn),
+      caption: nil,
+      rows: snapshot.owners.map(ResourceUsageTableRow.init(processOwnerResourceUsage:)),
+      totalCells: nil
+    )
+  }
+
+  private func processTreeTable(owner: ProcessOwner, snapshot: ProcessResourceUsageSnapshot) -> ResourceUsageTable? {
+    let ownedProcesses = snapshot.processes.filter { $0.metadata.owner.id == owner.id }
+
+    guard !ownedProcesses.isEmpty else {
+      return nil
+    }
+
+    let rows = ProcessTree.rows(for: ownedProcesses, ownedBy: owner)
+    let ownerUsage = snapshot.owners.first { $0.id == owner.id }?.usage
+
+    return ResourceUsageTable(
+      columns: ResourceUsageColumn.processTableColumns,
+      sortColumnIndex: nil,
+      caption: Self.caption(title: owner.name, details: Self.countDescription(rows.count, "process", "processes")),
+      rows: rows,
+      totalCells: ownerUsage.map(ResourceUsageColumn.totalCells(usage:))
+    )
+  }
+
+  private func processThreadsTable(process: ProcessMetadata) -> ResourceUsageTable? {
+    guard let threadSnapshot = threadScreenState?.snapshot else {
+      return nil
+    }
+
+    let showsUsage = !threadSnapshot.isBaseline
+
+    return ResourceUsageTable(
+      columns: ThreadColumn.threadTableColumns,
+      sortColumnIndex: ThreadColumn.columnIndex(of: .cpu),
+      caption: Self.caption(
+        title: process.name,
+        details: "PID \(process.processIdentifier)",
+        Self.countDescription(threadSnapshot.threads.count, "thread", "threads")
+      ),
+      rows: threadSnapshot.threads.map { thread in
+        ResourceUsageTableRow(threadResourceUsage: thread, showsUsage: showsUsage)
+      },
+      totalCells: ThreadColumn.totalCells(cpuPercentage: threadSnapshot.cpuPercentage, showsUsage: showsUsage)
+    )
+  }
+
+  private static func caption(title: String, details: String...) -> String {
+    let formattedTitle = TextEmphasis.bold.applied(to: title)
+    let formattedNavigationHint = TextEmphasis.deemphasized.applied(to: "(esc to go back)")
+
+    return ([formattedTitle] + details + [formattedNavigationHint]).joined(separator: "  ")
+  }
+
+  private static func countDescription(_ count: Int, _ singularNoun: String, _ pluralNoun: String) -> String {
+    return "\(count) \(count == 1 ? singularNoun : pluralNoun)"
+  }
+
   private func draw() {
-    guard let table else {
+    guard let resourceUsageTable else {
       return
     }
 
     let size = terminalSession.size
     let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
-      for: table,
+      for: resourceUsageTable,
       summaryLineCount: summaryLines.count,
       size: size
     )
 
-    tableSelection.reconcile(with: table.rows, visibleRowCount: visibleRowCount)
+    tableSelection.reconcile(with: resourceUsageTable.rows, visibleRowCount: visibleRowCount)
     terminalSession.draw(
-      ResourceUsageTableRenderer.frame(summaryLines: summaryLines, table: table, selection: tableSelection, size: size)
+      ResourceUsageTableRenderer.frame(
+        summaryLines: summaryLines,
+        table: resourceUsageTable,
+        selection: tableSelection,
+        size: size
+      )
     )
   }
 
