@@ -5,7 +5,7 @@ import System
 enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
   static let exemptBundleIdentifiers: Set<String> = ["com.anthropic.claudefordesktop"]
-  static let hoverDelay: DispatchTimeInterval = .milliseconds(200)
+  static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let jitterThreshold = 3
 }
 
