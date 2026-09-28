@@ -833,9 +833,9 @@ final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
 
 @MainActor
 final class StatusItemManager: NSObject {
+  private static let missionControlBundleIdentifier = "com.apple.exposelauncher"
   private static let autosaveName = "SpaceIndicator"
   private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
-  private static let missionControlBundleIdentifier = "com.apple.exposelauncher"
 
   private let startDate = Date.now
   private let spaceIndicatorModel: SpaceIndicatorModel
