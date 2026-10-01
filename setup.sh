@@ -325,7 +325,6 @@ defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool fa
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false           # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false        # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
 
-defaults_write NSGlobalDomain AppleAccentColor -int -1                         # Set theme color to "Graphite"
 defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill"          # Set title bar double-click action to maximize window
 defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false  #
 defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2                       # Enable keyboard navigation
