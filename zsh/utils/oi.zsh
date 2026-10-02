@@ -5,10 +5,10 @@ function oi() {
 			  oi [options] <image|directory> ...
 
 			Options:
-			  -q, --quality <value>    Set JPEG quality (0-100, lower = smaller file)
-			  -z, --zopfli             Use Zopfli compression for PNGs (slower but better compression)
-			  -r, --recursive          Recurse into subdirectories
-			  -h, --help               Show this help message
+			  -q, --quality <value>  Set JPEG quality (0-100, lower = smaller file)
+			  -z, --zopfli           Use Zopfli compression for PNGs (slower but better compression)
+			  -r, --recursive        Recurse into subdirectories
+			  -h, --help             Show this help message
 		EOF
   }
 

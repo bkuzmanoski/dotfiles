@@ -5,9 +5,9 @@ function udmg() {
 			  udmg [options]
 
 			Options:
-			  -a, --all      Include system images
-			  -f, --force    Force unmount even if the image is busy
-			  -h, --help     Show this help message
+			  -a, --all    Include system images
+			  -f, --force  Force unmount even if the image is busy
+			  -h, --help   Show this help message
 		EOF
   }
 

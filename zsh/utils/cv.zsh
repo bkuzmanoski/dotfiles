@@ -5,15 +5,15 @@ function cv() {
 			  cv [options] <video|directory> ...
 
 			Options:
-			  -p, --preset <value>     Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
-			  -q, --quality <value>    Set quality (0-51, lower = better quality) [default: 23]
-			  -f, --fps <value>        Set frame rate [default: 30]
-			  -c, --codec <value>      Set codec (h264, h265) [default: h264]
-			  -a, --audio <value>      Set audio bitrate [default: 128k]
-			  -o, --overwrite          Overwrite input file with compressed version
-			  -F, --force              Re-encode even if a compressed version already exists
-			  -r, --recursive          Recurse into subdirectories
-			  -h, --help               Show this help message
+			  -p, --preset <value>   Set encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) [default: veryfast]
+			  -q, --quality <value>  Set quality (0-51, lower = better quality) [default: 23]
+			  -f, --fps <value>      Set frame rate [default: 30]
+			  -c, --codec <value>    Set codec (h264, h265) [default: h264]
+			  -a, --audio <value>    Set audio bitrate [default: 128k]
+			  -o, --overwrite        Overwrite input file with compressed version
+			  -F, --force            Re-encode even if a compressed version already exists
+			  -r, --recursive        Recurse into subdirectories
+			  -h, --help             Show this help message
 		EOF
   }
 

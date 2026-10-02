@@ -5,10 +5,10 @@ function ci() {
 			  ci [options] <image|directory> ...
 
 			Options:
-			  -a, --avif-quality <value>    Set AVIF quality (0-100, lower = smaller file) [default: 80]
-			  -w, --webp-quality <value>    Set WebP quality (0-100, lower = smaller file) [default: 90]
-			  -r, --recursive               Recurse into subdirectories
-			  -h, --help                    Show this help message
+			  -a, --avif-quality <value>  Set AVIF quality (0-100, lower = smaller file) [default: 80]
+			  -w, --webp-quality <value>  Set WebP quality (0-100, lower = smaller file) [default: 90]
+			  -r, --recursive             Recurse into subdirectories
+			  -h, --help                  Show this help message
 		EOF
   }
 
