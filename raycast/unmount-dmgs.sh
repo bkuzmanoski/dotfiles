@@ -2,7 +2,7 @@
 
 # @raycast.title Unmount DMGs
 # @raycast.packageName Finder
-# @raycast.icon icons/unmount-dmgs.png
+# @raycast.icon icons/eject.png
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 

@@ -2,7 +2,7 @@
 
 # @raycast.title Open Directory in Ghostty
 # @raycast.packageName Finder
-# @raycast.icon icons/open-directory-in-ghostty.png
+# @raycast.icon icons/finder.png
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 

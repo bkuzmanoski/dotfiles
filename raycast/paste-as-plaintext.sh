@@ -2,7 +2,7 @@
 
 # @raycast.title Paste as Plaintext
 # @raycast.packageName Utilities
-# @raycast.icon icons/paste-as-plaintext.png
+# @raycast.icon icons/paste.png
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
