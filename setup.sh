@@ -230,6 +230,26 @@ else
   log --info "Touch ID for sudo already enabled"
 fi
 
+# Allow `wdutil info` to run without a password (used by the Wi-Fi Diagnostics Raycast script)
+if [[ ! -f /etc/sudoers.d/wdutil ]]; then
+  log --info "Allowing wdutil info to run without a password"
+
+  if ! () {
+    local temp_file
+    temp_file="$(mktemp)" || return
+
+    trap 'rm -f -- "${temp_file}"' EXIT
+
+    print -r -- "${USER} ALL=(root) NOPASSWD: /usr/bin/wdutil info" >"${temp_file}" \
+      && sudo visudo -cf "${temp_file}" >/dev/null \
+      && sudo install -m 440 -o root -g wheel "${temp_file}" /etc/sudoers.d/wdutil
+  }; then
+    log --error "Failed to allow wdutil info to run without a password"
+  fi
+else
+  log --info "wdutil info already allowed to run without a password"
+fi
+
 # Enable bat to use themes in config directory
 log --info "Rebuilding bat cache"
 
