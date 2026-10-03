@@ -1,5 +1,5 @@
 readonly -a ZSH_PLUGINS=(
-  # plugin|git_url|source_file
+  # plugin|git_url|source_file_name
   "fzf-tab|https://github.com/Aloxaf/fzf-tab|fzf-tab.plugin.zsh"
   "fzf-navigator|https://github.com/benward2301/fzf-navigator|fzf-navigator.sh"
   "zce|https://github.com/hchbaw/zce.zsh|zce.zsh"
@@ -12,8 +12,9 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
   typeset parts=("${(@s:|:)plugin_entry}")
   typeset plugin="${parts[1]}"
   typeset git_repository="${parts[2]}"
-  typeset source_file="${parts[3]}"
+  typeset source_file_name="${parts[3]}"
   typeset plugin_dir="${HOME}/.zsh/plugins/${plugin}"
+  typeset source_file_path="${plugin_dir}/${source_file_name}"
 
   if [[ ! -d "${plugin_dir}" ]]; then
     print -P "Installing %B${plugin}%b..."
@@ -26,10 +27,10 @@ for plugin_entry in "${ZSH_PLUGINS[@]}"; do
     print
   fi
 
-  if [[ -f "${plugin_dir}/${source_file}" ]]; then
-    source "${plugin_dir}/${source_file}"
+  if [[ -f "${source_file_path}" ]]; then
+    source "${source_file_path}"
   else
-    print -u2 "Warning: Plugin file ${source_file} not found for ${plugin}\n"
+    print -u2 "Warning: Source file for ${plugin} not found at \"${source_file_path}\".\n"
   fi
 done
 
@@ -37,5 +38,6 @@ unset plugin_entry
 unset parts
 unset plugin
 unset git_repository
-unset source_file
+unset source_file_name
 unset plugin_dir
+unset source_file_path

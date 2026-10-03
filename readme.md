@@ -190,9 +190,3 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
   - Xcode
     - Install [Additional Tools for Xcode](https://developer.apple.com/download/all/?q=additional%20tools)
-
-## Development of Swift utilities
-
-Every utility in `utils/sources` is a single standalone file built on demand by `utils/run_util.sh` (aliased to `ru`).
-
-Swift utilities are not part of a Swift package, so editor support requires a `compile_commands.json` file to provide SourceKit-LSP with the build settings for each file. This file is automatically rewritten when a Swift utility is compiled, but it can also be regenerated manually by running `ru --compile-commands`.
