@@ -1,4 +1,4 @@
-// Shared: Agent CGEvent CGEventFlags EventTap Log
+// Shared: Accessibility Agent CGEvent CGEventFlags EventTap Log
 
 import AppKit
 
@@ -50,6 +50,7 @@ final class ZoomManager {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
         Zooming: \(isZooming)
         Modifier key: \(modifierKey.rawValue)

@@ -96,10 +96,11 @@ final class LineDeleteManager {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
-        Target bundle IDs: \(targetBundleIdentifiers.sorted().joined(separator: ", "))
         Target app focused: \(isTargetApplicationFocused)
         Performing key sequences: \(keyRepeatTask != nil)
+        Target bundle IDs: \(targetBundleIdentifiers.sorted().joined(separator: ", "))
         Key repeat:
           Initial delay: \(keyRepeatSettings.initialDelay) (system)
           Interval: \(effectiveKeyRepeatInterval) (system: \(keyRepeatSettings.interval))

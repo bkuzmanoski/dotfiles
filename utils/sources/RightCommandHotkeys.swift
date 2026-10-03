@@ -1,4 +1,4 @@
-// Shared: Agent CGEvent CGEventFlags EventTap Log
+// Shared: Accessibility Agent CGEvent CGEventFlags EventTap Log
 
 import AppKit
 import Carbon.HIToolbox
@@ -41,9 +41,10 @@ final class HotkeyManager {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
-        Mapped hotkeys: \(keymap.count)
         Active hotkeys: \(activeHotkeys.count)
+        Mapped hotkeys: \(keymap.count)
       """
     )
   }

@@ -1,12 +1,20 @@
-// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication
+// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication ScreenCapturePermission
 
 import AppKit
 
 enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
   static let exemptBundleIdentifiers: Set<String> = ["com.anthropic.claudefordesktop"]
+  static let focusableFloatingWindows: Set<WindowIdentity> = [
+    WindowIdentity(bundleIdentifier: "com.raycast.macos", title: "Notes")
+  ]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let jitterThreshold = 3
+}
+
+struct WindowIdentity: Hashable {
+  let bundleIdentifier: String
+  let title: String
 }
 
 struct ProcessSerialNumber {
@@ -306,6 +314,7 @@ final class FocusManager {
   private let hoverDelay: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
   private let exemptBundleIdentifiers: Set<String>
+  private let focusableFloatingWindows: Set<WindowIdentity>
   private let eventTap: EventTap
   private let skyLightProxy: SkyLightProxy
   private let debounceTimer: any DispatchSourceTimer
@@ -316,10 +325,20 @@ final class FocusManager {
   private var isFocusPending = false
   private var focusTask: Task<Void, Never>?
 
-  init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int, exemptBundleIdentifiers: Set<String>) throws {
+  init(
+    hoverDelay: DispatchTimeInterval,
+    jitterThreshold: Int,
+    exemptBundleIdentifiers: Set<String>,
+    focusableFloatingWindows: Set<WindowIdentity>
+  ) throws {
+    if !focusableFloatingWindows.isEmpty {
+      try ScreenCapturePermission.ensureGranted()
+    }
+
     self.hoverDelay = hoverDelay
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.exemptBundleIdentifiers = exemptBundleIdentifiers
+    self.focusableFloatingWindows = focusableFloatingWindows
     self.eventTap = try EventTap(
       location: .cgSessionEventTap,
       options: .listenOnly,
@@ -382,6 +401,8 @@ final class FocusManager {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
+        Screen capture permission: \(ScreenCapturePermission.isGranted)
         Enabled: \(isEnabled)
         Event tap active: \(eventTap.isActive)
         Suspended: \(isCommandKeyPressed || isScreenLocked || !suspendingWindows.isEmpty)
@@ -391,6 +412,7 @@ final class FocusManager {
         Focus pending: \(isFocusPending)
         Hover delay: \(hoverDelay)
         Exempt bundle IDs: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
+        Focusable floating windows: \(focusableFloatingWindows.map { "\($0.bundleIdentifier) \"\($0.title)\"" }.sorted().joined(separator: ", "))
       """
     )
   }
@@ -471,7 +493,7 @@ final class FocusManager {
 
     guard
       let (targetWindowID, targetPID) = skyLightProxy.findWindow(at: point),
-      skyLightProxy.windowLevel(for: targetWindowID) == kCGNormalWindowLevel,
+      isFocusableWindow(targetWindowID),
       GetProcessForPID(targetPID, &targetPSN) == noErr
     else {
       return
@@ -576,14 +598,49 @@ final class FocusManager {
     }
 
     if windowManagerSuspendingWindowLevels.contains(windowLevel) {
-      guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else {
-        return false
-      }
-
-      return NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier == "com.apple.WindowManager"
+      return ownerBundleIdentifier(ofWindow: windowInfo) == "com.apple.WindowManager"
     }
 
-    return suspendingWindowLevels.contains(windowLevel) && windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0
+    guard suspendingWindowLevels.contains(windowLevel), windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0 else {
+      return false
+    }
+
+    return !isFocusableFloatingWindow(info: windowInfo)
+  }
+
+  private nonisolated func isFocusableWindow(_ windowID: CGWindowID) -> Bool {
+    if skyLightProxy.windowLevel(for: windowID) == kCGNormalWindowLevel {
+      return true
+    }
+
+    guard
+      !focusableFloatingWindows.isEmpty,
+      let windowInfo = (CGWindowListCopyWindowInfo(.optionIncludingWindow, windowID) as? [[String: Any]])?.first
+    else {
+      return false
+    }
+
+    return isFocusableFloatingWindow(info: windowInfo)
+  }
+
+  private nonisolated func isFocusableFloatingWindow(info windowInfo: [String: Any]) -> Bool {
+    guard
+      !focusableFloatingWindows.isEmpty,
+      let title = windowInfo[kCGWindowName as String] as? String,
+      let bundleIdentifier = ownerBundleIdentifier(ofWindow: windowInfo)
+    else {
+      return false
+    }
+
+    return focusableFloatingWindows.contains(WindowIdentity(bundleIdentifier: bundleIdentifier, title: title))
+  }
+
+  private nonisolated func ownerBundleIdentifier(ofWindow windowInfo: [String: Any]) -> String? {
+    guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else {
+      return nil
+    }
+
+    return NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier
   }
 }
 
@@ -596,7 +653,8 @@ final class AppDelegate: NSObject, AgentDelegate {
       self.focusManager = try FocusManager(
         hoverDelay: Configuration.hoverDelay,
         jitterThreshold: Configuration.jitterThreshold,
-        exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers
+        exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers,
+        focusableFloatingWindows: Configuration.focusableFloatingWindows
       )
     } catch {
       Log.error(error.localizedDescription)

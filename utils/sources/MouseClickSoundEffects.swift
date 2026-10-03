@@ -1,4 +1,4 @@
-// Shared: Agent CGEvent EventTap Log
+// Shared: Accessibility Agent CGEvent EventTap Log
 
 import AppKit
 import AudioToolbox
@@ -178,9 +178,10 @@ final class ClickMonitor {
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
         Enabled: \(isEnabled)
-        Suspended: \(isSuspended)
         Event tap active: \(eventTap.isActive)
+        Suspended: \(isSuspended)
       """
     )
   }

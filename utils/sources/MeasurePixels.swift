@@ -1,4 +1,4 @@
-// Shared: EventTap Log Spaces
+// Shared: EventTap Log ScreenCapturePermission Spaces
 
 import ScreenCaptureKit
 
@@ -879,13 +879,11 @@ struct MeasurementStyle {
 @MainActor
 final class MeasurementSession {
   enum Error: Swift.Error, LocalizedError {
-    case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
     case failedToDetermineSpaceID
 
     var errorDescription: String? {
       switch self {
-      case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
       case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
       case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
       }
@@ -947,9 +945,7 @@ final class MeasurementSession {
     style measurementStyle: MeasurementStyle,
     spanMeasurementRGBDifferenceThreshold: Int
   ) throws {
-    guard CGPreflightScreenCaptureAccess() else {
-      throw Error.screenCapturePermissionNotGranted
-    }
+    try ScreenCapturePermission.ensureGranted()
 
     let eventTap = try EventTap(location: .cghidEventTap, eventTypes: [.flagsChanged])
 
