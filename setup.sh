@@ -345,18 +345,35 @@ defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool fa
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false           # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
 defaults_write com.apple.WindowManager EnableTopTilingByEdgeDrag -bool false        # Disable window tiling when dragging to top edge (can still hold ⌥ to tile)
 
-defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill"          # Set title bar double-click action to maximize window
-defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false  #
-defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2                       # Enable keyboard navigation
-defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true       #
-defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false             # Disable press-and-hold for keys in favor of key repeat
-defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true             # Don't tint window background with wallpaper color
-defaults_write NSGlobalDomain AppleShowAllExtensions -bool true                #
-defaults_write NSGlobalDomain AppleShowAllFiles -bool true                     #
-defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"      #
-defaults_write NSGlobalDomain com.apple.trackpad.forceClick -bool false        # Disable Dictionary lookup with force click on Trackpad
-defaults_write NSGlobalDomain InitialKeyRepeat -int 15                         # Decrease delay before key starts repeating
-defaults_write NSGlobalDomain KeyRepeat -int 2                                 # Increase key repeat rate
+defaults_write NSGlobalDomain AppleActionOnDoubleClick -string "Fill"         # Set title bar double-click action to maximize window
+defaults_write NSGlobalDomain AppleEnableSwipeNavigateWithScrolls -bool false #
+defaults_write NSGlobalDomain AppleKeyboardUIMode -int 2                      # Enable keyboard navigation
+defaults_write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true      #
+defaults_write NSGlobalDomain ApplePressAndHoldEnabled -bool false            # Disable press-and-hold for keys in favor of key repeat
+defaults_write NSGlobalDomain AppleReduceDesktopTinting -bool true            # Don't tint window background with wallpaper color
+defaults_write NSGlobalDomain AppleShowAllExtensions -bool true               #
+defaults_write NSGlobalDomain AppleShowAllFiles -bool true                    #
+defaults_write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"     #
+defaults_write NSGlobalDomain com.apple.trackpad.forceClick -bool false       # Disable Dictionary lookup with force click on Trackpad
+defaults_write NSGlobalDomain InitialKeyRepeat -int 15                        # Decrease delay before key starts repeating
+defaults_write NSGlobalDomain KeyRepeat -int 2                                # Increase key repeat rate
+defaults_write NSGlobalDomain NSAppleMenuAllowedItems -array \
+  -int 0 \
+  -int 1936680564 \
+  -int 1634760558 \
+  -int 1702390132 \
+  -int 1819239265 \
+  -int 1819239275 \
+  -int 1819240303 \
+  -int 1919706991 \
+  -int 1919118964 \
+  -int 1920103284 \
+  -int 1919251316 \
+  -int 1920164974 \
+  -int 1936225652 \
+  -int 1936483696 \
+  -int 1936749167 \
+  -int 1937339251                                                              # Hide "Ask Siri" from context menus
 defaults_write NSGlobalDomain NSAutomaticCapitalizationEnabled -bool false     #
 defaults_write NSGlobalDomain NSAutomaticPeriodSubstitutionEnabled -bool false # Don't add full stop with double space
 defaults_write NSGlobalDomain NSAutomaticSpellingCorrectionEnabled -bool false #
