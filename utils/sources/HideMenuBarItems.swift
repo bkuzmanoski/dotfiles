@@ -1,4 +1,4 @@
-// Shared: Agent Log
+// Shared: Agent Log NSStatusItem
 
 import AppKit
 
@@ -105,10 +105,6 @@ final class MenuBarItemManager {
     }
   }
 
-  private func preferredPositionKey(for autosaveName: String) -> String {
-    return "NSStatusItem Preferred Position \(autosaveName)"
-  }
-
   private func menuBarAgentPosition(of item: NSStatusItem) -> Double? {
     guard let autosaveName = item.autosaveName else {
       return nil
@@ -130,7 +126,7 @@ final class MenuBarItemManager {
 
     let boundaryStatusItemPosition =
       menuBarAgentPosition(of: boundaryStatusItem)
-      ?? UserDefaults.standard.object(forKey: preferredPositionKey(for: boundaryStatusItem.autosaveName))
+      ?? UserDefaults.standard.object(forKey: NSStatusItem.preferredPositionKey(for: boundaryStatusItem.autosaveName))
       as? Double
 
     for index in 0..<count {
@@ -141,7 +137,7 @@ final class MenuBarItemManager {
 
         UserDefaults.standard.set(
           boundaryStatusItemPosition + Double(index + 1) * 0.1,
-          forKey: preferredPositionKey(for: autosaveName)
+          forKey: NSStatusItem.preferredPositionKey(for: autosaveName)
         )
 
         spacerItem.autosaveName = autosaveName

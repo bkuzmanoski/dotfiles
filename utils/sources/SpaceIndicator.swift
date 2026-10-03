@@ -1,4 +1,4 @@
-// Shared: Agent CGError Log NSRunningApplication Spaces
+// Shared: Agent CGError Log NSRunningApplication NSStatusItem Spaces
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -603,7 +603,6 @@ final class PassthroughHostingView<Content: View>: NSHostingView<Content> {
 final class StatusItemManager: NSObject {
   private static let missionControlBundleIdentifier = "com.apple.exposelauncher"
   private static let autosaveName = "SpaceIndicator"
-  private static let preferredPositionKey = "NSStatusItem Preferred Position \(autosaveName)"
 
   private let startDate = Date.now
   private let spaceIndicatorModel: SpaceIndicatorModel
@@ -647,15 +646,7 @@ final class StatusItemManager: NSObject {
   }
 
   func toggleVisibility() {
-    let savedPosition = UserDefaults.standard.object(forKey: Self.preferredPositionKey)
-
-    defer {
-      if let savedPosition {
-        UserDefaults.standard.set(savedPosition, forKey: Self.preferredPositionKey)
-      }
-    }
-
-    statusItem?.isVisible.toggle()
+    statusItem?.isVisiblePreservingPosition.toggle()
   }
 
   @objc private func openMissionControl() {

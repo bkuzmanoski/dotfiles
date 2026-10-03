@@ -15,6 +15,7 @@ hs.window.animationDuration = 0
 
 utils.createSpaces(settings.numberOfSpaces)
 
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background BatteryWarning")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FloatingMenuBar")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FocusFollowsMouse")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background HideMenuBarItems")
