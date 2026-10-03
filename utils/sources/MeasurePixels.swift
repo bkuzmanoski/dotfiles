@@ -1,6 +1,6 @@
+// Shared: EventTap Log Spaces
+
 import ScreenCaptureKit
-import Synchronization
-import System
 
 enum Configuration {
   static let subsystem = "industries.britown.MeasurePixels"
@@ -16,126 +16,10 @@ enum Configuration {
   static let spanMeasurementRGBDifferenceThreshold = 20
 }
 
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-typealias CGSConnectionID = UInt32
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> CGSConnectionID
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
-
-typealias DisplayIdentifier = String
-typealias SpaceID = UInt64
-
 extension NSScreen {
   static var screenContainingMouse: NSScreen? {
     let mouseLocation = NSEvent.mouseLocation
     return screens.first { $0.frame.contains(mouseLocation) }
-  }
-
-  var displayIdentifier: DisplayIdentifier? {
-    guard
-      let cgDirectDisplayID,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(cgDirectDisplayID)?.takeRetainedValue()
-    else {
-      return nil
-    }
-
-    return CFUUIDCreateString(nil, uuid) as DisplayIdentifier
-  }
-
-  var currentSpaceID: SpaceID? {
-    guard
-      let displayIdentifier = self.displayIdentifier,
-      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        CGSMainConnectionID(),
-        displayIdentifier as CFString
-      )?.takeRetainedValue() as? [[String: Any]],
-      let displayInfo = managedDisplaySpaces.first(where: { $0["Display Identifier"] as? String == displayIdentifier }),
-      let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
-      !spacesInfo.isEmpty,
-      let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-      let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID
-    else {
-      return nil
-    }
-
-    return currentSpaceID
   }
 
   static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
@@ -148,11 +32,11 @@ extension NSCursor {
 
   static func named(_ name: String) -> NSCursor? {
     let cursorDirectory = URL(
-      fileURLWithPath:
+      filePath:
         "/System/Library/Frameworks/ApplicationServices.framework/Versions/A/Frameworks/HIServices.framework/Versions/A/Resources/cursors/\(name)"
     )
-    let imageURL = cursorDirectory.appendingPathComponent("cursor.pdf")
-    let plistURL = cursorDirectory.appendingPathComponent("info.plist")
+    let imageURL = cursorDirectory.appending(path: "cursor.pdf")
+    let plistURL = cursorDirectory.appending(path: "info.plist")
 
     guard
       let image = NSImage(contentsOf: imageURL),
@@ -648,11 +532,11 @@ final class MeasurementView: NSView {
 
   override var acceptsFirstResponder: Bool { true }
 
-  private let style: MeasurementStyle
+  private let measurementStyle: MeasurementStyle
   private var trackingArea: NSTrackingArea?
 
-  init(style: MeasurementStyle, frame frameRect: CGRect = .zero) {
-    self.style = style
+  init(style measurementStyle: MeasurementStyle, frame frameRect: CGRect = .zero) {
+    self.measurementStyle = measurementStyle
     super.init(frame: frameRect)
   }
 
@@ -776,7 +660,7 @@ final class MeasurementView: NSView {
 
     let maskPath = NSBezierPath()
 
-    style.measurementAreaColor.setFill()
+    measurementStyle.measurementAreaColor.setFill()
     measurementRect.fill()
 
     maskPath.move(to: verticalLineMaskEndPoint)
@@ -796,7 +680,7 @@ final class MeasurementView: NSView {
     linePath.line(to: cornerPoint)
     linePath.line(to: verticalLineEndPoint)
 
-    style.measurementLineColor.setStroke()
+    measurementStyle.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
     linePath.stroke()
 
@@ -805,9 +689,9 @@ final class MeasurementView: NSView {
         text: measurementRect.width.compactString,
         anchor: CGPoint(x: insetMeasurementRect.midX, y: cornerPoint.y),
         preferredPosition: measurement.verticalDirection == .downward ? .top : .bottom,
-        margin: style.labelMargin,
-        padding: style.labelPadding,
-        attributes: style.labelAttributes
+        margin: measurementStyle.labelMargin,
+        padding: measurementStyle.labelPadding,
+        attributes: measurementStyle.labelAttributes
       ),
       in: context
     )
@@ -816,9 +700,9 @@ final class MeasurementView: NSView {
         text: measurementRect.height.compactString,
         anchor: CGPoint(x: cornerPoint.x, y: insetMeasurementRect.midY),
         preferredPosition: measurement.horizontalDirection == .trailing ? .leading : .trailing,
-        margin: style.labelMargin,
-        padding: style.labelPadding,
-        attributes: style.labelAttributes
+        margin: measurementStyle.labelMargin,
+        padding: measurementStyle.labelPadding,
+        attributes: measurementStyle.labelAttributes
       ),
       in: context
     )
@@ -850,7 +734,7 @@ final class MeasurementView: NSView {
     linePath.move(to: startPoint)
     linePath.line(to: endPoint)
 
-    if let endCapLength = style.spanMeasurementLineEndCapLength, measurement.length > endCapLength * 2 {
+    if let endCapLength = measurementStyle.spanMeasurementLineEndCapLength, measurement.length > endCapLength * 2 {
       switch measurement.axis {
       case .horizontal:
         let leadingEndCapX = startPoint.x + 0.5
@@ -897,7 +781,7 @@ final class MeasurementView: NSView {
       maskPath.stroke()
     }
 
-    style.measurementLineColor.setStroke()
+    measurementStyle.measurementLineColor.setStroke()
     linePath.lineWidth = 1.0
     linePath.stroke()
 
@@ -906,9 +790,9 @@ final class MeasurementView: NSView {
         text: measurement.length.compactString,
         anchor: CGPoint(x: floor((startPoint.x + endPoint.x) / 2), y: floor((startPoint.y + endPoint.y) / 2)),
         preferredPosition: measurement.axis == .horizontal ? .bottom : .trailing,
-        margin: style.labelMargin,
-        padding: style.labelPadding,
-        attributes: style.labelAttributes
+        margin: measurementStyle.labelMargin,
+        padding: measurementStyle.labelPadding,
+        attributes: measurementStyle.labelAttributes
       ),
       in: context
     )
@@ -918,8 +802,8 @@ final class MeasurementView: NSView {
     let labelRect = label.rect(within: self.frame)
     let maskPath = NSBezierPath(
       roundedRect: labelRect.insetBy(dx: -1.0, dy: -1.0),
-      xRadius: style.labelCornerRadius > 0 ? style.labelCornerRadius + 1.0 : 0.0,
-      yRadius: style.labelCornerRadius > 0 ? style.labelCornerRadius + 1.0 : 0.0
+      xRadius: measurementStyle.labelCornerRadius > 0 ? measurementStyle.labelCornerRadius + 1.0 : 0.0,
+      yRadius: measurementStyle.labelCornerRadius > 0 ? measurementStyle.labelCornerRadius + 1.0 : 0.0
     )
 
     context.withBlendMode(.destinationOut) {
@@ -929,17 +813,17 @@ final class MeasurementView: NSView {
 
     let backgroundPath = NSBezierPath(
       roundedRect: labelRect,
-      xRadius: style.labelCornerRadius,
-      yRadius: style.labelCornerRadius
+      xRadius: measurementStyle.labelCornerRadius,
+      yRadius: measurementStyle.labelCornerRadius
     )
 
-    style.labelBackgroundColor.setFill()
+    measurementStyle.labelBackgroundColor.setFill()
     backgroundPath.fill()
 
     label.attributedString.draw(
       at: CGPoint(
-        x: labelRect.minX + style.labelPadding.horizontal,
-        y: labelRect.minY + style.labelPadding.vertical
+        x: labelRect.minX + measurementStyle.labelPadding.horizontal,
+        y: labelRect.minY + measurementStyle.labelPadding.vertical
       )
     )
   }
@@ -995,21 +879,15 @@ struct MeasurementStyle {
 @MainActor
 final class MeasurementSession {
   enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
     case screenCapturePermissionNotGranted
     case failedToDetermineDisplayID
     case failedToDetermineSpaceID
-    case failedToCreateEventTap
-    case failedToCreateRunLoopSource
 
     var errorDescription: String? {
       switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
       case .screenCapturePermissionNotGranted: "Screen capture permission not granted."
       case .failedToDetermineDisplayID: "Failed to determine display ID for the specified screen."
       case .failedToDetermineSpaceID: "Failed to determine current space ID for the specified screen."
-      case .failedToCreateEventTap: "Failed to create event tap."
-      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
       }
     }
   }
@@ -1026,15 +904,14 @@ final class MeasurementSession {
     }
   }
 
-  private let style: MeasurementStyle
+  private let measurementStyle: MeasurementStyle
   private let spanMeasurementRGBDifferenceThreshold: Int
   private let measurementView: MeasurementView
   private let overlayWindow: OverlayWindow
+  private let eventTap: EventTap
   private var appMode: AppMode
   private var displayID: CGDirectDisplayID
   private var currentSpaceID: SpaceID
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
   private var workspaceObservationTask: Task<Void, Never>?
   private var screenCaptureTask: Task<Void, Never>?
   private var screenCapture: ScreenCapture?
@@ -1067,73 +944,46 @@ final class MeasurementSession {
   init(
     appMode: AppMode,
     screen: NSScreen,
-    style: MeasurementStyle,
+    style measurementStyle: MeasurementStyle,
     spanMeasurementRGBDifferenceThreshold: Int
   ) throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
-
     guard CGPreflightScreenCaptureAccess() else {
       throw Error.screenCapturePermissionNotGranted
     }
+
+    let eventTap = try EventTap(location: .cghidEventTap, eventTypes: [.flagsChanged])
 
     guard let displayID = screen.cgDirectDisplayID else {
       throw Error.failedToDetermineDisplayID
     }
 
-    guard let currentSpaceID = screen.currentSpaceID else {
+    guard let currentSpaceID = screen.displaySpaces?.currentSpaceID else {
       throw Error.failedToDetermineSpaceID
     }
 
-    let measurementView = MeasurementView(style: style)
-    let window = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
-    window.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
-    window.level = .screenSaver
-    window.backgroundColor = style.screenOverlayColor(for: appMode)
-    window.contentView = measurementView
-    window.ignoresMouseEvents = false
+    let measurementView = MeasurementView(style: measurementStyle)
+    let overlayWindow = OverlayWindow(
+      contentRect: screen.frame,
+      styleMask: .borderless,
+      backing: .buffered,
+      defer: false
+    )
+    overlayWindow.collectionBehavior = [.ignoresCycle, .stationary, .auxiliary, .canJoinAllSpaces]
+    overlayWindow.level = .screenSaver
+    overlayWindow.backgroundColor = measurementStyle.screenOverlayColor(for: appMode)
+    overlayWindow.contentView = measurementView
+    overlayWindow.ignoresMouseEvents = false
 
-    self.style = style
+    self.measurementStyle = measurementStyle
     self.spanMeasurementRGBDifferenceThreshold = spanMeasurementRGBDifferenceThreshold
     self.measurementView = measurementView
-    self.overlayWindow = window
+    self.overlayWindow = overlayWindow
+    self.eventTap = eventTap
     self.appMode = appMode
     self.displayID = displayID
     self.currentSpaceID = currentSpaceID
 
-    guard
-      let eventTap = CGEvent.tapCreate(
-        tap: .cghidEventTap,
-        place: .headInsertEventTap,
-        options: .defaultTap,
-        eventsOfInterest: CGEventMask(1 << CGEventType.flagsChanged.rawValue),
-        callback: { _, _, event, refcon in
-          guard let refcon else {
-            return Unmanaged.passUnretained(event)
-          }
-
-          return MainActor.assumeIsolated {
-            Unmanaged<MeasurementSession>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
-          }
-            ? nil
-            : Unmanaged.passUnretained(event)
-        },
-        userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
-    else {
-      throw Error.failedToCreateEventTap
-    }
-
-    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
-      CFMachPortInvalidate(eventTap)
-      throw Error.failedToCreateRunLoopSource
-    }
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: eventTap, enable: true)
-
-    let workspaceObservationTask = Task {
+    self.workspaceObservationTask = Task {
       await withDiscardingTaskGroup { [weak self] group in
         group.addTask {
           for await _ in NotificationCenter.default.notifications(
@@ -1168,25 +1018,20 @@ final class MeasurementSession {
       }
     }
 
-    self.eventTap = eventTap
-    self.runLoopSource = runLoopSource
-    self.workspaceObservationTask = workspaceObservationTask
-
     measurementView.delegate = self
-    window.makeKeyAndOrderFront(nil)
 
+    eventTap.eventHandler = { [weak self] event in
+      self?.handleEvent(event) ?? false
+    }
+
+    eventTap.isEnabled = true
+
+    overlayWindow.makeKeyAndOrderFront(nil)
     reactivateAppIfNeeded()
   }
 
   isolated deinit {
     overlayWindow.close()
-
-    if let eventTap, let runLoopSource {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-      CFMachPortInvalidate(eventTap)
-    }
-
     workspaceObservationTask?.cancel()
     screenCaptureTask?.cancel()
   }
@@ -1197,7 +1042,7 @@ final class MeasurementSession {
     }
 
     self.appMode = appMode
-    self.overlayWindow.backgroundColor = style.screenOverlayColor(for: appMode)
+    self.overlayWindow.backgroundColor = measurementStyle.screenOverlayColor(for: appMode)
 
     if appMode == .single {
       self.committedMeasurements.removeAll()
@@ -1209,7 +1054,7 @@ final class MeasurementSession {
     guard
       let displayID = screen.cgDirectDisplayID,
       self.displayID != displayID,
-      let spaceID = screen.currentSpaceID
+      let spaceID = screen.displaySpaces?.currentSpaceID
     else {
       return
     }
@@ -1226,14 +1071,6 @@ final class MeasurementSession {
   }
 
   private func handleEvent(_ event: CGEvent) -> Bool {
-    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
-      if let eventTap {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-      return false
-    }
-
     if event.flags.contains(.maskSecondaryFn) {
       self.isPassthroughModeEnabled = true
 
@@ -1280,7 +1117,7 @@ final class MeasurementSession {
   private func handleSpaceChanged() {
     guard
       let screen = NSScreen.screen(for: displayID),
-      let spaceID = screen.currentSpaceID,
+      let spaceID = screen.displaySpaces?.currentSpaceID,
       currentSpaceID != spaceID
     else {
       return
@@ -1640,70 +1477,76 @@ enum IPCCommand {
   }
 }
 
-let arguments = CommandLine.arguments.dropFirst()
-let usageDescription = """
-  Usage:
-    \(ProcessInfo.processInfo.processName) [options]
+@main
+enum MeasurePixels {
+  static func main() {
+    let arguments = CommandLine.arguments.dropFirst()
+    let usageDescription = """
+      Usage:
+        \(ProcessInfo.processInfo.processName) [options]
 
-  Options:
-    -s, --single      Measure once, copy to clipboard, and exit (default)
-    -c, --continuous  Measure continuously, keeping results on screen until cleared
-    -h, --help        Show this help message
-  """
+      Options:
+        -s, --single      Measure once, copy to clipboard, and exit (default)
+        -c, --continuous  Measure continuously, keeping results on screen until cleared
+        -h, --help        Show this help message
+      """
 
-guard arguments.count <= 1 else {
-  Log.error("Too many arguments.\n\n\(usageDescription)")
-  exit(EX_USAGE)
-}
+    guard arguments.count <= 1 else {
+      Log.error("Too many arguments.\n\n\(usageDescription)")
+      exit(EX_USAGE)
+    }
 
-var appMode: AppMode = .single
+    var appMode: AppMode = .single
 
-if let argument = arguments.first {
-  switch argument {
-  case "-s", "--single":
-    appMode = .single
+    if let argument = arguments.first {
+      switch argument {
+      case "-s", "--single":
+        appMode = .single
 
-  case "-c", "--continuous":
-    appMode = .continuous
+      case "-c", "--continuous":
+        appMode = .continuous
 
-  case "-h", "--help":
-    print(usageDescription)
-    exit(EXIT_SUCCESS)
+      case "-h", "--help":
+        print(usageDescription)
+        exit(EXIT_SUCCESS)
 
-  default:
-    Log.error("Unknown argument: \(argument)\n\n\(usageDescription)")
-    exit(EX_USAGE)
+      default:
+        Log.error("Unknown argument: \(argument)\n\n\(usageDescription)")
+        exit(EX_USAGE)
+      }
+    }
+
+    guard let executablePath = CommandLine.arguments.first else {
+      Log.error("Executable path not found in command line arguments.")
+      exit(EXIT_FAILURE)
+    }
+
+    let currentProcessIdentifier = ProcessInfo.processInfo.processIdentifier
+    let currentExecutableURL = URL(filePath: executablePath).resolvingSymlinksInPath().standardizedFileURL
+    let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
+      guard
+        !runningApplication.isTerminated,
+        runningApplication.processIdentifier != currentProcessIdentifier,
+        let executableURL = runningApplication.executableURL?.resolvingSymlinksInPath().standardizedFileURL
+      else {
+        return false
+      }
+
+      return executableURL == currentExecutableURL
+    }
+
+    if existingInstance == nil {
+      let delegate = AppDelegate(appMode: appMode)
+      let application = NSApplication.shared
+      application.delegate = delegate
+      application.setActivationPolicy(.accessory)
+
+      withExtendedLifetime(delegate) {
+        application.run()
+      }
+    } else {
+      IPCCommand.activate(appMode: appMode).send()
+      exit(EXIT_SUCCESS)
+    }
   }
-}
-
-guard let executablePath = CommandLine.arguments.first else {
-  Log.error("Executable path not found in command line arguments.")
-  exit(EXIT_FAILURE)
-}
-
-let currentProcessIdentifier = ProcessInfo.processInfo.processIdentifier
-let currentExecutableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath().standardizedFileURL
-let existingInstance = NSWorkspace.shared.runningApplications.first { runningApplication in
-  guard
-    !runningApplication.isTerminated,
-    runningApplication.processIdentifier != currentProcessIdentifier,
-    let executableURL = runningApplication.executableURL?.resolvingSymlinksInPath().standardizedFileURL
-  else {
-    return false
-  }
-
-  return executableURL == currentExecutableURL
-}
-
-if existingInstance == nil {
-  MainActor.assumeIsolated {
-    let delegate = AppDelegate(appMode: appMode)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.accessory)
-    application.run()
-  }
-} else {
-  IPCCommand.activate(appMode: appMode).send()
-  exit(EXIT_SUCCESS)
 }

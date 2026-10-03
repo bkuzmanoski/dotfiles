@@ -1,227 +1,9 @@
+// Shared: Accessibility Agent CGEvent Log Spaces
+
 import AppKit
-import Synchronization
-import System
 
 enum Configuration {
   static let subsystem = "industries.britown.SwitchToSpace"
-}
-
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(underlyingError: Errno)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
-      }
-    }
-  }
-
-  private var lockFileDescriptor: FileDescriptor
-
-  init(subsystem: String) throws {
-    do {
-      self.lockFileDescriptor = try FileDescriptor.open(
-        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
-        .readWrite,
-        options: [.create, .exclusiveLock, .nonBlocking],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-    } catch let errno as Errno where errno == .wouldBlock {
-      throw Error.instanceAlreadyRunning
-
-    } catch let errno as Errno {
-      throw Error.failedToAcquireLock(underlyingError: errno)
-    }
-  }
-
-  deinit {
-    do {
-      try lockFileDescriptor.close()
-    } catch {
-      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
-    }
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-typealias CGSConnectionID = UInt32
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> CGSConnectionID
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
-
-extension CGEventField {
-  static let cgsEventType = CGEventField(rawValue: 55)!
-  static let gestureHIDType = CGEventField(rawValue: 110)!
-  static let gestureSwipeMotion = CGEventField(rawValue: 123)!
-  static let gestureSwipeProgress = CGEventField(rawValue: 124)!
-  static let gestureSwipeVelocityX = CGEventField(rawValue: 129)!
-  static let gesturePhase = CGEventField(rawValue: 132)!
-}
-
-extension CGEventType {
-  static let dockControl = CGEventType(rawValue: 30)!
-}
-
-typealias DisplayIdentifier = String
-typealias SpaceID = UInt64
-
-extension NSScreen {
-  private var displayIdentifier: DisplayIdentifier? {
-    guard
-      let cgDirectDisplayID,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(cgDirectDisplayID)?.takeRetainedValue()
-    else {
-      return nil
-    }
-
-    return CFUUIDCreateString(nil, uuid) as DisplayIdentifier
-  }
-
-  func spacesInfo() -> (spaceCount: Int, currentIndex: Int)? {
-    guard
-      let displayIdentifier = self.displayIdentifier,
-      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        CGSMainConnectionID(),
-        displayIdentifier as CFString
-      )?.takeRetainedValue() as? [[String: Any]],
-      let displayInfo = managedDisplaySpaces.first(where: {
-        $0["Display Identifier"] as? DisplayIdentifier == displayIdentifier
-      }),
-      let spacesInfo = displayInfo["Spaces"] as? [[String: Any]],
-      !spacesInfo.isEmpty,
-      let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-      let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID,
-      let currentSpaceIndex = spacesInfo.firstIndex(where: { $0["id64"] as? SpaceID == currentSpaceID })
-    else {
-      return nil
-    }
-
-    return (spacesInfo.count, currentSpaceIndex)
-  }
-}
-
-enum IOHIDEventType: UInt32 {
-  case velocity = 9
-  case dockSwipe = 23
-}
-
-enum IOHIDGestureMotion: UInt16 {
-  case horizontal = 1
 }
 
 struct DockSwipeHIDEvent {
@@ -251,24 +33,24 @@ struct DockSwipeHIDEvent {
 
   private var bytes: [UInt8]
 
-  init(phase: CGGesturePhase, progress: Double, velocity: Double?) {
-    self.bytes = [UInt8](repeating: 0, count: velocity == nil ? Self.size : Self.sizeWithVelocity)
+  init(gesturePhase: CGGesturePhase, progress dockSwipeProgress: Double, velocityX: Double?) {
+    self.bytes = [UInt8](repeating: 0, count: velocityX == nil ? Self.size : Self.sizeWithVelocity)
 
     setValue(mach_absolute_time(), at: Offset.timestamp)
-    setValue(UInt32(velocity == nil ? 1 : 2), at: Offset.eventCount)
+    setValue(UInt32(velocityX == nil ? 1 : 2), at: Offset.eventCount)
     setValue(Self.dockSwipeEventSize, at: Offset.dockSwipeEventSize)
     setValue(IOHIDEventType.dockSwipe.rawValue, at: Offset.dockSwipeEventType)
-    setValue(phase.rawValue << 24, at: Offset.dockSwipeOptions)
+    setValue(gesturePhase.rawValue << 24, at: Offset.dockSwipeOptions)
     setValue(Self.fixedPoint(Self.positionX), at: Offset.dockSwipePositionX)
     setValue(IOHIDGestureMotion.horizontal.rawValue, at: Offset.dockSwipeMotion)
     setValue(Self.dockSwipeFlavor, at: Offset.dockSwipeFlavor)
-    setValue(Self.fixedPoint(progress), at: Offset.dockSwipeProgress)
+    setValue(Self.fixedPoint(dockSwipeProgress), at: Offset.dockSwipeProgress)
 
-    if let velocity {
+    if let velocityX {
       setValue(Self.velocityEventSize, at: Offset.velocityEventSize)
       setValue(IOHIDEventType.velocity.rawValue, at: Offset.velocityEventType)
       setValue(UInt32(1), at: Offset.velocityEventDepth)
-      setValue(Self.fixedPoint(velocity), at: Offset.velocityX)
+      setValue(Self.fixedPoint(velocityX), at: Offset.velocityX)
     }
   }
 
@@ -294,17 +76,8 @@ struct DockSwipeHIDEvent {
   }
 }
 
+@MainActor
 final class SpaceSwitcher {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
-      }
-    }
-  }
-
   enum Direction {
     case left
     case right
@@ -313,49 +86,55 @@ final class SpaceSwitcher {
   private let startDate = Date.now
 
   init() throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
+    try AccessibilityPermission.ensureGranted()
   }
 
   func switchSpace(direction: Direction) {
-    guard let spacesInfo = NSScreen.main?.spacesInfo(), spacesInfo.spaceCount > 0 else {
+    guard
+      let displaySpaces = NSScreen.main?.displaySpaces,
+      let currentSpaceIndex = displaySpaces.currentSpaceIndex
+    else {
       return
     }
 
     let offset = direction == .right ? 1 : -1
-    let targetIndex = (spacesInfo.currentIndex + offset + spacesInfo.spaceCount) % spacesInfo.spaceCount
+    let spaceCount = displaySpaces.spaceIDs.count
+    let targetSpaceIndex = (currentSpaceIndex + offset + spaceCount) % spaceCount
 
-    performSwitch(to: targetIndex, spacesInfo: spacesInfo)
+    performSwitch(to: targetSpaceIndex, in: displaySpaces)
   }
 
-  func switchToSpace(index: Int) {
-    guard let spacesInfo = NSScreen.main?.spacesInfo(), spacesInfo.spaceCount > 0 else {
+  func switchToSpace(index spaceIndex: Int) {
+    guard let displaySpaces = NSScreen.main?.displaySpaces else {
       return
     }
 
-    performSwitch(to: index, spacesInfo: spacesInfo)
+    performSwitch(to: spaceIndex, in: displaySpaces)
   }
 
   func logDiagnosticReport() {
-    Log.message(
+    Log.info(
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
-        Accessibility permission: \(AXIsProcessTrustedWithOptions(nil))
+        Accessibility permission: \(AccessibilityPermission.isGranted)
       """
     )
   }
 
-  private func performSwitch(to index: Int, spacesInfo: (spaceCount: Int, currentIndex: Int)) {
-    let targetIndex = min(max(index, 0), spacesInfo.spaceCount - 1)
-
-    guard spacesInfo.currentIndex != targetIndex else {
+  private func performSwitch(to spaceIndex: Int, in displaySpaces: DisplaySpaces) {
+    guard let currentSpaceIndex = displaySpaces.currentSpaceIndex else {
       return
     }
 
-    let direction: Direction = spacesInfo.currentIndex < targetIndex ? .right : .left
-    let steps = direction == .right ? (targetIndex - spacesInfo.currentIndex) : (spacesInfo.currentIndex - targetIndex)
+    let targetSpaceIndex = min(max(spaceIndex, 0), displaySpaces.spaceIDs.count - 1)
+
+    guard currentSpaceIndex != targetSpaceIndex else {
+      return
+    }
+
+    let direction: Direction = currentSpaceIndex < targetSpaceIndex ? .right : .left
+    let steps = abs(targetSpaceIndex - currentSpaceIndex)
 
     for _ in 0..<steps where !performSpaceSwitchGesture(direction: direction) {
       return
@@ -377,30 +156,30 @@ final class SpaceSwitcher {
     return true
   }
 
-  private func performSpaceSwitchGesture(phase: CGGesturePhase, sign: Double) -> Bool {
-    let progress = sign * 1.6e-5
-    let velocity: Double? = phase == .ended ? sign * 500.0 : nil
+  private func performSpaceSwitchGesture(phase gesturePhase: CGGesturePhase, sign: Double) -> Bool {
+    let gestureSwipeProgress = sign * 1.6e-5
+    let velocityX: Double? = gesturePhase == .ended ? sign * 500.0 : nil
 
     guard let dockControlEvent = CGEvent(source: nil) else {
       Log.error("Failed to create CGEvent for space switch gesture.")
       return false
     }
 
-    dockControlEvent.setIntegerValueField(.cgsEventType, value: Int64(CGEventType.dockControl.rawValue))
-    dockControlEvent.setIntegerValueField(.gestureHIDType, value: Int64(IOHIDEventType.dockSwipe.rawValue))
-    dockControlEvent.setIntegerValueField(.gesturePhase, value: Int64(phase.rawValue))
-    dockControlEvent.setIntegerValueField(.gestureSwipeMotion, value: Int64(IOHIDGestureMotion.horizontal.rawValue))
-    dockControlEvent.setDoubleValueField(.gestureSwipeProgress, value: progress)
+    dockControlEvent.cgsEventType = .dockControl
+    dockControlEvent.gestureHIDType = .dockSwipe
+    dockControlEvent.gesturePhase = gesturePhase
+    dockControlEvent.gestureSwipeMotion = .horizontal
+    dockControlEvent.gestureSwipeProgress = gestureSwipeProgress
 
-    if let velocity {
-      dockControlEvent.setDoubleValueField(.gestureSwipeVelocityX, value: velocity)
+    if let velocityX {
+      dockControlEvent.gestureSwipeVelocityX = velocityX
     }
 
     guard
       let hidDockControlEvent = DockSwipeHIDEvent(
-        phase: phase,
-        progress: progress,
-        velocity: velocity
+        gesturePhase: gesturePhase,
+        progress: gestureSwipeProgress,
+        velocityX: velocityX
       ).attach(to: dockControlEvent)
     else {
       Log.error("Failed to attach HID event data to space switch gesture.")
@@ -414,14 +193,8 @@ final class SpaceSwitcher {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singleInstanceLock: SingleInstanceLock?
+final class AppDelegate: NSObject, AgentDelegate {
   private var spaceSwitcher: SpaceSwitcher?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -430,43 +203,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
-
-    observeProcessSignals()
-    observeIPCCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.singleInstanceLock = nil
     self.spaceSwitcher = nil
   }
 
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      for await notification in DistributedNotificationCenter.default().notifications(
-        named: IPCCommand.notificationName
-      ) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+  func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .left: spaceSwitcher?.switchSpace(direction: .left)
     case .right: spaceSwitcher?.switchSpace(direction: .right)
@@ -477,18 +220,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-enum IPCCommand: RawRepresentable, CaseIterable {
+enum IPCCommand: AgentIPCCommand {
   case left
   case right
   case space(Int)
   case printLog
   case quit
 
-  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
-  static let notificationUserInfoKey = "command"
   static let validSpaceRange = 1...9
 
-  static var allCases: [IPCCommand] { [.left, .right] + validSpaceRange.map { .space($0) } + [.quit] }
+  static var allCases: [IPCCommand] { [.left, .right] + validSpaceRange.map { .space($0) } + [.printLog, .quit] }
 
   var rawValue: String {
     switch self {
@@ -522,92 +263,13 @@ enum IPCCommand: RawRepresentable, CaseIterable {
       self = .space(number)
     }
   }
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Self.notificationName,
-      object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
-      deliverImmediately: true
-    )
-  }
 }
 
-do {
-  try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
-
-    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
-      do {
-        try Log.redirectOutput(
-          to: FilePath(
-            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          )
-        )
-      } catch {
-        Log.error("Failed to redirect output: \(error.localizedDescription)")
-      }
-    }
-
-    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.prohibited)
-    application.run()
-  }
-
-} catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = CommandLine.arguments.dropFirst()
-
-  lazy var usageDescription =
-    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
-
-  guard let argument = arguments.first else {
-    Log.error("Already running.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard arguments.dropFirst().isEmpty else {
-    Log.error("Too many arguments.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    Log.error("Unknown command.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  ipcCommand.send()
-
-  if case .printLog = ipcCommand {
-    Thread.sleep(forTimeInterval: 0.2)
-
-    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
-
-    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      Log.error("Log file does not exist.")
-      exit(EX_NOINPUT)
-    }
-
-    print("Log file path: \(logFileURL.path)\n")
-
-    do {
-      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
-
-      if logContents.isEmpty {
-        print("<EMPTY>")
-      } else {
-        print(logContents)
-      }
-    } catch {
-      Log.error("Failed to read log file: \(error.localizedDescription)")
-      exit(EXIT_FAILURE)
+@main
+enum SwitchToSpace {
+  static func main() {
+    Agent.run(subsystem: Configuration.subsystem, activationPolicy: .prohibited) {
+      AppDelegate()
     }
   }
-
-  exit(EXIT_SUCCESS)
-
-} catch {
-  Log.error(error.localizedDescription)
-  exit(EXIT_FAILURE)
 }

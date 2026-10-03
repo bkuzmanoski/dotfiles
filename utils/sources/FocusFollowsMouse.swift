@@ -1,166 +1,12 @@
+// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication
+
 import AppKit
-import Synchronization
-import System
 
 enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
   static let exemptBundleIdentifiers: Set<String> = ["com.anthropic.claudefordesktop"]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let jitterThreshold = 3
-}
-
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(underlyingError: Errno)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
-      }
-    }
-  }
-
-  private var lockFileDescriptor: FileDescriptor
-
-  init(subsystem: String) throws {
-    do {
-      self.lockFileDescriptor = try FileDescriptor.open(
-        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
-        .readWrite,
-        options: [.create, .exclusiveLock, .nonBlocking],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-    } catch let errno as Errno where errno == .wouldBlock {
-      throw Error.instanceAlreadyRunning
-
-    } catch let errno as Errno {
-      throw Error.failedToAcquireLock(underlyingError: errno)
-    }
-  }
-
-  deinit {
-    do {
-      try lockFileDescriptor.close()
-    } catch {
-      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
-    }
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-extension NSRunningApplication {
-  var isSystemAgent: Bool {
-    activationPolicy != .regular && bundleURL?.path.hasPrefix("/System/") == true
-  }
 }
 
 struct ProcessSerialNumber {
@@ -179,105 +25,6 @@ func SameProcess(
   _ psn2: UnsafePointer<ProcessSerialNumber>,
   _ result: UnsafeMutablePointer<DarwinBoolean>
 ) -> OSStatus
-
-// swift-format-ignore: NoLeadingUnderscores
-@_silgen_name("_AXUIElementGetWindow")
-func _AXUIElementGetWindow(_ element: AXUIElement, _ windowID: UnsafeMutablePointer<CGWindowID>) -> AXError
-
-extension AXUIElement {
-  enum Error: Swift.Error, LocalizedError {
-    case typeMismatch
-
-    var errorDescription: String? {
-      switch self {
-      case .typeMismatch: "Returned value type does not match expected type."
-      }
-    }
-  }
-
-  static func setGlobalMessagingTimeout(seconds timeoutInSeconds: Float) {
-    AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), timeoutInSeconds)
-  }
-
-  func windowID() throws -> CGWindowID {
-    var windowID: CGWindowID = kCGNullWindowID
-
-    try _AXUIElementGetWindow(self, &windowID).throwIfFailed()
-
-    return windowID
-  }
-
-  func value<T>(for attribute: NSAccessibility.Attribute, as type: T.Type = T.self) throws -> T {
-    var rawValue: CFTypeRef?
-
-    try AXUIElementCopyAttributeValue(self, attribute.rawValue as CFString, &rawValue).throwIfFailed()
-
-    guard let value = rawValue as? T else {
-      throw Error.typeMismatch
-    }
-
-    return value
-  }
-}
-
-extension AXError: @retroactive _BridgedNSError, @retroactive Error, @retroactive LocalizedError {
-  public var errorDescription: String? {
-    let message: String
-
-    switch self {
-    case .success: message = "Success"
-    case .failure: message = "Failure"
-    case .illegalArgument: message = "Illegal argument"
-    case .invalidUIElement: message = "Invalid UI element"
-    case .invalidUIElementObserver: message = "Invalid UI element observer"
-    case .cannotComplete: message = "Cannot complete"
-    case .attributeUnsupported: message = "Attribute unsupported"
-    case .actionUnsupported: message = "Action unsupported"
-    case .notificationUnsupported: message = "Notification unsupported"
-    case .notImplemented: message = "Not implemented"
-    case .notificationAlreadyRegistered: message = "Notification already registered"
-    case .notificationNotRegistered: message = "Notification not registered"
-    case .apiDisabled: message = "API disabled"
-    case .noValue: message = "No value"
-    case .parameterizedAttributeUnsupported: message = "Parameterized attribute unsupported"
-    case .notEnoughPrecision: message = "Not enough precision"
-    @unknown default: message = "Unknown error"
-    }
-
-    return "AXError: \(message) (\(self.rawValue))"
-  }
-}
-
-extension AXError {
-  func throwIfFailed() throws {
-    if self != .success {
-      throw self
-    }
-  }
-}
-
-extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
-  public var errorDescription: String? {
-    let message: String
-
-    switch self {
-    case .success: message = "Success"
-    case .failure: message = "Failure"
-    case .illegalArgument: message = "Illegal argument"
-    case .invalidConnection: message = "Invalid connection"
-    case .invalidContext: message = "Invalid context"
-    case .cannotComplete: message = "Cannot complete"
-    case .notImplemented: message = "Not implemented"
-    case .rangeCheck: message = "Range check error"
-    case .typeCheck: message = "Type check error"
-    case .invalidOperation: message = "Invalid operation"
-    case .noneAvailable: message = "Error code not available"
-    @unknown default: message = "Unknown error"
-    }
-
-    return "CGError: \(message) (\(self.rawValue))"
-  }
-}
 
 struct CPSSetFrontProcessOptions: OptionSet {
   let rawValue: UInt32
@@ -546,25 +293,9 @@ struct SkyLightProxy {
 
 @MainActor
 final class FocusManager {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-    case failedToCreateEventTap
-    case failedToCreateRunLoopSource
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
-      case .failedToCreateEventTap: "Failed to create event tap."
-      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
-      }
-    }
-  }
-
   private(set) var isEnabled = true
 
   private let startDate = Date.now
-  private let skyLightProxy: SkyLightProxy
-  private let debounceTimer: any DispatchSourceTimer
   private let suspendingWindowLevels: Set<CGWindowLevel> = [
     CGWindowLevelForKey(.modalPanelWindow),
     CGWindowLevelForKey(.popUpMenuWindow),
@@ -575,8 +306,9 @@ final class FocusManager {
   private let hoverDelay: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
   private let exemptBundleIdentifiers: Set<String>
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
+  private let eventTap: EventTap
+  private let skyLightProxy: SkyLightProxy
+  private let debounceTimer: any DispatchSourceTimer
   private var spaceObservationTask: Task<Void, Never>?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
@@ -585,55 +317,18 @@ final class FocusManager {
   private var focusTask: Task<Void, Never>?
 
   init(hoverDelay: DispatchTimeInterval, jitterThreshold: Int, exemptBundleIdentifiers: Set<String>) throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
-
-    AXUIElement.setGlobalMessagingTimeout(seconds: 0.5)
-
     self.hoverDelay = hoverDelay
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.exemptBundleIdentifiers = exemptBundleIdentifiers
+    self.eventTap = try EventTap(
+      location: .cgSessionEventTap,
+      options: .listenOnly,
+      eventTypes: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .flagsChanged]
+    )
     self.skyLightProxy = try SkyLightProxy()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
 
-    guard
-      let eventTap = CGEvent.tapCreate(
-        tap: .cgSessionEventTap,
-        place: .headInsertEventTap,
-        options: .listenOnly,
-        eventsOfInterest: CGEventMask(
-          [
-            CGEventType.mouseMoved,
-            CGEventType.leftMouseDragged,
-            CGEventType.rightMouseDragged,
-            CGEventType.flagsChanged
-          ].reduce(0) { $0 | (1 << $1.rawValue) }
-        ),
-        callback: { _, _, event, refcon in
-          if let refcon {
-            MainActor.assumeIsolated {
-              Unmanaged<FocusManager>.fromOpaque(refcon).takeUnretainedValue().handleCGEvent(event)
-            }
-          }
-
-          return Unmanaged.passUnretained(event)
-        },
-        userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
-    else {
-      throw Error.failedToCreateEventTap
-    }
-
-    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
-      CFMachPortInvalidate(eventTap)
-      throw Error.failedToCreateRunLoopSource
-    }
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: eventTap, enable: true)
-
-    let spaceObservationTask = Task { [weak self] in
+    self.spaceObservationTask = Task { [weak self] in
       for await _ in NSWorkspace.shared.notificationCenter.notifications(
         named: NSWorkspace.activeSpaceDidChangeNotification
       ) {
@@ -645,27 +340,25 @@ final class FocusManager {
       }
     }
 
+    AXUIElement.setGlobalMessagingTimeout(seconds: 0.5)
+
+    eventTap.eventObserver = { [weak self] event in
+      self?.handleCGEvent(event)
+    }
+
+    eventTap.interruptionHandler = { [weak self] in
+      self?.updateCommandKeyState()
+    }
+
     debounceTimer.setEventHandler { [weak self] in
       self?.handleTimerEvent()
     }
 
+    eventTap.isEnabled = true
     debounceTimer.resume()
-
-    self.eventTap = eventTap
-    self.runLoopSource = runLoopSource
-    self.spaceObservationTask = spaceObservationTask
   }
 
   isolated deinit {
-    if let eventTap, let runLoopSource {
-      if CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: false)
-      }
-
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-      CFMachPortInvalidate(eventTap)
-    }
-
     spaceObservationTask?.cancel()
     debounceTimer.cancel()
     focusTask?.cancel()
@@ -685,12 +378,12 @@ final class FocusManager {
       return "\(windowID) (\(ownerName))"
     }
 
-    Log.message(
+    Log.info(
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Enabled: \(isEnabled)
-        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+        Event tap active: \(eventTap.isActive)
         Suspended: \(isCommandKeyPressed || isScreenLocked || !suspendingWindows.isEmpty)
           Command key pressed: \(isCommandKeyPressed)
           Screen locked: \(isScreenLocked)
@@ -703,11 +396,11 @@ final class FocusManager {
   }
 
   private func updateEventTapState() {
-    guard let eventTap, CGEvent.tapIsEnabled(tap: eventTap) != isEnabled else {
-      return
-    }
+    eventTap.isEnabled = isEnabled
+    updateCommandKeyState()
+  }
 
-    CGEvent.tapEnable(tap: eventTap, enable: isEnabled)
+  private func updateCommandKeyState() {
     self.isCommandKeyPressed = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
   }
 
@@ -742,13 +435,6 @@ final class FocusManager {
       if isCommandKeyPressed {
         cancelPendingFocus()
       }
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      if let eventTap, isEnabled {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-      self.isCommandKeyPressed = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
 
     default:
       break
@@ -902,14 +588,8 @@ final class FocusManager {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singleInstanceLock: SingleInstanceLock?
+final class AppDelegate: NSObject, AgentDelegate {
   private var focusManager: FocusManager?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -922,43 +602,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
-
-    observeProcessSignals()
-    observeIPCCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.singleInstanceLock = nil
     self.focusManager = nil
   }
 
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      for await notification in DistributedNotificationCenter.default().notifications(
-        named: IPCCommand.notificationName
-      ) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+  func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: focusManager?.toggleEnabled()
     case .printLog: focusManager?.logDiagnosticReport()
@@ -967,99 +617,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-enum IPCCommand: String, CaseIterable {
+enum IPCCommand: String, AgentIPCCommand {
   case toggle
   case printLog = "print-log"
   case quit
-
-  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
-  static let notificationUserInfoKey = "command"
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Self.notificationName,
-      object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
-      deliverImmediately: true
-    )
-  }
 }
 
-do {
-  try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
-
-    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
-      do {
-        try Log.redirectOutput(
-          to: FilePath(
-            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          )
-        )
-      } catch {
-        Log.error("Failed to redirect output: \(error.localizedDescription)")
-      }
-    }
-
-    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.prohibited)
-    application.run()
-  }
-
-} catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = CommandLine.arguments.dropFirst()
-
-  lazy var usageDescription =
-    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
-
-  guard let argument = arguments.first else {
-    Log.error("Already running.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard arguments.dropFirst().isEmpty else {
-    Log.error("Too many arguments.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    Log.error("Unknown command.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  ipcCommand.send()
-
-  if case .printLog = ipcCommand {
-    Thread.sleep(forTimeInterval: 0.2)
-
-    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
-
-    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      Log.error("Log file does not exist.")
-      exit(EX_NOINPUT)
-    }
-
-    print("Log file path: \(logFileURL.path)\n")
-
-    do {
-      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
-
-      if logContents.isEmpty {
-        print("<EMPTY>")
-      } else {
-        print(logContents)
-      }
-    } catch {
-      Log.error("Failed to read log file: \(error.localizedDescription)")
-      exit(EXIT_FAILURE)
+@main
+enum FocusFollowsMouse {
+  static func main() {
+    Agent.run(subsystem: Configuration.subsystem, activationPolicy: .prohibited) {
+      AppDelegate()
     }
   }
-
-  exit(EXIT_SUCCESS)
-
-} catch {
-  Log.error(error.localizedDescription)
-  exit(EXIT_FAILURE)
 }

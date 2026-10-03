@@ -1,115 +1,9 @@
+// Shared: Log ProcessSignals
+
 import Foundation
 import IOKit
 import IOKit.storage
-import Synchronization
 import System
-
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
 
 extension FilePath {
   var applicationBundleName: String? {
@@ -2646,18 +2540,18 @@ final class ResourceUsageMonitor {
         \(ProcessInfo.processInfo.processName) [options]
 
       Options:
-        -i, --interval <seconds>           Set refresh interval in seconds [default: 2]
-        -r, --re-sort-interval <seconds>   Set re-sort interval in seconds (≥ refresh interval) [default: refresh interval]
-        -s, --sort <column>                Set sort column (\(sortColumnNames)) [default: cpu]
-        -a, --applications-only            Only show applications
-        -h, --help                         Show this help message
+        -i, --interval <seconds>          Set refresh interval in seconds [default: 2]
+        -r, --re-sort-interval <seconds>  Set re-sort interval in seconds (≥ refresh interval) [default: refresh interval]
+        -s, --sort <column>               Set sort column (\(sortColumnNames)) [default: cpu]
+        -a, --applications-only           Only show applications
+        -h, --help                        Show this help message
 
       Keys:
-        ↑/↓, k/j                           Move the selection
-        shift + ↑/↓, K/J                   Move the selection to the top or bottom
-        return, space                      Show the processes or threads of the selection
-        esc                                Clear the selection or return to the previous view
-        q                                  Quit
+        ↑/↓, k/j                          Move the selection
+        shift + ↑/↓, K/J                  Move the selection to the top or bottom
+        return, space                     Show the processes or threads of the selection
+        esc                               Clear the selection or return to the previous view
+        q                                 Quit
       """
 
     var refreshInterval: Duration = .seconds(2)
@@ -3167,14 +3061,19 @@ final class ResourceUsageMonitor {
   }
 }
 
-let options = ResourceUsageMonitor.Options(arguments: CommandLine.arguments.dropFirst())
+@main
+enum AppTop {
+  static func main() async {
+    let options = ResourceUsageMonitor.Options(arguments: CommandLine.arguments.dropFirst())
 
-do {
-  let resourceUsageMonitor = try ResourceUsageMonitor(options: options)
-  await resourceUsageMonitor.run()
-} catch {
-  Log.error("Error: \(error.localizedDescription)")
-  exit(EXIT_FAILURE)
+    do {
+      let resourceUsageMonitor = try ResourceUsageMonitor(options: options)
+      await resourceUsageMonitor.run()
+    } catch {
+      Log.error("Error: \(error.localizedDescription)")
+      exit(EXIT_FAILURE)
+    }
+
+    exit(EXIT_SUCCESS)
+  }
 }
-
-exit(EXIT_SUCCESS)

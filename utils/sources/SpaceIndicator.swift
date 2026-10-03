@@ -1,158 +1,10 @@
+// Shared: Agent CGError Log NSRunningApplication Spaces
+
 import SwiftUI
-import Synchronization
-import System
 import UniformTypeIdentifiers
 
 enum Configuration {
   static let subsystem = "industries.britown.SpaceIndicator"
-}
-
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(underlyingError: Errno)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
-      }
-    }
-  }
-
-  private var lockFileDescriptor: FileDescriptor
-
-  init(subsystem: String) throws {
-    do {
-      self.lockFileDescriptor = try FileDescriptor.open(
-        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
-        .readWrite,
-        options: [.create, .exclusiveLock, .nonBlocking],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-    } catch let errno as Errno where errno == .wouldBlock {
-      throw Error.instanceAlreadyRunning
-
-    } catch let errno as Errno {
-      throw Error.failedToAcquireLock(underlyingError: errno)
-    }
-  }
-
-  deinit {
-    do {
-      try lockFileDescriptor.close()
-    } catch {
-      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
-    }
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
 }
 
 extension MainActor {
@@ -165,8 +17,6 @@ extension MainActor {
   }
 }
 
-typealias CGSConnectionID = UInt32
-
 typealias CGSNotifyProc =
   @convention(c) (
     _ eventType: UInt32,
@@ -174,14 +24,6 @@ typealias CGSNotifyProc =
     _ dataLength: UInt32,
     _ context: UnsafeMutableRawPointer?
   ) -> Void
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSMainConnectionID")
-func CGSMainConnectionID() -> CGSConnectionID
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSCopyManagedDisplaySpaces")
-func CGSCopyManagedDisplaySpaces(_ connectionID: CGSConnectionID, _ displayIdentifier: CFString?) -> Unmanaged<CFArray>?
 
 // swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSCopySpacesForWindows")
@@ -223,52 +65,6 @@ struct CGSSpaceMask: OptionSet {
   static let allSpaces: CGSSpaceMask = [.includesUser, .includesOthers, .includesCurrent]
   static let allVisibleSpaces: CGSSpaceMask = [.visible, .allSpaces]
 }
-
-extension CGError: @retroactive _BridgedNSError, @retroactive LocalizedError {
-  public var errorDescription: String? {
-    let message: String
-
-    switch self {
-    case .success: message = "Success"
-    case .failure: message = "Failure"
-    case .illegalArgument: message = "Illegal argument"
-    case .invalidConnection: message = "Invalid connection"
-    case .invalidContext: message = "Invalid context"
-    case .cannotComplete: message = "Cannot complete"
-    case .notImplemented: message = "Not implemented"
-    case .rangeCheck: message = "Range check error"
-    case .typeCheck: message = "Type check error"
-    case .invalidOperation: message = "Invalid operation"
-    case .noneAvailable: message = "Error code not available"
-    @unknown default: message = "Unknown error"
-    }
-
-    return "CGError: \(message) (\(self.rawValue))"
-  }
-}
-
-typealias DisplayIdentifier = String
-
-extension NSScreen {
-  var displayIdentifier: DisplayIdentifier? {
-    guard
-      let cgDirectDisplayID,
-      let uuid = CGDisplayCreateUUIDFromDisplayID(cgDirectDisplayID)?.takeRetainedValue()
-    else {
-      return nil
-    }
-
-    return CFUUIDCreateString(nil, uuid) as DisplayIdentifier
-  }
-}
-
-extension NSRunningApplication {
-  var isSystemAgent: Bool {
-    activationPolicy != .regular && bundleURL?.path.hasPrefix("/System/") == true
-  }
-}
-
-typealias SpaceID = UInt64
 
 struct Space: Identifiable, Equatable {
   let id: SpaceID
@@ -463,19 +259,21 @@ final class SpaceMonitor {
 @Observable
 final class SpaceIndicatorModel {
   private(set) var mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
-  private(set) var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
-  private(set) var currentSpaceIDs: [DisplayIdentifier: SpaceID] = [:]
+  private(set) var displaySpaces: [DisplayIdentifier: DisplaySpaces] = [:]
   private(set) var spaceWindows: [SpaceID: Set<Window>] = [:]
   private(set) var runningApps: [pid_t: App] = [:]
   private(set) var isRefreshPending = true
 
   var mainScreenSpaces: [Space] {
-    guard let mainScreenDisplayIdentifier else {
+    guard
+      let mainScreenDisplayIdentifier,
+      let mainScreenDisplaySpaces = displaySpaces[mainScreenDisplayIdentifier]
+    else {
       return []
     }
 
-    return displaySpaces[mainScreenDisplayIdentifier, default: []].map { spaceID in
-      let isCurrent = spaceID == currentSpaceIDs[mainScreenDisplayIdentifier]
+    return mainScreenDisplaySpaces.spaceIDs.map { spaceID in
+      let isCurrent = spaceID == mainScreenDisplaySpaces.currentSpaceID
       let windowsOnSpace = spaceWindows[spaceID] ?? []
       let processIdentifiers = Set(windowsOnSpace.compactMap { $0.processIdentifier })
       let apps = processIdentifiers.compactMap { runningApps[$0] }.sorted { $0.name.lexicographicallyPrecedes($1.name) }
@@ -507,7 +305,7 @@ final class SpaceIndicatorModel {
   }
 
   func diagnosticReport() -> [String] {
-    let liveSpacesInfo = spacesInfo(cgsConnectionID: cgsConnectionID)
+    let liveDisplaySpaces = displaySpacesByIdentifier(cgsConnectionID: cgsConnectionID)
     let liveWindowIDs = Set(
       windowsInfo(cgsConnectionID: cgsConnectionID).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
     )
@@ -518,18 +316,18 @@ final class SpaceIndicatorModel {
       "Refresh pending: \(isRefreshPending)"
     ]
 
-    for displayIdentifier in Set(displaySpaces.keys).union(liveSpacesInfo.displaySpaces.keys).sorted() {
-      let cachedCurrentSpaceID = currentSpaceIDs[displayIdentifier].map(String.init) ?? "<none>"
-      let liveCurrentSpaceID = liveSpacesInfo.currentSpaceIDs[displayIdentifier].map(String.init) ?? "<none>"
+    for displayIdentifier in Set(displaySpaces.keys).union(liveDisplaySpaces.keys).sorted() {
+      let cachedSpaceIDs = displaySpaces[displayIdentifier]?.spaceIDs ?? []
+      let cachedCurrentSpaceID = displaySpaces[displayIdentifier]?.currentSpaceID.map(String.init) ?? "<none>"
+      let liveSpaceIDs = liveDisplaySpaces[displayIdentifier]?.spaceIDs ?? []
+      let liveCurrentSpaceID = liveDisplaySpaces[displayIdentifier]?.currentSpaceID.map(String.init) ?? "<none>"
       let mainScreenMarker = displayIdentifier == mainScreenDisplayIdentifier ? " (main)" : ""
 
       lines.append("Display \(displayIdentifier)\(mainScreenMarker):")
-      lines.append("  Cached spaces: \(displaySpaces[displayIdentifier] ?? []), current: \(cachedCurrentSpaceID)")
-      lines.append(
-        "  Live spaces: \(liveSpacesInfo.displaySpaces[displayIdentifier] ?? []), current: \(liveCurrentSpaceID)"
-      )
+      lines.append("  Cached spaces: \(cachedSpaceIDs), current: \(cachedCurrentSpaceID)")
+      lines.append("  Live spaces: \(liveSpaceIDs), current: \(liveCurrentSpaceID)")
 
-      for spaceID in displaySpaces[displayIdentifier] ?? [] {
+      for spaceID in cachedSpaceIDs {
         let windows = spaceWindows[spaceID] ?? []
         let appNames = Set(windows.map(\.processIdentifier)).compactMap { runningApps[$0]?.name }.sorted()
 
@@ -604,40 +402,11 @@ final class SpaceIndicatorModel {
     }
   }
 
-  private func spacesInfo(
-    cgsConnectionID: CGSConnectionID
-  ) -> (displaySpaces: [DisplayIdentifier: [SpaceID]], currentSpaceIDs: [DisplayIdentifier: SpaceID]) {
-    guard
-      let managedDisplaySpaces = CGSCopyManagedDisplaySpaces(
-        cgsConnectionID,
-        nil
-      )?.takeRetainedValue()
-        as? [[String: Any]]
-    else {
-      return ([:], [:])
-    }
-
-    var displaySpaces: [DisplayIdentifier: [SpaceID]] = [:]
-    var spaceIDs: [DisplayIdentifier: SpaceID] = [:]
-
-    for displayInfo in managedDisplaySpaces {
-      guard
-        let displayIdentifier = displayInfo["Display Identifier"] as? DisplayIdentifier,
-        let spacesInfo = displayInfo["Spaces"] as? [[String: Any]]
-      else {
-        continue
-      }
-
-      displaySpaces[displayIdentifier] = spacesInfo.compactMap { $0["id64"] as? SpaceID }
-
-      if let currentSpaceInfo = displayInfo["Current Space"] as? [String: Any],
-        let currentSpaceID = currentSpaceInfo["id64"] as? SpaceID
-      {
-        spaceIDs[displayIdentifier] = currentSpaceID
-      }
-    }
-
-    return (displaySpaces, spaceIDs)
+  private func displaySpacesByIdentifier(cgsConnectionID: CGSConnectionID) -> [DisplayIdentifier: DisplaySpaces] {
+    return Dictionary(
+      DisplaySpaces.all(connectionID: cgsConnectionID).map { ($0.displayIdentifier, $0) },
+      uniquingKeysWith: { first, _ in first }
+    )
   }
 
   private func windowsInfo(cgsConnectionID: CGSConnectionID) -> [[String: Any]] {
@@ -654,14 +423,13 @@ final class SpaceIndicatorModel {
   }
 
   private func refreshSpaces() {
-    let spacesInfo = spacesInfo(cgsConnectionID: cgsConnectionID)
+    let displaySpaces = displaySpacesByIdentifier(cgsConnectionID: cgsConnectionID)
 
-    guard !spacesInfo.displaySpaces.isEmpty else {
+    guard !displaySpaces.isEmpty else {
       return
     }
 
-    self.displaySpaces = spacesInfo.displaySpaces
-    self.currentSpaceIDs = spacesInfo.currentSpaceIDs
+    self.displaySpaces = displaySpaces
   }
 
   private func refreshWindows() {
@@ -697,12 +465,12 @@ final class SpaceIndicatorModel {
   private func handleCurrentSpaceChanged(spaceID: SpaceID) {
     guard
       !isRefreshPending,
-      let displayIdentifier = displaySpaces.first(where: { $0.value.contains(spaceID) })?.key
+      let displayIdentifier = displaySpaces.first(where: { $0.value.spaceIDs.contains(spaceID) })?.key
     else {
       return
     }
 
-    self.currentSpaceIDs[displayIdentifier] = spaceID
+    self.displaySpaces[displayIdentifier]?.currentSpaceID = spaceID
 
     guard
       let windowsInfo = CGWindowListCopyWindowInfo(
@@ -866,7 +634,7 @@ final class StatusItemManager: NSObject {
   }
 
   func logDiagnosticReport() {
-    Log.message(
+    Log.info(
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
@@ -925,14 +693,8 @@ final class StatusItemManager: NSObject {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singleInstanceLock: SingleInstanceLock?
+final class AppDelegate: NSObject, AgentDelegate {
   private var statusItemManager: StatusItemManager?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -944,42 +706,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
-    observeProcessSignals()
-    observeIPCCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.singleInstanceLock = nil
     self.statusItemManager = nil
   }
 
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      for await notification in DistributedNotificationCenter.default().notifications(
-        named: IPCCommand.notificationName
-      ) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+  func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: statusItemManager?.toggleVisibility()
     case .printLog: statusItemManager?.logDiagnosticReport()
@@ -988,99 +721,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-enum IPCCommand: String, CaseIterable {
+enum IPCCommand: String, AgentIPCCommand {
   case toggle
   case printLog = "print-log"
   case quit
-
-  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
-  static let notificationUserInfoKey = "command"
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Self.notificationName,
-      object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
-      deliverImmediately: true
-    )
-  }
 }
 
-do {
-  try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
-
-    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
-      do {
-        try Log.redirectOutput(
-          to: FilePath(
-            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          )
-        )
-      } catch {
-        Log.error("Failed to redirect output: \(error.localizedDescription)")
-      }
-    }
-
-    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.accessory)
-    application.run()
-  }
-
-} catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = CommandLine.arguments.dropFirst()
-
-  lazy var usageDescription =
-    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
-
-  guard let argument = arguments.first else {
-    Log.error("Already running.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard arguments.dropFirst().isEmpty else {
-    Log.error("Too many arguments.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    Log.error("Unknown command.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  ipcCommand.send()
-
-  if case .printLog = ipcCommand {
-    Thread.sleep(forTimeInterval: 0.2)
-
-    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
-
-    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      Log.error("Log file does not exist.")
-      exit(EX_NOINPUT)
-    }
-
-    print("Log file path: \(logFileURL.path)\n")
-
-    do {
-      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
-
-      if logContents.isEmpty {
-        print("<EMPTY>")
-      } else {
-        print(logContents)
-      }
-    } catch {
-      Log.error("Failed to read log file: \(error.localizedDescription)")
-      exit(EXIT_FAILURE)
+@main
+enum SpaceIndicator {
+  static func main() {
+    Agent.run(subsystem: Configuration.subsystem, activationPolicy: .accessory) {
+      AppDelegate()
     }
   }
-
-  exit(EXIT_SUCCESS)
-
-} catch {
-  Log.error(error.localizedDescription)
-  exit(EXIT_FAILURE)
 }

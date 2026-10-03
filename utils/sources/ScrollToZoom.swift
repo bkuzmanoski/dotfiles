@@ -1,6 +1,6 @@
+// Shared: Agent CGEvent CGEventFlags EventTap Log
+
 import AppKit
-import Synchronization
-import System
 
 enum Configuration {
   static let subsystem = "industries.britown.ScrollToZoom"
@@ -8,319 +8,49 @@ enum Configuration {
   static let zoomSensitivity = 0.005
 }
 
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(underlyingError: Errno)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
-      }
-    }
-  }
-
-  private var lockFileDescriptor: FileDescriptor
-
-  init(subsystem: String) throws {
-    do {
-      self.lockFileDescriptor = try FileDescriptor.open(
-        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
-        .readWrite,
-        options: [.create, .exclusiveLock, .nonBlocking],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-    } catch let errno as Errno where errno == .wouldBlock {
-      throw Error.instanceAlreadyRunning
-
-    } catch let errno as Errno {
-      throw Error.failedToAcquireLock(underlyingError: errno)
-    }
-  }
-
-  deinit {
-    do {
-      try lockFileDescriptor.close()
-    } catch {
-      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
-    }
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
-}
-
-enum IOHIDEventType: UInt32 {
-  case zoom = 8
-}
-
-extension CGEvent {
-  var scrollPhase: CGScrollPhase? {
-    get {
-      guard let scrollPhaseRawValue = UInt32(exactly: getIntegerValueField(.scrollWheelEventScrollPhase)) else {
-        return nil
-      }
-
-      return CGScrollPhase(rawValue: scrollPhaseRawValue)
-    }
-
-    set {
-      if let newValue {
-        self.setIntegerValueField(.scrollWheelEventScrollPhase, value: Int64(newValue.rawValue))
-      }
-    }
-  }
-
-  var scrollWheelEventPointDeltaAxis1: Int64 {
-    get { getIntegerValueField(.scrollWheelEventPointDeltaAxis1) }
-    set { self.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: newValue) }
-  }
-
-  var gestureHIDType: IOHIDEventType? {
-    get {
-      guard let rawValue = UInt32(exactly: getIntegerValueField(.gestureHIDType)) else {
-        return nil
-      }
-
-      return IOHIDEventType(rawValue: rawValue)
-    }
-
-    set {
-      if let newValue {
-        self.setIntegerValueField(.gestureHIDType, value: Int64(newValue.rawValue))
-      }
-    }
-  }
-
-  var gesturePhase: CGGesturePhase? {
-    get {
-      guard let rawValue = UInt32(exactly: getIntegerValueField(.gesturePhase)) else {
-        return nil
-      }
-
-      return CGGesturePhase(rawValue: rawValue)
-    }
-
-    set {
-      if let newValue {
-        self.setIntegerValueField(.gesturePhase, value: Int64(newValue.rawValue))
-      }
-    }
-  }
-
-  var gestureZoomValue: Double {
-    get { getDoubleValueField(.gestureZoomValue) }
-    set { self.setDoubleValueField(.gestureZoomValue, value: newValue) }
-  }
-}
-
-extension CGEventField {
-  static let gestureHIDType = CGEventField(rawValue: 110)!
-  static let gestureZoomValue = CGEventField(rawValue: 113)!
-  static let gesturePhase = CGEventField(rawValue: 132)!
-}
-
-extension CGEventType {
-  static let gesture = CGEventType(rawValue: 29)!
-}
-
 @MainActor
 final class ZoomManager {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-    case failedToCreateEventTap
-    case failedToCreateRunLoopSource
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
-      case .failedToCreateEventTap: "Failed to create event tap."
-      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
-      }
-    }
-  }
-
   private let startDate = Date.now
+  private let modifierFlagsMask = CGEventFlags.modifierFlagsMask.union(.maskSecondaryFn)
   private let modifierKey: CGEventFlags
   private let zoomSensitivity: Double
-  private let modifierFlagsMask: CGEventFlags = [
-    .maskShift,
-    .maskControl,
-    .maskAlternate,
-    .maskCommand,
-    .maskSecondaryFn
-  ]
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
+  private let eventTap: EventTap
   private var isZooming = false
 
   init(modifierKey: CGEventFlags, zoomSensitivity: Double) throws {
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
-    }
-
     self.modifierKey = modifierKey
     self.zoomSensitivity = zoomSensitivity
+    self.eventTap = try EventTap(location: .cgSessionEventTap, eventTypes: [.scrollWheel])
 
-    guard
-      let eventTap = CGEvent.tapCreate(
-        tap: .cgSessionEventTap,
-        place: .headInsertEventTap,
-        options: .defaultTap,
-        eventsOfInterest: CGEventMask(1 << CGEventType.scrollWheel.rawValue),
-        callback: { _, _, event, refcon in
-          guard let refcon else {
-            return Unmanaged.passUnretained(event)
-          }
-
-          return MainActor.assumeIsolated {
-            Unmanaged<ZoomManager>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
-          }
-            ? nil
-            : Unmanaged.passUnretained(event)
-        },
-        userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
-    else {
-      throw Error.failedToCreateEventTap
+    eventTap.eventHandler = { [weak self] event in
+      self?.handleEvent(event) ?? false
     }
 
-    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
-      CFMachPortInvalidate(eventTap)
-      throw Error.failedToCreateRunLoopSource
+    eventTap.interruptionHandler = { [weak self] in
+      guard let self, isZooming else {
+        return
+      }
+
+      self.isZooming = false
+
+      postZoomGestureEvent(withPhase: .cancelled)
     }
 
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-    CGEvent.tapEnable(tap: eventTap, enable: true)
-
-    self.eventTap = eventTap
-    self.runLoopSource = runLoopSource
+    eventTap.isEnabled = true
   }
 
   isolated deinit {
-    if let eventTap, let runLoopSource {
-      CGEvent.tapEnable(tap: eventTap, enable: false)
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-      CFMachPortInvalidate(eventTap)
-    }
-
     if isZooming {
       postZoomGestureEvent(withPhase: .cancelled)
     }
   }
 
   func logDiagnosticReport() {
-    Log.message(
+    Log.info(
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
-        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+        Event tap active: \(eventTap.isActive)
         Zooming: \(isZooming)
         Modifier key: \(modifierKey.rawValue)
         Zoom sensitivity: \(zoomSensitivity)
@@ -329,19 +59,6 @@ final class ZoomManager {
   }
 
   private func handleEvent(_ event: CGEvent) -> Bool {
-    guard event.type != .tapDisabledByTimeout, event.type != .tapDisabledByUserInput else {
-      if isZooming {
-        self.isZooming = false
-        postZoomGestureEvent(withPhase: .cancelled)
-      }
-
-      if let eventTap {
-        CGEvent.tapEnable(tap: eventTap, enable: true)
-      }
-
-      return false
-    }
-
     guard event.type == .scrollWheel else {
       return false
     }
@@ -415,14 +132,8 @@ final class ZoomManager {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singleInstanceLock: SingleInstanceLock?
+final class AppDelegate: NSObject, AgentDelegate {
   private var zoomManager: ZoomManager?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -434,43 +145,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
-
-    observeProcessSignals()
-    observeIPCCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.singleInstanceLock = nil
     self.zoomManager = nil
   }
 
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      for await notification in DistributedNotificationCenter.default().notifications(
-        named: IPCCommand.notificationName
-      ) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+  func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .printLog: zoomManager?.logDiagnosticReport()
     case .quit: NSApplication.shared.terminate(nil)
@@ -478,98 +159,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-enum IPCCommand: String, CaseIterable {
+enum IPCCommand: String, AgentIPCCommand {
   case printLog = "print-log"
   case quit
-
-  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
-  static let notificationUserInfoKey = "command"
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Self.notificationName,
-      object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
-      deliverImmediately: true
-    )
-  }
 }
 
-do {
-  try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
-
-    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
-      do {
-        try Log.redirectOutput(
-          to: FilePath(
-            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          )
-        )
-      } catch {
-        Log.error("Failed to redirect output: \(error.localizedDescription)")
-      }
-    }
-
-    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.prohibited)
-    application.run()
-  }
-
-} catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = CommandLine.arguments.dropFirst()
-
-  lazy var usageDescription =
-    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
-
-  guard let argument = arguments.first else {
-    Log.error("Already running.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard arguments.dropFirst().isEmpty else {
-    Log.error("Too many arguments.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    Log.error("Unknown command.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  ipcCommand.send()
-
-  if case .printLog = ipcCommand {
-    Thread.sleep(forTimeInterval: 0.2)
-
-    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
-
-    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      Log.error("Log file does not exist.")
-      exit(EX_NOINPUT)
-    }
-
-    print("Log file path: \(logFileURL.path)")
-
-    do {
-      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
-
-      if logContents.isEmpty {
-        print("<EMPTY>")
-      } else {
-        print(logContents)
-      }
-    } catch {
-      Log.error("Failed to read log file: \(error.localizedDescription)")
-      exit(EXIT_FAILURE)
+@main
+enum ScrollToZoom {
+  static func main() {
+    Agent.run(subsystem: Configuration.subsystem, activationPolicy: .prohibited) {
+      AppDelegate()
     }
   }
-
-  exit(EXIT_SUCCESS)
-
-} catch {
-  Log.error(error.localizedDescription)
-  exit(EXIT_FAILURE)
 }

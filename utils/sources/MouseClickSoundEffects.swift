@@ -1,159 +1,11 @@
+// Shared: Agent CGEvent EventTap Log
+
 import AppKit
 import AudioToolbox
-import Synchronization
-import System
 
 enum Configuration {
   static let subsystem = "industries.britown.MouseClickSoundEffects"
   static let soundFileDirectoryPath = "~/.dotfiles/utils/assets"
-}
-
-enum Log {
-  enum Error: Swift.Error, LocalizedError {
-    case outputAlreadyRedirected
-
-    var errorDescription: String? {
-      switch self {
-      case .outputAlreadyRedirected: "Output has already been redirected."
-      }
-    }
-  }
-
-  private static let timestampStyle =
-    isatty(FileDescriptor.standardOutput.rawValue) == 0
-    ? Date.ISO8601FormatStyle(
-      dateTimeSeparator: .space,
-      includingFractionalSeconds: true,
-      timeZone: .current
-    ) : nil
-  private static let isRedirected = Atomic(false)
-
-  static func redirectOutput(to filePath: FilePath) throws {
-    let (exchanged, _) = isRedirected.compareExchange(
-      expected: false,
-      desired: true,
-      ordering: .acquiringAndReleasing
-    )
-
-    guard exchanged else {
-      throw Error.outputAlreadyRedirected
-    }
-
-    do {
-      let fileDescriptor = try FileDescriptor.open(
-        filePath,
-        .writeOnly,
-        options: [.create, .truncate, .append],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-      try fileDescriptor.closeAfter {
-        _ = try fileDescriptor.duplicate(as: .standardOutput)
-        _ = try fileDescriptor.duplicate(as: .standardError)
-      }
-
-      setvbuf(stdout, nil, _IONBF, 0)
-      setvbuf(stderr, nil, _IONBF, 0)
-    } catch {
-      isRedirected.store(false, ordering: .releasing)
-      throw error
-    }
-  }
-
-  static func message(_ message: String) {
-    write(message, to: .standardOutput)
-  }
-
-  static func error(_ message: String) {
-    write(message, to: .standardError)
-  }
-
-  private static func write(_ message: String, to fileDescriptor: FileDescriptor) {
-    _ = try? fileDescriptor.writeAll(line(for: message).utf8)
-  }
-
-  private static func line(for message: String) -> String {
-    guard let timestampStyle else {
-      return "\(message)\n"
-    }
-
-    return "[\(Date.now.formatted(timestampStyle))] \(message)\n"
-  }
-}
-
-final class SingleInstanceLock {
-  enum Error: Swift.Error, LocalizedError {
-    case instanceAlreadyRunning
-    case failedToAcquireLock(underlyingError: Errno)
-
-    var errorDescription: String? {
-      switch self {
-      case .instanceAlreadyRunning: "Another instance is already running."
-      case .failedToAcquireLock(let underlyingError): "Failed to acquire lock: \(underlyingError)"
-      }
-    }
-  }
-
-  private var lockFileDescriptor: FileDescriptor
-
-  init(subsystem: String) throws {
-    do {
-      self.lockFileDescriptor = try FileDescriptor.open(
-        FilePath(FileManager.default.temporaryDirectory.appendingPathComponent("\(subsystem).lock").path),
-        .readWrite,
-        options: [.create, .exclusiveLock, .nonBlocking],
-        permissions: [.ownerReadWrite, .groupRead, .otherRead]
-      )
-
-    } catch let errno as Errno where errno == .wouldBlock {
-      throw Error.instanceAlreadyRunning
-
-    } catch let errno as Errno {
-      throw Error.failedToAcquireLock(underlyingError: errno)
-    }
-  }
-
-  deinit {
-    do {
-      try lockFileDescriptor.close()
-    } catch {
-      Log.error("Failed to close lock file descriptor: \(error.localizedDescription)")
-    }
-  }
-}
-
-enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
-    let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
-
-    var sources: [any DispatchSourceSignal] = []
-    sources.reserveCapacity(signals.count)
-
-    for signal in signals {
-      Darwin.signal(signal, SIG_IGN)
-
-      let source = DispatchSource.makeSignalSource(signal: signal, queue: .main)
-
-      source.setEventHandler {
-        continuation.yield(signal)
-      }
-
-      source.setCancelHandler {
-        Darwin.signal(signal, SIG_DFL)
-      }
-
-      source.resume()
-      sources.append(source)
-    }
-
-    continuation.onTermination = { [sources] _ in
-      for source in sources {
-        source.cancel()
-      }
-    }
-
-    return stream
-  }
 }
 
 typealias AudioDeviceTransportType = UInt32
@@ -181,16 +33,6 @@ extension OSStatus {
   }
 
   var statusDescription: String { fourCharCodeString.map { "\($0) (\(self))" } ?? String(self) }
-}
-
-extension CGEvent {
-  var mouseEventSubtype: NSEvent.EventSubtype? {
-    guard let mouseEventSubtypeRawValue = Int16(exactly: getIntegerValueField(.mouseEventSubtype)) else {
-      return nil
-    }
-
-    return NSEvent.EventSubtype(rawValue: mouseEventSubtypeRawValue)
-  }
 }
 
 enum SoundEffect: CaseIterable, CustomStringConvertible {
@@ -236,12 +78,12 @@ final class SoundEffectManager {
   private let systemSoundIDs: [SoundEffect: SystemSoundID]
 
   init(soundFileDirectoryURL: URL) throws {
-    guard FileManager.default.fileExists(atPath: soundFileDirectoryURL.path) else {
-      throw Error.soundFileDirectoryNotFound(path: soundFileDirectoryURL.path)
+    guard FileManager.default.fileExists(atPath: soundFileDirectoryURL.path(percentEncoded: false)) else {
+      throw Error.soundFileDirectoryNotFound(path: soundFileDirectoryURL.path(percentEncoded: false))
     }
 
     guard soundFileDirectoryURL.hasDirectoryPath else {
-      throw Error.invalidSoundFileDirectoryPath(soundFileDirectoryURL.path)
+      throw Error.invalidSoundFileDirectoryPath(soundFileDirectoryURL.path(percentEncoded: false))
     }
 
     var systemSoundIDs: [SoundEffect: SystemSoundID] = [:]
@@ -271,10 +113,10 @@ final class SoundEffectManager {
   }
 
   private static func load(soundEffect: SoundEffect, from soundFileDirectoryURL: URL) throws -> SystemSoundID {
-    let soundURL = soundFileDirectoryURL.appendingPathComponent(soundEffect.fileName)
+    let soundURL = soundFileDirectoryURL.appending(path: soundEffect.fileName)
 
-    guard FileManager.default.fileExists(atPath: soundURL.path) else {
-      throw Error.soundFileNotFound(soundEffect: soundEffect, path: soundURL.path)
+    guard FileManager.default.fileExists(atPath: soundURL.path(percentEncoded: false)) else {
+      throw Error.soundFileNotFound(soundEffect: soundEffect, path: soundURL.path(percentEncoded: false))
     }
 
     var soundID: SystemSoundID = 0
@@ -293,88 +135,27 @@ final class SoundEffectManager {
 
 @MainActor
 final class ClickMonitor {
-  enum Error: Swift.Error, LocalizedError {
-    case accessibilityPermissionNotGranted
-    case failedToCreateEventTap
-    case failedToCreateRunLoopSource
-
-    var errorDescription: String? {
-      switch self {
-      case .accessibilityPermissionNotGranted: "Accessibility permission not granted."
-      case .failedToCreateEventTap: "Failed to create event tap."
-      case .failedToCreateRunLoopSource: "Failed to create run loop source for event tap."
-      }
-    }
-  }
-
   private(set) var isEnabled = true
   private(set) var isSuspended: Bool
 
   private let startDate = Date.now
   private let soundEffectManager: SoundEffectManager
-  private var eventTap: CFMachPort?
-  private var runLoopSource: CFRunLoopSource?
+  private let eventTap: EventTap
 
   init(soundEffectManager: SoundEffectManager, isSuspended: Bool) throws {
     self.soundEffectManager = soundEffectManager
     self.isSuspended = isSuspended
+    self.eventTap = try EventTap(
+      location: .cghidEventTap,
+      options: .listenOnly,
+      eventTypes: [.leftMouseDown, .leftMouseUp, .otherMouseDown, .otherMouseUp, .rightMouseDown, .rightMouseUp]
+    )
 
-    guard AXIsProcessTrustedWithOptions(nil) else {
-      throw Error.accessibilityPermissionNotGranted
+    eventTap.eventObserver = { [weak self] event in
+      self?.handleEvent(event)
     }
-
-    guard
-      let eventTap = CGEvent.tapCreate(
-        tap: .cghidEventTap,
-        place: .headInsertEventTap,
-        options: .listenOnly,
-        eventsOfInterest: CGEventMask(
-          [
-            CGEventType.leftMouseDown,
-            CGEventType.leftMouseUp,
-            CGEventType.otherMouseDown,
-            CGEventType.otherMouseUp,
-            CGEventType.rightMouseDown,
-            CGEventType.rightMouseUp
-          ].reduce(0) { $0 | (1 << $1.rawValue) }
-        ),
-        callback: { _, type, event, refcon in
-          if let refcon {
-            MainActor.assumeIsolated {
-              Unmanaged<ClickMonitor>.fromOpaque(refcon).takeUnretainedValue().handleEvent(event)
-            }
-          }
-
-          return Unmanaged.passUnretained(event)
-        },
-        userInfo: Unmanaged.passUnretained(self).toOpaque()
-      )
-    else {
-      throw Error.failedToCreateEventTap
-    }
-
-    guard let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0) else {
-      CFMachPortInvalidate(eventTap)
-      throw Error.failedToCreateRunLoopSource
-    }
-
-    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-
-    self.eventTap = eventTap
-    self.runLoopSource = runLoopSource
 
     updateEventTapState()
-  }
-
-  isolated deinit {
-    if let eventTap, let runLoopSource {
-      if CGEvent.tapIsEnabled(tap: eventTap) {
-        CGEvent.tapEnable(tap: eventTap, enable: false)
-      }
-
-      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-      CFMachPortInvalidate(eventTap)
-    }
   }
 
   func toggleEnabled() {
@@ -393,29 +174,19 @@ final class ClickMonitor {
   }
 
   func logDiagnosticReport() {
-    Log.message(
+    Log.info(
       """
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Enabled: \(isEnabled)
         Suspended: \(isSuspended)
-        Event tap enabled: \(eventTap.map { "\(CGEvent.tapIsEnabled(tap: $0))" } ?? "<none>")
+        Event tap active: \(eventTap.isActive)
       """
     )
   }
 
   private func updateEventTapState() {
-    guard let eventTap else {
-      return
-    }
-
-    let shouldEnable = isEnabled && !isSuspended
-
-    guard CGEvent.tapIsEnabled(tap: eventTap) != shouldEnable else {
-      return
-    }
-
-    CGEvent.tapEnable(tap: eventTap, enable: shouldEnable)
+    eventTap.isEnabled = isEnabled && !isSuspended
   }
 
   private func handleEvent(_ event: CGEvent) {
@@ -435,9 +206,6 @@ final class ClickMonitor {
 
     case .otherMouseUp, .rightMouseUp:
       soundEffectManager.play(soundEffect: .rightMouseUp)
-
-    case .tapDisabledByTimeout, .tapDisabledByUserInput:
-      updateEventTapState()
 
     default:
       break
@@ -572,15 +340,9 @@ final class SystemOutputDeviceObserver {
 }
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
-  private var singleInstanceLock: SingleInstanceLock?
+final class AppDelegate: NSObject, AgentDelegate {
   private var systemOutputDeviceObserver: SystemOutputDeviceObserver?
   private var clickMonitor: ClickMonitor?
-
-  init(singleInstanceLock: SingleInstanceLock) {
-    self.singleInstanceLock = singleInstanceLock
-    super.init()
-  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
@@ -589,7 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
 
       let soundEffectManager = try SoundEffectManager(
-        soundFileDirectoryURL: URL(fileURLWithPath: Configuration.soundFileDirectoryPath, isDirectory: true)
+        soundFileDirectoryURL: URL(filePath: Configuration.soundFileDirectoryPath, directoryHint: .isDirectory)
       )
       let clickMonitor = try ClickMonitor(
         soundEffectManager: soundEffectManager,
@@ -602,44 +364,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
     }
-
-    observeProcessSignals()
-    observeIPCCommands()
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.singleInstanceLock = nil
     self.systemOutputDeviceObserver = nil
     self.clickMonitor = nil
   }
 
-  private func observeProcessSignals() {
-    Task {
-      for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
-        NSApplication.shared.terminate(nil)
-      }
-    }
-  }
-
-  private func observeIPCCommands() {
-    Task {
-      for await notification in DistributedNotificationCenter.default().notifications(
-        named: IPCCommand.notificationName
-      ) {
-        guard
-          let userInfo = notification.userInfo,
-          let ipcCommandRawValue = userInfo[IPCCommand.notificationUserInfoKey] as? String,
-          let ipcCommand = IPCCommand(rawValue: ipcCommandRawValue.lowercased())
-        else {
-          continue
-        }
-
-        handleIPCCommand(ipcCommand)
-      }
-    }
-  }
-
-  private func handleIPCCommand(_ ipcCommand: IPCCommand) {
+  func handleIPCCommand(_ ipcCommand: IPCCommand) {
     switch ipcCommand {
     case .toggle: clickMonitor?.toggleEnabled()
     case .printLog: clickMonitor?.logDiagnosticReport()
@@ -648,99 +380,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 }
 
-enum IPCCommand: String, CaseIterable {
+enum IPCCommand: String, AgentIPCCommand {
   case toggle
   case printLog = "print-log"
   case quit
-
-  static let notificationName = Notification.Name("\(Configuration.subsystem).IPCCommand")
-  static let notificationUserInfoKey = "command"
-
-  func send() {
-    DistributedNotificationCenter.default().postNotificationName(
-      Self.notificationName,
-      object: nil,
-      userInfo: [Self.notificationUserInfoKey: self.rawValue],
-      deliverImmediately: true
-    )
-  }
 }
 
-do {
-  try MainActor.assumeIsolated {
-    let singleInstanceLock = try SingleInstanceLock(subsystem: Configuration.subsystem)
-
-    if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
-      do {
-        try Log.redirectOutput(
-          to: FilePath(
-            FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log").path
-          )
-        )
-      } catch {
-        Log.error("Failed to redirect output: \(error.localizedDescription)")
-      }
-    }
-
-    let delegate = AppDelegate(singleInstanceLock: singleInstanceLock)
-    let application = NSApplication.shared
-    application.delegate = delegate
-    application.setActivationPolicy(.prohibited)
-    application.run()
-  }
-
-} catch SingleInstanceLock.Error.instanceAlreadyRunning {
-  let arguments = CommandLine.arguments.dropFirst()
-
-  lazy var usageDescription =
-    "Usage: \(ProcessInfo.processInfo.processName) [\(IPCCommand.allCases.map(\.rawValue).joined(separator: "|"))]"
-
-  guard let argument = arguments.first else {
-    Log.error("Already running.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard arguments.dropFirst().isEmpty else {
-    Log.error("Too many arguments.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  guard let ipcCommand = IPCCommand(rawValue: argument.lowercased()) else {
-    Log.error("Unknown command.\n\n\(usageDescription)")
-    exit(EX_USAGE)
-  }
-
-  ipcCommand.send()
-
-  if case .printLog = ipcCommand {
-    Thread.sleep(forTimeInterval: 0.2)
-
-    let logFileURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(Configuration.subsystem).log")
-
-    guard FileManager.default.fileExists(atPath: logFileURL.path) else {
-      Log.error("Log file does not exist.")
-      exit(EX_NOINPUT)
-    }
-
-    print("Log file path: \(logFileURL.path)\n")
-
-    do {
-      let logContents = try String(contentsOf: logFileURL, encoding: .utf8)
-
-      if logContents.isEmpty {
-        print("<EMPTY>")
-      } else {
-        print(logContents)
-      }
-    } catch {
-      Log.error("Failed to read log file: \(error.localizedDescription)")
-      exit(EXIT_FAILURE)
+@main
+enum MouseClickSoundEffects {
+  static func main() {
+    Agent.run(subsystem: Configuration.subsystem, activationPolicy: .prohibited) {
+      AppDelegate()
     }
   }
-
-  exit(EXIT_SUCCESS)
-
-} catch {
-  Log.error(error.localizedDescription)
-  exit(EXIT_FAILURE)
 }
