@@ -21,7 +21,7 @@ MAX_PHY_RATE_PER_STREAM: dict[str, dict[int, float]] = {
   "ac": {20: 86.7, 40: 200, 80: 433.3, 160: 866.7},
   "ax": {20: 143.4, 40: 286.8, 80: 600.5, 160: 1201},
 }
-LINK_QUALITY_CHECKS = {"Tx rate", "MCS index", "Channel busy (CCA)", "Guard interval"}
+LINK_QUALITY_CHECKS = {"Tx rate", "MCS index", "Channel busy (CCA)"}
 
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -99,25 +99,30 @@ class Report:
     label_width = max((len(row.label) for row in rows), default=0) + 2
 
     for section in self.sections:
-      value_width = max((len(line.value) for line in section if isinstance(line, Row) and line.expected), default=0)
+      section_rows = [line for line in section if isinstance(line, Row)]
+      value_width = max((len(row.value) for row in section_rows if row.expected), default=0)
+      has_marks = any(row.passed is not None for row in section_rows)
 
       for line in section:
-        print(self.format_row(line, label_width, value_width) if isinstance(line, Row) else line)
+        print(self.format_row(line, has_marks, label_width, value_width) if isinstance(line, Row) else line)
 
   @staticmethod
-  def format_row(row: Row, label_width: int, value_width: int) -> str:
+  def format_row(row: Row, has_marks: bool, label_width: int, value_width: int) -> str:
     if row.passed is None:
       color, mark = "", " "
     else:
       color = GREEN if row.passed else RED
       mark = f"{color}{'✓' if row.passed else '✗'}{RESET}"
 
-    label = f"{row.label:<{label_width}}"
+    if has_marks:
+      prefix = f"  {mark} {row.label:<{label_width}}"
+    else:
+      prefix = f"  {row.label:<{label_width + 2}}"
 
     if not row.expected:
-      return f"  {mark} {label}{color}{row.value}{RESET}"
+      return f"{prefix}{color}{row.value}{RESET}"
 
-    return f"  {mark} {label}{color}{row.value:<{value_width}}{RESET}  {DIM}{row.expected}{RESET}"
+    return f"{prefix}{color}{row.value:<{value_width}}{RESET}  {DIM}{row.expected}{RESET}"
 
 
 def run(*command: str, timeout: float = 30) -> str:
@@ -238,7 +243,6 @@ def print_wifi_link(
   phy_mode: str = current_network.get("spairport_network_phymode", "").removeprefix("802.11")
   tx_rate_mbps = first_number(wdutil_fields.get("Tx Rate"), current_network.get("spairport_network_rate"))
   mcs_index = first_number(wdutil_fields.get("MCS Index"), current_network.get("spairport_network_mcs"))
-  guard_interval_ns = parse_number(wdutil_fields.get("Guard Interval"))
   spatial_stream_count = int(first_number(wdutil_fields.get("NSS")) or 2)
   max_phy_rate_per_stream = MAX_PHY_RATE_PER_STREAM.get(phy_mode, {}).get(channel.width) if channel else None
 
@@ -268,13 +272,8 @@ def print_wifi_link(
   if mcs_index is not None:
     report.row("MCS index", f"{mcs_index:.0f}", mcs_index >= 7, "≥ 7")
 
-  if guard_interval_ns is not None and phy_mode == "ax":
-    report.row("Guard interval", f"{guard_interval_ns:.0f} ns")
-  elif guard_interval_ns is not None:
-    report.row("Guard interval", f"{guard_interval_ns:.0f} ns", guard_interval_ns == 400, "400 ns")
-
   if fault_events is None:
-    report.note("! CCA, guard interval and faults need passwordless `sudo wdutil info`.", YELLOW)
+    report.note("! CCA and faults need passwordless `sudo wdutil info`.", YELLOW)
     return
 
   report.row("Faults (last hour)", f"{len(fault_events)}", not fault_events, "0")
@@ -305,8 +304,8 @@ def print_neighbouring_networks(
   overlapping_channel_count = sum(1 for other in same_band_channels if channel.overlaps(other))
 
   report.heading("Neighbouring networks")
+  report.row(f"On channel {channel.number}", f"{same_primary_channel_count}")
   report.row(f"Visible on {channel.band} GHz", f"{len(same_band_channels)}", None, f"{len(neighbour_channels)} total")
-  report.row("Same primary channel", f"{same_primary_channel_count}")
   report.row(
     f"Overlapping {channel.width} MHz", f"{overlapping_channel_count}", None, f"Channels {span_start}–{span_end}"
   )
