@@ -7,7 +7,7 @@ import notify
 enum Configuration {
   static let subsystem = "industries.britown.BatteryWarning"
   static let warningThresholdChargePercentage = 10
-  static let urgentWarningThresholdMinutesRemaining = 10
+  static let urgentWarningThresholdMinutesRemaining = 15
 }
 
 struct BatteryStatus: Equatable {
