@@ -1,5 +1,6 @@
 // Shared: Log ProcessSignals
 
+import AppKit
 import Foundation
 import IOKit
 import IOKit.storage
@@ -803,6 +804,17 @@ struct RunningProcess {
     }
   }
 
+  var displayName: String? {
+    guard
+      let localizedName = NSRunningApplication(processIdentifier: processIdentifier)?.localizedName,
+      !localizedName.isEmpty
+    else {
+      return nil
+    }
+
+    return localizedName
+  }
+
   var commandName: String? {
     guard let shortInfo else {
       return nil
@@ -1027,7 +1039,7 @@ struct ProcessMetadata {
   init?(of process: RunningProcess) {
     let executablePath = process.executablePath
 
-    guard let name = executablePath?.lastComponent?.string ?? process.commandName else {
+    guard let name = process.displayName ?? executablePath?.lastComponent?.string ?? process.commandName else {
       return nil
     }
 
