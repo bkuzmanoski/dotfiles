@@ -6,6 +6,7 @@ enum Configuration {
   static let subsystem = "industries.britown.FocusFollowsMouse"
   static let exemptBundleIdentifiers: Set<String> = ["com.anthropic.claudefordesktop"]
   static let focusableFloatingWindows: Set<WindowIdentity> = [
+    WindowIdentity(bundleIdentifier: "com.raycast.macos", title: "AI Chat"),
     WindowIdentity(bundleIdentifier: "com.raycast.macos", title: "Notes")
   ]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
