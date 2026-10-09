@@ -2617,7 +2617,7 @@ final class ResourceUsageMonitor {
 
       guard let seconds = Double(value), intervalSecondsRange.contains(seconds) else {
         printUsageErrorAndExit(
-          "Invalid value '\(value)' for '\(argument)'. Expected \(intervalSecondsRange.lowerBound) to \(Int(intervalSecondsRange.upperBound)) seconds."
+          "Invalid value for '\(argument)': \(value). Expected \(intervalSecondsRange.lowerBound) to \(Int(intervalSecondsRange.upperBound)) seconds."
         )
       }
 

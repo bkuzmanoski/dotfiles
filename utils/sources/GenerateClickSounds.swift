@@ -459,7 +459,7 @@ struct Options {
     }
 
     guard let number = Double(value), number.isFinite else {
-      printUsageErrorAndExit("Invalid value '\(value)' for '\(argument)'. Expected a number.")
+      printUsageErrorAndExit("Invalid value for '\(argument)': \(value). Expected a number.")
     }
 
     return number
