@@ -406,6 +406,16 @@ write_file "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
 	}
 EOF
 
+utiluti type set com.microsoft.typescript com.microsoft.VSCode
+utiluti type set net.daringfireball.markdown com.microsoft.VSCode
+utiluti type set public.css com.microsoft.VSCode
+utiluti type set public.json com.microsoft.VSCode
+utiluti type set public.mpeg-2-transport-stream com.microsoft.VSCode
+utiluti type set public.svg-image com.google.Chrome
+utiluti type set public.yaml com.microsoft.VSCode
+
+"${SCRIPT_DIR}/utils/run_util.sh" WindowStyle apply --corner-radius 0 --rim 0.3 --rim-width thin --inner-rim 0.5 --shadow 0.15
+
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
 
 # =============================================================================
@@ -512,14 +522,6 @@ apply_json_values "${HOME}/Library/Application Support/Claude/claude_desktop_con
 	  }
 	}
 EOF
-
-utiluti type set com.microsoft.typescript com.microsoft.VSCode
-utiluti type set net.daringfireball.markdown com.microsoft.VSCode
-utiluti type set public.css com.microsoft.VSCode
-utiluti type set public.json com.microsoft.VSCode
-utiluti type set public.mpeg-2-transport-stream com.microsoft.VSCode
-utiluti type set public.svg-image com.google.Chrome
-utiluti type set public.yaml com.microsoft.VSCode
 
 # =============================================================================
 # Finalization
