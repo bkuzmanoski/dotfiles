@@ -4,7 +4,7 @@ import AppKit
 import AudioToolbox
 
 enum Configuration {
-  static let subsystem = "industries.britown.MouseClickSoundEffects"
+  static let subsystem = "industries.britown.ClickSoundEffects"
   static let soundFileDirectoryPath = "~/.dotfiles/utils/assets"
 }
 
@@ -36,26 +36,26 @@ extension OSStatus {
 }
 
 enum SoundEffect: CaseIterable, CustomStringConvertible {
-  case leftMouseDown
-  case leftMouseUp
-  case rightMouseDown
-  case rightMouseUp
+  case leftClickDown
+  case leftClickUp
+  case rightClickDown
+  case rightClickUp
 
   var fileName: String {
     switch self {
-    case .leftMouseDown: return "left-mouse-click-down.wav"
-    case .leftMouseUp: return "left-mouse-click-up.wav"
-    case .rightMouseDown: return "right-mouse-click-down.wav"
-    case .rightMouseUp: return "right-mouse-click-up.wav"
+    case .leftClickDown: return "left-click-down.wav"
+    case .leftClickUp: return "left-click-up.wav"
+    case .rightClickDown: return "right-click-down.wav"
+    case .rightClickUp: return "right-click-up.wav"
     }
   }
 
   var description: String {
     switch self {
-    case .leftMouseDown: return "Left Mouse Click Down"
-    case .leftMouseUp: return "Left Mouse Click Up"
-    case .rightMouseDown: return "Right Mouse Click Down"
-    case .rightMouseUp: return "Right Mouse Click Up"
+    case .leftClickDown: return "Left Click Down"
+    case .leftClickUp: return "Left Click Up"
+    case .rightClickDown: return "Right Click Down"
+    case .rightClickUp: return "Right Click Up"
     }
   }
 }
@@ -197,16 +197,16 @@ final class ClickMonitor {
 
     switch event.type {
     case .leftMouseDown:
-      soundEffectManager.play(soundEffect: .leftMouseDown)
+      soundEffectManager.play(soundEffect: .leftClickDown)
 
     case .leftMouseUp:
-      soundEffectManager.play(soundEffect: .leftMouseUp)
+      soundEffectManager.play(soundEffect: .leftClickUp)
 
     case .otherMouseDown, .rightMouseDown:
-      soundEffectManager.play(soundEffect: .rightMouseDown)
+      soundEffectManager.play(soundEffect: .rightClickDown)
 
     case .otherMouseUp, .rightMouseUp:
-      soundEffectManager.play(soundEffect: .rightMouseUp)
+      soundEffectManager.play(soundEffect: .rightClickUp)
 
     default:
       break
@@ -388,7 +388,7 @@ enum IPCCommand: String, AgentIPCCommand {
 }
 
 @main
-enum MouseClickSoundEffects {
+enum ClickSoundEffects {
   static func main() {
     Agent.run(subsystem: Configuration.subsystem, activationPolicy: .prohibited) {
       AppDelegate()

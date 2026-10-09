@@ -16,11 +16,11 @@ hs.window.animationDuration = 0
 utils.createSpaces(settings.numberOfSpaces)
 
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background BatteryWarning")
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background ClickSoundEffects")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FloatingMenuBar")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background FocusFollowsMouse")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background HideMenuBarItems")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background LineDeleteShim")
-hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background MouseClickSoundEffects")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background RightCommandHotkeys")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background ScrollToZoom")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator")
