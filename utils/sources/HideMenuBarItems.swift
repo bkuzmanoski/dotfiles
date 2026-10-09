@@ -106,17 +106,16 @@ final class MenuBarItemManager {
   }
 
   private func menuBarAgentPosition(of item: NSStatusItem) -> Double? {
-    guard let autosaveName = item.autosaveName else {
+    guard
+      let autosaveName = item.autosaveName,
+      let data = FileManager.default.contents(atPath: Self.menuBarPreferencesPath),
+      let preferences = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+      let positions = preferences["TrailingItemPreferredPositions"] as? [String: Double]
+    else {
       return nil
     }
 
-    let domain = Self.menuBarPreferencesPath as CFString
-
-    CFPreferencesAppSynchronize(domain)
-
-    let positions = CFPreferencesCopyAppValue("TrailingItemPreferredPositions" as CFString, domain) as? [String: Double]
-
-    return positions?["status:\(ProcessInfo.processInfo.processName)::\(autosaveName)"]
+    return positions["status:\(ProcessInfo.processInfo.processName)::\(autosaveName)"]
   }
 
   private func addSpacerStatusItems(count: Int) {
@@ -124,25 +123,21 @@ final class MenuBarItemManager {
       return
     }
 
-    let boundaryStatusItemPosition =
-      menuBarAgentPosition(of: boundaryStatusItem)
-      ?? UserDefaults.standard.object(forKey: NSStatusItem.preferredPositionKey(for: boundaryStatusItem.autosaveName))
-      as? Double
+    guard let boundaryStatusItemPosition = menuBarAgentPosition(of: boundaryStatusItem) else {
+      Log.error("Failed to read the boundary status item's MenuBarAgent position, skipping spacer status items.")
+      return
+    }
 
     for index in 0..<count {
+      let autosaveName = "Spacer-\(Int(boundaryStatusItemPosition))-\(index)"
+
+      UserDefaults.standard.set(
+        boundaryStatusItemPosition + Double(index + 1) * 0.1,
+        forKey: NSStatusItem.preferredPositionKey(for: autosaveName)
+      )
+
       let spacerItem = NSStatusBar.system.statusItem(withLength: 1)
-
-      if let boundaryStatusItemPosition {
-        let autosaveName = "Spacer-\(Int(boundaryStatusItemPosition))-\(index)"
-
-        UserDefaults.standard.set(
-          boundaryStatusItemPosition + Double(index + 1) * 0.1,
-          forKey: NSStatusItem.preferredPositionKey(for: autosaveName)
-        )
-
-        spacerItem.autosaveName = autosaveName
-      }
-
+      spacerItem.autosaveName = autosaveName
       spacerItem.behavior = .terminationOnRemoval
       spacerItem.button?.isEnabled = false
 
