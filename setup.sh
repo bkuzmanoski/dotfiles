@@ -414,7 +414,7 @@ utiluti type set public.mpeg-2-transport-stream com.microsoft.VSCode
 utiluti type set public.svg-image com.google.Chrome
 utiluti type set public.yaml com.microsoft.VSCode
 
-"${SCRIPT_DIR}/utils/run_util.sh" WindowStyle apply --corner-radius 0 --rim 0.3 --rim-width thin --inner-rim 0.5 --shadow 0.15
+"${SCRIPT_DIR}/utils/run_util.sh" WindowStyle apply --corner-radius 0 --rim 0.3 --rim-width thin --inner-rim 0.5 --shadow 0.5
 
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
 
