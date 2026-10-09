@@ -8,6 +8,7 @@ enum Configuration {
   static let subsystem = "industries.britown.BatteryWarning"
   static let warningThresholdChargePercentage = 10
   static let urgentWarningThresholdMinutesRemaining = 15
+  static let urgentWarningSoundFilePath = "~/.dotfiles/utils/assets/low-battery-warning.wav"
 }
 
 struct BatteryStatus: Equatable {
@@ -114,6 +115,10 @@ final class StatusItemManager {
 
     return animation
   }()
+  private static let urgentWarningSound = NSSound(
+    contentsOf: URL(filePath: Configuration.urgentWarningSoundFilePath),
+    byReference: true
+  )
 
   private let startDate = Date.now
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -134,7 +139,13 @@ final class StatusItemManager {
           break
         }
 
+        let previousSeverity = self.batteryStatus?.severity
+
         self.batteryStatus = batteryStatus
+
+        if batteryStatus?.severity == .urgent, previousSeverity != .urgent {
+          Self.urgentWarningSound?.play()
+        }
 
         updateStatusItem()
       }
