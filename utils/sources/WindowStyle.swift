@@ -30,42 +30,6 @@ extension UnsafeRawBufferPointer {
   }
 }
 
-enum HorizontalAlignment {
-  case leading
-  case trailing
-}
-
-// AppKit rounds rim radii to 2 or 3 pixels when `radius * backingScaleFactor > 2`. Retina
-// displays support 2 px and 3 px rims, while non-Retina displays render both as 2 px.
-enum RimWidth: String, CaseIterable {
-  case thin
-  case thick
-
-  var radius: Double {
-    switch self {
-    case .thin: 0.5
-    case .thick: 1
-    }
-  }
-}
-
-// WindowServer supports only black and white rims.
-enum RimColor: String, CaseIterable {
-  case dark
-  case light
-
-  var flag: UInt8 {
-    switch self {
-    case .dark: 0
-    case .light: 1
-    }
-  }
-
-  init(flag: UInt8) {
-    self = flag == 0 ? .dark : .light
-  }
-}
-
 struct ShadowSpec: Equatable {
   enum Error: Swift.Error, LocalizedError {
     case appKitFrameworkNotFound
@@ -86,22 +50,35 @@ struct ShadowSpec: Equatable {
     }
   }
 
-  private enum Field: Int {
-    case shadowDensity = 0x00
-    case shadowRadius = 0x08
-    case shadowOffset = 0x10
-    case hardRimStyle = 0x18
-    case rimDensity = 0x20
-    case rimRadius = 0x28
-    case rimWhite = 0x30
-    case innerRimDensity = 0x38
-    case innerRimRadius = 0x40
-    case innerRimWhite = 0x48
+  // AppKit rounds rim radii to 2 or 3 pixels when `radius * backingScaleFactor > 2`. Retina
+  // displays support 2 px and 3 px rims, while non-Retina displays render both as 2 px.
+  enum RimWidth: String, CaseIterable {
+    case thin
+    case thick
 
-    static let densities: [Field] = [.shadowDensity, .rimDensity, .innerRimDensity]
-    static let radii: [Field] = [.shadowRadius, .rimRadius, .innerRimRadius]
-    static let numeric = densities + radii + [.shadowOffset]
-    static let flags: [Field] = [.hardRimStyle, .rimWhite, .innerRimWhite]
+    var radius: Double {
+      switch self {
+      case .thin: 0.5
+      case .thick: 1
+      }
+    }
+  }
+
+  // WindowServer supports only black and white rims.
+  enum RimColor: String, CaseIterable {
+    case dark
+    case light
+
+    var flag: UInt8 {
+      switch self {
+      case .dark: 0
+      case .light: 1
+      }
+    }
+
+    init(flag: UInt8) {
+      self = flag == 0 ? .dark : .light
+    }
   }
 
   /// `_NSWindowShadowVariant` in AppKit, describing the shadow style for a specific window state.
@@ -152,6 +129,24 @@ struct ShadowSpec: Equatable {
     let rimColor: RimColor
     let innerRimDensity: Double
     let innerRimRadius: Double
+  }
+
+  private enum Field: Int {
+    case shadowDensity = 0x00
+    case shadowRadius = 0x08
+    case shadowOffset = 0x10
+    case hardRimStyle = 0x18
+    case rimDensity = 0x20
+    case rimRadius = 0x28
+    case rimWhite = 0x30
+    case innerRimDensity = 0x38
+    case innerRimRadius = 0x40
+    case innerRimWhite = 0x48
+
+    static let densities: [Field] = [.shadowDensity, .rimDensity, .innerRimDensity]
+    static let radii: [Field] = [.shadowRadius, .rimRadius, .innerRimRadius]
+    static let numeric = densities + radii + [.shadowOffset]
+    static let flags: [Field] = [.hardRimStyle, .rimWhite, .innerRimWhite]
   }
 
   private static let appKitFrameworkPath = "/System/Library/Frameworks/AppKit.framework/Versions/C/AppKit"
@@ -491,6 +486,11 @@ struct WindowStylePreferences {
 }
 
 extension WindowStylePreferences {
+  private enum HorizontalAlignment {
+    case leading
+    case trailing
+  }
+
   func formatted() throws -> String {
     let cornerRadius = Self.cornerRadiusDescription(cornerRadius)
     let utilityCornerRadius = Self.cornerRadiusDescription(utilityCornerRadius)
@@ -573,8 +573,8 @@ struct Options {
       -c, --corner-radius <pt>          Set the standard window corner radius [default: system default]
       -u, --utility-corner-radius <pt>  Set the utility window corner radius [default: --corner-radius]
       -r, --rim <factor>                Scale the outer rim opacity [default: 1]
-      -w, --rim-width <width>           Set the outer rim width (\(RimWidth.allCases.map(\.rawValue).joined(separator: ", "))) [default: system default]
-      -k, --rim-color <color>           Set the outer rim color (\(RimColor.allCases.map(\.rawValue).joined(separator: ", "))) [default: system default]
+      -w, --rim-width <width>           Set the outer rim width (\(ShadowSpec.RimWidth.allCases.map(\.rawValue).joined(separator: ", "))) [default: system default]
+      -k, --rim-color <color>           Set the outer rim color (\(ShadowSpec.RimColor.allCases.map(\.rawValue).joined(separator: ", "))) [default: system default]
       -i, --inner-rim <factor>          Scale the inner rim opacity [default: 1]
       -s, --shadow <factor>             Scale the shadow opacity [default: 1]
       -h, --help                        Show this help message
@@ -585,8 +585,8 @@ struct Options {
   var cornerRadius: Double?
   var utilityWindowCornerRadius: Double?
   var rimFactor = 1.0
-  var rimWidth: RimWidth?
-  var rimColor: RimColor?
+  var rimWidth: ShadowSpec.RimWidth?
+  var rimColor: ShadowSpec.RimColor?
   var innerRimFactor = 1.0
   var shadowFactor = 1.0
 
