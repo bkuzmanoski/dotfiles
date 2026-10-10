@@ -568,6 +568,7 @@ struct Options {
 
     Options:
       -b, --bundle-id <id>              Target an app's domain instead of the global domain
+      -h, --help                        Show this help message
 
     Options (apply, dry-run):
       -c, --corner-radius <pt>          Set the standard window corner radius [default: system default]
@@ -577,7 +578,6 @@ struct Options {
       -k, --rim-color <color>           Set the outer rim color (\(ShadowSpec.RimColor.allCases.map(\.rawValue).joined(separator: ", "))) [default: system default]
       -i, --inner-rim <factor>          Scale the inner rim opacity [default: 1]
       -s, --shadow <factor>             Scale the shadow opacity [default: 1]
-      -h, --help                        Show this help message
     """
 
   var command: Command
