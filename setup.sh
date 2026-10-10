@@ -415,6 +415,7 @@ utiluti type set public.svg-image com.google.Chrome
 utiluti type set public.yaml com.microsoft.VSCode
 
 "${SCRIPT_DIR}/utils/run_util.sh" WindowStyle apply --corner-radius 0 --rim 0.3 --rim-width thin --inner-rim 0.5 --shadow 0.5
+"${SCRIPT_DIR}/utils/run_util.sh" WindowStyle apply --bundle-id com.raycast.macos # Use default window style for Raycast
 
 set_wallpaper "${SCRIPT_DIR}/wallpapers/Solid Gray Dynamic.heic"
 

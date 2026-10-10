@@ -1,11 +1,10 @@
 // Shared: Log
 
-// Customizes AppKit window styling through private global preferences:
+// Customizes AppKit window styling through private preferences:
 // - `NSConvolutionOverride1` and `NSConvolutionOverride2` control corner radii for standard and utility titled windows.
 // - `NSWindowShadowSpec` overrides the default AppKit shadow spec (`_NSWindowDefaultShadowSpec`).
 
 import Foundation
-import MachO
 
 extension Data {
   func double(at offset: Int) -> Double {
@@ -311,6 +310,242 @@ struct ShadowSpec: Equatable {
   }
 }
 
+struct PreferencesDomain: Sendable {
+  enum Error: Swift.Error, LocalizedError {
+    case applicationNotFound(bundleIdentifier: String)
+    case synchronizationFailed(domain: String)
+
+    var errorDescription: String? {
+      switch self {
+      case .applicationNotFound(let bundleIdentifier): "No application found with bundle ID '\(bundleIdentifier)'."
+      case .synchronizationFailed(let domain): "Failed to write preferences for domain '\(domain)'."
+      }
+    }
+  }
+
+  static let global = PreferencesDomain(applicationID: kCFPreferencesAnyApplication as String, description: "global")
+
+  let applicationID: String
+  let description: String
+
+  var isGlobal: Bool { applicationID == kCFPreferencesAnyApplication as String }
+
+  private init(applicationID: String, description: String) {
+    self.applicationID = applicationID
+    self.description = description
+  }
+
+  static func application(bundleIdentifier: String) throws -> PreferencesDomain {
+    guard
+      let applicationURLs = LSCopyApplicationURLsForBundleIdentifier(bundleIdentifier as CFString, nil)?
+        .takeRetainedValue() as? [URL],
+      let applicationURL = applicationURLs.first
+    else {
+      throw Error.applicationNotFound(bundleIdentifier: bundleIdentifier)
+    }
+
+    guard isSandboxed(applicationURL) else {
+      return PreferencesDomain(applicationID: bundleIdentifier, description: bundleIdentifier)
+    }
+
+    let containerPreferencesPath = FileManager.default.homeDirectoryForCurrentUser
+      .appending(path: "Library/Containers/\(bundleIdentifier)/Data/Library/Preferences/\(bundleIdentifier)")
+      .path(percentEncoded: false)
+
+    return PreferencesDomain(
+      // Writes to the bundle ID domain for a sandboxed app have no effect, so the container plist is addressed by path instead.
+      applicationID: containerPreferencesPath,
+      description: "\(bundleIdentifier) (sandbox container)"
+    )
+  }
+
+  private static func isSandboxed(_ applicationURL: URL) -> Bool {
+    var staticCode: SecStaticCode?
+    var signingInformation: CFDictionary?
+
+    guard
+      SecStaticCodeCreateWithPath(applicationURL as CFURL, [], &staticCode) == errSecSuccess,
+      let staticCode,
+      SecCodeCopySigningInformation(
+        staticCode,
+        SecCSFlags(rawValue: kSecCSSigningInformation),
+        &signingInformation
+      ) == errSecSuccess,
+      let signingInformation = signingInformation as? [String: Any],
+      let entitlements = signingInformation[kSecCodeInfoEntitlementsDict as String] as? [String: Any]
+    else {
+      return false
+    }
+
+    return entitlements["com.apple.security.app-sandbox"] as? Bool == true
+  }
+
+  func value(for key: String) -> CFPropertyList? {
+    return CFPreferencesCopyValue(
+      key as CFString,
+      applicationID as CFString,
+      kCFPreferencesCurrentUser,
+      kCFPreferencesAnyHost
+    )
+  }
+
+  func effectiveValue(for key: String) -> CFPropertyList? {
+    return value(for: key) ?? (isGlobal ? nil : Self.global.value(for: key))
+  }
+
+  func setValue(_ value: CFPropertyList?, for key: String) {
+    CFPreferencesSetValue(
+      key as CFString,
+      value,
+      applicationID as CFString,
+      kCFPreferencesCurrentUser,
+      kCFPreferencesAnyHost
+    )
+  }
+
+  func synchronize() throws {
+    guard CFPreferencesSynchronize(applicationID as CFString, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) else {
+      throw Error.synchronizationFailed(domain: description)
+    }
+  }
+}
+
+struct WindowStylePreferences {
+  enum Error: Swift.Error, LocalizedError {
+    case invalidShadowSpecData(byteCount: Int)
+
+    var errorDescription: String? {
+      switch self {
+      case .invalidShadowSpecData(let byteCount):
+        "'\(WindowStylePreferences.shadowSpecKey)' is set but isn't valid shadow spec data (\(byteCount) bytes)."
+      }
+    }
+  }
+
+  private static let cornerRadiusKey = "NSConvolutionOverride1"
+  private static let utilityCornerRadiusKey = "NSConvolutionOverride2" // Used when `-[NSWindow _isUtilityWindow]`.
+  private static let shadowSpecKey = "NSWindowShadowSpec"
+
+  let cornerRadius: Double? // `nil` uses the system default.
+  let utilityCornerRadius: Double? // `nil` uses the system default.
+  let shadowSpec: ShadowSpec
+
+  static func read(from domain: PreferencesDomain) throws -> WindowStylePreferences {
+    let shadowSpec: ShadowSpec
+
+    if let data = domain.effectiveValue(for: shadowSpecKey) as? Data {
+      guard let appliedShadowSpec = ShadowSpec(data: data) else {
+        throw Error.invalidShadowSpecData(byteCount: data.count)
+      }
+
+      shadowSpec = appliedShadowSpec
+    } else {
+      shadowSpec = try ShadowSpec.systemDefault()
+    }
+
+    return WindowStylePreferences(
+      cornerRadius: cornerRadius(fromPreferenceValue: domain.effectiveValue(for: cornerRadiusKey)),
+      utilityCornerRadius: cornerRadius(fromPreferenceValue: domain.effectiveValue(for: utilityCornerRadiusKey)),
+      shadowSpec: shadowSpec
+    )
+  }
+
+  func write(to domain: PreferencesDomain) throws {
+    let isGlobalSystemDefaultShadowSpec = try domain.isGlobal && shadowSpec == ShadowSpec.systemDefault()
+
+    // System defaults are removed from the global domain, but written explicitly to app domains so that they
+    // don't fall back to the global style.
+    domain.setValue(Self.preferenceValue(forCornerRadius: cornerRadius, in: domain), for: Self.cornerRadiusKey)
+    domain.setValue(
+      Self.preferenceValue(forCornerRadius: utilityCornerRadius, in: domain),
+      for: Self.utilityCornerRadiusKey
+    )
+    domain.setValue(isGlobalSystemDefaultShadowSpec ? nil : shadowSpec.data as CFData, for: Self.shadowSpecKey)
+
+    try domain.synchronize()
+  }
+
+  static func remove(from domain: PreferencesDomain) throws {
+    for key in [cornerRadiusKey, utilityCornerRadiusKey, shadowSpecKey] {
+      domain.setValue(nil, for: key)
+    }
+
+    try domain.synchronize()
+  }
+
+  private static func preferenceValue(forCornerRadius radius: Double?, in domain: PreferencesDomain) -> CFNumber? {
+    guard let radius else {
+      return domain.isGlobal ? nil : Float(0) as CFNumber // AppKit treats `0` as unset.
+    }
+
+    return max(Float(radius), .leastNonzeroMagnitude) as CFNumber // AppKit treats `0` as unset.
+  }
+
+  private static func cornerRadius(fromPreferenceValue value: CFPropertyList?) -> Double? {
+    guard let radius = (value as? NSNumber)?.doubleValue, radius != 0 else {
+      return nil
+    }
+
+    return radius
+  }
+}
+
+extension WindowStylePreferences {
+  func formatted() throws -> String {
+    let cornerRadius = Self.cornerRadiusDescription(cornerRadius)
+    let utilityCornerRadius = Self.cornerRadiusDescription(utilityCornerRadius)
+    let rows = try shadowSpec.variants.map(Self.row)
+    let accessibilityLevels = ShadowSpec.Variant.AccessibilityLevel.allCases
+      .map { "\($0.rawValue) = \($0.description)" }
+      .joined(separator: ", ")
+
+    return """
+      Corner radius: \(cornerRadius) (standard), \(utilityCornerRadius) (utility)
+
+      ————————————————— Variant ————————————————  ——————— Shadow ——————  ————————— Rim ————————  —— Inner Rim ——
+      \u{1B}[1mKIND     APPEARANCE  STATE     A11Y LEVEL*  OPACITY  RADIUS     Y  OPACITY  RADIUS  COLOR  OPACITY  RADIUS\u{1B}[0m
+      \(rows.joined(separator: "\n"))
+
+      *A11y Level: \(accessibilityLevels)
+      """
+  }
+
+  private static func row(for variant: ShadowSpec.Variant) -> String {
+    let kind = textColumn(variant.kind.description, width: 7, alignment: .leading)
+    let appearance = textColumn(variant.isDarkAppearance ? "Dark" : "Light", width: 10, alignment: .leading)
+    let state = textColumn(variant.isActive ? "Active" : "Inactive", width: 8, alignment: .leading)
+    let accessibilityLevel = textColumn(String(variant.accessibilityLevel.rawValue), width: 11, alignment: .trailing)
+    let shadowDensity = numberColumn(variant.shadowDensity, width: 7, fractionLength: 3)
+    let shadowRadius = numberColumn(variant.shadowRadius, width: 6, fractionLength: 1)
+    let shadowOffset = numberColumn(variant.shadowOffset, width: 4, fractionLength: 1)
+    let rimDensity = numberColumn(variant.rimDensity, width: 7, fractionLength: 3)
+    let rimRadius = numberColumn(variant.rimRadius, width: 6, fractionLength: 2)
+    let rimColor = textColumn(variant.rimColor.rawValue.capitalized, width: 5, alignment: .leading)
+    let innerRimDensity = numberColumn(variant.innerRimDensity, width: 7, fractionLength: 3)
+    let innerRimRadius = numberColumn(variant.innerRimRadius, width: 6, fractionLength: 2)
+
+    return
+      "\(kind)  \(appearance)  \(state)  \(accessibilityLevel)  \(shadowDensity)  \(shadowRadius)  \(shadowOffset)  \(rimDensity)  \(rimRadius)  \(rimColor)  \(innerRimDensity)  \(innerRimRadius)"
+  }
+
+  private static func numberColumn(_ value: Double, width: Int, fractionLength: Int) -> String {
+    return textColumn(value.formatted(.number.precision(.fractionLength(fractionLength))), width: width)
+  }
+
+  private static func textColumn(_ text: String, width: Int, alignment: HorizontalAlignment = .trailing) -> String {
+    let padding = String(repeating: " ", count: max(width - text.count, 0))
+
+    switch alignment {
+    case .leading: return text + padding
+    case .trailing: return padding + text
+    }
+  }
+
+  private static func cornerRadiusDescription(_ radius: Double?) -> String {
+    return radius.map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) pt" } ?? "system default"
+  }
+}
+
 enum Command: String, CaseIterable {
   case apply
   case `dry-run`
@@ -324,12 +559,15 @@ struct Options {
       \(ProcessInfo.processInfo.processName) <command> [options]
 
     Commands:
-      apply    Write the style to the global domain (omitted options will be reset to the system default)
+      apply    Write the style (omitted options will be set to the system default)
       dry-run  Print the resulting style without writing it
       status   Print the currently applied style
-      reset    Reset the style to the system default
+      reset    Remove style overrides
 
     Relaunch apps after applying or resetting overrides.
+
+    Options:
+      -b, --bundle-id <id>              Target an app's domain instead of the global domain
 
     Options (apply, dry-run):
       -c, --corner-radius <pt>          Set the standard window corner radius [default: system default]
@@ -343,6 +581,7 @@ struct Options {
     """
 
   var command: Command
+  var bundleIdentifier: String?
   var cornerRadius: Double?
   var utilityWindowCornerRadius: Double?
   var rimFactor = 1.0
@@ -359,11 +598,18 @@ struct Options {
     var optionArguments: [String] = []
 
     while let argument = arguments.next() {
-      if argument.hasPrefix("-") {
+      if argument.hasPrefix("-"), !["-b", "--bundle-id"].contains(argument) {
         optionArguments.append(argument)
       }
 
       switch argument {
+      case "-b", "--bundle-id":
+        guard let value = arguments.next(), !value.isEmpty, !value.hasPrefix("-") else {
+          Self.printUsageErrorAndExit("Missing value for '\(argument)'.")
+        }
+
+        self.bundleIdentifier = value
+
       case "-c", "--corner-radius":
         self.cornerRadius = Self.number(from: arguments.next(), for: argument)
 
@@ -400,7 +646,7 @@ struct Options {
 
     guard
       positionalArguments.count == 1,
-      let command = Self.choice(Command.self, matching: positionalArguments[0])
+      let command = Self.caseInsensitiveChoice(Command.self, matching: positionalArguments[0])
     else {
       Self.printUsageErrorAndExit(
         "Expected one command: \(Command.allCases.map(\.rawValue).joined(separator: ", "))."
@@ -408,7 +654,7 @@ struct Options {
     }
 
     if [.status, .reset].contains(command), let option = optionArguments.first {
-      Self.printUsageErrorAndExit("\(command.rawValue) takes no options (got '\(option)').")
+      Self.printUsageErrorAndExit("'\(command.rawValue)' only accepts '--bundle-id' (got '\(option)').")
     }
 
     self.command = command
@@ -430,7 +676,7 @@ struct Options {
     from value: String?,
     for argument: String
   ) -> Choice {
-    guard let value, let choice = choice(Choice.self, matching: value) else {
+    guard let value, let choice = caseInsensitiveChoice(Choice.self, matching: value) else {
       printUsageErrorAndExit(
         "Invalid value for '\(argument)'. Expected one of: \(Choice.allCases.map(\.rawValue).joined(separator: ", "))."
       )
@@ -439,7 +685,7 @@ struct Options {
     return choice
   }
 
-  private static func choice<Choice: RawRepresentable<String> & CaseIterable>(
+  private static func caseInsensitiveChoice<Choice: RawRepresentable<String> & CaseIterable>(
     _ type: Choice.Type,
     matching value: String
   ) -> Choice? {
@@ -454,19 +700,30 @@ struct Options {
 
 @main
 enum WindowStyle {
-  private static let cornerRadiusKey = "NSConvolutionOverride1"
-  private static let utilityCornerRadiusKey = "NSConvolutionOverride2"
-  private static let shadowSpecKey = "NSWindowShadowSpec"
-
   static func main() {
     let options = Options(arguments: CommandLine.arguments.dropFirst())
 
     do {
+      let domain: PreferencesDomain =
+        if let bundleIdentifier = options.bundleIdentifier {
+          try PreferencesDomain.application(bundleIdentifier: bundleIdentifier)
+        } else {
+          .global
+        }
+
       switch options.command {
-      case .apply: try apply(options)
-      case .`dry-run`: try printStyle(options)
-      case .status: try printStatus()
-      case .reset: reset()
+      case .apply:
+        try windowStylePreferences(from: options).write(to: domain)
+
+      case .`dry-run`:
+        print(try windowStylePreferences(from: options).formatted())
+
+      case .status:
+        print("Domain: \(domain.description)\n\n\(try WindowStylePreferences.read(from: domain).formatted())")
+
+      case .reset:
+        try WindowStylePreferences.remove(from: domain)
+
       }
     } catch {
       Log.error("Error: \(error.localizedDescription)")
@@ -474,39 +731,10 @@ enum WindowStyle {
     }
   }
 
-  private static func apply(_ options: Options) throws {
-    let systemDefaultShadowSpec = try ShadowSpec.systemDefault()
-    let modifiedShadowSpec = systemDefaultShadowSpec.modified(
-      withShadowFactor: options.shadowFactor,
-      rimFactor: options.rimFactor,
-      rimWidth: options.rimWidth,
-      rimColor: options.rimColor,
-      innerRimFactor: options.innerRimFactor
-    )
-
-    writePreference(
-      modifiedShadowSpec == systemDefaultShadowSpec ? nil : modifiedShadowSpec.data as CFData,
-      for: shadowSpecKey
-    )
-    writePreference(options.cornerRadius.map { cornerRadiusPreference($0) as CFNumber }, for: cornerRadiusKey)
-    writePreference(
-      options.effectiveUtilityWindowCornerRadius.map { cornerRadiusPreference($0) as CFNumber },
-      for: utilityCornerRadiusKey
-    )
-    synchronizePreferences()
-  }
-
-  private static func reset() {
-    writePreference(nil, for: shadowSpecKey)
-    writePreference(nil, for: cornerRadiusKey)
-    writePreference(nil, for: utilityCornerRadiusKey)
-    synchronizePreferences()
-  }
-
-  private static func printStyle(_ options: Options) throws {
-    try printStyle(
-      cornerRadius: options.cornerRadius.map { Double(cornerRadiusPreference($0)) },
-      utilityCornerRadius: options.effectiveUtilityWindowCornerRadius.map { Double(cornerRadiusPreference($0)) },
+  private static func windowStylePreferences(from options: Options) throws -> WindowStylePreferences {
+    return WindowStylePreferences(
+      cornerRadius: options.cornerRadius,
+      utilityCornerRadius: options.effectiveUtilityWindowCornerRadius,
       shadowSpec: try ShadowSpec.systemDefault().modified(
         withShadowFactor: options.shadowFactor,
         rimFactor: options.rimFactor,
@@ -515,117 +743,5 @@ enum WindowStyle {
         innerRimFactor: options.innerRimFactor
       )
     )
-  }
-
-  private static func printStatus() throws {
-    let shadowSpec: ShadowSpec
-
-    if let data = readPreference(shadowSpecKey) as? Data {
-      guard let appliedShadowSpec = ShadowSpec(data: data) else {
-        Log.error("Error: \(shadowSpecKey) is set but isn't valid shadow spec data (\(data.count) bytes).")
-        exit(EXIT_FAILURE)
-      }
-
-      shadowSpec = appliedShadowSpec
-    } else {
-      shadowSpec = try ShadowSpec.systemDefault()
-    }
-
-    try printStyle(
-      cornerRadius: (readPreference(cornerRadiusKey) as? NSNumber)?.doubleValue,
-      utilityCornerRadius: (readPreference(utilityCornerRadiusKey) as? NSNumber)?.doubleValue,
-      shadowSpec: shadowSpec
-    )
-  }
-
-  private static func printStyle(cornerRadius: Double?, utilityCornerRadius: Double?, shadowSpec: ShadowSpec) throws {
-    let cornerRadius = cornerRadiusDescription(cornerRadius)
-    let utilityCornerRadius = cornerRadiusDescription(utilityCornerRadius)
-    let variants = try shadowSpec.variants
-
-    print(
-      """
-      Corner radius: \(cornerRadius) (standard), \(utilityCornerRadius) (utility)
-
-      ————————————————— Variant ————————————————  ——————— Shadow ——————  ————————— Rim ————————  —— Inner Rim ——
-      \u{1B}[1mKIND     APPEARANCE  STATE     A11Y LEVEL*  OPACITY  RADIUS     Y  OPACITY  RADIUS  COLOR  OPACITY  RADIUS\u{1B}[0m
-      \(
-        variants.map { variant in
-          let kind = outputColumn(variant.kind.description, width: 7, alignment: .leading)
-          let appearance = outputColumn(variant.isDarkAppearance ? "Dark" : "Light", width: 10, alignment: .leading)
-          let state = outputColumn(variant.isActive ? "Active" : "Inactive", width: 8, alignment: .leading)
-          let accessibilityLevel = outputColumn(String(variant.accessibilityLevel.rawValue), width: 11, alignment: .trailing)
-          let shadowDensity = outputColumn(variant.shadowDensity, width: 7, fractionLength: 3)
-          let shadowRadius = outputColumn(variant.shadowRadius, width: 6, fractionLength: 1)
-          let shadowOffset = outputColumn(variant.shadowOffset, width: 4, fractionLength: 1)
-          let rimDensity = outputColumn(variant.rimDensity, width: 7, fractionLength: 3)
-          let rimRadius = outputColumn(variant.rimRadius, width: 6, fractionLength: 2)
-          let rimColor = outputColumn(variant.rimColor.rawValue.capitalized, width: 5, alignment: .leading)
-          let innerRimDensity = outputColumn(variant.innerRimDensity, width: 7, fractionLength: 3)
-          let innerRimRadius = outputColumn(variant.innerRimRadius, width: 6, fractionLength: 2)
-
-          return "\(kind)  \(appearance)  \(state)  \(accessibilityLevel)  "
-            + "\(shadowDensity)  \(shadowRadius)  \(shadowOffset)  "
-            + "\(rimDensity)  \(rimRadius)  \(rimColor)  "
-            + "\(innerRimDensity)  \(innerRimRadius)"
-        }.joined(separator: "\n")
-      )
-
-      *A11y Level: \(ShadowSpec.Variant.AccessibilityLevel.allCases.map { "\($0.rawValue) = \($0.description)" }.joined(separator: ", "))
-      """
-    )
-  }
-
-  private static func outputColumn(_ value: Double, width: Int, fractionLength: Int) -> String {
-    return outputColumn(value.formatted(.number.precision(.fractionLength(fractionLength))), width: width)
-  }
-
-  private static func outputColumn(
-    _ text: String,
-    width: Int,
-    alignment: HorizontalAlignment = .trailing
-  ) -> String {
-    let padding = String(repeating: " ", count: max(width - text.count, 0))
-
-    switch alignment {
-    case .leading: return text + padding
-    case .trailing: return padding + text
-    }
-  }
-
-  private static func cornerRadiusPreference(_ radius: Double) -> Float {
-    return max(Float(radius), .leastNonzeroMagnitude) // AppKit treats `0` as unset.
-  }
-
-  private static func cornerRadiusDescription(_ radius: Double?) -> String {
-    return radius.map { "\($0.formatted(.number.precision(.fractionLength(0...1)))) pt" } ?? "system default"
-  }
-
-  private static func readPreference(_ key: String) -> CFPropertyList? {
-    return CFPreferencesCopyValue(
-      key as CFString,
-      kCFPreferencesAnyApplication,
-      kCFPreferencesCurrentUser,
-      kCFPreferencesAnyHost
-    )
-  }
-
-  private static func writePreference(_ value: CFPropertyList?, for key: String) {
-    CFPreferencesSetValue(
-      key as CFString,
-      value,
-      kCFPreferencesAnyApplication,
-      kCFPreferencesCurrentUser,
-      kCFPreferencesAnyHost
-    )
-  }
-
-  private static func synchronizePreferences() {
-    guard
-      CFPreferencesSynchronize(kCFPreferencesAnyApplication, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
-    else {
-      Log.error("Error: Failed to write to the global domain.")
-      exit(EXIT_FAILURE)
-    }
   }
 }
