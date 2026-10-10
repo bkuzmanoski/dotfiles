@@ -564,7 +564,7 @@ struct Options {
       status   Print the currently applied style
       reset    Remove style overrides
 
-    Relaunch apps after applying or resetting overrides.
+    Relaunch apps after applying or resetting their window style.
 
     Options:
       -b, --bundle-id <id>              Target an app's domain instead of the global domain
