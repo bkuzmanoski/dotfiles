@@ -5,20 +5,47 @@ import CoreImage.CIFilterBuiltins
 
 enum Configuration {
   static let subsystem = "industries.britown.DisplayTexture"
-  static let grainSize: CGFloat = 1.0 // Points
-  static let grainSoftness: CGFloat = 0.5 // Gaussian blur radius in points
-  static let grainContrast: Float = 1.05
-  static let grainOpacity: Float = 0.04
-  static let tintColor = NSColor(white: 0.96, alpha: 0.01)
+  static let lightAppearanceStyle = TextureStyle(
+    grainSize: 1.0,
+    grainSoftness: 0.5,
+    grainContrast: 1.5,
+    grainOpacity: 0.03,
+    tintColor: .clear
+  )
+  static let darkAppearanceStyle = TextureStyle(
+    grainSize: 1.0,
+    grainSoftness: 0.5,
+    grainContrast: 1.5,
+    grainOpacity: 0.02,
+    tintColor: NSColor(white: 0.5, alpha: 0.02)
+  )
+}
+
+extension NSAppearance {
+  var isDark: Bool { bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
+}
+
+struct TextureStyle: Sendable {
+  let grainSize: CGFloat // Points
+  let grainSoftness: CGFloat // Gaussian blur radius in points
+  let grainContrast: Float
+  let grainOpacity: Float
+  let tintColor: NSColor
+
+  var grain: Texture.Grain { Texture.Grain(size: grainSize, softness: grainSoftness, contrast: grainContrast) }
+
+  static func forAppearance(_ appearance: NSAppearance) -> TextureStyle {
+    return appearance.isDark ? Configuration.darkAppearanceStyle : Configuration.lightAppearanceStyle
+  }
 }
 
 struct Texture: Sendable {
   enum Error: Swift.Error, LocalizedError {
-    case failedToRenderTexture(Metrics)
+    case failedToRenderTexture(Descriptor)
 
     var errorDescription: String? {
       switch self {
-      case .failedToRenderTexture(let metrics): "Failed to render \(metrics) texture."
+      case .failedToRenderTexture(let descriptor): "Failed to render \(descriptor) texture."
       }
     }
   }
@@ -37,48 +64,65 @@ struct Texture: Sendable {
     }
   }
 
-  let metrics: Metrics
+  struct Grain: Hashable, Sendable, CustomStringConvertible {
+    let size: CGFloat
+    let softness: CGFloat
+    let contrast: Float
+
+    var description: String {
+      "size \(size.formatted())pt, softness \(softness.formatted())pt, contrast \(contrast.formatted())"
+    }
+  }
+
+  struct Descriptor: Hashable, Sendable, CustomStringConvertible {
+    let metrics: Metrics
+    let grain: Grain
+
+    var description: String { "\(metrics) (\(grain))" }
+  }
+
+  let descriptor: Descriptor
   let image: CGImage
 
   @concurrent
-  static func render(for metrics: Set<Metrics>) async throws -> [Metrics: Texture] {
+  static func render(for descriptors: Set<Descriptor>) async throws -> [Descriptor: Texture] {
     let context = CIContext(options: [.cacheIntermediates: false, .allowLowPower: true, .workingColorSpace: NSNull()])
     let colorSpace = CGColorSpace(name: CGColorSpace.genericGrayGamma2_2) ?? CGColorSpaceCreateDeviceGray()
 
-    var textures: [Metrics: Texture] = [:]
+    var textures: [Descriptor: Texture] = [:]
 
-    for metrics in metrics {
+    for descriptor in descriptors {
       guard let randomImage = CIFilter.randomGenerator().outputImage else {
-        throw Error.failedToRenderTexture(metrics)
+        throw Error.failedToRenderTexture(descriptor)
       }
 
       let pointScale = CGAffineTransform(
-        scaleX: Configuration.grainSize * metrics.scaleFactor,
-        y: Configuration.grainSize * metrics.scaleFactor
+        scaleX: descriptor.grain.size * descriptor.metrics.scaleFactor,
+        y: descriptor.grain.size * descriptor.metrics.scaleFactor
       )
 
       let blurFilter = CIFilter.gaussianBlur()
       blurFilter.inputImage = randomImage.settingAlphaOne(in: .infinite).transformed(by: pointScale)
-      blurFilter.radius = Float(Configuration.grainSoftness * metrics.scaleFactor)
+      blurFilter.radius = Float(descriptor.grain.softness * descriptor.metrics.scaleFactor)
 
       let contrastFilter = CIFilter.colorControls()
       contrastFilter.inputImage = blurFilter.outputImage
-      contrastFilter.contrast = Configuration.grainContrast
+      contrastFilter.contrast = descriptor.grain.contrast
       contrastFilter.saturation = 0
 
       guard
         let textureImage = contrastFilter.outputImage,
         let image = context.createCGImage(
           textureImage,
-          from: CGRect(x: 0, y: 0, width: metrics.pixelWidth, height: metrics.pixelHeight),
+          from: CGRect(x: 0, y: 0, width: descriptor.metrics.pixelWidth, height: descriptor.metrics.pixelHeight),
           format: .L8,
           colorSpace: colorSpace
         )
       else {
-        throw Error.failedToRenderTexture(metrics)
+        throw Error.failedToRenderTexture(descriptor)
       }
 
-      textures[metrics] = Texture(metrics: metrics, image: image)
+      textures[descriptor] = Texture(descriptor: descriptor, image: image)
     }
 
     return textures
@@ -88,15 +132,14 @@ struct Texture: Sendable {
 final class TextureWindow: NSWindow {
   private(set) var texture: Texture
 
+  private let rootLayer = CALayer()
   private let textureLayer = CALayer()
 
-  init(screen: NSScreen, texture: Texture) {
+  init(screen: NSScreen, texture: Texture, style: TextureStyle) {
     self.texture = texture
 
     super.init(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
 
-    let rootLayer = CALayer()
-    rootLayer.backgroundColor = Configuration.tintColor.cgColor
     rootLayer.addSublayer(textureLayer)
 
     let contentView = NSView()
@@ -104,7 +147,6 @@ final class TextureWindow: NSWindow {
     contentView.wantsLayer = true
 
     textureLayer.contentsGravity = .bottomLeft
-    textureLayer.opacity = Configuration.grainOpacity
 
     self.contentView = contentView
     self.isOpaque = false
@@ -120,6 +162,7 @@ final class TextureWindow: NSWindow {
     self.isReleasedWhenClosed = false
 
     update(screen: screen, texture: texture)
+    apply(style)
   }
 
   func update(screen: NSScreen, texture: Texture) {
@@ -130,8 +173,18 @@ final class TextureWindow: NSWindow {
 
     setFrame(screen.frame, display: false)
     textureLayer.frame = CGRect(origin: .zero, size: screen.frame.size)
-    textureLayer.contentsScale = texture.metrics.scaleFactor
+    textureLayer.contentsScale = texture.descriptor.metrics.scaleFactor
     textureLayer.contents = texture.image
+
+    CATransaction.commit()
+  }
+
+  func apply(_ style: TextureStyle) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+
+    rootLayer.backgroundColor = style.tintColor.cgColor
+    textureLayer.opacity = style.grainOpacity
 
     CATransaction.commit()
   }
@@ -143,11 +196,19 @@ final class TextureOverlayManager {
 
   private let startDate = Date.now
   private let screenParametersUpdateDebounceInterval: Duration = .milliseconds(250)
+  private var style = TextureStyle.forAppearance(NSApplication.shared.effectiveAppearance)
   private var windows: [CGDirectDisplayID: TextureWindow] = [:]
+  private var appearanceObservation: NSKeyValueObservation?
   private var screenParametersObservationTask: Task<Void, Never>?
   private var updateTask: Task<Void, Never>?
 
   init() {
+    self.appearanceObservation = NSApplication.shared.observe(\.effectiveAppearance) { [weak self] _, _ in
+      MainActor.assumeIsolated {
+        self?.applyStyle(.forAppearance(NSApplication.shared.effectiveAppearance))
+      }
+    }
+
     self.screenParametersObservationTask = Task { [weak self] in
       for await _ in NotificationCenter.default.notifications(
         named: NSApplication.didChangeScreenParametersNotification
@@ -164,6 +225,7 @@ final class TextureOverlayManager {
   }
 
   isolated deinit {
+    appearanceObservation?.invalidate()
     screenParametersObservationTask?.cancel()
     updateTask?.cancel()
     removeWindows(for: Array(windows.keys))
@@ -186,7 +248,7 @@ final class TextureOverlayManager {
 
   func logDiagnosticReport() {
     let windowsInfo = windows.sorted { $0.key < $1.key }.map { displayID, window in
-      "  Display \(displayID): frame \(window.frame), texture \(window.texture.metrics), visible: \(window.isVisible)"
+      "  Display \(displayID): frame \(window.frame), texture \(window.texture.descriptor), visible: \(window.isVisible)"
     }
 
     Log.info(
@@ -194,11 +256,26 @@ final class TextureOverlayManager {
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Enabled: \(isEnabled)
+        Appearance: \(NSApplication.shared.effectiveAppearance.isDark ? "dark" : "light")
         Update pending: \(updateTask != nil)
         Windows: \(windows.count)
       \(windowsInfo.map { "  \($0)" }.joined(separator: "\n"))
       """
     )
+  }
+
+  private func applyStyle(_ style: TextureStyle) {
+    let hasGrainChanged = style.grain != self.style.grain
+
+    self.style = style
+
+    if hasGrainChanged, isEnabled {
+      scheduleUpdate()
+    } else {
+      for window in windows.values {
+        window.apply(style)
+      }
+    }
   }
 
   private func scheduleUpdate(after delay: Duration = .zero) {
@@ -225,18 +302,20 @@ final class TextureOverlayManager {
       NSScreen.screens.compactMap { screen in screen.cgDirectDisplayID.map { ($0, screen) } },
       uniquingKeysWith: { first, _ in first }
     )
-    let requiredMetrics = Set(screens.values.map(Texture.Metrics.init(screen:)))
+    let requiredDescriptors = Set(
+      screens.values.map { Texture.Descriptor(metrics: Texture.Metrics(screen: $0), grain: style.grain) }
+    )
 
     var textures = Dictionary(
-      windows.values.map { ($0.texture.metrics, $0.texture) },
+      windows.values.map { ($0.texture.descriptor, $0.texture) },
       uniquingKeysWith: { first, _ in first }
-    ).filter { requiredMetrics.contains($0.key) }
+    ).filter { requiredDescriptors.contains($0.key) }
 
-    let missingMetrics = requiredMetrics.subtracting(textures.keys)
+    let missingDescriptors = requiredDescriptors.subtracting(textures.keys)
 
-    if !missingMetrics.isEmpty {
+    if !missingDescriptors.isEmpty {
       do {
-        textures.merge(try await Texture.render(for: missingMetrics)) { _, new in new }
+        textures.merge(try await Texture.render(for: missingDescriptors)) { _, new in new }
       } catch {
         Log.error(error.localizedDescription)
         return
@@ -250,14 +329,17 @@ final class TextureOverlayManager {
     removeWindows(for: windows.keys.filter { screens[$0] == nil })
 
     for (displayID, screen) in screens {
-      guard let texture = textures[Texture.Metrics(screen: screen)] else {
+      guard
+        let texture = textures[Texture.Descriptor(metrics: Texture.Metrics(screen: screen), grain: style.grain)]
+      else {
         continue
       }
 
       if let window = windows[displayID] {
         window.update(screen: screen, texture: texture)
+        window.apply(style)
       } else {
-        let window = TextureWindow(screen: screen, texture: texture)
+        let window = TextureWindow(screen: screen, texture: texture, style: style)
         window.orderFrontRegardless()
 
         self.windows[displayID] = window
@@ -301,7 +383,7 @@ enum IPCCommand: String, AgentIPCCommand {
 }
 
 @main
-enum PaperGrain {
+enum DisplayTexture {
   static func main() {
     Agent.run(subsystem: Configuration.subsystem, activationPolicy: .accessory) {
       AppDelegate()
