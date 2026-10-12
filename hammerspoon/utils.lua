@@ -108,7 +108,7 @@ function module.getOrderedWindows()
   return windows
 end
 
-function module.getWindowUnderMouse(windows, validSubroles)
+function module.getWindowUnderMouse(windows, subroles)
   local rawMousePosition = hs.mouse.absolutePosition()
   local elementUnderMouse = hs.axuielement.systemWideElement():elementAtPosition(rawMousePosition)
 
@@ -121,7 +121,7 @@ function module.getWindowUnderMouse(windows, validSubroles)
       if rawWindow then
         local subrole = rawWindow:attributeValue("AXSubrole")
 
-        if subrole and validSubroles[subrole] then
+        if subrole and subroles[subrole] then
           return rawWindow:asHSWindow()
         end
       end

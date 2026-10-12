@@ -16,7 +16,7 @@ local edgeType = {
   screenTop = "screenTop",
   screenBottom = "screenBottom"
 }
-local validSubroles = {
+local subroles = {
   ["AXStandardWindow"] = true,
   ["AXDialog"] = true,
   ["AXSystemDialog"] = true,
@@ -162,7 +162,7 @@ end
 
 local function startOperation(operation)
   allWindows = utils.getOrderedWindows()
-  activeWindow = utils.getWindowUnderMouse(allWindows, validSubroles)
+  activeWindow = utils.getWindowUnderMouse(allWindows, subroles)
 
   if
       not activeWindow or
