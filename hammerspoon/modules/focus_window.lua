@@ -1,12 +1,12 @@
 local module = {}
 
 local utils = require("utils")
-
 local targetWindow = {
   frontmost = "frontmost",
   left = "left",
   right = "right"
 }
+
 local minimumWindowSize = 100
 local alignmentTolerance = 8
 

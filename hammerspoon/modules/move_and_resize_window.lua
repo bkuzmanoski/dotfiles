@@ -16,7 +16,6 @@ local edgeType = {
   screenTop = "screenTop",
   screenBottom = "screenBottom"
 }
-local snapThreshold = 8
 local validSubroles = {
   ["AXStandardWindow"] = true,
   ["AXDialog"] = true,
@@ -24,6 +23,8 @@ local validSubroles = {
   ["AXFloatingWindow"] = true,
   ["AXSystemFloatingWindow"] = true
 }
+
+local snapThreshold = 8
 
 local keyboardTap, mouseTap
 local topOffset, padding, moveModifiers, resizeModifiers, excludedApps
@@ -82,6 +83,7 @@ local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
       table.insert(verticalEdges, { position = windowFrame.x + windowFrame.w, type = edgeType.windowRight })
       table.insert(horizontalEdges, { position = windowFrame.y, type = edgeType.windowTop })
       table.insert(horizontalEdges, { position = windowFrame.y + windowFrame.h, type = edgeType.windowBottom })
+
       if padding > 1 then
         table.insert(verticalEdges, { position = windowFrame.x - padding, type = edgeType.paddedWindowLeft })
         table.insert(
