@@ -76,7 +76,7 @@ local function snapToEdges(windows, operation, frame, deltaX, deltaY, threshold)
   end
 
   for _, window in ipairs(windows) do
-    if window ~= activeWindow then
+    if window ~= activeWindow and window:subrole() ~= "AXDialog" and window:subrole() ~= "AXSystemDialog" then
       local windowFrame = window:frame()
 
       table.insert(verticalEdges, { position = windowFrame.x, type = edgeType.windowLeft })
