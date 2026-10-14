@@ -10,6 +10,7 @@ enum Configuration {
     WindowIdentity(bundleIdentifier: "com.raycast.macos", title: "Notes")
   ]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
+  static let crossDisplayHoverDelay: DispatchTimeInterval = .milliseconds(60)
   static let jitterThreshold = 3
 }
 
@@ -313,6 +314,7 @@ final class FocusManager {
   ]
   private let windowManagerSuspendingWindowLevels: Set<CGWindowLevel> = [18, 19]
   private let hoverDelay: DispatchTimeInterval
+  private let crossDisplayHoverDelay: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
   private let exemptBundleIdentifiers: Set<String>
   private let focusableFloatingWindows: Set<WindowIdentity>
@@ -320,14 +322,19 @@ final class FocusManager {
   private let skyLightProxy: SkyLightProxy
   private let debounceTimer: any DispatchSourceTimer
   private var spaceObservationTask: Task<Void, Never>?
+  private var screenParametersObservationTask: Task<Void, Never>?
+  private var displayBounds: [CGRect] = []
+  private var cursorDisplayIndex: Int?
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var isFocusPending = false
+  private var pendingFocusDelay: DispatchTimeInterval? // Hover delay of the pending focus, or nil if none is pending.
+  private var hasPendingDisplayCrossing = false
   private var focusTask: Task<Void, Never>?
 
   init(
     hoverDelay: DispatchTimeInterval,
+    crossDisplayHoverDelay: DispatchTimeInterval,
     jitterThreshold: Int,
     exemptBundleIdentifiers: Set<String>,
     focusableFloatingWindows: Set<WindowIdentity>
@@ -337,6 +344,7 @@ final class FocusManager {
     }
 
     self.hoverDelay = hoverDelay
+    self.crossDisplayHoverDelay = crossDisplayHoverDelay
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.exemptBundleIdentifiers = exemptBundleIdentifiers
     self.focusableFloatingWindows = focusableFloatingWindows
@@ -360,6 +368,19 @@ final class FocusManager {
       }
     }
 
+    self.screenParametersObservationTask = Task { [weak self] in
+      for await _ in NotificationCenter.default.notifications(
+        named: NSApplication.didChangeScreenParametersNotification
+      ) {
+        guard let self else {
+          break
+        }
+
+        refreshDisplayBounds()
+      }
+    }
+
+    refreshDisplayBounds()
     AXUIElement.setGlobalMessagingTimeout(seconds: 0.5)
 
     eventTap.eventObserver = { [weak self] event in
@@ -380,12 +401,15 @@ final class FocusManager {
 
   isolated deinit {
     spaceObservationTask?.cancel()
+    screenParametersObservationTask?.cancel()
     debounceTimer.cancel()
     focusTask?.cancel()
   }
 
   func toggleEnabled() {
     self.isEnabled.toggle()
+
+    resetDisplayCrossingTracking()
     updateEventTapState()
   }
 
@@ -410,8 +434,9 @@ final class FocusManager {
           Command key pressed: \(isCommandKeyPressed)
           Screen locked: \(isScreenLocked)
           Suspending windows on screen: \(suspendingWindows.isEmpty ? "none" : suspendingWindows.joined(separator: ", "))
-        Focus pending: \(isFocusPending)
+        Focus pending: \(pendingFocusDelay != nil)
         Hover delay: \(hoverDelay)
+        Cross-display hover delay: \(crossDisplayHoverDelay)
         Exempt bundle IDs: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
         Focusable floating windows: \(focusableFloatingWindows.map { "\($0.bundleIdentifier) \"\($0.title)\"" }.sorted().joined(separator: ", "))
       """
@@ -427,11 +452,54 @@ final class FocusManager {
     self.isCommandKeyPressed = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
   }
 
+  private func refreshDisplayBounds() {
+    resetDisplayCrossingTracking()
+
+    var displayCount: UInt32 = 0
+
+    guard CGGetActiveDisplayList(0, nil, &displayCount) == .success else {
+      self.displayBounds = []
+      return
+    }
+
+    var displayIDs = [CGDirectDisplayID](repeating: 0, count: Int(displayCount))
+
+    guard CGGetActiveDisplayList(displayCount, &displayIDs, &displayCount) == .success else {
+      self.displayBounds = []
+      return
+    }
+
+    self.displayBounds = displayIDs.prefix(Int(displayCount)).map(CGDisplayBounds)
+  }
+
+  private func updateCursorDisplayIndex(for location: CGPoint) -> Bool {
+    guard let displayIndex = displayBounds.firstIndex(where: { $0.contains(location) }) else {
+      return false
+    }
+
+    let didCrossDisplay = cursorDisplayIndex != nil && displayIndex != cursorDisplayIndex
+
+    self.cursorDisplayIndex = displayIndex
+
+    return didCrossDisplay
+  }
+
+  private func resetDisplayCrossingTracking() {
+    self.cursorDisplayIndex = nil
+    self.hasPendingDisplayCrossing = false
+  }
+
   private func handleCGEvent(_ event: CGEvent) {
     switch event.type {
     case .mouseMoved:
+      let didCrossDisplay = updateCursorDisplayIndex(for: event.location)
+
       guard isEnabled, !isCommandKeyPressed else {
         break
+      }
+
+      if didCrossDisplay {
+        self.hasPendingDisplayCrossing = true
       }
 
       let deltaX = event.location.x - lastMouseLocation.x
@@ -444,8 +512,15 @@ final class FocusManager {
       self.lastMouseLocation = event.location
       self.lastMouseMoveTime = .now()
 
-      if !isFocusPending {
-        self.isFocusPending = true
+      let isDisplayCrossing = hasPendingDisplayCrossing
+
+      self.hasPendingDisplayCrossing = false
+
+      if isDisplayCrossing {
+        self.pendingFocusDelay = crossDisplayHoverDelay
+        debounceTimer.schedule(deadline: lastMouseMoveTime + crossDisplayHoverDelay)
+      } else if pendingFocusDelay == nil {
+        self.pendingFocusDelay = hoverDelay
         debounceTimer.schedule(deadline: lastMouseMoveTime + hoverDelay)
       }
 
@@ -465,7 +540,7 @@ final class FocusManager {
   }
 
   private func handleTimerEvent() {
-    guard isFocusPending else {
+    guard let pendingFocusDelay else {
       return
     }
 
@@ -474,7 +549,7 @@ final class FocusManager {
       return
     }
 
-    let focusDeadline = lastMouseMoveTime + hoverDelay
+    let focusDeadline = lastMouseMoveTime + pendingFocusDelay
 
     guard DispatchTime.now() >= focusDeadline else {
       debounceTimer.schedule(deadline: focusDeadline)
@@ -483,7 +558,7 @@ final class FocusManager {
 
     focusTask?.cancel()
 
-    self.isFocusPending = false
+    self.pendingFocusDelay = nil
     self.focusTask = Task { [weak self, lastMouseLocation] in
       await self?.focusWindow(at: lastMouseLocation)
     }
@@ -576,7 +651,8 @@ final class FocusManager {
   private func cancelPendingFocus() {
     focusTask?.cancel()
 
-    self.isFocusPending = false
+    self.pendingFocusDelay = nil
+    self.hasPendingDisplayCrossing = false
     self.focusTask = nil
   }
 
@@ -653,6 +729,7 @@ final class AppDelegate: NSObject, AgentDelegate {
     do {
       self.focusManager = try FocusManager(
         hoverDelay: Configuration.hoverDelay,
+        crossDisplayHoverDelay: Configuration.crossDisplayHoverDelay,
         jitterThreshold: Configuration.jitterThreshold,
         exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers,
         focusableFloatingWindows: Configuration.focusableFloatingWindows
