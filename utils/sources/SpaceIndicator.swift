@@ -34,6 +34,15 @@ func CGSCopySpacesForWindows(
 ) -> Unmanaged<CFArray>?
 
 // swift-format-ignore: AlwaysUseLowerCamelCase
+@_silgen_name("CGSGetWindowTags")
+func CGSGetWindowTags(
+  _ connectionID: CGSConnectionID,
+  _ windowID: CGWindowID,
+  _ tags: UnsafeMutablePointer<CGSWindowTags>,
+  _ tagsSize: CInt
+) -> CGError
+
+// swift-format-ignore: AlwaysUseLowerCamelCase
 @_silgen_name("CGSRegisterNotifyProc")
 @discardableResult
 func CGSRegisterNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
@@ -50,6 +59,14 @@ enum CGSEventType: UInt32 {
   case spaceCreated = 1327
   case spaceDestroyed = 1328
   case spaceCurrentChanged = 1329
+}
+
+struct CGSWindowTags: OptionSet {
+  let rawValue: UInt64
+
+  static let document = CGSWindowTags(rawValue: 1 << 0)
+  static let floating = CGSWindowTags(rawValue: 1 << 1)
+  static let modal = CGSWindowTags(rawValue: 1 << 31)
 }
 
 struct CGSSpaceMask: OptionSet {
@@ -69,10 +86,10 @@ struct CGSSpaceMask: OptionSet {
 struct Space: Identifiable, Equatable {
   let id: SpaceID
   var isCurrent: Bool
-  var apps: [App]
+  var trackedApps: [TrackedApp]
 }
 
-struct App: Identifiable, Equatable {
+struct TrackedApp: Identifiable, Equatable {
   let processIdentifier: pid_t
   let name: String
   let icon: NSImage
@@ -93,12 +110,12 @@ struct App: Identifiable, Equatable {
     self.icon = runningApplication.icon ?? NSWorkspace.shared.icon(for: .applicationBundle)
   }
 
-  static func == (lhs: App, rhs: App) -> Bool {
+  static func == (lhs: TrackedApp, rhs: TrackedApp) -> Bool {
     return lhs.id == rhs.id
   }
 }
 
-struct Window: Hashable {
+struct TrackedWindow: Hashable {
   let id: CGWindowID
   let processIdentifier: pid_t
   let spaceID: SpaceID
@@ -110,10 +127,14 @@ struct Window: Hashable {
   }
 
   init?(info windowInfo: [String: Any], cgsConnectionID: CGSConnectionID) {
+    var tags: CGSWindowTags = []
+
     guard
       windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
       let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
       let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+      CGSGetWindowTags(cgsConnectionID, windowID, &tags, CInt(UInt64.bitWidth)) == .success,
+      tags.contains(.document) || tags.isSuperset(of: [.floating, .modal]),
       let spacesForWindow = CGSCopySpacesForWindows(
         cgsConnectionID,
         CGSSpaceMask.allSpaces.rawValue,
@@ -125,7 +146,7 @@ struct Window: Hashable {
       return nil
     }
 
-    self = Window(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
+    self = TrackedWindow(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
   }
 }
 
@@ -260,8 +281,8 @@ final class SpaceMonitor {
 final class SpaceIndicatorModel {
   private(set) var mainScreenDisplayIdentifier = NSScreen.main?.displayIdentifier
   private(set) var displaySpaces: [DisplayIdentifier: DisplaySpaces] = [:]
-  private(set) var spaceWindows: [SpaceID: Set<Window>] = [:]
-  private(set) var runningApps: [pid_t: App] = [:]
+  private(set) var spaceTrackedWindows: [SpaceID: Set<TrackedWindow>] = [:]
+  private(set) var trackedApps: [pid_t: TrackedApp] = [:]
   private(set) var isRefreshPending = true
 
   var mainScreenSpaces: [Space] {
@@ -274,11 +295,13 @@ final class SpaceIndicatorModel {
 
     return mainScreenDisplaySpaces.spaceIDs.map { spaceID in
       let isCurrent = spaceID == mainScreenDisplaySpaces.currentSpaceID
-      let windowsOnSpace = spaceWindows[spaceID] ?? []
-      let processIdentifiers = Set(windowsOnSpace.compactMap { $0.processIdentifier })
-      let apps = processIdentifiers.compactMap { runningApps[$0] }.sorted { $0.name.lexicographicallyPrecedes($1.name) }
+      let trackedWindowsOnSpace = spaceTrackedWindows[spaceID] ?? []
+      let trackedAppsOnSpace =
+        Set(trackedWindowsOnSpace.map(\.processIdentifier))
+        .compactMap { trackedApps[$0] }
+        .sorted { $0.name.lexicographicallyPrecedes($1.name) }
 
-      return Space(id: spaceID, isCurrent: isCurrent, apps: apps)
+      return Space(id: spaceID, isCurrent: isCurrent, trackedApps: trackedAppsOnSpace)
     }
   }
 
@@ -307,12 +330,12 @@ final class SpaceIndicatorModel {
   func diagnosticReport() -> [String] {
     let liveDisplaySpaces = displaySpacesByIdentifier(cgsConnectionID: cgsConnectionID)
     let liveWindowIDs = Set(
-      windowsInfo(cgsConnectionID: cgsConnectionID).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
+      (windowsInfo() ?? []).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
     )
 
     var lines = [
-      "Tracked windows: \(spaceWindows.values.reduce(0) { $0 + $1.count })",
-      "Tracked apps: \(runningApps.count)",
+      "Tracked windows: \(spaceTrackedWindows.values.reduce(0) { $0 + $1.count })",
+      "Tracked apps: \(trackedApps.count)",
       "Refresh pending: \(isRefreshPending)"
     ]
 
@@ -328,21 +351,21 @@ final class SpaceIndicatorModel {
       lines.append("  Live spaces: \(liveSpaceIDs), current: \(liveCurrentSpaceID)")
 
       for spaceID in cachedSpaceIDs {
-        let windows = spaceWindows[spaceID] ?? []
-        let appNames = Set(windows.map(\.processIdentifier)).compactMap { runningApps[$0]?.name }.sorted()
+        let trackedWindows = spaceTrackedWindows[spaceID] ?? []
+        let trackedAppNames = Set(trackedWindows.map(\.processIdentifier)).compactMap { trackedApps[$0]?.name }.sorted()
 
         lines.append(
-          "  Space \(spaceID): \(windows.count) window(s)\(appNames.isEmpty ? "" : " (\(appNames.joined(separator: ", ")))")"
+          "  Space \(spaceID): \(trackedWindows.count) window(s)\(trackedAppNames.isEmpty ? "" : " (\(trackedAppNames.joined(separator: ", ")))")"
         )
       }
     }
 
     let staleWindowsInfo =
-      spaceWindows
-      .mapValues { windows in
-        windows.filter { !liveWindowIDs.contains($0.id) }
+      spaceTrackedWindows
+      .mapValues { trackedWindows in
+        trackedWindows.filter { !liveWindowIDs.contains($0.id) }
           .map {
-            "\($0.id) (\(runningApps[$0.processIdentifier]?.name ?? String($0.processIdentifier)))"
+            "\($0.id) (\(trackedApps[$0.processIdentifier]?.name ?? String($0.processIdentifier)))"
           }
       }
 
@@ -358,9 +381,9 @@ final class SpaceIndicatorModel {
       }
     }
 
-    let trackedProcessIdentifiers = Set(spaceWindows.values.flatMap { $0 }.map(\.processIdentifier))
+    let trackedProcessIdentifiers = Set(spaceTrackedWindows.values.flatMap { $0 }.map(\.processIdentifier))
     let orphanedAppsInfo =
-      runningApps
+      trackedApps
       .filter { !trackedProcessIdentifiers.contains($0.key) }
       .map { "\($0.value.name) (PID: \($0.key))" }
       .sorted()
@@ -390,14 +413,23 @@ final class SpaceIndicatorModel {
     for await notification in NSWorkspace.shared.notificationCenter.notifications(
       named: NSWorkspace.didTerminateApplicationNotification
     ) {
-      guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else {
+      guard
+        let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+        trackedApps[app.processIdentifier] != nil
+      else {
         continue
       }
 
-      self.runningApps.removeValue(forKey: app.processIdentifier)
+      self.trackedApps.removeValue(forKey: app.processIdentifier)
 
-      for (trackedSpaceID, windows) in spaceWindows {
-        self.spaceWindows[trackedSpaceID] = windows.filter { $0.processIdentifier != app.processIdentifier }
+      for (trackedSpaceID, trackedWindows) in spaceTrackedWindows {
+        let remainingTrackedWindows = trackedWindows.filter { $0.processIdentifier != app.processIdentifier }
+
+        guard remainingTrackedWindows.count != trackedWindows.count else {
+          continue
+        }
+
+        self.spaceTrackedWindows[trackedSpaceID] = remainingTrackedWindows
       }
     }
   }
@@ -409,17 +441,8 @@ final class SpaceIndicatorModel {
     )
   }
 
-  private func windowsInfo(cgsConnectionID: CGSConnectionID) -> [[String: Any]] {
-    guard
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionAll, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]]
-    else {
-      return []
-    }
-
-    return windowsInfo
+  private func windowsInfo() -> [[String: Any]]? {
+    return CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
   }
 
   private func refreshSpaces() {
@@ -433,14 +456,18 @@ final class SpaceIndicatorModel {
   }
 
   private func refreshWindows() {
-    self.spaceWindows.removeAll()
+    guard let windowsInfo = windowsInfo() else {
+      return
+    }
 
-    for windowInfo in windowsInfo(cgsConnectionID: cgsConnectionID) {
-      guard let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
+    self.spaceTrackedWindows.removeAll()
+
+    for windowInfo in windowsInfo {
+      guard let trackedWindow = TrackedWindow(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
         continue
       }
 
-      trackWindow(window)
+      trackWindow(trackedWindow)
     }
   }
 
@@ -472,25 +499,20 @@ final class SpaceIndicatorModel {
 
     self.displaySpaces[displayIdentifier]?.currentSpaceID = spaceID
 
-    guard
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionAll, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]]
-    else {
+    guard let windowsInfo = windowsInfo() else {
       return
     }
 
     let liveWindowIDs = Set(windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
 
-    for (trackedSpaceID, windows) in spaceWindows {
-      let liveWindows = windows.filter { liveWindowIDs.contains($0.id) }
+    for (trackedSpaceID, trackedWindows) in spaceTrackedWindows {
+      let liveTrackedWindows = trackedWindows.filter { liveWindowIDs.contains($0.id) }
 
-      guard liveWindows.count != windows.count else {
+      guard liveTrackedWindows.count != trackedWindows.count else {
         continue
       }
 
-      self.spaceWindows[trackedSpaceID] = liveWindows
+      self.spaceTrackedWindows[trackedSpaceID] = liveTrackedWindows
     }
   }
 
@@ -502,37 +524,37 @@ final class SpaceIndicatorModel {
         windowID
       ) as? [[String: Any]],
       let windowInfo = windowsInfo.first,
-      let window = Window(info: windowInfo, cgsConnectionID: cgsConnectionID),
-      window.spaceID == spaceID
+      let trackedWindow = TrackedWindow(info: windowInfo, cgsConnectionID: cgsConnectionID),
+      trackedWindow.spaceID == spaceID
     else {
       return
     }
 
-    trackWindow(window)
+    trackWindow(trackedWindow)
   }
 
   private func handleWindowRemoved(windowID: CGWindowID, spaceID: SpaceID) {
     guard
       !isRefreshPending,
-      let windowsOnSpace = spaceWindows[spaceID],
-      let window = windowsOnSpace.first(where: { $0.id == windowID })
+      let trackedWindowsOnSpace = spaceTrackedWindows[spaceID],
+      let trackedWindow = trackedWindowsOnSpace.first(where: { $0.id == windowID })
     else {
       return
     }
 
-    self.spaceWindows[spaceID]?.remove(window)
+    self.spaceTrackedWindows[spaceID]?.remove(trackedWindow)
   }
 
-  private func trackWindow(_ window: Window) {
-    if runningApps[window.processIdentifier] == nil {
-      guard let app = App(processIdentifier: window.processIdentifier) else {
+  private func trackWindow(_ trackedWindow: TrackedWindow) {
+    if trackedApps[trackedWindow.processIdentifier] == nil {
+      guard let trackedApp = TrackedApp(processIdentifier: trackedWindow.processIdentifier) else {
         return
       }
 
-      self.runningApps[app.id] = app
+      self.trackedApps[trackedApp.id] = trackedApp
     }
 
-    self.spaceWindows[window.spaceID, default: []].insert(window)
+    self.spaceTrackedWindows[trackedWindow.spaceID, default: []].insert(trackedWindow)
   }
 }
 
@@ -559,10 +581,10 @@ struct SpaceIndicatorView: View {
             .foregroundStyle(Color(.textColor))
             .frame(width: 8)
 
-          if !space.apps.isEmpty {
+          if !space.trackedApps.isEmpty {
             HStack(spacing: -4) {
-              ForEach(space.apps) { app in
-                Image(nsImage: app.icon)
+              ForEach(space.trackedApps) { trackedApp in
+                Image(nsImage: trackedApp.icon)
                   .resizable()
                   .scaleEffect(IconMetrics.paddingCropScale)
                   .frame(width: IconMetrics.size, height: IconMetrics.size)
