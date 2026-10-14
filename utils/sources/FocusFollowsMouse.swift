@@ -328,8 +328,8 @@ final class FocusManager {
   private var lastMouseLocation: CGPoint = .zero
   private var lastMouseMoveTime: DispatchTime = .now()
   private var isCommandKeyPressed = false
-  private var pendingFocusDelay: DispatchTimeInterval? // Hover delay of the pending focus, or nil if none is pending.
   private var hasPendingDisplayCrossing = false
+  private var pendingFocusDelay: DispatchTimeInterval?
   private var focusTask: Task<Void, Never>?
 
   init(
