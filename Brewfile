@@ -61,6 +61,8 @@ cask "homerow"
 cask "iina"
 cask "key-codes"
 cask "lm-studio"
+cask "lumarylabsllc/tap/lumary-audio", trusted: true
+cask "lumarylabsllc/tap/lumary-cam", trusted: true
 cask "mitmproxy"
 cask "raycast"
 cask "sentry-cli"

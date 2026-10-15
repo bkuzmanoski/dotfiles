@@ -131,7 +131,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
     - Grant Full Disk Access permission
 
   - Google Chrome
-    - Grant Screen & System Audio Recording permission
     - Settings
       - You and Google → Sync and Google services → Turn off "Make searches and browsing better"
       - Privacy and security
@@ -150,9 +149,11 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - System → Turn off "On-device AI"
     - Flags
       - [#lens-overlay-optimization-filter](chrome://flags/#lens-overlay-optimization-filter) → Set to "Disabled"
+    - Grant Screen & System Audio Recording permission
 
   - Hammerspoon
     - Settings → Turn on "Launch Hammerspoon at login"
+    - Grant Full Disk Access permission
 
   - Homerow
     - Settings → Turn on "Launch on login"
