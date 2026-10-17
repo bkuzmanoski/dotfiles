@@ -30,7 +30,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
 
 3. **Run the setup script**
 
-   Grant Terminal.app Full Disk Access permission (required to write to some plist files).
+   Grant Terminal.app "Full Disk Access" permission (required to write to some plist files).
 
    ```zsh
    cd ~/.dotfiles
@@ -128,7 +128,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - Turn off "Show Figma in Menu Bar"
 
   - Ghostty
-    - Grant Full Disk Access permission
+    - Grant "Full Disk Access" permission
 
   - Google Chrome
     - Settings
@@ -149,11 +149,11 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
       - System → Turn off "On-device AI"
     - Flags
       - [#lens-overlay-optimization-filter](chrome://flags/#lens-overlay-optimization-filter) → Set to "Disabled"
-    - Grant Screen & System Audio Recording permission
+    - Grant "Screen & System Audio Recording" permission
 
   - Hammerspoon
     - Settings → Turn on "Launch Hammerspoon at login"
-    - Grant Full Disk Access permission
+    - Grant "Screen & System Audio Recording" and "Full Disk Access" permissions
 
   - Homerow
     - Settings → Turn on "Launch on login"
