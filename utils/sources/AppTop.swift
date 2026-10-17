@@ -168,6 +168,10 @@ enum MachTimebase {
   static func nanoseconds(fromTicks ticks: UInt64) -> Double {
     return Double(ticks) * nanosecondsPerTick
   }
+
+  static func duration(fromTicks ticks: UInt64) -> Duration {
+    return .seconds(nanoseconds(fromTicks: ticks) / 1_000_000_000)
+  }
 }
 
 extension host_cpu_load_info {
@@ -291,21 +295,23 @@ enum CoreType {
 }
 
 struct SampleInterval {
+  let previousSampleTime: UInt64?
   let duration: Duration
-  let isBaseline: Bool
+
+  var isBaseline: Bool { previousSampleTime == nil }
 }
 
 struct SampleClock {
-  private var previousSampleInstant: SuspendingClock.Instant?
+  private var previousSampleTime: UInt64?
 
   mutating func nextInterval() -> SampleInterval {
-    let sampleInstant = SuspendingClock.now
+    let sampleTime = mach_absolute_time()
     let interval = SampleInterval(
-      duration: previousSampleInstant.map { sampleInstant - $0 } ?? .zero,
-      isBaseline: previousSampleInstant == nil
+      previousSampleTime: previousSampleTime,
+      duration: previousSampleTime.map { MachTimebase.duration(fromTicks: sampleTime - $0) } ?? .zero
     )
 
-    self.previousSampleInstant = sampleInstant
+    self.previousSampleTime = sampleTime
 
     return interval
   }
@@ -1099,7 +1105,6 @@ final class ProcessUsageSampler {
 
   private let networkFlowMonitor: NetworkFlowMonitor
   private var sampleClock = SampleClock()
-  private var previousSampleTime: UInt64?
   private var trackedProcesses: [pid_t: TrackedProcess] = [:]
   private var processIdentifierBuffer = [pid_t](repeating: 0, count: 1024)
   private var sampleGeneration: UInt64 = 0
@@ -1113,10 +1118,6 @@ final class ProcessUsageSampler {
     var networkByteCounts = await networkFlowMonitor.byteCountsSinceLastSample()
 
     let sampleInterval = self.sampleClock.nextInterval()
-    let previousSampleTime = previousSampleTime
-
-    self.previousSampleTime = mach_absolute_time()
-
     let processIdentifierCount = RunningProcess.listAllProcessIdentifiers(into: &self.processIdentifierBuffer)
 
     var ownerAccumulators: [ProcessOwner.ID: OwnerAccumulator] = [:]
@@ -1162,7 +1163,7 @@ final class ProcessUsageSampler {
 
       // An untracked process that existed before the previous sample uses this sample as its baseline, avoiding
       // attribution of its lifetime usage to a single interval.
-      let hasStartedSincePreviousSample = previousSampleTime.map { sample.startTime >= $0 } ?? false
+      let hasStartedSincePreviousSample = sampleInterval.previousSampleTime.map { sample.startTime >= $0 } ?? false
       let previousSample = trackedProcess?.sample ?? (hasStartedSincePreviousSample ? nil : sample)
 
       var accumulator = ResourceUsageAccumulator()
@@ -2904,7 +2905,8 @@ final class ProcessUsageState {
     self.processUsageSampler = processUsageSampler
     self.systemUsageSampler = systemUsageSampler
 
-    arrangeOwners(&self.snapshot.owners, reorder: true)
+    self.snapshot.owners.removeAll(where: isExcluded)
+    self.ordering.arrange(&self.snapshot.owners, by: options.sortColumn.precedes, reorder: true)
   }
 
   func refresh(reorder shouldReorder: Bool) async {
@@ -2912,19 +2914,21 @@ final class ProcessUsageState {
 
     var snapshot = await processUsageSampler.sample()
 
-    arrangeOwners(&snapshot.owners, reorder: shouldReorder || self.snapshot.isBaseline)
+    snapshot.owners.removeAll(where: isExcluded)
+
+    self.ordering.arrange(
+      &snapshot.owners,
+      by: options.sortColumn.precedes,
+      reorder: shouldReorder || self.snapshot.isBaseline
+    )
 
     self.systemUsage = systemUsage
     self.snapshot = snapshot
   }
 
-  private func arrangeOwners(_ owners: inout [OwnerUsage], reorder shouldReorder: Bool) {
-    owners.removeAll { ownerUsage in
-      (options.showsApplicationsOnly && ownerUsage.owner.kind != .application)
-        || options.nameFilter?.matches(ownerUsage.owner) == false
-    }
-
-    self.ordering.arrange(&owners, by: options.sortColumn.precedes, reorder: shouldReorder)
+  private func isExcluded(_ ownerUsage: OwnerUsage) -> Bool {
+    return (options.showsApplicationsOnly && ownerUsage.owner.kind != .application)
+      || options.nameFilter?.matches(ownerUsage.owner) == false
   }
 }
 
@@ -3072,6 +3076,7 @@ final class ResourceUsageMonitor {
   private let processUsageState: ProcessUsageState
   private var lastReorderInstant: ContinuousClock.Instant?
   private var screens = ScreenStack()
+  private var summaryLines: [String] = []
   private var resourceUsageTable: ResourceUsageTable?
   private var refreshTask: Task<Void, Never>?
 
@@ -3090,6 +3095,7 @@ final class ResourceUsageMonitor {
       terminalSession.deactivate()
     }
 
+    updateSummary()
     updateTable()
     draw()
     startRefreshing(after: initialRefreshDelay)
@@ -3170,6 +3176,7 @@ final class ResourceUsageMonitor {
 
     await processUsageState.refresh(reorder: shouldReorder)
 
+    updateSummary()
     updateTable()
     draw()
   }
@@ -3194,7 +3201,7 @@ final class ResourceUsageMonitor {
     self.screens.viewport.navigate(
       to: destination,
       in: resourceUsageTable.rows,
-      rowCapacity: tableLayout(for: resourceUsageTable, summaryLineCount: summaryLines().count).rowCapacity
+      rowCapacity: tableLayout(for: resourceUsageTable).rowCapacity
     )
   }
 
@@ -3260,6 +3267,14 @@ final class ResourceUsageMonitor {
     updateTable()
   }
 
+  private func updateSummary() {
+    self.summaryLines = SummaryRenderer.lines(
+      for: processUsageState.snapshot,
+      systemUsage: processUsageState.systemUsage,
+      characterWidthModel: terminalSession.characterWidthModel
+    )
+  }
+
   private func updateTable() {
     guard let table = screens.current.table(for: processUsageState.snapshot, options: options) else {
       popScreen()
@@ -3269,18 +3284,10 @@ final class ResourceUsageMonitor {
     self.resourceUsageTable = table
   }
 
-  private func summaryLines() -> [String] {
-    return SummaryRenderer.lines(
-      for: processUsageState.snapshot,
-      systemUsage: processUsageState.systemUsage,
-      characterWidthModel: terminalSession.characterWidthModel
-    )
-  }
-
-  private func tableLayout(for table: ResourceUsageTable, summaryLineCount: Int) -> ResourceUsageTableRenderer.Layout {
+  private func tableLayout(for table: ResourceUsageTable) -> ResourceUsageTableRenderer.Layout {
     return ResourceUsageTableRenderer.layout(
       for: table,
-      summaryLineCount: summaryLineCount,
+      summaryLineCount: summaryLines.count,
       size: terminalSession.size,
       characterWidthModel: terminalSession.characterWidthModel
     )
@@ -3291,8 +3298,7 @@ final class ResourceUsageMonitor {
       return
     }
 
-    let summaryLines = summaryLines()
-    let layout = tableLayout(for: resourceUsageTable, summaryLineCount: summaryLines.count)
+    let layout = tableLayout(for: resourceUsageTable)
 
     self.screens.viewport.reconcile(with: resourceUsageTable.rows, rowCapacity: layout.rowCapacity)
     terminalSession.draw(
