@@ -1478,6 +1478,7 @@ enum ANSIEscapeSequence {
 }
 
 enum TextEmphasis {
+  case normal
   case bold
   case underline
   case deemphasized
@@ -1485,6 +1486,7 @@ enum TextEmphasis {
 
   func applied(to text: String) -> String {
     switch self {
+    case .normal: return text
     case .bold: return "\(ANSIEscapeSequence.bold)\(text)\(ANSIEscapeSequence.normalIntensity)"
     case .underline: return "\(ANSIEscapeSequence.underline)\(text)\(ANSIEscapeSequence.noUnderline)"
     case .deemphasized: return "\(ANSIEscapeSequence.faint)\(text)\(ANSIEscapeSequence.normalIntensity)"
@@ -1527,21 +1529,68 @@ extension TableColumnSet {
 }
 
 struct TableCell {
+  private static let byteCountWidth = 8
+  private static let transferRateWidth = byteCountWidth + 1 + TransferRates.inboundSymbol.count
+
   static let empty = TableCell("")
+  static let transferRatesWidth = transferRateWidth * 2 + 1
 
   let text: String
-  let emphasis: TextEmphasis?
+  let emphasis: TextEmphasis
 
-  init(_ text: String, emphasis: TextEmphasis? = nil) {
+  init(_ text: String, emphasis: TextEmphasis = .normal) {
     self.text = text
     self.emphasis = emphasis
   }
 
   init(percentage: Double) {
+    self.init(percentage.formatted(.fixedPoint(fractionLength: 1)), emphasis: percentage == 0 ? .deemphasized : .normal)
+  }
+
+  init(byteCount: UInt64, suffix: String = "") {
+    self.init(byteCount: Double(byteCount), suffix: suffix)
+  }
+
+  init(byteCount: Double, suffix: String = "") {
     self.init(
-      percentage.formatted(.fixedPoint(fractionLength: 1)),
-      emphasis: (percentage * 10).rounded() == 0 ? .deemphasized : nil
+      "\(byteCount.formatted(.abbreviatedByteCount))\(suffix)",
+      emphasis: byteCount == 0 ? .deemphasized : .normal
     )
+  }
+
+  init(transferRates: TransferRates) {
+    let inboundCell = TableCell(
+      byteCount: transferRates.inboundBytesPerSecond,
+      suffix: " \(TransferRates.inboundSymbol)"
+    )
+    let outboundCell = TableCell(
+      byteCount: transferRates.outboundBytesPerSecond,
+      suffix: " \(TransferRates.outboundSymbol)"
+    )
+
+    self.init(
+      [inboundCell, outboundCell]
+        .map { $0.rendered(width: Self.transferRateWidth, alignment: .trailing) }
+        .joined(separator: " ")
+    )
+  }
+
+  func rendered(width: Int, alignment: TextAlignment) -> String {
+    var visibleText = text
+    var visibleWidth = text.visibleWidth
+
+    if visibleWidth > width {
+      visibleText = text.truncated(toVisibleWidth: width, trimsWhitespaceBeforeEllipsis: true)
+      visibleWidth = visibleText.visibleWidth
+    }
+
+    let padding = String(repeating: " ", count: max(width - visibleWidth, 0))
+    let styledText = emphasis.applied(to: visibleText)
+
+    switch alignment {
+    case .leading: return "\(styledText)\(padding)"
+    case .trailing: return "\(padding)\(styledText)"
+    }
   }
 }
 
@@ -1552,8 +1601,6 @@ enum ResourceUsageColumn: String, TableColumnSet {
   case memory
   case disk
   case network
-
-  private static let transferRateValueWidth = 8
 
   static let ownerTableColumns = tableColumns()
   static let processTableColumns = tableColumns(titles: [.name: "PROCESS"])
@@ -1575,7 +1622,7 @@ enum ResourceUsageColumn: String, TableColumnSet {
     case .name: nil
     case .cpu: 6
     case .memory: 9
-    case .disk, .network: (Self.transferRateValueWidth + 1 + TransferRates.inboundSymbol.count) * 2 + 1
+    case .disk, .network: TableCell.transferRatesWidth
     }
   }
 
@@ -1594,16 +1641,13 @@ enum ResourceUsageColumn: String, TableColumnSet {
         TableCell(percentage: usage.cpuPercentage)
 
       case .memory:
-        TableCell(
-          Double(usage.memoryFootprint).formatted(.abbreviatedByteCount),
-          emphasis: usage.memoryFootprint == 0 ? .deemphasized : nil
-        )
+        TableCell(byteCount: usage.memoryFootprint)
 
       case .disk:
-        TableCell(formattedTransferRates(usage.disk))
+        TableCell(transferRates: usage.disk)
 
       case .network:
-        TableCell(formattedTransferRates(usage.network))
+        TableCell(transferRates: usage.network)
       }
     }
   }
@@ -1621,19 +1665,6 @@ enum ResourceUsageColumn: String, TableColumnSet {
     case .disk: return Self.precedes(lhs, rhs, descendingBy: \.usage.disk.totalBytesPerSecond)
     case .network: return Self.precedes(lhs, rhs, descendingBy: \.usage.network.totalBytesPerSecond)
     }
-  }
-
-  private static func formattedTransferRates(_ transferRates: TransferRates) -> String {
-    let formattedInboundTransferRate = formattedTransferRate(
-      transferRates.inboundBytesPerSecond,
-      symbol: TransferRates.inboundSymbol
-    )
-    let formattedOutboundTransferRate = formattedTransferRate(
-      transferRates.outboundBytesPerSecond,
-      symbol: TransferRates.outboundSymbol
-    )
-
-    return "\(formattedInboundTransferRate) \(formattedOutboundTransferRate)"
   }
 
   private static func precedes<Value: Comparable>(
@@ -1657,18 +1688,6 @@ enum ResourceUsageColumn: String, TableColumnSet {
     }
 
     return lhs.owner.sortKey < rhs.owner.sortKey
-  }
-
-  private static func formattedTransferRate(_ bytesPerSecond: Double, symbol: String) -> String {
-    let formattedValue = bytesPerSecond.formatted(.abbreviatedByteCount)
-    let padding = String(repeating: " ", count: max(transferRateValueWidth - formattedValue.count, 0))
-    let styledValue = deemphasized("\(formattedValue) \(symbol)", if: bytesPerSecond.rounded() == 0)
-
-    return "\(padding)\(styledValue)"
-  }
-
-  private static func deemphasized(_ text: String, if condition: Bool) -> String {
-    return condition ? TextEmphasis.deemphasized.applied(to: text) : text
   }
 }
 
@@ -1746,10 +1765,10 @@ struct StableOrdering<Element: Identifiable> {
 
   mutating func arrange(
     _ elements: inout [Element],
-    shouldReSort: Bool,
+    reorder shouldReorder: Bool,
     by areInIncreasingOrder: (Element, Element) -> Bool
   ) {
-    if shouldReSort {
+    if shouldReorder {
       elements.sort(by: areInIncreasingOrder)
     } else {
       elements.sort { lhs, rhs in
@@ -1825,6 +1844,67 @@ struct ResourceUsageTable {
   let caption: String?
   let rows: [ResourceUsageTableRow]
   let totalCells: [TableCell]?
+
+  static func processOwners(
+    snapshot: ProcessResourceUsageSnapshot,
+    sortColumn: ResourceUsageColumn,
+    nameFilter: String?
+  ) -> ResourceUsageTable {
+    return ResourceUsageTable(
+      columns: ResourceUsageColumn.ownerTableColumns,
+      sortColumnIndex: ResourceUsageColumn.columnIndex(of: sortColumn),
+      caption: nameFilter.map { "Filter: \(TextEmphasis.bold.applied(to: $0))" },
+      rows: snapshot.owners.map(ResourceUsageTableRow.init(processOwnerResourceUsage:)),
+      totalCells: nil
+    )
+  }
+
+  static func processTree(owner: ProcessOwner, snapshot: ProcessResourceUsageSnapshot) -> ResourceUsageTable? {
+    let ownedProcesses = snapshot.processes.filter { $0.metadata.owner.id == owner.id }
+
+    guard !ownedProcesses.isEmpty else {
+      return nil
+    }
+
+    let rows = ProcessTree.rows(for: ownedProcesses, ownedBy: owner)
+    let ownerUsage = snapshot.owners.first { $0.id == owner.id }?.usage
+
+    return ResourceUsageTable(
+      columns: ResourceUsageColumn.processTableColumns,
+      sortColumnIndex: nil,
+      caption: caption(title: owner.name, details: countDescription(rows.count, "process", "processes")),
+      rows: rows,
+      totalCells: ownerUsage.map(ResourceUsageColumn.totalCells(usage:))
+    )
+  }
+
+  static func processThreads(process: ProcessMetadata, snapshot: ThreadResourceUsageSnapshot) -> ResourceUsageTable {
+    let showsUsage = !snapshot.isBaseline
+    return ResourceUsageTable(
+      columns: ThreadColumn.threadTableColumns,
+      sortColumnIndex: ThreadColumn.columnIndex(of: .cpu),
+      caption: caption(
+        title: process.name,
+        details: "PID \(process.processIdentifier)",
+        countDescription(snapshot.threads.count, "thread", "threads")
+      ),
+      rows: snapshot.threads.map { thread in
+        ResourceUsageTableRow(threadResourceUsage: thread, showsUsage: showsUsage)
+      },
+      totalCells: ThreadColumn.totalCells(cpuPercentage: snapshot.cpuPercentage, showsUsage: showsUsage)
+    )
+  }
+
+  private static func caption(title: String, details: String...) -> String {
+    let formattedTitle = TextEmphasis.bold.applied(to: title)
+    let formattedNavigationHint = TextEmphasis.deemphasized.applied(to: "(esc to go back)")
+
+    return ([formattedTitle] + details + [formattedNavigationHint]).joined(separator: "  ")
+  }
+
+  private static func countDescription(_ count: Int, _ singularNoun: String, _ pluralNoun: String) -> String {
+    return "\(count) \(count == 1 ? singularNoun : pluralNoun)"
+  }
 }
 
 struct TableSelection {
@@ -1841,7 +1921,7 @@ struct TableSelection {
 
   var selectedRowIndex: Int? { selectedRowID == nil ? nil : rowIndex }
 
-  mutating func reconcile(with rows: [ResourceUsageTableRow], visibleRowCount: Int) {
+  mutating func reconcile(with rows: [ResourceUsageTableRow], rowCapacity: Int) {
     if let selectedRowID {
       if let matchingRowIndex = rows.firstIndex(where: { $0.id == selectedRowID }) {
         self.rowIndex = matchingRowIndex
@@ -1853,15 +1933,15 @@ struct TableSelection {
       }
     }
 
-    scrollToSelection(rowCount: rows.count, visibleRowCount: visibleRowCount)
+    scrollToSelection(rowCount: rows.count, rowCapacity: rowCapacity)
   }
 
-  mutating func move(to destination: Destination, in rows: [ResourceUsageTableRow], visibleRowCount: Int) {
+  mutating func move(to destination: Destination, in rows: [ResourceUsageTableRow], rowCapacity: Int) {
     guard !rows.isEmpty else {
       return
     }
 
-    reconcile(with: rows, visibleRowCount: visibleRowCount)
+    reconcile(with: rows, rowCapacity: rowCapacity)
 
     switch destination {
     case .first:
@@ -1882,7 +1962,7 @@ struct TableSelection {
 
     self.selectedRowID = rows[rowIndex].id
 
-    scrollToSelection(rowCount: rows.count, visibleRowCount: visibleRowCount)
+    scrollToSelection(rowCount: rows.count, rowCapacity: rowCapacity)
   }
 
   mutating func clear() {
@@ -1891,16 +1971,16 @@ struct TableSelection {
     self.scrollOffset = 0
   }
 
-  private mutating func scrollToSelection(rowCount: Int, visibleRowCount: Int) {
-    if selectedRowID != nil, visibleRowCount > 0 {
+  private mutating func scrollToSelection(rowCount: Int, rowCapacity: Int) {
+    if selectedRowID != nil, rowCapacity > 0 {
       if rowIndex < scrollOffset {
         self.scrollOffset = rowIndex
-      } else if rowIndex >= scrollOffset + visibleRowCount {
-        self.scrollOffset = rowIndex - visibleRowCount + 1
+      } else if rowIndex >= scrollOffset + rowCapacity {
+        self.scrollOffset = rowIndex - rowCapacity + 1
       }
     }
 
-    self.scrollOffset = min(scrollOffset, max(rowCount - visibleRowCount, 0))
+    self.scrollOffset = min(scrollOffset, max(rowCount - rowCapacity, 0))
   }
 }
 
@@ -2022,7 +2102,7 @@ enum ResourceUsageTableRenderer {
   private static let tableLeadingLineCount = 3
   private static let estimatedEscapeSequenceBytesPerLine = 64
 
-  static func visibleRowCount(
+  static func rowCapacity(
     for table: ResourceUsageTable,
     summaryLineCount: Int,
     size: TerminalSession.Size
@@ -2043,7 +2123,7 @@ enum ResourceUsageTableRenderer {
       size.columns - fixedColumnsWidth - scrollbarColumnWidth,
       minimumFlexibleColumnWidth
     )
-    let rowCapacity = visibleRowCount(for: table, summaryLineCount: summaryLines.count, size: size)
+    let rowCapacity = Self.rowCapacity(for: table, summaryLineCount: summaryLines.count, size: size)
     let visibleRows = table.rows.dropFirst(selection.scrollOffset).prefix(rowCapacity)
     let thumbRange = scrollbarThumbRange(
       rowCount: table.rows.count,
@@ -2126,21 +2206,19 @@ enum ResourceUsageTableRenderer {
 
     return rows.map { row in
       let formattedFields = row.fields.enumerated().map { index, field in
-        let formattedValue = cell(
-          field.value,
+        let formattedValue = TableCell(field.value, emphasis: .bold).rendered(
           width: max(valueWidths[index], field.value.count),
-          alignment: .trailing,
-          emphasis: .bold
+          alignment: .trailing
         )
         let formattedLabel =
           index == row.fields.count - 1
           ? field.label
-          : cell(field.label, width: labelWidths[index], alignment: .leading)
+          : TableCell(field.label).rendered(width: labelWidths[index], alignment: .leading)
 
         return "\(formattedValue) \(formattedLabel)"
       }
 
-      let formattedTitle = cell(row.title, width: titleWidth, alignment: .leading, emphasis: .bold)
+      let formattedTitle = TableCell(row.title, emphasis: .bold).rendered(width: titleWidth, alignment: .leading)
       let joinedFormattedFields = formattedFields.joined(separator: columnSeparator)
       let formattedTrailingNote =
         row.trailingNote.map { "\(columnSeparator)\(TextEmphasis.deemphasized.applied(to: $0))" } ?? ""
@@ -2159,7 +2237,7 @@ enum ResourceUsageTableRenderer {
       ? SummaryField(
         count: snapshot.processes.count,
         of: snapshot.processes.count + snapshot.restrictedProcessCount,
-        label: "visible"
+        label: "accessible"
       )
       : SummaryField(count: snapshot.processes.count, label: "total")
 
@@ -2217,20 +2295,16 @@ enum ResourceUsageTableRenderer {
   }
 
   private static func tableLine(columns: [TableColumn], cells: [TableCell], flexibleColumnWidth: Int) -> String {
-    return zip(columns, cells).map { column, tableCell in
-      cell(
-        tableCell.text,
-        width: column.fixedWidth ?? flexibleColumnWidth,
-        alignment: column.alignment,
-        emphasis: tableCell.emphasis
-      )
-    }
-    .joined(separator: columnSeparator)
+    return zip(columns, cells)
+      .map { column, cell in
+        cell.rendered(width: column.fixedWidth ?? flexibleColumnWidth, alignment: column.alignment)
+      }
+      .joined(separator: columnSeparator)
   }
 
   private static func headerLine(for table: ResourceUsageTable, flexibleColumnWidth: Int) -> String {
     let cells = table.columns.enumerated().map { index, column in
-      TableCell(column.title, emphasis: index == table.sortColumnIndex ? .underline : nil)
+      TableCell(column.title, emphasis: index == table.sortColumnIndex ? .underline : .normal)
     }
 
     let line = tableLine(columns: table.columns, cells: cells, flexibleColumnWidth: flexibleColumnWidth)
@@ -2246,29 +2320,6 @@ enum ResourceUsageTableRenderer {
   ) -> String {
     let line = tableLine(columns: columns, cells: row.cells, flexibleColumnWidth: flexibleColumnWidth)
     return isSelected ? TextEmphasis.inverse.applied(to: line) : line
-  }
-
-  private static func cell(
-    _ text: String,
-    width: Int,
-    alignment: TextAlignment,
-    emphasis: TextEmphasis? = nil
-  ) -> String {
-    var visibleText = text
-    var visibleWidth = text.visibleWidth
-
-    if visibleWidth > width {
-      visibleText = text.truncated(toVisibleWidth: width, trimsWhitespaceBeforeEllipsis: true)
-      visibleWidth = visibleText.visibleWidth
-    }
-
-    let padding = String(repeating: " ", count: max(width - visibleWidth, 0))
-    let styledText = emphasis?.applied(to: visibleText) ?? visibleText
-
-    switch alignment {
-    case .leading: return "\(styledText)\(padding)"
-    case .trailing: return "\(padding)\(styledText)"
-    }
   }
 
   private static func scrollbarThumbRange(rowCount: Int, rowCapacity: Int, scrollOffset: Int) -> Range<Int>? {
@@ -2521,8 +2572,9 @@ final class ResourceUsageMonitor {
 
       Options:
         -i, --interval <seconds>          Set refresh interval in seconds [default: 2]
-        -r, --re-sort-interval <seconds>  Set re-sort interval in seconds (≥ refresh interval) [default: refresh interval]
+        -r, --reorder-interval <seconds>  Set reorder interval in seconds (≥ refresh interval) [default: refresh interval]
         -s, --sort <column>               Set sort column (\(sortColumnNames)) [default: cpu]
+        -f, --filter <text>               Only show applications and processes with names containing <text>
         -a, --applications-only           Only show applications
         -h, --help                        Show this help message
 
@@ -2535,9 +2587,10 @@ final class ResourceUsageMonitor {
       """
 
     var refreshInterval: Duration = .seconds(2)
-    var reSortInterval: Duration?
+    var reorderInterval: Duration?
     var sortColumn: ResourceUsageColumn = .cpu
     var showsApplicationsOnly = false
+    var nameFilter: String?
 
     init(arguments: some Sequence<String>) {
       var arguments = arguments.makeIterator()
@@ -2547,8 +2600,8 @@ final class ResourceUsageMonitor {
         case "-i", "--interval":
           self.refreshInterval = Self.duration(fromSecondsValue: arguments.next(), for: argument)
 
-        case "-r", "--re-sort-interval":
-          self.reSortInterval = Self.duration(fromSecondsValue: arguments.next(), for: argument)
+        case "-r", "--reorder-interval":
+          self.reorderInterval = Self.duration(fromSecondsValue: arguments.next(), for: argument)
 
         case "-s", "--sort":
           guard let value = arguments.next() else {
@@ -2560,6 +2613,13 @@ final class ResourceUsageMonitor {
           }
 
           self.sortColumn = column
+
+        case "-f", "--filter":
+          guard let value = arguments.next(), !value.isEmpty else {
+            Self.printUsageErrorAndExit("Missing value for '\(argument)'.")
+          }
+
+          self.nameFilter = value.lowercased()
 
         case "-a", "--applications-only":
           self.showsApplicationsOnly = true
@@ -2573,8 +2633,8 @@ final class ResourceUsageMonitor {
         }
       }
 
-      if let reSortInterval, reSortInterval < refreshInterval {
-        Self.printUsageErrorAndExit("Re-sort interval must be greater than or equal to the refresh interval.")
+      if let reorderInterval, reorderInterval < refreshInterval {
+        Self.printUsageErrorAndExit("Reorder interval must be greater than or equal to the refresh interval.")
       }
     }
 
@@ -2667,12 +2727,12 @@ final class ResourceUsageMonitor {
   private static let maximumRefreshTolerance: Duration = .milliseconds(100)
 
   private let options: Options
-  private let minimumReSortInterval: Duration
+  private let minimumReorderInterval: Duration
   private let terminalSession: TerminalSession
   private let processResourceUsageSampler: ProcessResourceUsageSampler
   private var systemResourceUsageSampler = SystemResourceUsageSampler()
   private var latestProcessResourceUsageSnapshot: ProcessResourceUsageSnapshot?
-  private var lastReSortInstant: ContinuousClock.Instant?
+  private var lastReorderInstant: ContinuousClock.Instant?
   private var summaryLines: [String] = []
   private var screen = Screen.processOwners
   private var screenHistory: [ScreenHistoryEntry] = []
@@ -2683,8 +2743,8 @@ final class ResourceUsageMonitor {
 
   init(options: Options) throws {
     self.options = options
-    self.minimumReSortInterval =
-      (options.reSortInterval ?? options.refreshInterval) - options.refreshInterval / 2
+    self.minimumReorderInterval =
+      (options.reorderInterval ?? options.refreshInterval) - options.refreshInterval / 2
     self.terminalSession = try TerminalSession()
     self.processResourceUsageSampler = ProcessResourceUsageSampler(
       networkStatisticsMonitor: try NetworkStatisticsMonitor()
@@ -2759,25 +2819,29 @@ final class ResourceUsageMonitor {
     let systemResourceUsage = systemResourceUsageSampler.sample()
     var processResourceUsageSnapshot = await processResourceUsageSampler.sample()
 
-    if options.showsApplicationsOnly {
-      processResourceUsageSnapshot.owners.removeAll { $0.owner.kind != .application }
+    if options.nameFilter != nil || options.showsApplicationsOnly {
+      processResourceUsageSnapshot.owners.removeAll { ownerResourceUsage in
+        let owner = ownerResourceUsage.owner
+        return options.nameFilter.map { !owner.sortKey.contains($0) } == true
+          || (options.showsApplicationsOnly && owner.kind != .application)
+      }
     }
 
     let now = ContinuousClock.now
-    let isReSortDue = lastReSortInstant.map { now - $0 >= minimumReSortInterval } ?? true
+    let isReorderDue = lastReorderInstant.map { now - $0 >= minimumReorderInterval } ?? true
 
     ownerOrdering.arrange(
       &processResourceUsageSnapshot.owners,
-      shouldReSort: isReSortDue,
+      reorder: isReorderDue,
       by: options.sortColumn.precedes
     )
 
-    if isReSortDue {
-      self.lastReSortInstant = now
+    if isReorderDue {
+      self.lastReorderInstant = now
     }
 
     if case .processThreads = screen {
-      refreshThreads(shouldReSort: isReSortDue)
+      refreshThreads(reorder: isReorderDue)
     }
 
     self.latestProcessResourceUsageSnapshot = processResourceUsageSnapshot
@@ -2795,26 +2859,26 @@ final class ResourceUsageMonitor {
       return
     }
 
-    let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
-      for: resourceUsageTable,
-      summaryLineCount: summaryLines.count,
-      size: terminalSession.size
+    tableSelection.move(
+      to: destination,
+      in: resourceUsageTable.rows,
+      rowCapacity: ResourceUsageTableRenderer.rowCapacity(
+        for: resourceUsageTable,
+        summaryLineCount: summaryLines.count,
+        size: terminalSession.size
+      )
     )
-
-    tableSelection.move(to: destination, in: resourceUsageTable.rows, visibleRowCount: visibleRowCount)
   }
 
-  private func refreshThreads(shouldReSort: Bool) {
+  private func refreshThreads(reorder shouldReorder: Bool) {
     guard var threadResourceUsageSnapshot = try? threadScreenState?.sampler.sample() else {
       clearThreadScreenState()
       return
     }
 
-    let shouldReSortThreads = shouldReSort || threadScreenState?.snapshot?.isBaseline == true
-
     threadScreenState?.ordering.arrange(
       &threadResourceUsageSnapshot.threads,
-      shouldReSort: shouldReSortThreads,
+      reorder: shouldReorder || threadScreenState?.snapshot?.isBaseline == true,
       by: ThreadResourceUsage.precedesByCPUUsage
     )
 
@@ -2863,7 +2927,7 @@ final class ResourceUsageMonitor {
 
     self.threadScreenState = ThreadScreenState(sampler: sampler)
 
-    refreshThreads(shouldReSort: true)
+    refreshThreads(reorder: true)
 
     guard threadScreenState != nil else {
       return
@@ -2886,7 +2950,7 @@ final class ResourceUsageMonitor {
         return
       }
 
-      refreshThreads(shouldReSort: true)
+      refreshThreads(reorder: true)
       updateTable()
       draw()
     }
@@ -2928,10 +2992,16 @@ final class ResourceUsageMonitor {
 
     switch screen {
     case .processOwners:
-      self.resourceUsageTable = processOwnersTable(snapshot: latestProcessResourceUsageSnapshot)
+      self.resourceUsageTable = .processOwners(
+        snapshot: latestProcessResourceUsageSnapshot,
+        sortColumn: options.sortColumn,
+        nameFilter: options.nameFilter
+      )
 
     case .processTree(let owner):
-      guard let table = processTreeTable(owner: owner, snapshot: latestProcessResourceUsageSnapshot) else {
+      guard
+        let table = ResourceUsageTable.processTree(owner: owner, snapshot: latestProcessResourceUsageSnapshot)
+      else {
         showPreviousScreen()
         return
       }
@@ -2939,75 +3009,13 @@ final class ResourceUsageMonitor {
       self.resourceUsageTable = table
 
     case .processThreads(let process):
-      guard let table = processThreadsTable(process: process) else {
+      guard let threadSnapshot = threadScreenState?.snapshot else {
         showPreviousScreen()
         return
       }
 
-      self.resourceUsageTable = table
+      self.resourceUsageTable = .processThreads(process: process, snapshot: threadSnapshot)
     }
-  }
-
-  private func processOwnersTable(snapshot: ProcessResourceUsageSnapshot) -> ResourceUsageTable {
-    return ResourceUsageTable(
-      columns: ResourceUsageColumn.ownerTableColumns,
-      sortColumnIndex: ResourceUsageColumn.columnIndex(of: options.sortColumn),
-      caption: nil,
-      rows: snapshot.owners.map(ResourceUsageTableRow.init(processOwnerResourceUsage:)),
-      totalCells: nil
-    )
-  }
-
-  private func processTreeTable(owner: ProcessOwner, snapshot: ProcessResourceUsageSnapshot) -> ResourceUsageTable? {
-    let ownedProcesses = snapshot.processes.filter { $0.metadata.owner.id == owner.id }
-
-    guard !ownedProcesses.isEmpty else {
-      return nil
-    }
-
-    let rows = ProcessTree.rows(for: ownedProcesses, ownedBy: owner)
-    let ownerUsage = snapshot.owners.first { $0.id == owner.id }?.usage
-
-    return ResourceUsageTable(
-      columns: ResourceUsageColumn.processTableColumns,
-      sortColumnIndex: nil,
-      caption: Self.caption(title: owner.name, details: Self.countDescription(rows.count, "process", "processes")),
-      rows: rows,
-      totalCells: ownerUsage.map(ResourceUsageColumn.totalCells(usage:))
-    )
-  }
-
-  private func processThreadsTable(process: ProcessMetadata) -> ResourceUsageTable? {
-    guard let threadSnapshot = threadScreenState?.snapshot else {
-      return nil
-    }
-
-    let showsUsage = !threadSnapshot.isBaseline
-
-    return ResourceUsageTable(
-      columns: ThreadColumn.threadTableColumns,
-      sortColumnIndex: ThreadColumn.columnIndex(of: .cpu),
-      caption: Self.caption(
-        title: process.name,
-        details: "PID \(process.processIdentifier)",
-        Self.countDescription(threadSnapshot.threads.count, "thread", "threads")
-      ),
-      rows: threadSnapshot.threads.map { thread in
-        ResourceUsageTableRow(threadResourceUsage: thread, showsUsage: showsUsage)
-      },
-      totalCells: ThreadColumn.totalCells(cpuPercentage: threadSnapshot.cpuPercentage, showsUsage: showsUsage)
-    )
-  }
-
-  private static func caption(title: String, details: String...) -> String {
-    let formattedTitle = TextEmphasis.bold.applied(to: title)
-    let formattedNavigationHint = TextEmphasis.deemphasized.applied(to: "(esc to go back)")
-
-    return ([formattedTitle] + details + [formattedNavigationHint]).joined(separator: "  ")
-  }
-
-  private static func countDescription(_ count: Int, _ singularNoun: String, _ pluralNoun: String) -> String {
-    return "\(count) \(count == 1 ? singularNoun : pluralNoun)"
   }
 
   private func draw() {
@@ -3016,13 +3024,13 @@ final class ResourceUsageMonitor {
     }
 
     let size = terminalSession.size
-    let visibleRowCount = ResourceUsageTableRenderer.visibleRowCount(
+    let rowCapacity = ResourceUsageTableRenderer.rowCapacity(
       for: resourceUsageTable,
       summaryLineCount: summaryLines.count,
       size: size
     )
 
-    tableSelection.reconcile(with: resourceUsageTable.rows, visibleRowCount: visibleRowCount)
+    tableSelection.reconcile(with: resourceUsageTable.rows, rowCapacity: rowCapacity)
     terminalSession.draw(
       ResourceUsageTableRenderer.frame(
         summaryLines: summaryLines,
