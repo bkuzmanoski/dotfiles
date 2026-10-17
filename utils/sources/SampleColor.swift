@@ -1,4 +1,4 @@
-// Shared: Log
+// Shared: CommandLineOptions Comparable Log
 
 import AppKit
 
@@ -24,12 +24,6 @@ extension HexIntegerFormatStyle {
 extension BinaryInteger {
   func formatted(_ style: HexIntegerFormatStyle<Self>) -> String {
     return style.format(self)
-  }
-}
-
-extension Comparable {
-  func clamped(to range: ClosedRange<Self>) -> Self {
-    return min(max(self, range.lowerBound), range.upperBound)
   }
 }
 
@@ -73,12 +67,7 @@ extension NSColor {
   }
 }
 
-struct CommandLineOptions {
-  enum Error: Swift.Error {
-    case helpRequested
-    case invalidUsage(String)
-  }
-
+struct CommandLineOptions: ParsableCommandLineOptions {
   static let usageDescription = """
     Usage:
       \(ProcessInfo.processInfo.processName) [options]
@@ -92,7 +81,7 @@ struct CommandLineOptions {
   private(set) var format: RGBFormatStyle = .hex
   private(set) var colorSpace: NSColorSpace? = .sRGB
 
-  init(arguments: some Sequence<String>) throws(Error) {
+  init(arguments: some Sequence<String>) throws(CommandLineOptionsError) {
     var arguments = arguments.makeIterator()
 
     while let argument = arguments.next() {
@@ -126,21 +115,7 @@ struct CommandLineOptions {
 @main
 enum SampleColor {
   static func main() {
-    let options: CommandLineOptions
-
-    do {
-      options = try CommandLineOptions(arguments: CommandLine.arguments.dropFirst())
-    } catch {
-      switch error {
-      case .helpRequested:
-        print(CommandLineOptions.usageDescription)
-        return
-
-      case .invalidUsage(let message):
-        Log.error("Error: \(message)\n\n\(CommandLineOptions.usageDescription)")
-        exit(EX_USAGE)
-      }
-    }
+    let options = CommandLineOptions.parseOrExit()
 
     NSColorSampler().show { [outputFormat = options.format, outputColorSpace = options.colorSpace] color in
       MainActor.assumeIsolated {

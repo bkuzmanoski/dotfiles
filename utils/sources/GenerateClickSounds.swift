@@ -1,4 +1,4 @@
-// Shared: Log
+// Shared: CommandLineOptions Log
 
 // Renders ClickSoundEffects WAVs from cuelume's "select" cue (https://cuelume-site.pages.dev, MIT, Daniel Belyi).
 
@@ -389,12 +389,7 @@ enum WAVFile {
   }
 }
 
-struct CommandLineOptions {
-  enum Error: Swift.Error {
-    case helpRequested
-    case invalidUsage(String)
-  }
-
+struct CommandLineOptions: ParsableCommandLineOptions {
   static let usageDescription = """
     Usage:
       \(ProcessInfo.processInfo.processName) [options] <theme> <output-directory>
@@ -416,7 +411,7 @@ struct CommandLineOptions {
   private(set) var upGapMilliseconds = Configuration.defaultUpGapMilliseconds
   private(set) var gainDecibels = Configuration.defaultGainDecibels
 
-  init(arguments: some Sequence<String>) throws(Error) {
+  init(arguments: some Sequence<String>) throws(CommandLineOptionsError) {
     var arguments = arguments.makeIterator()
     var positionalArguments: [String] = []
 
@@ -457,7 +452,7 @@ struct CommandLineOptions {
     self.outputDirectory = URL(filePath: positionalArguments[1], directoryHint: .isDirectory)
   }
 
-  private static func number(from value: String?, for argument: String) throws(Error) -> Double {
+  private static func number(from value: String?, for argument: String) throws(CommandLineOptionsError) -> Double {
     guard let value else {
       throw .invalidUsage("Missing value for '\(argument)'.")
     }
@@ -473,21 +468,7 @@ struct CommandLineOptions {
 @main
 enum GenerateClickSounds {
   static func main() {
-    let options: CommandLineOptions
-
-    do {
-      options = try CommandLineOptions(arguments: CommandLine.arguments.dropFirst())
-    } catch {
-      switch error {
-      case .helpRequested:
-        print(CommandLineOptions.usageDescription)
-        return
-
-      case .invalidUsage(let message):
-        Log.error("Error: \(message)\n\n\(CommandLineOptions.usageDescription)")
-        exit(EX_USAGE)
-      }
-    }
+    let options = CommandLineOptions.parseOrExit()
 
     let outputGain = pow(10, options.gainDecibels / 20)
     let upModifiers = Modifiers.repeatSoftening(gapMilliseconds: options.upGapMilliseconds)
