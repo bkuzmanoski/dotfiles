@@ -1542,7 +1542,6 @@ enum MeasurePixels {
       }
     } else {
       IPCCommand.activate(appMode: appMode).send()
-      exit(EXIT_SUCCESS)
     }
   }
 }

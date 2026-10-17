@@ -389,8 +389,13 @@ enum WAVFile {
   }
 }
 
-struct Options {
-  private static let usageDescription = """
+struct CommandLineOptions {
+  enum Error: Swift.Error {
+    case helpRequested
+    case invalidUsage(String)
+  }
+
+  static let usageDescription = """
     Usage:
       \(ProcessInfo.processInfo.processName) [options] <theme> <output-directory>
 
@@ -405,34 +410,33 @@ struct Options {
       -h, --help              Show this help message
     """
 
-  var theme: Theme
-  var outputDirectory: URL
-  var upPitch = Configuration.defaultUpPitch
-  var upGapMilliseconds = Configuration.defaultUpGapMilliseconds
-  var gainDecibels = Configuration.defaultGainDecibels
+  private(set) var theme: Theme
+  private(set) var outputDirectory: URL
+  private(set) var upPitch = Configuration.defaultUpPitch
+  private(set) var upGapMilliseconds = Configuration.defaultUpGapMilliseconds
+  private(set) var gainDecibels = Configuration.defaultGainDecibels
 
-  init(arguments: some Sequence<String>) {
+  init(arguments: some Sequence<String>) throws(Error) {
     var arguments = arguments.makeIterator()
     var positionalArguments: [String] = []
 
     while let argument = arguments.next() {
       switch argument {
       case "-p", "--up-pitch":
-        self.upPitch = Self.number(from: arguments.next(), for: argument)
+        self.upPitch = try Self.number(from: arguments.next(), for: argument)
 
       case "-g", "--up-gap":
-        self.upGapMilliseconds = Self.number(from: arguments.next(), for: argument)
+        self.upGapMilliseconds = try Self.number(from: arguments.next(), for: argument)
 
       case "-d", "--gain":
-        self.gainDecibels = Self.number(from: arguments.next(), for: argument)
+        self.gainDecibels = try Self.number(from: arguments.next(), for: argument)
 
       case "-h", "--help":
-        print(Self.usageDescription)
-        exit(EXIT_SUCCESS)
+        throw .helpRequested
 
       default:
         guard !argument.hasPrefix("-") else {
-          Self.printUsageErrorAndExit("Unknown argument: \(argument)")
+          throw .invalidUsage("Unknown argument: \(argument)")
         }
 
         positionalArguments.append(argument)
@@ -440,11 +444,11 @@ struct Options {
     }
 
     guard positionalArguments.count == 2 else {
-      Self.printUsageErrorAndExit("Expected a theme and an output directory.")
+      throw .invalidUsage("Expected a theme and an output directory.")
     }
 
     guard let theme = Theme(rawValue: positionalArguments[0].lowercased()) else {
-      Self.printUsageErrorAndExit(
+      throw .invalidUsage(
         "Invalid theme '\(positionalArguments[0])'. Expected one of: \(Theme.allCases.map(\.rawValue).joined(separator: ", "))."
       )
     }
@@ -453,28 +457,38 @@ struct Options {
     self.outputDirectory = URL(filePath: positionalArguments[1], directoryHint: .isDirectory)
   }
 
-  private static func number(from value: String?, for argument: String) -> Double {
+  private static func number(from value: String?, for argument: String) throws(Error) -> Double {
     guard let value else {
-      printUsageErrorAndExit("Missing value for '\(argument)'.")
+      throw .invalidUsage("Missing value for '\(argument)'.")
     }
 
     guard let number = Double(value), number.isFinite else {
-      printUsageErrorAndExit("Invalid value for '\(argument)': \(value). Expected a number.")
+      throw .invalidUsage("Invalid value for '\(argument)': \(value). Expected a number.")
     }
 
     return number
-  }
-
-  private static func printUsageErrorAndExit(_ message: String) -> Never {
-    Log.error("Error: \(message)\n\n\(usageDescription)")
-    exit(EX_USAGE)
   }
 }
 
 @main
 enum GenerateClickSounds {
   static func main() {
-    let options = Options(arguments: CommandLine.arguments.dropFirst())
+    let options: CommandLineOptions
+
+    do {
+      options = try CommandLineOptions(arguments: CommandLine.arguments.dropFirst())
+    } catch {
+      switch error {
+      case .helpRequested:
+        print(CommandLineOptions.usageDescription)
+        return
+
+      case .invalidUsage(let message):
+        Log.error("Error: \(message)\n\n\(CommandLineOptions.usageDescription)")
+        exit(EX_USAGE)
+      }
+    }
+
     let outputGain = pow(10, options.gainDecibels / 20)
     let upModifiers = Modifiers.repeatSoftening(gapMilliseconds: options.upGapMilliseconds)
     let variants: [(fileName: String, pitch: Double, modifiers: Modifiers)] = [

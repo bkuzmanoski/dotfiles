@@ -73,9 +73,13 @@ extension NSColor {
   }
 }
 
-@main
-enum SampleColor {
-  private static let usageDescription = """
+struct CommandLineOptions {
+  enum Error: Swift.Error {
+    case helpRequested
+    case invalidUsage(String)
+  }
+
+  static let usageDescription = """
     Usage:
       \(ProcessInfo.processInfo.processName) [options]
 
@@ -85,39 +89,60 @@ enum SampleColor {
       -h, --help                 Show this help message
     """
 
-  static func main() {
-    var outputFormat: RGBFormatStyle = .hex
-    var outputColorSpace: NSColorSpace? = .sRGB
-    var arguments = CommandLine.arguments.dropFirst().makeIterator()
+  private(set) var format: RGBFormatStyle = .hex
+  private(set) var colorSpace: NSColorSpace? = .sRGB
+
+  init(arguments: some Sequence<String>) throws(Error) {
+    var arguments = arguments.makeIterator()
 
     while let argument = arguments.next() {
       switch argument.lowercased() {
       case "-f", "--format":
         switch arguments.next()?.lowercased() {
-        case "hex": outputFormat = .hex
-        case "rgb": outputFormat = .rgb
-        case .some(let value): printUsageErrorAndExit("Invalid format '\(value)'. Expected 'hex' or 'rgb'.")
-        case .none: printUsageErrorAndExit("Missing value for '\(argument)'.")
+        case "hex": self.format = .hex
+        case "rgb": self.format = .rgb
+        case .some(let value): throw .invalidUsage("Invalid format '\(value)'. Expected 'hex' or 'rgb'.")
+        case .none: throw .invalidUsage("Missing value for '\(argument)'.")
         }
 
       case "-c", "--color-space":
         switch arguments.next()?.lowercased() {
-        case "srgb": outputColorSpace = .sRGB
-        case "native": outputColorSpace = nil
-        case .some(let value): printUsageErrorAndExit("Invalid color space '\(value)'. Expected 'srgb' or 'native'.")
-        case .none: printUsageErrorAndExit("Missing value for '\(argument)'.")
+        case "srgb": self.colorSpace = .sRGB
+        case "native": self.colorSpace = nil
+        case .some(let value): throw .invalidUsage("Invalid color space '\(value)'. Expected 'srgb' or 'native'.")
+        case .none: throw .invalidUsage("Missing value for '\(argument)'.")
         }
 
       case "-h", "--help":
-        print(usageDescription)
-        exit(EXIT_SUCCESS)
+        throw .helpRequested
 
       default:
-        printUsageErrorAndExit("Unknown argument: \(argument)")
+        throw .invalidUsage("Unknown argument: \(argument)")
+      }
+    }
+  }
+}
+
+@main
+enum SampleColor {
+  static func main() {
+    let options: CommandLineOptions
+
+    do {
+      options = try CommandLineOptions(arguments: CommandLine.arguments.dropFirst())
+    } catch {
+      switch error {
+      case .helpRequested:
+        print(CommandLineOptions.usageDescription)
+        return
+
+      case .invalidUsage(let message):
+        Log.error("Error: \(message)\n\n\(CommandLineOptions.usageDescription)")
+        exit(EX_USAGE)
       }
     }
 
-    NSColorSampler().show { [outputFormat, outputColorSpace] color in
+    NSColorSampler().show { [outputFormat = options.format, outputColorSpace = options.colorSpace] color in
       MainActor.assumeIsolated {
         if let color {
           guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
@@ -140,10 +165,5 @@ enum SampleColor {
     let application = NSApplication.shared
     application.setActivationPolicy(.accessory)
     application.run()
-  }
-
-  private static func printUsageErrorAndExit(_ message: String) -> Never {
-    Log.error("\(message)\n\n\(usageDescription)")
-    exit(EX_USAGE)
   }
 }
