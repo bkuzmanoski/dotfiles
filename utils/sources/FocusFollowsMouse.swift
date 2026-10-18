@@ -1,4 +1,4 @@
-// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication ScreenCapturePermission
+// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication PrivateFramework ScreenCapturePermission
 
 import AppKit
 
@@ -122,19 +122,7 @@ struct SLPSEventRecord {
   }
 }
 
-struct SkyLightProxy {
-  enum Error: Swift.Error, LocalizedError {
-    case frameworkNotFound
-    case symbolNotFound(String)
-
-    var errorDescription: String? {
-      switch self {
-      case .frameworkNotFound: "SkyLight framework could not be loaded."
-      case .symbolNotFound(let symbol): "Symbol '\(symbol)' not found in SkyLight framework."
-      }
-    }
-  }
-
+struct SkyLightFramework {
   private typealias SLSConnectionID = UInt32
   private typealias SLSMainConnectionID = @convention(c) () -> SLSConnectionID
   private typealias SLSFindWindowByGeometry =
@@ -196,60 +184,17 @@ struct SkyLightProxy {
   }
 
   init() throws {
-    guard
-      let skyLightHandle: UnsafeMutableRawPointer = dlopen(
-        "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight",
-        RTLD_LAZY
-      )
-    else {
-      throw Error.frameworkNotFound
-    }
+    let framework = try PrivateFramework(named: "SkyLight")
+    let slsMainConnectionID: SLSMainConnectionID = try framework.symbol(named: "SLSMainConnectionID")
 
-    guard let slsMainConnectionIDSymbol = dlsym(skyLightHandle, "SLSMainConnectionID") else {
-      throw Error.symbolNotFound("SLSMainConnectionID")
-    }
-
-    guard let slsFindWindowByGeometrySymbol = dlsym(skyLightHandle, "SLSFindWindowByGeometry") else {
-      throw Error.symbolNotFound("SLSFindWindowByGeometry")
-    }
-
-    guard let slsGetWindowLevelSymbol = dlsym(skyLightHandle, "SLSGetWindowLevel") else {
-      throw Error.symbolNotFound("SLSGetWindowLevel")
-    }
-
-    guard let slsConnectionGetPIDSymbol = dlsym(skyLightHandle, "SLSConnectionGetPID") else {
-      throw Error.symbolNotFound("SLSConnectionGetPID")
-    }
-
-    guard let slsCopyAssociatedWindowsSymbol = dlsym(skyLightHandle, "SLSCopyAssociatedWindows") else {
-      throw Error.symbolNotFound("SLSCopyAssociatedWindows")
-    }
-
-    // swift-format-ignore: NoLeadingUnderscores
-    guard let _slpsGetFrontProcessSymbol = dlsym(skyLightHandle, "_SLPSGetFrontProcess") else {
-      throw Error.symbolNotFound("_SLPSGetFrontProcess")
-    }
-
-    // swift-format-ignore: NoLeadingUnderscores
-    guard let _slpsSetFrontProcessWithOptionsSymbol = dlsym(skyLightHandle, "_SLPSSetFrontProcessWithOptions") else {
-      throw Error.symbolNotFound("_SLPSSetFrontProcessWithOptions")
-    }
-
-    guard let slpsPostEventRecordToSymbol = dlsym(skyLightHandle, "SLPSPostEventRecordTo") else {
-      throw Error.symbolNotFound("SLPSPostEventRecordTo")
-    }
-
-    self.mainConnectionID = unsafeBitCast(slsMainConnectionIDSymbol, to: SLSMainConnectionID.self)()
-    self.slsFindWindowByGeometry = unsafeBitCast(slsFindWindowByGeometrySymbol, to: SLSFindWindowByGeometry.self)
-    self.slsGetWindowLevel = unsafeBitCast(slsGetWindowLevelSymbol, to: SLSGetWindowLevel.self)
-    self.slsConnectionGetPID = unsafeBitCast(slsConnectionGetPIDSymbol, to: SLSConnectionGetPID.self)
-    self.slsCopyAssociatedWindows = unsafeBitCast(slsCopyAssociatedWindowsSymbol, to: SLSCopyAssociatedWindows.self)
-    self._slpsGetFrontProcess = unsafeBitCast(_slpsGetFrontProcessSymbol, to: _SLPSGetFrontProcess.self)
-    self._slpsSetFrontProcessWithOptions = unsafeBitCast(
-      _slpsSetFrontProcessWithOptionsSymbol,
-      to: _SLPSSetFrontProcessWithOptions.self
-    )
-    self.slpsPostEventRecordTo = unsafeBitCast(slpsPostEventRecordToSymbol, to: SLPSPostEventRecordTo.self)
+    self.mainConnectionID = slsMainConnectionID()
+    self.slsFindWindowByGeometry = try framework.symbol(named: "SLSFindWindowByGeometry")
+    self.slsGetWindowLevel = try framework.symbol(named: "SLSGetWindowLevel")
+    self.slsConnectionGetPID = try framework.symbol(named: "SLSConnectionGetPID")
+    self.slsCopyAssociatedWindows = try framework.symbol(named: "SLSCopyAssociatedWindows")
+    self._slpsGetFrontProcess = try framework.symbol(named: "_SLPSGetFrontProcess")
+    self._slpsSetFrontProcessWithOptions = try framework.symbol(named: "_SLPSSetFrontProcessWithOptions")
+    self.slpsPostEventRecordTo = try framework.symbol(named: "SLPSPostEventRecordTo")
   }
 
   func findWindow(at point: CGPoint) -> (windowID: CGWindowID, ownerPID: pid_t)? {
@@ -319,7 +264,7 @@ final class FocusManager {
   private let exemptBundleIdentifiers: Set<String>
   private let focusableFloatingWindows: Set<WindowIdentity>
   private let eventTap: EventTap
-  private let skyLightProxy: SkyLightProxy
+  private let skyLightFramework: SkyLightFramework
   private let debounceTimer: any DispatchSourceTimer
   private var spaceObservationTask: Task<Void, Never>?
   private var screenParametersObservationTask: Task<Void, Never>?
@@ -353,7 +298,7 @@ final class FocusManager {
       options: .listenOnly,
       eventTypes: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .flagsChanged]
     )
-    self.skyLightProxy = try SkyLightProxy()
+    self.skyLightFramework = try SkyLightFramework()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
 
     self.spaceObservationTask = Task { [weak self] in
@@ -568,7 +513,7 @@ final class FocusManager {
     var targetPSN = ProcessSerialNumber()
 
     guard
-      let (targetWindowID, targetPID) = skyLightProxy.findWindow(at: point),
+      let (targetWindowID, targetPID) = skyLightFramework.findWindow(at: point),
       isFocusableWindow(targetWindowID),
       GetProcessForPID(targetPID, &targetPSN) == noErr
     else {
@@ -578,7 +523,7 @@ final class FocusManager {
     var focusedWindow: (windowID: CGWindowID, processSerialNumber: ProcessSerialNumber)?
     var isSameProcess: DarwinBoolean = false
 
-    if var focusedPSN = skyLightProxy.frontProcess,
+    if var focusedPSN = skyLightFramework.frontProcess,
       SameProcess(&targetPSN, &focusedPSN, &isSameProcess) == noErr,
       isSameProcess.boolValue
     {
@@ -600,7 +545,7 @@ final class FocusManager {
       if let focusedWindowID {
         guard
           focusedWindowID != targetWindowID,
-          !skyLightProxy.associatedWindows(for: focusedWindowID).contains(targetWindowID)
+          !skyLightFramework.associatedWindows(for: focusedWindowID).contains(targetWindowID)
         else {
           return
         }
@@ -623,7 +568,7 @@ final class FocusManager {
     }
 
     if let focusedWindow,
-      skyLightProxy.postEvent(
+      skyLightFramework.postEvent(
         .focusTransition(windowID: focusedWindow.windowID, type: .resignKey),
         to: focusedWindow.processSerialNumber
       ) == .success
@@ -632,12 +577,12 @@ final class FocusManager {
         try? await Task.sleep(for: .milliseconds(10))
       }
 
-      skyLightProxy.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
+      skyLightFramework.postEvent(.focusTransition(windowID: targetWindowID, type: .becomeKey), to: targetPSN)
     }
 
     guard
-      skyLightProxy.setFrontProcess(targetPSN, windowID: targetWindowID, options: .userGenerated) == .success,
-      skyLightProxy.postEvent(
+      skyLightFramework.setFrontProcess(targetPSN, windowID: targetWindowID, options: .userGenerated) == .success,
+      skyLightFramework.postEvent(
         .simulatedClick(windowID: targetWindowID, type: .leftMouseDown),
         to: targetPSN
       ) == .success
@@ -645,7 +590,7 @@ final class FocusManager {
       return
     }
 
-    skyLightProxy.postEvent(.simulatedClick(windowID: targetWindowID, type: .leftMouseUp), to: targetPSN)
+    skyLightFramework.postEvent(.simulatedClick(windowID: targetWindowID, type: .leftMouseUp), to: targetPSN)
   }
 
   private func cancelPendingFocus() {
@@ -686,7 +631,7 @@ final class FocusManager {
   }
 
   private nonisolated func isFocusableWindow(_ windowID: CGWindowID) -> Bool {
-    if skyLightProxy.windowLevel(for: windowID) == kCGNormalWindowLevel {
+    if skyLightFramework.windowLevel(for: windowID) == kCGNormalWindowLevel {
       return true
     }
 

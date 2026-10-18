@@ -1,4 +1,4 @@
-// Shared: CommandLineOptions Comparable FixedPointFormatStyle Log ProcessSignals
+// Shared: CommandLineOptions Comparable FixedPointFormatStyle Log PrivateFramework ProcessSignals
 
 import AppKit
 import Foundation
@@ -71,23 +71,7 @@ extension Double {
   }
 }
 
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("responsibility_get_pid_responsible_for_pid")
-func responsibility_get_pid_responsible_for_pid(_ processIdentifier: pid_t) -> pid_t
-
 struct NetworkStatisticsFramework {
-  enum Error: Swift.Error, LocalizedError {
-    case failedToLoadFramework
-    case missingSymbol(name: String)
-
-    var errorDescription: String? {
-      switch self {
-      case .failedToLoadFramework: "Failed to load the NetworkStatistics framework."
-      case .missingSymbol(let name): "Missing NetworkStatistics symbol: \(name)"
-      }
-    }
-  }
-
   typealias ManagerReference = OpaquePointer
   typealias SourceReference = OpaquePointer
   typealias SourceAddedHandler = @convention(block) (SourceReference?, UnsafeMutableRawPointer?) -> Void
@@ -116,43 +100,20 @@ struct NetworkStatisticsFramework {
   let sentBytesKey: CFString
 
   init() throws {
-    guard
-      let frameworkHandle = dlopen(
-        "/System/Library/PrivateFrameworks/NetworkStatistics.framework/NetworkStatistics",
-        RTLD_LAZY
-      )
-    else {
-      throw Error.failedToLoadFramework
-    }
+    let framework = try PrivateFramework(named: "NetworkStatistics")
 
-    func symbol<Symbol>(named name: String) throws -> Symbol {
-      guard let symbol = dlsym(frameworkHandle, name) else {
-        throw Error.missingSymbol(name: name)
-      }
-
-      return unsafeBitCast(symbol, to: Symbol.self)
-    }
-
-    func constant(named name: String) throws -> CFString {
-      guard let symbol = dlsym(frameworkHandle, name) else {
-        throw Error.missingSymbol(name: name)
-      }
-
-      return symbol.load(as: CFString.self)
-    }
-
-    self.createManager = try symbol(named: "NStatManagerCreate")
-    self.destroyManager = try symbol(named: "NStatManagerDestroy")
-    self.addAllTCPSources = try symbol(named: "NStatManagerAddAllTCP")
-    self.addAllUDPSources = try symbol(named: "NStatManagerAddAllUDP")
-    self.queryAllSources = try symbol(named: "NStatManagerQueryAllSources")
-    self.querySourceDescription = try symbol(named: "NStatSourceQueryDescription")
-    self.setSourceDescriptionHandler = try symbol(named: "NStatSourceSetDescriptionBlock")
-    self.setSourceCountsHandler = try symbol(named: "NStatSourceSetCountsBlock")
-    self.setSourceRemovedHandler = try symbol(named: "NStatSourceSetRemovedBlock")
-    self.processIdentifierKey = try constant(named: "kNStatSrcKeyPID")
-    self.receivedBytesKey = try constant(named: "kNStatSrcKeyRxBytes")
-    self.sentBytesKey = try constant(named: "kNStatSrcKeyTxBytes")
+    self.createManager = try framework.symbol(named: "NStatManagerCreate")
+    self.destroyManager = try framework.symbol(named: "NStatManagerDestroy")
+    self.addAllTCPSources = try framework.symbol(named: "NStatManagerAddAllTCP")
+    self.addAllUDPSources = try framework.symbol(named: "NStatManagerAddAllUDP")
+    self.queryAllSources = try framework.symbol(named: "NStatManagerQueryAllSources")
+    self.querySourceDescription = try framework.symbol(named: "NStatSourceQueryDescription")
+    self.setSourceDescriptionHandler = try framework.symbol(named: "NStatSourceSetDescriptionBlock")
+    self.setSourceCountsHandler = try framework.symbol(named: "NStatSourceSetCountsBlock")
+    self.setSourceRemovedHandler = try framework.symbol(named: "NStatSourceSetRemovedBlock")
+    self.processIdentifierKey = try framework.constant(named: "kNStatSrcKeyPID")
+    self.receivedBytesKey = try framework.constant(named: "kNStatSrcKeyRxBytes")
+    self.sentBytesKey = try framework.constant(named: "kNStatSrcKeyTxBytes")
   }
 }
 
@@ -639,6 +600,10 @@ struct BSDProcessInfo: Equatable {
   let commandName: String
   let parentProcessIdentifier: pid_t?
 }
+
+// swift-format-ignore: AlwaysUseLowerCamelCase
+@_silgen_name("responsibility_get_pid_responsible_for_pid")
+func responsibility_get_pid_responsible_for_pid(_ processIdentifier: pid_t) -> pid_t
 
 struct RunningProcess {
   private static let listThreadIdentifiersFlavor: Int32 = 28
