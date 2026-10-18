@@ -65,6 +65,7 @@ cask "lumarylabsllc/tap/lumary-audio", trusted: true
 cask "lumarylabsllc/tap/lumary-cam", trusted: true
 cask "mitmproxy"
 cask "raycast"
+cask "saffsanity/sill/sill", trusted: true
 cask "sentry-cli"
 cask "sf-symbols"
 cask "sloth"
@@ -93,7 +94,15 @@ cask "font-inter"
 cask "font-jetbrains-mono"
 cask "font-monocraft"
 cask "font-paper-mono"
+cask "font-redaction-10"
+cask "font-redaction-100"
+cask "font-redaction-20"
+cask "font-redaction-35"
+cask "font-redaction-50"
+cask "font-redaction-70"
+cask "font-redaction"
 cask "font-scientifica"
 cask "font-sf-compact"
 cask "font-sf-mono"
 cask "font-sf-pro"
+
