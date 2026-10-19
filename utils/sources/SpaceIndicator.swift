@@ -158,7 +158,7 @@ final class SpaceMonitor {
     var errorDescription: String? {
       switch self {
       case .failedToRegisterForNotifications(let eventType, let underlyingError):
-        "Failed to register for '\(eventType)' notifications: \(underlyingError)"
+        "Failed to register for '\(eventType)' notifications: \(underlyingError.localizedDescription)"
       }
     }
   }

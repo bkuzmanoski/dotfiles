@@ -40,10 +40,10 @@ final class AppMenu {
     var errorDescription: String? {
       switch self {
       case .failedToRetrieveMenuBarElement(let application, let underlyingError):
-        "Failed to retrieve menu bar element for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError)"
+        "Failed to retrieve menu bar element for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError.localizedDescription)"
 
       case .failedToBuildMenu(let application, let underlyingError):
-        "Failed to build menu for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError)"
+        "Failed to build menu for \(application.localizedName.map { "'\($0)'" } ?? "active application"): \(underlyingError.localizedDescription)"
       }
     }
   }
