@@ -76,13 +76,25 @@ extension AXUIElement {
   }
 
   func children() throws -> [AXUIElement] {
+    var count: CFIndex = 0
+
+    try AXUIElementGetAttributeValueCount(
+      self,
+      NSAccessibility.Attribute.children.rawValue as CFString,
+      &count
+    ).throwIfFailed()
+
+    guard count > 0 else {
+      return []
+    }
+
     var valuesRef: CFArray?
 
     try AXUIElementCopyAttributeValues(
       self,
       NSAccessibility.Attribute.children.rawValue as CFString,
       0,
-      Int.max,
+      count,
       &valuesRef
     ).throwIfFailed()
 
