@@ -2,10 +2,10 @@ foreground = #bbbbbb
 background = #262626
 
 selection-foreground = cell-foreground
-selection-background = #39576a
+selection-background = #39505e
 
 search-foreground = cell-foreground
-search-background = #314839
+search-background = #395242
 search-selected-foreground = cell-foreground
 search-selected-background = #4b6153
 

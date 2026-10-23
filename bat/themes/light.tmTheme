@@ -13,19 +13,19 @@
         <key>settings</key>
         <dict>
           <key>background</key>
-          <string>#eeeeee</string>
+          <string>#f5f5f5</string>
           <key>caret</key>
           <string>#353535</string>
           <key>foreground</key>
           <string>#353535</string>
           <key>invisibles</key>
-          <string>#8e8e8e</string>
+          <string>#b9b9b9</string>
           <key>lineHighlight</key>
           <string>#8e8e8e30</string>
           <key>selection</key>
-          <string>#3378a350</string>
+          <string>#3378a366</string>
           <key>gutter</key>
-          <string>#eeeeee</string>
+          <string>#f5f5f5</string>
           <key>gutterForeground</key>
           <string>#8e8e8e</string>
         </dict>
@@ -85,7 +85,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>#737373</string>
+          <string>#6a519e</string>
         </dict>
       </dict>
       <dict>
@@ -376,6 +376,15 @@
         <dict>
           <key>foreground</key>
           <string>#6e6e6e</string>
+        </dict>
+      </dict>
+      <dict>
+        <key>scope</key>
+        <string>support.class.console, support.constant.math</string>
+        <key>settings</key>
+        <dict>
+          <key>foreground</key>
+          <string>#353535</string>
         </dict>
       </dict>
     </array>
