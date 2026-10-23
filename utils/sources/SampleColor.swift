@@ -118,21 +118,21 @@ enum SampleColor {
     let options = CommandLineOptions.parseOrExit()
 
     NSColorSampler().show { [outputFormat = options.format, outputColorSpace = options.colorSpace] color in
-      MainActor.assumeIsolated {
-        if let color {
-          guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
-            Log.error("Failed to convert color to the specified color space.")
-            exit(EXIT_FAILURE)
-          }
-
-          let result = color.formatted(outputFormat)
-
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(result, forType: .string)
-
-          print(result)
+      if let color {
+        guard let color = outputColorSpace.map({ color.usingColorSpace($0) }) ?? color else {
+          Log.error("Failed to convert color to the specified color space.")
+          exit(EXIT_FAILURE)
         }
 
+        let result = color.formatted(outputFormat)
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(result, forType: .string)
+
+        print(result)
+      }
+
+      MainActor.assumeIsolated {
         NSApplication.shared.terminate(nil)
       }
     }
