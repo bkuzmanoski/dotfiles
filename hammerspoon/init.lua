@@ -27,6 +27,7 @@ hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SpaceIndicator")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background SwitchToSpace")
 
 modules.unlockSound = require("modules/unlock_sound").init()
+modules.restartDockOnWake = require("modules/restart_dock_on_wake").init()
 modules.systemHotkeys = require("modules/system_hotkeys").init({
   focusDock = { modifiers = settings.hyperKey, key = "/" },
   toggleLaunchpad = { modifiers = settings.hyperKey, key = "l" },
