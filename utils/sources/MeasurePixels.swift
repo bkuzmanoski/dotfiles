@@ -1,4 +1,4 @@
-// Shared: EventTap Log ScreenCapturePermission Spaces
+// Shared: EventTap Log ScreenCapturePermission SkyLightFramework Spaces
 
 import ScreenCaptureKit
 
@@ -906,6 +906,7 @@ final class MeasurementSession {
   private let spanMeasurementRGBDifferenceThreshold: Int
   private let measurementView: MeasurementView
   private let overlayWindow: OverlayWindow
+  private let skyLightFramework: SkyLightFramework
   private let eventTap: EventTap
   private var appMode: AppMode
   private var displayID: CGDirectDisplayID
@@ -947,13 +948,14 @@ final class MeasurementSession {
   ) throws {
     try ScreenCapturePermission.ensureGranted()
 
+    let skyLightFramework = try SkyLightFramework()
     let eventTap = try EventTap(location: .cghidEventTap, eventTypes: [.flagsChanged])
 
     guard let displayID = screen.cgDirectDisplayID else {
       throw Error.failedToDetermineDisplayID
     }
 
-    guard let currentSpaceID = screen.displaySpaces?.currentSpaceID else {
+    guard let currentSpaceID = skyLightFramework.displaySpaces(for: screen)?.currentSpaceID else {
       throw Error.failedToDetermineSpaceID
     }
 
@@ -974,6 +976,7 @@ final class MeasurementSession {
     self.spanMeasurementRGBDifferenceThreshold = spanMeasurementRGBDifferenceThreshold
     self.measurementView = measurementView
     self.overlayWindow = overlayWindow
+    self.skyLightFramework = skyLightFramework
     self.eventTap = eventTap
     self.appMode = appMode
     self.displayID = displayID
@@ -1050,7 +1053,7 @@ final class MeasurementSession {
     guard
       let displayID = screen.cgDirectDisplayID,
       self.displayID != displayID,
-      let spaceID = screen.displaySpaces?.currentSpaceID
+      let spaceID = skyLightFramework.displaySpaces(for: screen)?.currentSpaceID
     else {
       return
     }
@@ -1113,7 +1116,7 @@ final class MeasurementSession {
   private func handleSpaceChanged() {
     guard
       let screen = NSScreen.screen(for: displayID),
-      let spaceID = screen.displaySpaces?.currentSpaceID,
+      let spaceID = skyLightFramework.displaySpaces(for: screen)?.currentSpaceID,
       currentSpaceID != spaceID
     else {
       return

@@ -1,4 +1,4 @@
-// Shared: Agent CGError Log NSRunningApplication NSStatusItem Spaces
+// Shared: Agent CGError Log NSRunningApplication NSStatusItem SkyLightFramework Spaces
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -15,72 +15,6 @@ extension MainActor {
       DispatchQueue.main.async(execute: body)
     }
   }
-}
-
-typealias CGSNotifyProc =
-  @convention(c) (
-    _ eventType: UInt32,
-    _ data: UnsafeMutableRawPointer?,
-    _ dataLength: UInt32,
-    _ context: UnsafeMutableRawPointer?
-  ) -> Void
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSCopySpacesForWindows")
-func CGSCopySpacesForWindows(
-  _ connectionID: CGSConnectionID,
-  _ spaceMask: CInt,
-  _ windowsIDs: CFArray
-) -> Unmanaged<CFArray>?
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSGetWindowTags")
-func CGSGetWindowTags(
-  _ connectionID: CGSConnectionID,
-  _ windowID: CGWindowID,
-  _ tags: UnsafeMutablePointer<CGSWindowTags>,
-  _ tagsSize: CInt
-) -> CGError
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSRegisterNotifyProc")
-@discardableResult
-func CGSRegisterNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
-
-// swift-format-ignore: AlwaysUseLowerCamelCase
-@_silgen_name("CGSRemoveNotifyProc")
-@discardableResult
-func CGSRemoveNotifyProc(_ proc: CGSNotifyProc, _ event: UInt32, _ context: UnsafeMutableRawPointer?) -> CGError
-
-enum CGSEventType: UInt32 {
-  case packagesStatusBarSpaceChanged = 1308
-  case spaceWindowCreated = 1325
-  case spaceWindowDestroyed = 1326
-  case spaceCreated = 1327
-  case spaceDestroyed = 1328
-  case spaceCurrentChanged = 1329
-}
-
-struct CGSWindowTags: OptionSet {
-  let rawValue: UInt64
-
-  static let document = CGSWindowTags(rawValue: 1 << 0)
-  static let floating = CGSWindowTags(rawValue: 1 << 1)
-  static let modal = CGSWindowTags(rawValue: 1 << 31)
-}
-
-struct CGSSpaceMask: OptionSet {
-  let rawValue: CInt
-
-  static let includesCurrent = CGSSpaceMask(rawValue: 1 << 0)
-  static let includesOthers = CGSSpaceMask(rawValue: 1 << 1)
-  static let includesUser = CGSSpaceMask(rawValue: 1 << 2)
-  static let visible = CGSSpaceMask(rawValue: 1 << 16)
-
-  static let currentSpace: CGSSpaceMask = [.includesUser, .includesCurrent]
-  static let otherSpaces: CGSSpaceMask = [.includesOthers, .includesCurrent]
-  static let allSpaces: CGSSpaceMask = [.includesUser, .includesOthers, .includesCurrent]
-  static let allVisibleSpaces: CGSSpaceMask = [.visible, .allSpaces]
 }
 
 struct Space: Identifiable, Equatable {
@@ -119,41 +53,12 @@ struct TrackedWindow: Hashable {
   let id: CGWindowID
   let processIdentifier: pid_t
   let spaceID: SpaceID
-
-  init(id: CGWindowID, processIdentifier: pid_t, spaceID: SpaceID) {
-    self.id = id
-    self.processIdentifier = processIdentifier
-    self.spaceID = spaceID
-  }
-
-  init?(info windowInfo: [String: Any], cgsConnectionID: CGSConnectionID) {
-    var tags: CGSWindowTags = []
-
-    guard
-      windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-      let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-      let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-      CGSGetWindowTags(cgsConnectionID, windowID, &tags, CInt(UInt64.bitWidth)) == .success,
-      tags.contains(.document) || tags.isSuperset(of: [.floating, .modal]),
-      let spacesForWindow = CGSCopySpacesForWindows(
-        cgsConnectionID,
-        CGSSpaceMask.allSpaces.rawValue,
-        [windowID] as CFArray
-      )?.takeRetainedValue() as? [SpaceID],
-      spacesForWindow.count == 1,
-      let spaceID = spacesForWindow.first
-    else {
-      return nil
-    }
-
-    self = TrackedWindow(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
-  }
 }
 
 @MainActor
 final class SpaceMonitor {
   enum Error: Swift.Error, LocalizedError {
-    case failedToRegisterForNotifications(eventType: CGSEventType, underlyingError: CGError)
+    case failedToRegisterForNotifications(eventType: SLSEventType, underlyingError: CGError)
 
     var errorDescription: String? {
       switch self {
@@ -171,9 +76,9 @@ final class SpaceMonitor {
     case windowRemoved(windowID: CGWindowID, spaceID: SpaceID)
   }
 
-  private let cgsNotifyProc: CGSNotifyProc = { eventType, data, dataLength, context in
+  private let notifyProc: SkyLightFramework.NotifyProc = { eventType, data, dataLength, context in
     guard
-      let eventType = CGSEventType(rawValue: eventType),
+      let eventType = SLSEventType(rawValue: eventType),
       let context,
       let event = event(for: eventType, data: data, dataLength: dataLength)
     else {
@@ -187,11 +92,14 @@ final class SpaceMonitor {
     }
   }
 
-  private var registeredEventTypes: [CGSEventType] = []
+  private let skyLightFramework: SkyLightFramework
+  private var registeredEventTypes: [SLSEventType] = []
   private var continuation: AsyncStream<Event>.Continuation?
 
-  init() throws {
-    for eventType: CGSEventType in [
+  init(skyLightFramework: SkyLightFramework) throws {
+    self.skyLightFramework = skyLightFramework
+
+    for eventType: SLSEventType in [
       .packagesStatusBarSpaceChanged,
       .spaceWindowCreated,
       .spaceWindowDestroyed,
@@ -199,10 +107,10 @@ final class SpaceMonitor {
       .spaceDestroyed,
       .spaceCurrentChanged
     ] {
-      let result = CGSRegisterNotifyProc(
-        cgsNotifyProc,
-        eventType.rawValue,
-        Unmanaged.passUnretained(self).toOpaque()
+      let result = skyLightFramework.registerNotifyProc(
+        notifyProc,
+        for: eventType,
+        context: Unmanaged.passUnretained(self).toOpaque()
       )
 
       guard result == .success else {
@@ -230,7 +138,7 @@ final class SpaceMonitor {
   }
 
   private nonisolated static func event(
-    for eventType: CGSEventType,
+    for eventType: SLSEventType,
     data: UnsafeMutableRawPointer?,
     dataLength: UInt32
   ) -> Event? {
@@ -268,7 +176,7 @@ final class SpaceMonitor {
 
   private func unregisterNotifyProc() {
     for eventType in registeredEventTypes {
-      CGSRemoveNotifyProc(cgsNotifyProc, eventType.rawValue, Unmanaged.passUnretained(self).toOpaque())
+      skyLightFramework.removeNotifyProc(notifyProc, for: eventType, context: Unmanaged.passUnretained(self).toOpaque())
     }
 
     self.registeredEventTypes.removeAll()
@@ -306,12 +214,13 @@ final class SpaceIndicatorModel {
   }
 
   private let spaceMonitor: SpaceMonitor
-  private let cgsConnectionID = CGSMainConnectionID()
+  private let skyLightFramework: SkyLightFramework
   @ObservationIgnored private var monitoringTask: Task<Void, Never>?
   @ObservationIgnored private var refreshTask: Task<Void, Never>?
 
-  init(spaceMonitor: SpaceMonitor) {
+  init(spaceMonitor: SpaceMonitor, skyLightFramework: SkyLightFramework) {
     self.spaceMonitor = spaceMonitor
+    self.skyLightFramework = skyLightFramework
     self.monitoringTask = Task { [weak self] in
       await withDiscardingTaskGroup { group in
         group.addTask { await self?.monitorSpaces() }
@@ -328,7 +237,7 @@ final class SpaceIndicatorModel {
   }
 
   func diagnosticReport() -> [String] {
-    let liveDisplaySpaces = displaySpacesByIdentifier(cgsConnectionID: cgsConnectionID)
+    let liveDisplaySpaces = displaySpacesByIdentifier()
     let liveWindowIDs = Set(
       (windowsInfo() ?? []).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
     )
@@ -434,9 +343,9 @@ final class SpaceIndicatorModel {
     }
   }
 
-  private func displaySpacesByIdentifier(cgsConnectionID: CGSConnectionID) -> [DisplayIdentifier: DisplaySpaces] {
+  private func displaySpacesByIdentifier() -> [DisplayIdentifier: DisplaySpaces] {
     return Dictionary(
-      DisplaySpaces.all(connectionID: cgsConnectionID).map { ($0.displayIdentifier, $0) },
+      skyLightFramework.displaySpaces().map { ($0.displayIdentifier, $0) },
       uniquingKeysWith: { first, _ in first }
     )
   }
@@ -445,8 +354,31 @@ final class SpaceIndicatorModel {
     return CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
   }
 
+  private func trackedWindows(from windowsInfo: [[String: Any]]) -> [TrackedWindow] {
+    let tagsByWindowID = skyLightFramework.windowTags(
+      for: windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
+    )
+
+    return windowsInfo.compactMap { windowInfo in
+      guard
+        windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
+        let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
+        let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
+        let tags = tagsByWindowID[windowID],
+        tags.contains(.document) || tags.isSuperset(of: [.floating, .modal]),
+        let spaceIDs = skyLightFramework.spaceIDs(forWindow: windowID, mask: .allSpaces),
+        spaceIDs.count == 1,
+        let spaceID = spaceIDs.first
+      else {
+        return nil
+      }
+
+      return TrackedWindow(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
+    }
+  }
+
   private func refreshSpaces() {
-    let displaySpaces = displaySpacesByIdentifier(cgsConnectionID: cgsConnectionID)
+    let displaySpaces = displaySpacesByIdentifier()
 
     guard !displaySpaces.isEmpty else {
       return
@@ -462,11 +394,7 @@ final class SpaceIndicatorModel {
 
     self.spaceTrackedWindows.removeAll()
 
-    for windowInfo in windowsInfo {
-      guard let trackedWindow = TrackedWindow(info: windowInfo, cgsConnectionID: cgsConnectionID) else {
-        continue
-      }
-
+    for trackedWindow in trackedWindows(from: windowsInfo) {
       trackWindow(trackedWindow)
     }
   }
@@ -523,8 +451,7 @@ final class SpaceIndicatorModel {
         [.optionIncludingWindow, .excludeDesktopElements],
         windowID
       ) as? [[String: Any]],
-      let windowInfo = windowsInfo.first,
-      let trackedWindow = TrackedWindow(info: windowInfo, cgsConnectionID: cgsConnectionID),
+      let trackedWindow = trackedWindows(from: windowsInfo).first,
       trackedWindow.spaceID == spaceID
     else {
       return
@@ -711,8 +638,9 @@ final class AppDelegate: NSObject, AgentDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let spaceMonitor = try SpaceMonitor()
-      let spaceIndicatorModel = SpaceIndicatorModel(spaceMonitor: spaceMonitor)
+      let skyLightFramework = try SkyLightFramework()
+      let spaceMonitor = try SpaceMonitor(skyLightFramework: skyLightFramework)
+      let spaceIndicatorModel = SpaceIndicatorModel(spaceMonitor: spaceMonitor, skyLightFramework: skyLightFramework)
 
       self.statusItemManager = StatusItemManager(spaceIndicatorModel: spaceIndicatorModel)
     } catch {

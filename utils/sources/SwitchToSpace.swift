@@ -1,4 +1,4 @@
-// Shared: Accessibility Agent CGEvent Log Spaces
+// Shared: Accessibility Agent CGEvent Log SkyLightFramework Spaces
 
 import AppKit
 
@@ -84,14 +84,17 @@ final class SpaceSwitcher {
   }
 
   private let startDate = Date.now
+  private let skyLightFramework: SkyLightFramework
 
   init() throws {
     try AccessibilityPermission.ensureGranted()
+    self.skyLightFramework = try SkyLightFramework()
   }
 
   func switchSpace(direction: Direction) {
     guard
-      let displaySpaces = NSScreen.main?.displaySpaces,
+      let screen = NSScreen.main,
+      let displaySpaces = skyLightFramework.displaySpaces(for: screen),
       let currentSpaceIndex = displaySpaces.currentSpaceIndex
     else {
       return
@@ -105,7 +108,7 @@ final class SpaceSwitcher {
   }
 
   func switchToSpace(index spaceIndex: Int) {
-    guard let displaySpaces = NSScreen.main?.displaySpaces else {
+    guard let screen = NSScreen.main, let displaySpaces = skyLightFramework.displaySpaces(for: screen) else {
       return
     }
 
