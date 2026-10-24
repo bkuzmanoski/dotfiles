@@ -11,7 +11,7 @@ enum Configuration {
   ]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let crossDisplayHoverDelay: DispatchTimeInterval = .milliseconds(60)
-  static let focusChangeGracePeriod: DispatchTimeInterval = .seconds(500)
+  static let focusChangeGracePeriod: DispatchTimeInterval = .milliseconds(500)
   static let jitterThreshold = 3
 }
 
@@ -45,6 +45,7 @@ final class FocusChangeMonitor {
   private var applicationElement: AXUIElement?
   private var axObserver: AXObserver?
   private var runLoopSource: CFRunLoopSource?
+  private var launchingApplication: NSRunningApplication?
   private var launchObservation: NSKeyValueObservation?
   private var launchTimeoutTask: Task<Void, Never>?
   private var activationObservationTask: Task<Void, Never>?
@@ -106,6 +107,7 @@ final class FocusChangeMonitor {
 
     if !application.isFinishedLaunching {
       self.observedProcessIdentifier = processIdentifier
+      self.launchingApplication = application
 
       self.launchObservation = application.observe(\.isFinishedLaunching) { [weak self] _, _ in
         Task { @MainActor in
@@ -131,10 +133,15 @@ final class FocusChangeMonitor {
 
   private func handleLaunchFinished(of processIdentifier: pid_t) {
     guard
-      launchObservation != nil,
-      processIdentifier == observedProcessIdentifier,
-      NSRunningApplication(processIdentifier: processIdentifier)?.isFinishedLaunching == true
+      let launchingApplication,
+      launchingApplication.processIdentifier == processIdentifier,
+      launchingApplication.isFinishedLaunching
     else {
+      return
+    }
+
+    guard !launchingApplication.isTerminated else {
+      stopObserving()
       return
     }
 
@@ -143,7 +150,12 @@ final class FocusChangeMonitor {
   }
 
   private func handleLaunchTimeout(of processIdentifier: pid_t) {
-    guard launchObservation != nil, processIdentifier == observedProcessIdentifier else {
+    guard let launchingApplication, launchingApplication.processIdentifier == processIdentifier else {
+      return
+    }
+
+    guard !launchingApplication.isTerminated else {
+      stopObserving()
       return
     }
 
@@ -213,6 +225,7 @@ final class FocusChangeMonitor {
     launchTimeoutTask?.cancel()
 
     self.launchObservation = nil
+    self.launchingApplication = nil
     self.launchTimeoutTask = nil
     self.observedProcessIdentifier = nil
     self.applicationElement = nil
