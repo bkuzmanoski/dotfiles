@@ -33,7 +33,212 @@ func SameProcess(
 ) -> OSStatus
 
 @MainActor
+final class FocusChangeMonitor {
+  struct FocusChange {
+    let processIdentifier: pid_t
+    let windowID: CGWindowID?
+  }
+
+  private static let launchTimeout: Duration = .seconds(2)
+
+  private var observedProcessIdentifier: pid_t?
+  private var applicationElement: AXUIElement?
+  private var axObserver: AXObserver?
+  private var runLoopSource: CFRunLoopSource?
+  private var launchObservation: NSKeyValueObservation?
+  private var launchTimeoutTask: Task<Void, Never>?
+  private var activationObservationTask: Task<Void, Never>?
+  private var continuation: AsyncStream<FocusChange>.Continuation?
+
+  init() {
+    self.activationObservationTask = Task { [weak self] in
+      for await notification in NSWorkspace.shared.notificationCenter.notifications(
+        named: NSWorkspace.didActivateApplicationNotification
+      ) {
+        guard let self else {
+          break
+        }
+
+        guard
+          let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+        else {
+          continue
+        }
+
+        handleActivation(of: application)
+      }
+    }
+
+    if let application = NSWorkspace.shared.frontmostApplication {
+      observeFocusedWindowChanges(of: application)
+    }
+  }
+
+  isolated deinit {
+    activationObservationTask?.cancel()
+    continuation?.finish()
+    stopObserving()
+  }
+
+  func focusChanges() -> AsyncStream<FocusChange> {
+    continuation?.finish()
+
+    let (stream, continuation) = AsyncStream.makeStream(of: FocusChange.self)
+
+    self.continuation = continuation
+
+    return stream
+  }
+
+  private func handleActivation(of application: NSRunningApplication) {
+    continuation?.yield(FocusChange(processIdentifier: application.processIdentifier, windowID: nil))
+    observeFocusedWindowChanges(of: application)
+  }
+
+  private func observeFocusedWindowChanges(of application: NSRunningApplication) {
+    let processIdentifier = application.processIdentifier
+
+    guard processIdentifier != observedProcessIdentifier else {
+      return
+    }
+
+    stopObserving()
+
+    if !application.isFinishedLaunching {
+      self.observedProcessIdentifier = processIdentifier
+
+      self.launchObservation = application.observe(\.isFinishedLaunching) { [weak self] _, _ in
+        Task { @MainActor in
+          self?.handleLaunchFinished(of: processIdentifier)
+        }
+      }
+
+      self.launchTimeoutTask = Task { [weak self] in
+        do {
+          try await Task.sleep(for: Self.launchTimeout)
+        } catch {
+          return
+        }
+
+        self?.handleLaunchTimeout(of: processIdentifier)
+      }
+
+      return
+    }
+
+    addObserver(for: processIdentifier)
+  }
+
+  private func handleLaunchFinished(of processIdentifier: pid_t) {
+    guard
+      launchObservation != nil,
+      processIdentifier == observedProcessIdentifier,
+      NSRunningApplication(processIdentifier: processIdentifier)?.isFinishedLaunching == true
+    else {
+      return
+    }
+
+    continuation?.yield(FocusChange(processIdentifier: processIdentifier, windowID: nil))
+    addObserver(for: processIdentifier)
+  }
+
+  private func handleLaunchTimeout(of processIdentifier: pid_t) {
+    guard launchObservation != nil, processIdentifier == observedProcessIdentifier else {
+      return
+    }
+
+    addObserver(for: processIdentifier)
+  }
+
+  private func addObserver(for processIdentifier: pid_t) {
+    stopObserving()
+
+    let applicationElement = AXUIElementCreateApplication(processIdentifier)
+
+    var axObserver: AXObserver?
+
+    let createResult = AXObserverCreate(
+      processIdentifier,
+      { _, element, _, refcon in
+        guard let refcon else {
+          return
+        }
+
+        MainActor.assumeIsolated {
+          Unmanaged<FocusChangeMonitor>.fromOpaque(refcon).takeUnretainedValue().handleFocusedWindowChange(element)
+        }
+      },
+      &axObserver
+    )
+
+    guard createResult == .success, let axObserver else {
+      Log.error("Failed to create observer for PID \(processIdentifier): \(createResult.localizedDescription)")
+      return
+    }
+
+    let addNotificationResult = AXObserverAddNotification(
+      axObserver,
+      applicationElement,
+      kAXFocusedWindowChangedNotification as CFString,
+      Unmanaged.passUnretained(self).toOpaque()
+    )
+
+    guard addNotificationResult == .success else {
+      Log.error(
+        "Failed to observe focused window changes for PID \(processIdentifier): \(addNotificationResult.localizedDescription)"
+      )
+      return
+    }
+
+    let runLoopSource = AXObserverGetRunLoopSource(axObserver)
+
+    CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+
+    self.observedProcessIdentifier = processIdentifier
+    self.applicationElement = applicationElement
+    self.axObserver = axObserver
+    self.runLoopSource = runLoopSource
+  }
+
+  private func stopObserving() {
+    if let axObserver, let applicationElement {
+      AXObserverRemoveNotification(axObserver, applicationElement, kAXFocusedWindowChangedNotification as CFString)
+    }
+
+    if let runLoopSource {
+      CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+    }
+
+    launchObservation?.invalidate()
+    launchTimeoutTask?.cancel()
+
+    self.launchObservation = nil
+    self.launchTimeoutTask = nil
+    self.observedProcessIdentifier = nil
+    self.applicationElement = nil
+    self.axObserver = nil
+    self.runLoopSource = nil
+  }
+
+  private func handleFocusedWindowChange(_ windowElement: AXUIElement) {
+    guard let observedProcessIdentifier else {
+      return
+    }
+
+    continuation?.yield(
+      FocusChange(processIdentifier: observedProcessIdentifier, windowID: try? windowElement.windowID())
+    )
+  }
+}
+
+@MainActor
 final class FocusManager {
+  private struct FocusedTarget {
+    let processIdentifier: pid_t
+    let windowID: CGWindowID
+    let time: DispatchTime
+  }
+
   private(set) var isEnabled = true
 
   private let startDate = Date.now
@@ -46,14 +251,17 @@ final class FocusManager {
   private let windowManagerSuspendingWindowLevels: Set<CGWindowLevel> = [18, 19]
   private let hoverDelay: DispatchTimeInterval
   private let crossDisplayHoverDelay: DispatchTimeInterval
+  private let focusChangeGracePeriod: DispatchTimeInterval
   private let jitterThresholdSquared: CGFloat
   private let exemptBundleIdentifiers: Set<String>
   private let focusableFloatingWindows: Set<WindowIdentity>
   private let eventTap: EventTap
   private let skyLightFramework: SkyLightFramework
+  private let focusChangeMonitor: FocusChangeMonitor
   private let debounceTimer: any DispatchSourceTimer
   private var spaceObservationTask: Task<Void, Never>?
   private var screenParametersObservationTask: Task<Void, Never>?
+  private var focusChangeObservationTask: Task<Void, Never>?
   private var displayBounds: [CGRect] = []
   private var cursorDisplayIndex: Int?
   private var lastMouseLocation: CGPoint = .zero
@@ -61,11 +269,18 @@ final class FocusManager {
   private var isCommandKeyPressed = false
   private var hasPendingDisplayCrossing = false
   private var pendingFocusDelay: DispatchTimeInterval?
+  private var lastExternalFocusChangeTime: DispatchTime?
+  private var lastFocusedTarget: FocusedTarget?
   private var focusTask: Task<Void, Never>?
+
+  private var isInFocusChangeGracePeriod: Bool {
+    lastExternalFocusChangeTime.map { DispatchTime.now() < $0 + focusChangeGracePeriod } ?? false
+  }
 
   init(
     hoverDelay: DispatchTimeInterval,
     crossDisplayHoverDelay: DispatchTimeInterval,
+    focusChangeGracePeriod: DispatchTimeInterval,
     jitterThreshold: Int,
     exemptBundleIdentifiers: Set<String>,
     focusableFloatingWindows: Set<WindowIdentity>
@@ -76,15 +291,16 @@ final class FocusManager {
 
     self.hoverDelay = hoverDelay
     self.crossDisplayHoverDelay = crossDisplayHoverDelay
+    self.focusChangeGracePeriod = focusChangeGracePeriod
     self.jitterThresholdSquared = CGFloat(jitterThreshold * jitterThreshold)
     self.exemptBundleIdentifiers = exemptBundleIdentifiers
     self.focusableFloatingWindows = focusableFloatingWindows
     self.eventTap = try EventTap(
       location: .cgSessionEventTap,
-      options: .listenOnly,
-      eventTypes: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .flagsChanged]
+      observing: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .flagsChanged]
     )
     self.skyLightFramework = try SkyLightFramework()
+    self.focusChangeMonitor = FocusChangeMonitor()
     self.debounceTimer = DispatchSource.makeTimerSource(queue: .main)
 
     self.spaceObservationTask = Task { [weak self] in
@@ -111,6 +327,18 @@ final class FocusManager {
       }
     }
 
+    let focusChanges = focusChangeMonitor.focusChanges()
+
+    self.focusChangeObservationTask = Task { [weak self] in
+      for await focusChange in focusChanges {
+        guard let self else {
+          break
+        }
+
+        handleFocusChange(focusChange)
+      }
+    }
+
     refreshDisplayBounds()
     AXUIElement.setGlobalMessagingTimeout(seconds: 0.5)
 
@@ -133,6 +361,7 @@ final class FocusManager {
   isolated deinit {
     spaceObservationTask?.cancel()
     screenParametersObservationTask?.cancel()
+    focusChangeObservationTask?.cancel()
     debounceTimer.cancel()
     focusTask?.cancel()
   }
@@ -166,8 +395,10 @@ final class FocusManager {
           Screen locked: \(isScreenLocked)
           Suspending windows on screen: \(suspendingWindows.isEmpty ? "none" : suspendingWindows.joined(separator: ", "))
         Focus pending: \(pendingFocusDelay != nil)
+        Focus change grace period active: \(isInFocusChangeGracePeriod)
         Hover delay: \(hoverDelay)
         Cross-display hover delay: \(crossDisplayHoverDelay)
+        Focus change grace period: \(focusChangeGracePeriod)
         Exempt bundle IDs: \(exemptBundleIdentifiers.sorted().joined(separator: ", "))
         Focusable floating windows: \(focusableFloatingWindows.map { "\($0.bundleIdentifier) \"\($0.title)\"" }.sorted().joined(separator: ", "))
       """
@@ -270,6 +501,26 @@ final class FocusManager {
     }
   }
 
+  private func handleFocusChange(_ focusChange: FocusChangeMonitor.FocusChange) {
+    let now = DispatchTime.now()
+
+    if let lastFocusedTarget, now < lastFocusedTarget.time + focusChangeGracePeriod {
+      let isOwnFocusChange =
+        focusChange.windowID.map { $0 == lastFocusedTarget.windowID }
+        ?? (focusChange.processIdentifier == lastFocusedTarget.processIdentifier)
+
+      guard !isOwnFocusChange else {
+        return
+      }
+    }
+
+    self.lastExternalFocusChangeTime = now
+  }
+
+  private func recordFocusedTarget(processIdentifier: pid_t, windowID: CGWindowID) {
+    self.lastFocusedTarget = FocusedTarget(processIdentifier: processIdentifier, windowID: windowID, time: .now())
+  }
+
   private func handleTimerEvent() {
     guard let pendingFocusDelay else {
       return
@@ -287,9 +538,13 @@ final class FocusManager {
       return
     }
 
-    focusTask?.cancel()
-
     self.pendingFocusDelay = nil
+
+    if isInFocusChangeGracePeriod {
+      return
+    }
+
+    focusTask?.cancel()
     self.focusTask = Task { [weak self, lastMouseLocation] in
       await self?.focusWindow(at: lastMouseLocation)
     }
@@ -352,6 +607,8 @@ final class FocusManager {
     else {
       return
     }
+
+    await recordFocusedTarget(processIdentifier: targetPID, windowID: targetWindowID)
 
     if let focusedWindow,
       skyLightFramework.postEvent(
@@ -461,6 +718,7 @@ final class AppDelegate: NSObject, AgentDelegate {
       self.focusManager = try FocusManager(
         hoverDelay: Configuration.hoverDelay,
         crossDisplayHoverDelay: Configuration.crossDisplayHoverDelay,
+        focusChangeGracePeriod: Configuration.focusChangeGracePeriod,
         jitterThreshold: Configuration.jitterThreshold,
         exemptBundleIdentifiers: Configuration.exemptBundleIdentifiers,
         focusableFloatingWindows: Configuration.focusableFloatingWindows
