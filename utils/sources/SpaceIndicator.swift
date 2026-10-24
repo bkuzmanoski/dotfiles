@@ -496,7 +496,7 @@ struct SpaceIndicatorView: View {
   }
 
   let model: SpaceIndicatorModel
-  let onWidthChanged: (CGFloat) -> Void
+  let onWidthChange: (CGFloat) -> Void
 
   var body: some View {
     HStack(spacing: 12) {
@@ -537,7 +537,7 @@ struct SpaceIndicatorView: View {
     .onGeometryChange(for: CGFloat.self) { proxy in
       proxy.size.width
     } action: { newWidth in
-      onWidthChanged(newWidth)
+      onWidthChange(newWidth)
     }
   }
 }
@@ -565,7 +565,7 @@ final class StatusItemManager: NSObject {
 
     let spaceIndicatorView = SpaceIndicatorView(
       model: spaceIndicatorModel,
-      onWidthChanged: { [weak self] width in
+      onWidthChange: { [weak self] width in
         self?.setStatusItemWidth(to: width)
       }
     )

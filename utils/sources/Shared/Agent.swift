@@ -71,7 +71,7 @@ enum Agent {
   }
 
   private static func observeProcessSignals() async {
-    for await _ in ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP) {
+    for await _ in ProcessSignals.signals(SIGINT, SIGTERM, SIGHUP) {
       NSApplication.shared.terminate(nil)
     }
   }

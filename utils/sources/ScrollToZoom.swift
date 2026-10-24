@@ -20,7 +20,7 @@ final class ZoomManager {
   init(modifierKey: CGEventFlags, zoomSensitivity: Double) throws {
     self.modifierKey = modifierKey
     self.zoomSensitivity = zoomSensitivity
-    self.eventTap = try EventTap(location: .cgSessionEventTap, eventTypes: [.scrollWheel])
+    self.eventTap = try EventTap(location: .cgSessionEventTap, filtering: [.scrollWheel])
 
     eventTap.eventHandler = { [weak self] event in
       self?.handleEvent(event) ?? false

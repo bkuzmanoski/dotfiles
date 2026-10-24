@@ -2977,7 +2977,7 @@ final class AppController {
     case keyboardCommands([KeyboardCommand])
     case quit
 
-    static func stream(pendingInput: [UInt8]) -> AsyncStream<Event> {
+    static func events(pendingInput: [UInt8]) -> AsyncStream<Event> {
       let (stream, continuation) = AsyncStream.makeStream(of: Event.self)
       let pendingCommands = KeyboardCommand.commands(in: pendingInput)
 
@@ -2985,9 +2985,8 @@ final class AppController {
         continuation.yield(.keyboardCommands(pendingCommands))
       }
 
-      let processSignals = ProcessSignals.stream(for: SIGINT, SIGTERM, SIGHUP, SIGWINCH, SIGTSTP)
       let processSignalsTask = Task {
-        for await signal in processSignals {
+        for await signal in ProcessSignals.signals(SIGINT, SIGTERM, SIGHUP, SIGWINCH, SIGTSTP) {
           switch signal {
           case SIGWINCH: continuation.yield(.redraw)
           case SIGTSTP: continuation.yield(.suspend)
@@ -3061,7 +3060,7 @@ final class AppController {
       refreshTask?.cancel()
     }
 
-    for await event in Event.stream(pendingInput: terminalSession.takePendingInput()) {
+    for await event in Event.events(pendingInput: terminalSession.takePendingInput()) {
       switch event {
       case .redraw: draw()
       case .suspend: suspend()

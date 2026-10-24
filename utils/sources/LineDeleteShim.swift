@@ -76,7 +76,7 @@ final class LineDeleteManager {
       keyRepeatSettings.initialDelay - eventSettlingDelay
     )
     self.delayBetweenRepeats = effectiveKeyRepeatInterval - eventSettlingDelay
-    self.eventTap = try EventTap(location: .cgSessionEventTap, eventTypes: [.keyDown, .keyUp])
+    self.eventTap = try EventTap(location: .cgSessionEventTap, filtering: [.keyDown, .keyUp])
 
     AXUIElement.setGlobalMessagingTimeout(seconds: 0.05)
 

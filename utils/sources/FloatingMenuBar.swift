@@ -294,7 +294,7 @@ final class AppDelegate: NSObject, AgentDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let eventTap = try EventTap(location: .cgSessionEventTap, eventTypes: [.rightMouseDown])
+      let eventTap = try EventTap(location: .cgSessionEventTap, filtering: [.rightMouseDown])
       eventTap.eventHandler = { [weak self] event in self?.handleEvent(event) ?? false }
       eventTap.isEnabled = true
 

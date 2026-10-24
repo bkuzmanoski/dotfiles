@@ -1,7 +1,7 @@
 import Foundation
 
 enum ProcessSignals {
-  static func stream(for signals: Int32...) -> AsyncStream<Int32> {
+  static func signals(_ signals: Int32...) -> AsyncStream<Int32> {
     let (stream, continuation) = AsyncStream.makeStream(of: Int32.self)
 
     var sources: [any DispatchSourceSignal] = []

@@ -949,7 +949,7 @@ final class MeasurementSession {
     try ScreenCapturePermission.ensureGranted()
 
     let skyLightFramework = try SkyLightFramework()
-    let eventTap = try EventTap(location: .cghidEventTap, eventTypes: [.flagsChanged])
+    let eventTap = try EventTap(location: .cghidEventTap, filtering: [.flagsChanged])
 
     guard let displayID = screen.cgDirectDisplayID else {
       throw Error.failedToDetermineDisplayID

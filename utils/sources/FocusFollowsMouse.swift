@@ -11,6 +11,7 @@ enum Configuration {
   ]
   static let hoverDelay: DispatchTimeInterval = .milliseconds(300)
   static let crossDisplayHoverDelay: DispatchTimeInterval = .milliseconds(60)
+  static let focusChangeGracePeriod: DispatchTimeInterval = .seconds(500)
   static let jitterThreshold = 3
 }
 

@@ -147,8 +147,7 @@ final class ClickMonitor {
     self.isSuspended = isSuspended
     self.eventTap = try EventTap(
       location: .cghidEventTap,
-      options: .listenOnly,
-      eventTypes: [.leftMouseDown, .leftMouseUp, .otherMouseDown, .otherMouseUp, .rightMouseDown, .rightMouseUp]
+      observing: [.leftMouseDown, .leftMouseUp, .otherMouseDown, .otherMouseUp, .rightMouseDown, .rightMouseUp]
     )
 
     eventTap.eventObserver = { [weak self] event in
@@ -214,7 +213,7 @@ final class ClickMonitor {
   }
 }
 
-final class SystemOutputDeviceObserver {
+final class OutputDeviceMonitor {
   enum Error: Swift.Error, LocalizedError {
     case failedToDetermineOutputDevice(status: OSStatus)
     case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
@@ -245,14 +244,12 @@ final class SystemOutputDeviceObserver {
     mScope: kAudioObjectPropertyScopeGlobal,
     mElement: kAudioObjectPropertyElementMain
   )
-  private let onTransportTypeChanged: (AudioDeviceTransportType) -> Void
   private lazy var systemOutputDevicePropertyListenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
     self?.handleOutputDeviceChanged()
   }
+  private var continuation: AsyncStream<AudioDeviceTransportType>.Continuation?
 
-  init(onTransportTypeChanged: @escaping (AudioDeviceTransportType) -> Void) throws {
-    self.onTransportTypeChanged = onTransportTypeChanged
-
+  init() throws {
     var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
 
     let status = AudioObjectAddPropertyListenerBlock(
@@ -268,6 +265,8 @@ final class SystemOutputDeviceObserver {
   }
 
   deinit {
+    continuation?.finish()
+
     var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
     AudioObjectRemovePropertyListenerBlock(
       systemObjectID,
@@ -275,6 +274,16 @@ final class SystemOutputDeviceObserver {
       .main,
       systemOutputDevicePropertyListenerBlock
     )
+  }
+
+  func transportTypes() -> AsyncStream<AudioDeviceTransportType> {
+    continuation?.finish()
+
+    let (stream, continuation) = AsyncStream.makeStream(of: AudioDeviceTransportType.self)
+
+    self.continuation = continuation
+
+    return stream
   }
 
   func currentTransportType() throws -> AudioDeviceTransportType {
@@ -336,31 +345,38 @@ final class SystemOutputDeviceObserver {
       transportType = kAudioDeviceTransportTypeUnknown
     }
 
-    onTransportTypeChanged(transportType)
+    continuation?.yield(transportType)
   }
 }
 
 @MainActor
 final class AppDelegate: NSObject, AgentDelegate {
-  private var systemOutputDeviceObserver: SystemOutputDeviceObserver?
+  private var outputDeviceMonitor: OutputDeviceMonitor?
   private var clickMonitor: ClickMonitor?
+  private var transportTypeObservationTask: Task<Void, Never>?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let systemOutputDeviceObserver = try SystemOutputDeviceObserver { [weak self] transportType in
-        self?.clickMonitor?.setSuspended(transportType.isBluetooth)
-      }
-
+      let outputDeviceMonitor = try OutputDeviceMonitor()
       let soundEffectManager = try SoundEffectManager(
         soundFileDirectoryURL: URL(filePath: Configuration.soundFileDirectoryPath, directoryHint: .isDirectory)
       )
       let clickMonitor = try ClickMonitor(
         soundEffectManager: soundEffectManager,
-        isSuspended: systemOutputDeviceObserver.currentTransportType().isBluetooth
+        isSuspended: outputDeviceMonitor.currentTransportType().isBluetooth
       )
 
-      self.systemOutputDeviceObserver = systemOutputDeviceObserver
+      self.outputDeviceMonitor = outputDeviceMonitor
       self.clickMonitor = clickMonitor
+      self.transportTypeObservationTask = Task { [weak self] in
+        for await transportType in outputDeviceMonitor.transportTypes() {
+          guard let self else {
+            break
+          }
+
+          self.clickMonitor?.setSuspended(transportType.isBluetooth)
+        }
+      }
     } catch {
       Log.error(error.localizedDescription)
       exit(EXIT_FAILURE)
@@ -368,7 +384,10 @@ final class AppDelegate: NSObject, AgentDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    self.systemOutputDeviceObserver = nil
+    transportTypeObservationTask?.cancel()
+
+    self.transportTypeObservationTask = nil
+    self.outputDeviceMonitor = nil
     self.clickMonitor = nil
   }
 

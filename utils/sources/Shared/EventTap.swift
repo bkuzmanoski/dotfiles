@@ -34,7 +34,15 @@ final class EventTap {
   private var machPort: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
 
-  init(location: CGEventTapLocation, options: CGEventTapOptions = .defaultTap, eventTypes: [CGEventType]) throws {
+  convenience init(location: CGEventTapLocation, filtering eventTypes: [CGEventType]) throws {
+    try self.init(location: location, options: .defaultTap, eventTypes: eventTypes)
+  }
+
+  convenience init(location: CGEventTapLocation, observing eventTypes: [CGEventType]) throws {
+    try self.init(location: location, options: .listenOnly, eventTypes: eventTypes)
+  }
+
+  private init(location: CGEventTapLocation, options: CGEventTapOptions, eventTypes: [CGEventType]) throws {
     try AccessibilityPermission.ensureGranted()
 
     self.options = options

@@ -23,7 +23,7 @@ final class HotkeyManager {
 
   init(keymap: [CGKeyCode: CGKeyCode]) throws {
     self.keymap = keymap
-    self.eventTap = try EventTap(location: .cgSessionEventTap, eventTypes: [.keyDown, .keyUp])
+    self.eventTap = try EventTap(location: .cgSessionEventTap, filtering: [.keyDown, .keyUp])
 
     eventTap.eventHandler = { [weak self] event in
       self?.handleEvent(event) ?? false
