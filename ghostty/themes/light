@@ -9,7 +9,7 @@ search-background = #b3c3b9
 search-selected-foreground = cell-foreground
 search-selected-background = #a2afa6
 
-split-divider-color = #d8d8d8
+split-divider-color = #d5d5d5
 
 palette = 0=#353535
 palette = 1=#b03645
