@@ -318,6 +318,7 @@ final class AppDelegate: NSObject, AgentDelegate {
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.map { "\($0.isActive)" } ?? "<none>")
+        Event tap Mach port valid: \(eventTap.map { "\($0.isMachPortValid)" } ?? "<none>")
       """
     )
   }

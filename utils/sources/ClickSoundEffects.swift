@@ -180,6 +180,7 @@ final class ClickMonitor {
         Accessibility permission: \(AccessibilityPermission.isGranted)
         Enabled: \(isEnabled)
         Event tap active: \(eventTap.isActive)
+        Event tap Mach port valid: \(eventTap.isMachPortValid)
         Suspended: \(isSuspended)
       """
     )

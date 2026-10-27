@@ -52,6 +52,7 @@ final class ZoomManager {
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
+        Event tap Mach port valid: \(eventTap.isMachPortValid)
         Zooming: \(isZooming)
         Modifier key: \(modifierKey.rawValue)
         Zoom sensitivity: \(zoomSensitivity)

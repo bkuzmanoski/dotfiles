@@ -403,6 +403,7 @@ final class FocusManager {
         Screen capture permission: \(ScreenCapturePermission.isGranted)
         Enabled: \(isEnabled)
         Event tap active: \(eventTap.isActive)
+        Event tap Mach port valid: \(eventTap.isMachPortValid)
         Suspended: \(isCommandKeyPressed || isScreenLocked || !suspendingWindows.isEmpty)
           Command key pressed: \(isCommandKeyPressed)
           Screen locked: \(isScreenLocked)

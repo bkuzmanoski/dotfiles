@@ -98,6 +98,7 @@ final class LineDeleteManager {
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
+        Event tap Mach port valid: \(eventTap.isMachPortValid)
         Target app focused: \(isTargetApplicationFocused)
         Performing key sequences: \(keyRepeatTask != nil)
         Target bundle IDs: \(targetBundleIdentifiers.sorted().joined(separator: ", "))

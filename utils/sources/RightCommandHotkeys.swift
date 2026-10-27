@@ -43,6 +43,7 @@ final class HotkeyManager {
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
         Event tap active: \(eventTap.isActive)
+        Event tap Mach port valid: \(eventTap.isMachPortValid)
         Active hotkeys: \(activeHotkeys.count)
         Mapped hotkeys: \(keymap.count)
       """
