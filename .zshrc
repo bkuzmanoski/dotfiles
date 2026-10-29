@@ -3,7 +3,7 @@ export HOMEBREW_NO_ENV_HINTS=1
 export RIPGREP_CONFIG_PATH="${HOME}/.config/ripgrep/ripgreprc"
 
 if [[ -o interactive ]]; then
-  export EDITOR="code"
+  export EDITOR="code --wait"
   export EZA_CONFIG_DIR="${HOME}/.config/eza"
   export FZF_NAVIGATOR_BINDINGS="left:go_back,right:go_forward"
   export FZF_NAVIGATOR_FILE_PREVIEW_COMMAND='if __fzf_navigator_is_binary "${full_path}"; then __fzf_navigator_default_preview_file "${full_path}"; else bat --color=always --style=numbers --theme="$([[ $(defaults read NSGlobalDomain AppleInterfaceStyle 2>/dev/null) == "Dark" ]] && echo "dark" || echo "light")" "${full_path}"; fi; :'
