@@ -431,6 +431,10 @@ defaults_write com.apple.dt.Xcode IDECustomBuildLocationType -string "RelativeTo
 defaults_write com.apple.dt.Xcode IDECustomBuildProductsPath -string "Build/Products"
 defaults_write com.apple.dt.Xcode IDECustomDerivedDataLocation -string "DerivedData"
 
+defaults_write com.apple.Safari NSUserKeyEquivalents -dict-add "Close Web Inspector" "\$@i" # Map "Close Web Inspector" keyboard shortcut to ⇧⌘I
+defaults_write com.apple.Safari NSUserKeyEquivalents -dict-add "Show Web Inspector" "\$@i"  # Map "Show Web Inspector" keyboard shortcut to ⇧⌘I
+defaults_write com.apple.Safari UserStyleSheetLocationURLString -string "/Users/bkuzmanoski/Library/Mobile Documents/com~apple~CloudDocs/Safari/user-styles.css"
+
 defaults_write com.colliderli.iina actionAfterLaunch -int 2
 defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
 defaults_write com.colliderli.iina enableOSD -bool false
