@@ -497,6 +497,13 @@ defaults_write me.damir.dropover-mac RegisteredKeyboardActionIdentifiers -array
 defaults_write me.damir.dropover-mac ShakeGestureDisabled -bool true
 defaults_write me.damir.dropover-mac ShelfTriggerModifierKey -string "command"
 
+apply_json_values "${HOME}/.claude/settings.json" <<-"EOF"
+	{
+		"idleCompaction": false,
+		"outputStyle": "Concise"
+	}
+EOF
+
 apply_json_values "${HOME}/.lmstudio/settings.json" <<-"EOF"
 	{
 	  "chat": {
