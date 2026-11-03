@@ -1,0 +1,85 @@
+/* Spotify */
+html.spotify__container--is-web {
+  filter: contrast(90%);
+
+  @media (prefers-color-scheme: light) {
+    background-color: #e5e5e5 !important;
+    filter: invert(90%) hue-rotate(180deg);
+
+    img,
+    video,
+    canvas,
+    figure svg {
+      filter: invert(100%) hue-rotate(-180deg);
+    }
+  }
+
+  #global-nav-bar > div:last-child {
+    display: none !important;
+  }
+}
+
+/* YouTube */
+ytd-app {
+  #country-code,
+  #voice-search-button,
+  ytd-masthead #end > *,
+  #guide-renderer yt-icon,
+  ytd-guide-section-renderer > h3,
+  #footer,
+  ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
+  ytd-guide-entry-renderer:has(
+    a:is(
+      [title="Shorts"],
+      [title="You"],
+      [title="Your videos"],
+      [title="Downloads"],
+      [title="Show more"],
+      [href*="/feed/storefront"],
+      [href="/gaming"],
+      [href="/feed/hype"]
+    )
+  ),
+  #items:has(a[href="/feed/subscriptions"])
+    > :is(ytd-guide-entry-renderer, ytd-guide-collapsible-entry-renderer),
+  ytd-guide-section-renderer:has(
+    a:is([href*="youtubekids.com"], [href="/reporthistory"])
+  ),
+  .ytListItemViewModelHost:has(
+    a:is([href="/feed/downloads"], [href="/feed/you"])
+  ),
+  .ytListItemViewModelHost:not(yt-dialog-view-model *):has(
+      a[href*="/channel"]
+    ) {
+    display: none !important;
+  }
+
+  #sections > ytd-guide-section-renderer {
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+    margin-bottom: 4px !important;
+
+    &:not(:first-child) {
+      padding-top: 0 !important;
+    }
+  }
+
+  #section-items > ytd-guide-entry-renderer:not(:last-child) {
+    margin-bottom: 4px;
+  }
+
+  tp-yt-app-drawer ytd-guide-entry-renderer {
+    yt-formatted-string {
+      font-size: 16px !important;
+      font-weight: 400 !important;
+    }
+
+    &[active] yt-formatted-string {
+      font-weight: 500 !important;
+    }
+  }
+
+  ytd-rich-grid-renderer {
+    margin-right: 20px;
+  }
+}
