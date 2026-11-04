@@ -36,6 +36,10 @@ enum Agent {
       exit(EXIT_FAILURE)
     }
 
+    if CommandLine.arguments.dropFirst().first?.lowercased() == Delegate.IPCCommand.printLog.rawValue {
+      printLogFile(subsystem: subsystem, isRunning: false)
+    }
+
     if isatty(FileDescriptor.standardOutput.rawValue) == 0 {
       do {
         try Log.redirectOutput(to: temporaryFilePath(subsystem: subsystem, pathExtension: "log"))
@@ -125,28 +129,37 @@ enum Agent {
 
     if ipcCommand == .printLog {
       Thread.sleep(forTimeInterval: 0.2)
+      printLogFile(subsystem: subsystem, isRunning: true)
+    }
 
-      let logFilePath = temporaryFilePath(subsystem: subsystem, pathExtension: "log")
+    exit(EXIT_SUCCESS)
+  }
 
-      guard FileManager.default.fileExists(atPath: logFilePath.string) else {
-        Log.error("Log file does not exist.")
-        exit(EX_NOINPUT)
+  private static func printLogFile(subsystem: String, isRunning: Bool) -> Never {
+    let logFilePath = temporaryFilePath(subsystem: subsystem, pathExtension: "log")
+
+    guard FileManager.default.fileExists(atPath: logFilePath.string) else {
+      Log.error("Log file does not exist.")
+      exit(EX_NOINPUT)
+    }
+
+    if !isRunning {
+      print("Not running. Showing log from the last launch.\n")
+    }
+
+    print("Log file path: \(logFilePath)\n")
+
+    do {
+      let logContents = try String(contentsOfFile: logFilePath.string, encoding: .utf8)
+
+      if logContents.isEmpty {
+        print("<EMPTY>")
+      } else {
+        print(logContents)
       }
-
-      print("Log file path: \(logFilePath)\n")
-
-      do {
-        let logContents = try String(contentsOfFile: logFilePath.string, encoding: .utf8)
-
-        if logContents.isEmpty {
-          print("<EMPTY>")
-        } else {
-          print(logContents)
-        }
-      } catch {
-        Log.error("Failed to read log file: \(error.localizedDescription)")
-        exit(EXIT_FAILURE)
-      }
+    } catch {
+      Log.error("Failed to read log file: \(error.localizedDescription)")
+      exit(EXIT_FAILURE)
     }
 
     exit(EXIT_SUCCESS)
