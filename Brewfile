@@ -44,7 +44,7 @@ cask "1password"
 cask "affinity"
 cask "alt-tab"
 cask "andreypudov/core-eq/core-eq", trusted: true
-cask "android-commandlinetools"
+cask "android-cli"
 cask "apparency"
 cask "archaeology"
 cask "asset-catalog-tinkerer"
@@ -70,7 +70,6 @@ cask "saffsanity/sill/sill", trusted: true
 cask "sentry-cli"
 cask "sf-symbols"
 cask "sloth"
-cask "temurin"
 cask "utm"
 cask "visual-studio-code"
 
