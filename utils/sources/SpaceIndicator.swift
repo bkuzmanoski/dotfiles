@@ -528,7 +528,7 @@ struct SpaceIndicatorView: View {
             .shadow(color: .black.opacity(0.3), radius: 1, x: 0, y: 0.5)
           }
         }
-        .opacity(space.isCurrent ? 1 : 0.45)
+        .opacity(space.isCurrent ? 1 : 0.5)
         .animation(.snappy(duration: 0.2), value: space.isCurrent)
       }
     }
