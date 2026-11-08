@@ -5,6 +5,9 @@ readonly SCRIPT_DIR="${0:A:h}"
 readonly SOURCES_DIR="${SCRIPT_DIR}/sources"
 readonly BIN_DIR="${SCRIPT_DIR}/bin"
 
+readonly MAX_DETACH_AFTER_SECONDS=86400
+readonly DETACH_AFTER_SECONDS_PATTERN="<1-${MAX_DETACH_AFTER_SECONDS}>"
+
 readonly SWIFT_COMPILE_COMMANDS_JSON_PATH="${SCRIPT_DIR}/compile_commands.json"
 readonly SWIFT_SHARED_DIRECTIVE_PREFIX="// Shared:"
 readonly SWIFT_SHARED_SOURCES_DIR="${SOURCES_DIR}/Shared"
@@ -23,15 +26,16 @@ readonly -a SWIFT_FLAGS=(
 # =============================================================================
 
 function print_usage() {
-  cat <<-EOF
+  command cat <<-EOF
 		Usage:
 		  ${SCRIPT_NAME} [options] <command_or_source_file> [command_args...]
 
 		Options:
-		  -b, --background        Run the command in the background (no output to terminal)
-		  -B, --build-only        Only compile the command if needed, do not execute it
-		  -c, --compile-commands  Regenerate compile_commands.json and exit
-		  -h, --help              Show this help message
+		  -b, --background              Run the command in the background (no output to terminal)
+      -d, --detach-after <seconds>  Run in background if not completed within <seconds>
+		  -B, --build-only              Only compile the command if needed, do not execute it
+		  -c, --compile-commands        Regenerate compile_commands.json and exit
+		  -h, --help                    Show this help message
 	EOF
 }
 
@@ -86,7 +90,7 @@ function resolve_shared_sources() {
     local -a scanned_file_lines=("${(@f)$(<"${scanned_file}")}")
     local -a leading_comment_block=("${(@)scanned_file_lines[1,${scanned_file_lines[(i)^(//*|)]}-1]}")
     local -a shared_directives=("${(@M)leading_comment_block:#"${SWIFT_SHARED_DIRECTIVE_PREFIX}"*}")
-    # shellcheck disable=SC2086,SC2206 # Intentionally split the directives into names
+    # shellcheck disable=SC2086,SC2206 # Intentionally split the directives into names.
     local -a shared_source_names=(${=shared_directives#"${SWIFT_SHARED_DIRECTIVE_PREFIX}"})
 
     for shared_source_name in "${shared_source_names[@]}"; do
@@ -146,7 +150,7 @@ function write_compile_commands_json() {
 
       files_with_entries+=("${entry_file}")
       compile_command_entries+=("$(
-        cat <<-EOF
+        command cat <<-EOF
 				  {
 				    "directory": "${SCRIPT_DIR}",
 				    "file": "${entry_file}",
@@ -227,13 +231,68 @@ function compile_util() {
   return 0
 }
 
+function run_detaching_after_and_exit() {
+  local detach_after_seconds="$1"
+  shift
+
+  zmodload zsh/datetime
+
+  local stdout_file
+  stdout_file="$(mktemp -t "${UTIL_NAME}")"
+
+  local stderr_file
+  stderr_file="$(mktemp -t "${UTIL_NAME}")"
+
+  local stdout_write_fd
+  local stdout_read_fd
+  local stderr_write_fd
+  local stderr_read_fd
+
+  # Buffer output in files so callers do not wait while the command continues running.
+  # shellcheck disable=SC2094 # Separate descriptors for writing and reading the same file.
+  exec {stdout_write_fd}>"${stdout_file}" {stdout_read_fd}<"${stdout_file}"
+  # shellcheck disable=SC2094 # Separate descriptors for writing and reading the same file.
+  exec {stderr_write_fd}>"${stderr_file}" {stderr_read_fd}<"${stderr_file}"
+
+  # Unlink the files immediately (the open descriptors keep them available without leaving files behind).
+  rm -f "${stdout_file}" "${stderr_file}"
+
+  # shellcheck disable=SC2261 # The descriptors are different, ShellCheck just can't tell.
+  "$@" >&"${stdout_write_fd}" 2>&"${stderr_write_fd}" </dev/null &
+
+  local command_pid=$!
+  local deadline=$((EPOCHREALTIME + detach_after_seconds))
+
+  while kill -0 "${command_pid}" 2>/dev/null && ((EPOCHREALTIME < deadline)); do
+    sleep 0.05
+  done
+
+  if kill -0 "${command_pid}" 2>/dev/null; then
+    exit 0
+  fi
+
+  wait "${command_pid}"
+
+  local exit_status=$?
+
+  command cat <&"${stdout_read_fd}"
+  command cat <&"${stderr_read_fd}" >&2
+
+  exit "${exit_status}"
+}
+
 function run_and_exit() {
   local in_background="$1"
-  shift
+  local detach_after_seconds="$2"
+  shift 2
 
   if ((in_background)); then
     nohup "$@" >/dev/null 2>&1 &
     exit 0
+
+  elif [[ -n "${detach_after_seconds}" ]]; then
+    run_detaching_after_and_exit "${detach_after_seconds}" "$@"
+
   else
     exec "$@"
   fi
@@ -246,6 +305,7 @@ function run_and_exit() {
 # shellcheck disable=SC2034
 if ! zparseopts -D -F \
   {b,-background}=flag_background \
+  {d,-detach-after}:=option_detach_after \
   {B,-build-only}=flag_build_only \
   {c,-compile-commands}=flag_compile_commands \
   {h,-help}=flag_help \
@@ -258,9 +318,16 @@ if ((${#flag_help} > 0)); then
   exit 0
 fi
 
+readonly DETACH_AFTER_SECONDS="${option_detach_after[-1]#=}"
+
+# Use pattern matching instead of arithmetic to support leading zeros and avoid overflow for long numbers.
+if ((${#option_detach_after} > 0)) && [[ "${DETACH_AFTER_SECONDS}" != ${~DETACH_AFTER_SECONDS_PATTERN} ]]; then
+  exit_with_usage_error "--detach-after requires a whole number of seconds from 1 to ${MAX_DETACH_AFTER_SECONDS} (got '${DETACH_AFTER_SECONDS}')."
+fi
+
 if ((${#flag_compile_commands} > 0)); then
-  if ((${#flag_background} > 0 || ${#flag_build_only} > 0)); then
-    exit_with_usage_error "--compile-commands cannot be combined with --background or --build-only."
+  if ((${#flag_background} > 0 || ${#flag_build_only} > 0)) || [[ -n "${DETACH_AFTER_SECONDS}" ]]; then
+    exit_with_usage_error "--compile-commands cannot be combined with --background, --detach-after, or --build-only."
   fi
 
   if (($# > 0)); then
@@ -277,6 +344,10 @@ fi
 
 if ((${#flag_background} > 0 && ${#flag_build_only} > 0)); then
   exit_with_usage_error "--background cannot be combined with --build-only."
+fi
+
+if [[ -n "${DETACH_AFTER_SECONDS}" ]] && ((${#flag_background} > 0 || ${#flag_build_only} > 0)); then
+  exit_with_usage_error "--detach-after cannot be combined with --background or --build-only."
 fi
 
 if (($# == 0)); then
@@ -329,10 +400,10 @@ if ((${#flag_build_only} > 0)); then
 fi
 
 if [[ "${SOURCE_FILE_EXTENSION}" == "swift" && -x "${BIN_PATH}" ]]; then
-  run_and_exit "${#flag_background}" "${BIN_PATH}" "$@"
+  run_and_exit "${#flag_background}" "${DETACH_AFTER_SECONDS}" "${BIN_PATH}" "$@"
 
 elif [[ "${SOURCE_FILE_EXTENSION}" == "applescript" && -e "${BIN_PATH}" ]]; then
-  run_and_exit "${#flag_background}" osascript "${BIN_PATH}" "$@"
+  run_and_exit "${#flag_background}" "${DETACH_AFTER_SECONDS}" osascript "${BIN_PATH}" "$@"
 
 else
   exit_with_error "Failed to locate executable."

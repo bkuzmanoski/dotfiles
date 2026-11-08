@@ -7,4 +7,5 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_util.sh MeasurePixels "$1"
+# Raycast times out scripts after 30 seconds.
+${HOME}/.dotfiles/utils/run_util.sh --detach-after 27 MeasurePixels "$1"

@@ -57,7 +57,7 @@ function set_system_hotkey() {
   local parameter3="$5"
   local dict_value
   dict_value=$(
-    cat <<-EOF
+    command cat <<-EOF
 			<dict>
 				<key>enabled</key>
 				<${enabled}/>

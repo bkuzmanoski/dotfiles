@@ -8,4 +8,5 @@
 # @raycast.mode silent
 # @raycast.schemaVersion 1
 
-${HOME}/.dotfiles/utils/run_util.sh SampleColor --format "$1" --color-space "$2"
+# Raycast times out scripts after 30 seconds.
+${HOME}/.dotfiles/utils/run_util.sh --detach-after 27 SampleColor --format "$1" --color-space "$2"

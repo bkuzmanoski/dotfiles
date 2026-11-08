@@ -15,7 +15,7 @@ function cf() {
     return 1
   fi
 
-  if ! zparseopts -D -E -K \
+  if ! zparseopts -D -E \
     {o,-output}:=output_file \
     {h,-help}=flag_help \
     2>/dev/null; then
