@@ -71,7 +71,7 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
         - Turn on "Integrate with 1Password CLI"
 
   - Affinity
-    - Set up studios: "Pixel", "Colour Grading", "Retouching"
+    - Set up studios: "Pixel", "Vector", "Retouching", "Colour Grading", "Compositing"
     - Settings
       - General → Document → Turn off "Reopen document(s) on startup"
       - Machine Learning Models -> Segmentation -> Install
