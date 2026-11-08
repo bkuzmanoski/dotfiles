@@ -495,6 +495,8 @@ struct SpaceIndicatorView: View {
     static let cutoutMaskCornerRadius: CGFloat = (cutoutMaskSize * cornerRatio) + (overlapGap / 2)
   }
 
+  private static let drawingGroupInset: CGFloat = 4.0
+
   let model: SpaceIndicatorModel
   let onWidthChange: (CGFloat) -> Void
 
@@ -533,6 +535,12 @@ struct SpaceIndicatorView: View {
       }
     }
     .padding(.horizontal, 14)
+    // Render as a single layer so the menu bar's mirrored status item stays in sync during space transitions. Nested
+    // opacity, shadow, and blend layers otherwise render incorrectly and prevent opacity animation. Vertical padding
+    // leaves room for shadows within the flattened bounds.
+    .padding(.vertical, Self.drawingGroupInset)
+    .drawingGroup()
+    .padding(.vertical, -Self.drawingGroupInset)
     .fixedSize()
     .onGeometryChange(for: CGFloat.self) { proxy in
       proxy.size.width
