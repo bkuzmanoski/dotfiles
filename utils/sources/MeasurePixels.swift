@@ -1,4 +1,4 @@
-// Shared: EventTap Log ScreenCapturePermission SkyLightFramework Spaces
+// Shared: EventTap Log NSScreen SCShareableContent ScreenCapturePermission SkyLightFramework Spaces
 
 import ScreenCaptureKit
 
@@ -14,17 +14,6 @@ enum Configuration {
   static let labelCornerRadius: CGFloat = 4.0
   static let labelPadding: (horizontal: CGFloat, vertical: CGFloat) = (4.0, 2.0)
   static let spanMeasurementRGBDifferenceThreshold = 20
-}
-
-extension NSScreen {
-  static var screenContainingMouse: NSScreen? {
-    let mouseLocation = NSEvent.mouseLocation
-    return screens.first { $0.frame.contains(mouseLocation) }
-  }
-
-  static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
-    return screens.first { $0.cgDirectDisplayID == displayID }
-  }
 }
 
 extension NSCursor {
@@ -374,36 +363,23 @@ enum EdgeDetector {
 enum ScreenCaptureService {
   enum Error: Swift.Error, LocalizedError {
     case screenNotFound(CGDirectDisplayID)
-    case displayNotFound
     case missingSdrImage
 
     var errorDescription: String? {
       switch self {
       case .screenNotFound(let displayID): "Screen for display ID \(displayID) not found."
-      case .displayNotFound: "Display not found in shareable content."
       case .missingSdrImage: "Captured screenshot is missing SDR image representation."
       }
     }
   }
 
-  nonisolated static func capture(displayID: CGDirectDisplayID) async throws -> ScreenCapture {
-    let availableContent = try await SCShareableContent.current
-
+  @concurrent
+  static func capture(displayID: CGDirectDisplayID) async throws -> ScreenCapture {
     guard let screen = NSScreen.screen(for: displayID) else {
       throw Error.screenNotFound(displayID)
     }
 
-    guard let display = availableContent.displays.first(where: { $0.displayID == displayID }) else {
-      throw Error.displayNotFound
-    }
-
-    let contentFilter = SCContentFilter(
-      display: display,
-      excludingApplications: availableContent.applications
-        .first { $0.processID == NSRunningApplication.current.processIdentifier }
-        .map { [$0] } ?? [],
-      exceptingWindows: []
-    )
+    let contentFilter = try await SCShareableContent.current.contentFilter(forDisplay: displayID)
     let configuration = SCScreenshotConfiguration()
     configuration.dynamicRange = .sdr
     configuration.ignoreShadows = false

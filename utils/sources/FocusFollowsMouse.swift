@@ -564,7 +564,8 @@ final class FocusManager {
     }
   }
 
-  private nonisolated func focusWindow(at point: CGPoint) async {
+  @concurrent
+  private func focusWindow(at point: CGPoint) async {
     var targetPSN = ProcessSerialNumber()
 
     guard

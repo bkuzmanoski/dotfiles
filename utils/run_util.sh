@@ -32,7 +32,9 @@ function print_usage() {
 
 		Options:
 		  -b, --background              Run the command in the background (no output to terminal)
-      -d, --detach-after <seconds>  Run in background if not completed within <seconds>
+      -p, --normal-priority         With --background, use normal priority instead of reduced priority
+      -e, --efficiency              With --background, apply the background policy
+		  -d, --detach-after <seconds>  Run in background if not completed within <seconds>
 		  -B, --build-only              Only compile the command if needed, do not execute it
 		  -c, --compile-commands        Regenerate compile_commands.json and exit
 		  -h, --help                    Show this help message
@@ -232,6 +234,8 @@ function compile_util() {
 }
 
 function run_detaching_after_and_exit() {
+  setopt localoptions nobgnice
+
   local detach_after_seconds="$1"
   shift
 
@@ -283,11 +287,22 @@ function run_detaching_after_and_exit() {
 
 function run_and_exit() {
   local in_background="$1"
-  local detach_after_seconds="$2"
-  shift 2
+  local normal_priority="$2"
+  local efficiency="$3"
+  local detach_after_seconds="$4"
+  shift 4
 
   if ((in_background)); then
-    nohup "$@" >/dev/null 2>&1 &
+    if ((normal_priority)); then
+      setopt localoptions nobgnice
+    fi
+
+    if ((efficiency)); then
+      nohup taskpolicy -b "$@" >/dev/null 2>&1 &
+    else
+      nohup "$@" >/dev/null 2>&1 &
+    fi
+
     exit 0
 
   elif [[ -n "${detach_after_seconds}" ]]; then
@@ -305,6 +320,8 @@ function run_and_exit() {
 # shellcheck disable=SC2034
 if ! zparseopts -D -F \
   {b,-background}=flag_background \
+  {p,-normal-priority}=flag_normal_priority \
+  {e,-efficiency}=flag_efficiency \
   {d,-detach-after}:=option_detach_after \
   {B,-build-only}=flag_build_only \
   {c,-compile-commands}=flag_compile_commands \
@@ -325,9 +342,25 @@ if ((${#option_detach_after} > 0)) && [[ "${DETACH_AFTER_SECONDS}" != ${~DETACH_
   exit_with_usage_error "--detach-after requires a whole number of seconds from 1 to ${MAX_DETACH_AFTER_SECONDS} (got '${DETACH_AFTER_SECONDS}')."
 fi
 
+if ((${#flag_normal_priority} > 0 && ${#flag_background} == 0)); then
+  if [[ -n "${DETACH_AFTER_SECONDS}" ]]; then
+    exit_with_usage_error "--normal-priority and --detach-after cannot be used together (--detach-after always uses normal priority)."
+  fi
+
+  exit_with_usage_error "--normal-priority requires --background."
+fi
+
+if ((${#flag_efficiency} > 0 && ${#flag_background} == 0)); then
+  exit_with_usage_error "--efficiency requires --background."
+fi
+
+if ((${#flag_normal_priority} > 0 && ${#flag_efficiency} > 0)); then
+  exit_with_usage_error "--normal-priority and --efficiency cannot be used together."
+fi
+
 if ((${#flag_compile_commands} > 0)); then
   if ((${#flag_background} > 0 || ${#flag_build_only} > 0)) || [[ -n "${DETACH_AFTER_SECONDS}" ]]; then
-    exit_with_usage_error "--compile-commands cannot be combined with --background, --detach-after, or --build-only."
+    exit_with_usage_error "--compile-commands cannot be used with --background, --detach-after, or --build-only."
   fi
 
   if (($# > 0)); then
@@ -343,11 +376,11 @@ if ((${#flag_compile_commands} > 0)); then
 fi
 
 if ((${#flag_background} > 0 && ${#flag_build_only} > 0)); then
-  exit_with_usage_error "--background cannot be combined with --build-only."
+  exit_with_usage_error "--background and --build-only cannot be used together."
 fi
 
 if [[ -n "${DETACH_AFTER_SECONDS}" ]] && ((${#flag_background} > 0 || ${#flag_build_only} > 0)); then
-  exit_with_usage_error "--detach-after cannot be combined with --background or --build-only."
+  exit_with_usage_error "--detach-after cannot be used with --background or --build-only."
 fi
 
 if (($# == 0)); then
@@ -400,10 +433,10 @@ if ((${#flag_build_only} > 0)); then
 fi
 
 if [[ "${SOURCE_FILE_EXTENSION}" == "swift" && -x "${BIN_PATH}" ]]; then
-  run_and_exit "${#flag_background}" "${DETACH_AFTER_SECONDS}" "${BIN_PATH}" "$@"
+  run_and_exit "${#flag_background}" "${#flag_normal_priority}" "${#flag_efficiency}" "${DETACH_AFTER_SECONDS}" "${BIN_PATH}" "$@"
 
 elif [[ "${SOURCE_FILE_EXTENSION}" == "applescript" && -e "${BIN_PATH}" ]]; then
-  run_and_exit "${#flag_background}" "${DETACH_AFTER_SECONDS}" osascript "${BIN_PATH}" "$@"
+  run_and_exit "${#flag_background}" "${#flag_normal_priority}" "${#flag_efficiency}" "${DETACH_AFTER_SECONDS}" osascript "${BIN_PATH}" "$@"
 
 else
   exit_with_error "Failed to locate executable."
