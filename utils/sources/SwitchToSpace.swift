@@ -1,9 +1,11 @@
-// Shared: Accessibility Agent CGEvent Log SkyLightFramework Spaces
+// Shared: Accessibility Agent CGEvent Log NSScreen SkyLightFramework Spaces
 
 import AppKit
 
 enum Configuration {
   static let subsystem = "industries.britown.SwitchToSpace"
+  static let spaceChangeTimeout: Duration = .seconds(2)
+  static let spaceChangePollInterval: Duration = .milliseconds(10)
 }
 
 struct DockSwipeHIDEvent {
@@ -83,36 +85,52 @@ final class SpaceSwitcher {
     case right
   }
 
+  private struct SwitchRequest {
+    let displayIdentifier: DisplayIdentifier
+    let targetSpaceIndex: Int
+  }
+
   private let startDate = Date.now
   private let skyLightFramework: SkyLightFramework
+  private var pendingRequest: SwitchRequest?
+  private var switchTask: Task<Void, Never>?
+  private var timeoutCount = 0
+  private var lastTimeoutDate: Date?
 
   init() throws {
     try AccessibilityPermission.ensureGranted()
     self.skyLightFramework = try SkyLightFramework()
   }
 
+  isolated deinit {
+    switchTask?.cancel()
+  }
+
   func switchSpace(direction: Direction) {
-    guard
-      let screen = NSScreen.main,
-      let displaySpaces = skyLightFramework.displaySpaces(for: screen),
-      let currentSpaceIndex = displaySpaces.currentSpaceIndex
-    else {
+    guard let displaySpaces = displaySpacesContainingMouse() else {
+      return
+    }
+
+    let pendingTargetSpaceIndex = pendingRequest.flatMap {
+      $0.displayIdentifier == displaySpaces.displayIdentifier ? $0.targetSpaceIndex : nil
+    }
+
+    guard let baseSpaceIndex = pendingTargetSpaceIndex ?? displaySpaces.currentSpaceIndex else {
       return
     }
 
     let offset = direction == .right ? 1 : -1
     let spaceCount = displaySpaces.spaceIDs.count
-    let targetSpaceIndex = (currentSpaceIndex + offset + spaceCount) % spaceCount
 
-    performSwitch(to: targetSpaceIndex, in: displaySpaces)
+    requestSwitch(to: (baseSpaceIndex + offset + spaceCount) % spaceCount, in: displaySpaces)
   }
 
   func switchToSpace(index spaceIndex: Int) {
-    guard let screen = NSScreen.main, let displaySpaces = skyLightFramework.displaySpaces(for: screen) else {
+    guard let displaySpaces = displaySpacesContainingMouse() else {
       return
     }
 
-    performSwitch(to: spaceIndex, in: displaySpaces)
+    requestSwitch(to: spaceIndex, in: displaySpaces)
   }
 
   func logDiagnosticReport() {
@@ -121,46 +139,127 @@ final class SpaceSwitcher {
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
+        Switch in progress: \(switchTask != nil)
+        Timeouts: \(timeoutCount)
+        Last timeout: \(lastTimeoutDate?.formatted(.dateTime) ?? "never")
       """
     )
   }
 
-  private func performSwitch(to spaceIndex: Int, in displaySpaces: DisplaySpaces) {
-    guard let currentSpaceIndex = displaySpaces.currentSpaceIndex else {
-      return
-    }
+  private func displaySpacesContainingMouse() -> DisplaySpaces? {
+    return NSScreen.screenContainingMouse.flatMap { skyLightFramework.displaySpaces(for: $0) }
+  }
 
+  private func requestSwitch(to spaceIndex: Int, in displaySpaces: DisplaySpaces) {
     let targetSpaceIndex = min(max(spaceIndex, 0), displaySpaces.spaceIDs.count - 1)
 
-    guard currentSpaceIndex != targetSpaceIndex else {
+    self.pendingRequest = SwitchRequest(
+      displayIdentifier: displaySpaces.displayIdentifier,
+      targetSpaceIndex: targetSpaceIndex
+    )
+
+    guard switchTask == nil else {
       return
     }
 
-    let direction: Direction = currentSpaceIndex < targetSpaceIndex ? .right : .left
-    let steps = abs(targetSpaceIndex - currentSpaceIndex)
-
-    for _ in 0..<steps where !performSpaceSwitchGesture(direction: direction) {
-      return
+    self.switchTask = Task { [weak self] in
+      await self?.processPendingRequests()
     }
   }
 
-  @discardableResult
-  private func performSpaceSwitchGesture(direction: Direction) -> Bool {
+  // Sends all swipes for a request at once, allowing the Dock to combine them into one transition. Waits for that
+  // transition to finish before processing the latest request, coalescing rapid input without overlapping transitions.
+  private func processPendingRequests() async {
+    defer {
+      self.pendingRequest = nil
+      self.switchTask = nil
+    }
+
+    while let request = pendingRequest, !Task.isCancelled {
+      guard
+        NSScreen.screenContainingMouse?.displayIdentifier == request.displayIdentifier,
+        let displaySpaces = skyLightFramework.displaySpaces(for: request.displayIdentifier),
+        let currentSpaceIndex = displaySpaces.currentSpaceIndex
+      else {
+        return
+      }
+
+      let targetSpaceIndex = min(request.targetSpaceIndex, displaySpaces.spaceIDs.count - 1)
+
+      guard currentSpaceIndex != targetSpaceIndex else {
+        return
+      }
+
+      guard
+        await performSpaceSwitchGestures(
+          direction: currentSpaceIndex < targetSpaceIndex ? .right : .left,
+          count: abs(targetSpaceIndex - currentSpaceIndex),
+          toward: displaySpaces.spaceIDs[targetSpaceIndex],
+          on: request.displayIdentifier
+        )
+      else {
+        return
+      }
+    }
+  }
+
+  private func performSpaceSwitchGestures(
+    direction: Direction,
+    count: Int,
+    toward targetSpaceID: SpaceID,
+    on displayIdentifier: DisplayIdentifier
+  ) async -> Bool {
     let isNaturalScrolling = UserDefaults.standard.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true
     let sign: Double = (direction == .right) == isNaturalScrolling ? -1.0 : 1.0
 
-    guard
-      performSpaceSwitchGesture(phase: .began, sign: sign),
-      performSpaceSwitchGesture(phase: .ended, sign: sign)
-    else {
+    for _ in 0..<count {
+      guard postDockSwipeEvent(phase: .began, sign: sign) else {
+        return false
+      }
+
+      guard postDockSwipeEvent(phase: .ended, sign: sign) else {
+        postDockSwipeEvent(phase: .cancelled, sign: sign)
+        return false
+      }
+    }
+
+    guard await waitForCurrentSpace(targetSpaceID, on: displayIdentifier) else {
+      if !Task.isCancelled {
+        self.timeoutCount += 1
+        self.lastTimeoutDate = .now
+
+        Log.error("Timed out waiting for space switch.")
+      }
+
+      postDockSwipeEvent(phase: .cancelled, sign: sign)
+
       return false
     }
 
     return true
   }
 
-  private func performSpaceSwitchGesture(phase gesturePhase: CGGesturePhase, sign: Double) -> Bool {
-    let gestureSwipeProgress = sign * 1.6e-5
+  private func waitForCurrentSpace(_ spaceID: SpaceID, on displayIdentifier: DisplayIdentifier) async -> Bool {
+    let deadline = ContinuousClock.now + Configuration.spaceChangeTimeout
+
+    while ContinuousClock.now < deadline {
+      do {
+        try await Task.sleep(for: Configuration.spaceChangePollInterval)
+      } catch {
+        return false
+      }
+
+      if skyLightFramework.displaySpaces(for: displayIdentifier)?.currentSpaceID == spaceID {
+        return true
+      }
+    }
+
+    return false
+  }
+
+  @discardableResult
+  private func postDockSwipeEvent(phase gesturePhase: CGGesturePhase, sign: Double) -> Bool {
+    let gestureSwipeProgress = gesturePhase == .cancelled ? 0.0 : sign * 1.6e-5
     let velocityX: Double? = gesturePhase == .ended ? sign * 500.0 : nil
 
     guard let dockControlEvent = CGEvent(source: nil) else {

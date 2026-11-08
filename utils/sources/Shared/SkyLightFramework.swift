@@ -344,10 +344,10 @@ struct SkyLightFramework {
   }
 
   func displaySpaces(for screen: NSScreen) -> DisplaySpaces? {
-    guard let displayIdentifier = screen.displayIdentifier else {
-      return nil
-    }
+    return screen.displayIdentifier.flatMap { displaySpaces(for: $0) }
+  }
 
+  func displaySpaces(for displayIdentifier: DisplayIdentifier) -> DisplaySpaces? {
     return displaySpaces(forDisplay: displayIdentifier).first { $0.displayIdentifier == displayIdentifier }
   }
 
