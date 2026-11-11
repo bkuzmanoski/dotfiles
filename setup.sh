@@ -407,6 +407,7 @@ write_file "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
 EOF
 
 utiluti type set com.microsoft.typescript com.microsoft.VSCode
+utiluti type set dyn.ah62d4rv4ge8043d2 com.microsoft.VSCode # .mdx (no app declares a UTI for it)
 utiluti type set net.daringfireball.markdown com.microsoft.VSCode
 utiluti type set public.css com.microsoft.VSCode
 utiluti type set public.json com.microsoft.VSCode
