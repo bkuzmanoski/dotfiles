@@ -472,6 +472,9 @@ defaults_write com.superultra.Homerow show-menubar-icon -bool false             
 defaults_write org.mozilla.firefox NSUserKeyEquivalents -dict-add "Eyedropper" "\$@c"          # Map "Eyedropper" keyboard shortcut to ⇧⌘I
 defaults_write org.mozilla.firefox NSUserKeyEquivalents -dict-add "Web Developer Tools" "\$@i" # Map "Web Developer Tools" keyboard shortcut to ⇧⌘I
 
+defaults_write com.mshll.ghostwriter "NSStatusItem VisibleCC Item-0" -bool false
+defaults_write com.mshll.ghostwriter ghostwriter.showsMenuBarIcon -bool false
+
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false
 defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false
 defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true

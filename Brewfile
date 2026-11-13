@@ -65,6 +65,7 @@ cask "lm-studio"
 cask "lumarylabsllc/tap/lumary-audio", trusted: true
 cask "lumarylabsllc/tap/lumary-cam", trusted: true
 cask "mitmproxy"
+cask "mshll/tap/ghostwriter", trusted: true
 cask "raycast"
 cask "saffsanity/sill/sill", trusted: true
 cask "sentry-cli"
