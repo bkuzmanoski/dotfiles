@@ -612,7 +612,11 @@ final class MeasurementView: NSView {
 
   private func drawRegionMeasurement(_ measurement: RegionMeasurement, in context: CGContext) {
     let measurementRect = measurement.rect
-    let insetMeasurementRect = measurementRect.insetBy(dx: 0.5, dy: 0.5)
+    // Insetting a zero-width or zero-height rect by more than half its size returns a null (infinite) rect.
+    let insetMeasurementRect = measurementRect.insetBy(
+      dx: min(0.5, measurementRect.width / 2),
+      dy: min(0.5, measurementRect.height / 2)
+    )
     let cornerPoint = NSPoint(
       x: measurement.horizontalDirection == .trailing ? insetMeasurementRect.minX : insetMeasurementRect.maxX,
       y: measurement.verticalDirection == .downward ? insetMeasurementRect.maxY : insetMeasurementRect.minY
