@@ -914,10 +914,20 @@ final class MeasurementSession {
   private var undoneMeasurements: [Measurement] = []
 
   private var mouseLocation: CGPoint? {
-    lastMouseLocation
-      ?? (NSScreen.screen(for: displayID)?.frame.contains(NSEvent.mouseLocation) ?? false
-        ? NSEvent.mouseLocation
-        : nil)
+    if let lastMouseLocation {
+      return lastMouseLocation
+    }
+
+    let currentMouseLocation = NSEvent.mouseLocation
+
+    guard
+      let screen = NSScreen.screen(for: displayID),
+      NSMouseInRect(currentMouseLocation, screen.frame, false)
+    else {
+      return nil
+    }
+
+    return currentMouseLocation
   }
 
   init(
@@ -1251,7 +1261,7 @@ final class MeasurementSession {
   }
 
   private func reactivateAppIfNeeded(withDelay delay: Bool = false) {
-    guard !isPassthroughModeEnabled, overlayWindow.frame.contains(NSEvent.mouseLocation) else {
+    guard !isPassthroughModeEnabled, NSMouseInRect(NSEvent.mouseLocation, overlayWindow.frame, false) else {
       return
     }
 
