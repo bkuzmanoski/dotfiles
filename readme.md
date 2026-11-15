@@ -130,9 +130,6 @@ Scripts to automate the setup of a new macOS installation with my preferred sett
   - Ghostty
     - Grant "Full Disk Access" permission
 
-  - Ghostwriter
-    - Settings → Apps → Turn off suggestions in Ghostty and VS Code
-
   - Google Chrome
     - Settings
       - You and Google → Sync and Google services → Turn off "Make searches and browsing better"
