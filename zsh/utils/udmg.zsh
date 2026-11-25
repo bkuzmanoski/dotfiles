@@ -11,6 +11,10 @@ function udmg() {
 		EOF
   }
 
+  local -a flag_all
+  local -a flag_force
+  local -a flag_help
+
   if ! zparseopts -D -E -F \
     {a,-all}=flag_all \
     {f,-force}=flag_force \

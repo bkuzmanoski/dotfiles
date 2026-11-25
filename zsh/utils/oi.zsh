@@ -40,6 +40,11 @@ function oi() {
   local use_zopfli=0
   local quality=""
 
+  local -a option_quality
+  local -a flag_zopfli
+  local -a flag_recursive
+  local -a flag_help
+
   if ! zparseopts -D -E -F \
     {q,-quality}:=option_quality \
     {z,-zopfli}=flag_zopfli \

@@ -31,6 +31,16 @@ function cv() {
   local tag="avc1"
   local audio_bitrate="128k"
 
+  local -a option_preset
+  local -a option_crf
+  local -a option_fps
+  local -a option_codec
+  local -a option_audio
+  local -a flag_overwrite
+  local -a flag_force
+  local -a flag_recursive
+  local -a flag_help
+
   if ! zparseopts -D -E -F \
     {p,-preset}:=option_preset \
     {q,-quality}:=option_crf \

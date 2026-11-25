@@ -26,6 +26,9 @@ function backup_if_needed() {
 }
 
 function defaults_write() {
+  local -a use_sudo
+  local -a use_currentHost
+
   zparseopts -D -E -sudo=use_sudo -currentHost=use_currentHost
 
   local -a write_command=(${use_sudo:+"sudo"} "defaults" ${use_currentHost:+"-currentHost"} "write" "$@")
@@ -34,64 +37,27 @@ function defaults_write() {
   "${write_command[@]}"
 }
 
-function plistbuddy_execute() {
-  log --info "Executing: /usr/libexec/PlistBuddy -c $*"
+function defaults_replace() {
+  local -a use_sudo
+  local -a use_currentHost
 
-  if [[ "$1" == "Delete"* ]]; then
-    /usr/libexec/PlistBuddy -c "$@" 2>/dev/null
-  else
-    /usr/libexec/PlistBuddy -c "$@"
-  fi
-}
+  zparseopts -D -sudo=use_sudo -currentHost=use_currentHost
 
-function add_app_to_dock() {
-  local app_path="$1"
-  defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
-}
+  local domain="$1"
+  local keypath="$2"
+  shift 2
 
-function set_system_hotkey() {
-  local key="$1"
-  local enabled="$2"
-  local parameter1="$3"
-  local parameter2="$4"
-  local parameter3="$5"
-  local dict_value
-  dict_value=$(
-    command cat <<-EOF
-			<dict>
-				<key>enabled</key>
-				<${enabled}/>
-				<key>value</key>
-				<dict>
-					<key>type</key>
-					<string>standard</string>
-					<key>parameters</key>
-					<array>
-						<integer>${parameter1}</integer>
-						<integer>${parameter2}</integer>
-						<integer>${parameter3}</integer>
-					</array>
-				</dict>
-			</dict>
-		EOF
-  )
+  local -a defaults_command=(${use_sudo:+"sudo"} "defaults" ${use_currentHost:+"-currentHost"})
 
-  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${dict_value}"
-}
+  log --info "Executing: ${defaults_command[*]} replace ${domain} ${keypath} $*"
 
-function set_wallpaper() {
-  if [[ -f "$1" ]]; then
-    local escaped_path
-    escaped_path="$(print "$1" | sed 's/"/\\"/g')"
+  local plist
+  plist="$("${defaults_command[@]}" export "${domain}" -)" || return
 
-    log --info "Setting wallpaper: $1"
+  local updated_plist
+  updated_plist="$(plutil -replace "${keypath}" "$@" -o - - <<<"${plist}")" || return
 
-    if ! osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\""; then
-      log --warning "Failed to set wallpaper"
-    fi
-  else
-    log --warning "Wallpaper file not found"
-  fi
+  "${defaults_command[@]}" import "${domain}" - <<<"${updated_plist}"
 }
 
 function apply_json_values() {
@@ -133,6 +99,147 @@ function write_file() {
   log --info "Writing file: ${target_file}"
   mkdir -p "$(dirname "${target_file}")"
   print -r -- "${content}" >"${target_file}"
+}
+
+function install_sudoers_rule() {
+  local name="$1"
+  local rule="$2"
+  local target_path="/etc/sudoers.d/${name}"
+
+  if [[ -f "${target_path}" ]]; then
+    log --info "Sudoers rule already exists: ${target_path}"
+    return
+  fi
+
+  log --info "Installing sudoers rule: ${target_path}"
+
+  local temp_file
+
+  if ! temp_file="$(mktemp)"; then
+    log --error "Failed to install sudoers rule: ${target_path}"
+    return 1
+  fi
+
+  if ! (
+    trap 'rm -f -- "${temp_file}"' EXIT
+    print -r -- "${rule}" >"${temp_file}" \
+      && sudo visudo -cf "${temp_file}" >/dev/null \
+      && sudo install -m 440 -o root -g wheel "${temp_file}" "${target_path}"
+  ); then
+    log --error "Failed to install sudoers rule: ${target_path}"
+    return 1
+  fi
+}
+
+# =============================================================================
+# macOS configuration helpers
+# =============================================================================
+
+function disable_true_tone() {
+  local console_user
+  console_user="$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')"
+
+  if [[ -z "${console_user}" || "${console_user}" == "loginwindow" ]]; then
+    log --warning "Console user not found, skipping disabling True Tone"
+    return
+  fi
+
+  local user_guid
+  user_guid="$(dscl . -read "/Users/${console_user}/" GeneratedUID 2>/dev/null | awk -F': ' '{ print $2 }')"
+
+  if [[ -z "${user_guid}" ]]; then
+    log --warning "GeneratedUID not found for user ${console_user}, skipping disabling True Tone"
+    return
+  fi
+
+  defaults_write --sudo com.apple.CoreBrightness "CBUser-${user_guid}" -dict-add CBColorAdaptationEnabled -bool false
+}
+
+function disable_builtin_display_auto_brightness() {
+  local -a profiles=(/Library/ColorSync/Profiles/Displays/Color\ LCD-*.icc(N.om))
+
+  if ((! $#profiles)); then
+    log --warning "Built-in display not found, skipping disabling \"Automatically adjust brightness\""
+    return
+  fi
+
+  local uuid="${${profiles[1]:t:r}#Color LCD-}"
+  local key="DisplayPreferences.${uuid}"
+
+  local plist
+
+  if ! plist="$(sudo defaults export com.apple.CoreBrightness -)"; then
+    log --error "Failed to disable \"Automatically adjust brightness\" for built-in display"
+    return 1
+  fi
+
+  if ! plutil -extract "${key}" raw -o /dev/null - <<<"${plist}" 2>/dev/null; then
+    log --warning "No CoreBrightness preferences found for built-in display, skipping disabling \"Automatically adjust brightness\""
+    return
+  fi
+
+  if [[ "$(plutil -extract "${key}.AutoBrightnessEnable" raw - <<<"${plist}" 2>/dev/null)" == false ]]; then
+    log --info "\"Automatically adjust brightness\" is already disabled for built-in display"
+    return
+  fi
+
+  log --info "Disabling \"Automatically adjust brightness\" for built-in display: ${uuid}"
+
+  if ! defaults_replace --sudo com.apple.CoreBrightness "${key}.AutoBrightnessEnable" -bool false; then
+    log --error "Failed to disable \"Automatically adjust brightness\" for built-in display"
+    return 1
+  fi
+}
+
+function set_system_hotkey() {
+  local key="$1"
+  local enabled="$2"
+  local parameter1="$3"
+  local parameter2="$4"
+  local parameter3="$5"
+
+  local dict_value
+  dict_value=$(
+    command cat <<-EOF
+			<dict>
+				<key>enabled</key>
+				<${enabled}/>
+				<key>value</key>
+				<dict>
+					<key>type</key>
+					<string>standard</string>
+					<key>parameters</key>
+					<array>
+						<integer>${parameter1}</integer>
+						<integer>${parameter2}</integer>
+						<integer>${parameter3}</integer>
+					</array>
+				</dict>
+			</dict>
+		EOF
+  )
+
+  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${key}" "${dict_value}"
+}
+
+function add_app_to_dock() {
+  local app_path="$1"
+  defaults_write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>${app_path}</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>"
+}
+
+function set_wallpaper() {
+  if [[ -f "$1" ]]; then
+    local escaped_path
+    escaped_path="$(print "$1" | sed 's/"/\\"/g')"
+
+    log --info "Setting wallpaper: $1"
+
+    if ! osascript -e "tell application \"System Events\" to tell every desktop to set picture to \"${escaped_path}\""; then
+      log --warning "Failed to set wallpaper"
+    fi
+  else
+    log --warning "Wallpaper file not found"
+  fi
 }
 
 # =============================================================================
@@ -231,24 +338,7 @@ else
 fi
 
 # Allow `wdutil info` to run without a password (used by the Wi-Fi Diagnostics Raycast script)
-if [[ ! -f /etc/sudoers.d/wdutil ]]; then
-  log --info "Allowing wdutil info to run without a password"
-
-  if ! () {
-    local temp_file
-    temp_file="$(mktemp)" || return
-
-    trap 'rm -f -- "${temp_file}"' EXIT
-
-    print -r -- "${USER} ALL=(root) NOPASSWD: /usr/bin/wdutil info" >"${temp_file}" \
-      && sudo visudo -cf "${temp_file}" >/dev/null \
-      && sudo install -m 440 -o root -g wheel "${temp_file}" /etc/sudoers.d/wdutil
-  }; then
-    log --error "Failed to allow wdutil info to run without a password"
-  fi
-else
-  log --info "wdutil info already allowed to run without a password"
-fi
+install_sudoers_rule "wdutil" "${USER} ALL=(root) NOPASSWD: /usr/bin/wdutil info"
 
 # Enable bat to use themes in config directory
 log --info "Rebuilding bat cache"
@@ -269,7 +359,9 @@ defaults_write --sudo /Library/Preferences/com.apple.PowerManagement "Battery Po
 
 defaults_write --sudo /Library/Preferences/com.apple.SoftwareUpdate AutomaticallyInstallMacOSUpdates -bool true
 
-defaults_write --sudo com.apple.CoreBrightness.plist "CBUser-$(dscl . -read "/Users/$(print "show State:/Users/ConsoleUser" | scutil | awk '/Name :/ { print $3 }')/" GeneratedUID | awk -F': ' '{ print $2 }')" -dict-add CBColorAdaptationEnabled -bool false # Disable True Tone
+disable_true_tone
+disable_builtin_display_auto_brightness
+sudo killall corebrightnessd 2>/dev/null || true # Restart corebrightnessd to reload CoreBrightness preferences
 
 defaults_write "${HOME}/Library/Group Containers/group.com.apple.notes/Library/Preferences/group.com.apple.notes.plist" kICSettingsNoteDateHeadersTypeKey -integer 1 # Disable group notes by date
 
@@ -280,6 +372,9 @@ defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerHorizSwipeGe
 defaults_write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerVertSwipeGesture -int 0  # Disable three-finger swipe gesture for Mission Control and App Exposé
 
 defaults_write com.apple.bird com.apple.clouddocs.unshared.moveOut.suppress -bool true # Suppress warnings when moving files out of iCloud Drive
+
+defaults_write --currentHost com.apple.controlcenter NowPlaying -int 8 # Hide Now Playing in Menu Bar
+defaults_write --currentHost com.apple.controlcenter WiFi -int 8       # Hide Wi-Fi in Menu Bar
 
 defaults_write com.apple.dock autohide-time-modifier -float 0.15     # Increase Dock show/hide animation speed
 defaults_write com.apple.dock mineffect -string "scale"              # Set minimize/maximize window effect to "scale"
@@ -297,24 +392,23 @@ add_app_to_dock "/Applications/Figma.app"                            #
 add_app_to_dock "/Applications/Visual Studio Code.app"               #
 add_app_to_dock "/Applications/Ghostty.app"                          #
 
-defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true                                                                           #
-defaults_write com.apple.finder _FXSortFoldersFirst -bool true                                                                               #
-defaults_write com.apple.finder FK_AppCentricShowSidebar -bool false                                                                         # Hide sidebar in open/save dialogs
-defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf"                                                                          # Set default search scope to current folder
-defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false                                                                   #
-defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv"                                                                          # Set default view to list view
-defaults_write com.apple.finder NewWindowTarget -string "PfHm"                                                                               # Open new windows in Home folder
-defaults_write com.apple.finder NSUserKeyEquivalents -dict-add "Close All" "@q"                                                              #
-defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false                                                                          #
-defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false                                                                      #
-defaults_write com.apple.finder ShowRecentTags -bool false                                                                                   #
-defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false                                                                      #
-defaults_write com.apple.finder ShowSidebar -bool false                                                                                      #
-defaults_write com.apple.finder ShowStatusBar -bool true                                                                                     #
-defaults_write com.apple.finder WarnOnEmptyTrash -bool false                                                                                 #
-plistbuddy_execute 'Delete :"NSToolbar Configuration Browser":"TB Item Identifiers"' "${HOME}/Library/Preferences/com.apple.finder.plist"    # Delete toolbar items key if set
-plistbuddy_execute 'Add :"NSToolbar Configuration Browser":"TB Item Identifiers" array' "${HOME}/Library/Preferences/com.apple.finder.plist" # Clear default toolbar items
-plistbuddy_execute 'Set :DesktopViewSettings:IconViewSettings:arrangeBy "grid"' "${HOME}/Library/Preferences/com.apple.finder.plist"         #
+defaults_write com.apple.finder _FXShowPosixPathInTitle -bool true                                           #
+defaults_write com.apple.finder _FXSortFoldersFirst -bool true                                               #
+defaults_write com.apple.finder FK_AppCentricShowSidebar -bool false                                         # Hide sidebar in open/save dialogs
+defaults_write com.apple.finder FXDefaultSearchScope -string "SCcf"                                          # Set default search scope to current folder
+defaults_write com.apple.finder FXEnableExtensionChangeWarning -bool false                                   #
+defaults_write com.apple.finder FXPreferredViewStyle -string "Nlsv"                                          # Set default view to list view
+defaults_write com.apple.finder NewWindowTarget -string "PfHm"                                               # Open new windows in Home folder
+defaults_write com.apple.finder "NSToolbar Configuration Browser" -dict-add "TB Item Identifiers" "<array/>" # Clear default toolbar items
+defaults_write com.apple.finder NSUserKeyEquivalents -dict-add "Close All" "@q"                              #
+defaults_write com.apple.finder ShowHardDrivesOnDesktop -bool false                                          #
+defaults_write com.apple.finder ShowMountedServersOnDesktop -bool false                                      #
+defaults_write com.apple.finder ShowRecentTags -bool false                                                   #
+defaults_write com.apple.finder ShowRemovableMediaOnDesktop -bool false                                      #
+defaults_write com.apple.finder ShowSidebar -bool false                                                      #
+defaults_write com.apple.finder ShowStatusBar -bool true                                                     #
+defaults_write com.apple.finder WarnOnEmptyTrash -bool false                                                 #
+defaults_replace com.apple.finder DesktopViewSettings.IconViewSettings.arrangeBy -string "grid"              #
 
 defaults_write com.apple.HIToolbox AppleFnUsageType -int 0 # Disable showing Emoji & Symbols when pressing 🌐︎ key
 
@@ -328,18 +422,23 @@ defaults_write "${HOME}/Library/Group Containers/group.com.apple.mail/Library/Pr
 
 defaults_write com.apple.Safari IncludeDevelopMenu -bool true
 
+defaults_write com.apple.Siri StatusMenuVisible -bool false # Hide Siri in Menu Bar
+
 defaults_write com.apple.Spotlight EnabledPreferenceRules -array "System.iphoneApps" # Hide iPhone apps in Spotlight
 
 defaults_write com.apple.TextEdit NSFixedPitchFont -string "JetBrainsMono-Regular"           #
 defaults_write com.apple.TextEdit NSFixedPitchFontSize -int 13                               #
 defaults_write com.apple.TextEdit NSShowAppCentricOpenPanelInsteadOfUntitledFile -bool false # Open a blank document on launch
 defaults_write com.apple.TextEdit RichText -bool false                                       #
-defaults_write com.apple.TextInputMenu visible -bool false                                   #
+
+defaults_write com.apple.TextInputMenu visible -bool false
 
 defaults_write com.apple.universalaccess closeViewPanningMode -int 1                   # Set zoomed image to move when the pointer reaches edge
 defaults_write com.apple.universalaccess closeViewScrollWheelToggle -bool true         # Enable zoom with scroll wheel modifier (⌃)
 defaults_write com.apple.universalaccess closeViewSmoothImages -bool false             # Disable smooth images when zooming
 defaults_write com.apple.universalaccess closeViewZoomScreenShareEnabledKey -bool true # Show zoomed image while screen sharing
+
+defaults_write com.apple.usernotificationsd RemoteNotifications.isEnabled -bool false # Disable notifications from iPhone
 
 defaults_write com.apple.WindowManager EnableStandardClickToShowDesktop -bool false #
 defaults_write com.apple.WindowManager EnableTilingByEdgeDrag -bool false           # Disable window tiling when dragging to screen edge (can still hold ⌥ to tile)
@@ -387,8 +486,11 @@ defaults_write NSGlobalDomain NavPanelFileListModeForSaveMode -int 2           #
 defaults_write NSGlobalDomain NSNavPanelFileListModeForSaveMode2 -int 2        #
 defaults_write NSGlobalDomain NSNavPanelFileLastListModeForSaveModeKey -int 2  #
 defaults_write NSGlobalDomain NSInitialToolTipDelay -int 300                   #
-set_system_hotkey 64 "false" 32 49 1048576                                     # Disable Show Spotlight search
-set_system_hotkey 65 "false" 32 49 1572864                                     # Disable Show Finder search window
+set_system_hotkey 79 "true" 65535 123 8650752                                  # Enable Move left a space (⌃←)
+set_system_hotkey 81 "true" 65535 124 8650752                                  # Enable Move right a space (⌃→)
+set_system_hotkey 118 "true" 65535 18 262144                                   # Enable Switch to Desktop 1 (⌃1)
+set_system_hotkey 119 "true" 65535 19 262144                                   # Enable Switch to Desktop 2 (⌃2)
+set_system_hotkey 120 "true" 65535 20 262144                                   # Enable Switch to Desktop 3 (⌃3)
 set_system_hotkey 28 "false" 51 20 1179648                                     # Disable Save picture of screen as a file
 set_system_hotkey 29 "false" 51 20 1441792                                     # Disable Copy picture of screen to the clipboard
 set_system_hotkey 30 "false" 52 21 1179648                                     # Disable Save picture of selected area as a file
@@ -396,6 +498,8 @@ set_system_hotkey 31 "false" 52 21 1441792                                     #
 set_system_hotkey 184 "false" 53 23 1179648                                    # Disable Screenshot and recording options
 set_system_hotkey 261 "false" 54 22 1179648                                    # Disable Ask Siri about selected area
 set_system_hotkey 263 "false" 65535 80 10354688                                # Disable Ask Siri about active window (and re-map the hotkey to ⌃⌥⇧⌘F19 because macOS likes to re-enable it without asking; default hotkey: `32 49 1179648`)
+set_system_hotkey 64 "false" 32 49 1048576                                     # Disable Show Spotlight search
+set_system_hotkey 65 "false" 32 49 1572864                                     # Disable Show Finder search window
 
 write_file "${HOME}/Library/DefaultKeyBinding.dict" <<-"EOF"
 	{
@@ -434,7 +538,7 @@ defaults_write com.apple.dt.Xcode IDECustomDerivedDataLocation -string "DerivedD
 
 defaults_write com.apple.Safari NSUserKeyEquivalents -dict-add "Close Web Inspector" "\$@i" # Map "Close Web Inspector" keyboard shortcut to ⇧⌘I
 defaults_write com.apple.Safari NSUserKeyEquivalents -dict-add "Show Web Inspector" "\$@i"  # Map "Show Web Inspector" keyboard shortcut to ⇧⌘I
-defaults_write com.apple.Safari UserStyleSheetLocationURLString -string "${HOME}/.dotfiles/safari/user-styles.css"
+defaults_write com.apple.Safari UserStyleSheetLocationURLString -string "${SCRIPT_DIR}/safari/user-styles.css"
 
 defaults_write com.colliderli.iina actionAfterLaunch -int 2
 defaults_write com.colliderli.iina controlBarToolbarButtons -array 6 0
@@ -470,7 +574,7 @@ defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space" 
 defaults_write com.superultra.Homerow scroll-shortcut -string ""                # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false             #
 
-defaults_write org.mozilla.firefox NSUserKeyEquivalents -dict-add "Eyedropper" "\$@c"          # Map "Eyedropper" keyboard shortcut to ⇧⌘I
+defaults_write org.mozilla.firefox NSUserKeyEquivalents -dict-add "Eyedropper" "\$@c"          # Map "Eyedropper" keyboard shortcut to ⇧⌘C
 defaults_write org.mozilla.firefox NSUserKeyEquivalents -dict-add "Web Developer Tools" "\$@i" # Map "Web Developer Tools" keyboard shortcut to ⇧⌘I
 
 defaults_write org.hammerspoon.Hammerspoon HSUploadCrashData -bool false

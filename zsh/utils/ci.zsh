@@ -50,6 +50,11 @@ function ci() {
   local avif_quality=80
   local webp_quality=90
 
+  local -a option_avif_quality
+  local -a option_webp_quality
+  local -a flag_recursive
+  local -a flag_help
+
   if ! zparseopts -D -E -F \
     {a,-avif-quality}:=option_avif_quality \
     {w,-webp-quality}:=option_webp_quality \

@@ -15,6 +15,9 @@ function cf() {
     return 1
   fi
 
+  local -a output_file
+  local -a flag_help
+
   if ! zparseopts -D -E \
     {o,-output}:=output_file \
     {h,-help}=flag_help \

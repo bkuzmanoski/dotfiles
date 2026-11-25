@@ -317,6 +317,14 @@ function run_and_exit() {
 # Parse options
 # =============================================================================
 
+typeset -a flag_background
+typeset -a flag_normal_priority
+typeset -a flag_efficiency
+typeset -a option_detach_after
+typeset -a flag_build_only
+typeset -a flag_compile_commands
+typeset -a flag_help
+
 # shellcheck disable=SC2034
 if ! zparseopts -D -F \
   {b,-background}=flag_background \
