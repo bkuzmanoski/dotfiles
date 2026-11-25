@@ -1,4 +1,4 @@
-// Shared: Agent CGError Log NSRunningApplication NSStatusItem SkyLightFramework Spaces
+// Shared: Agent CGError Log NSRunningApplication NSStatusItem SkyLightFramework Spaces WindowInfo
 
 import SwiftUI
 import UniformTypeIdentifiers
@@ -238,9 +238,7 @@ final class SpaceIndicatorModel {
 
   func diagnosticReport() -> [String] {
     let liveDisplaySpaces = displaySpacesByIdentifier()
-    let liveWindowIDs = Set(
-      (windowsInfo() ?? []).compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
-    )
+    let liveWindowIDs = Set((windowsInfo() ?? []).map(\.id))
 
     var lines = [
       "Tracked windows: \(spaceTrackedWindows.values.reduce(0) { $0 + $1.count })",
@@ -350,30 +348,26 @@ final class SpaceIndicatorModel {
     )
   }
 
-  private func windowsInfo() -> [[String: Any]]? {
-    return CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+  private func windowsInfo() -> [WindowInfo]? {
+    return WindowInfo.list(options: [.optionAll, .excludeDesktopElements])
   }
 
-  private func trackedWindows(from windowsInfo: [[String: Any]]) -> [TrackedWindow] {
-    let tagsByWindowID = skyLightFramework.windowTags(
-      for: windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID }
-    )
+  private func trackedWindows(from windowsInfo: [WindowInfo]) -> [TrackedWindow] {
+    let tagsByWindowID = skyLightFramework.windowTags(for: windowsInfo.map(\.id))
 
     return windowsInfo.compactMap { windowInfo in
       guard
-        windowInfo[kCGWindowLayer as String] as? CGWindowLevel == kCGNormalWindowLevel,
-        let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID,
-        let processIdentifier = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-        let tags = tagsByWindowID[windowID],
+        windowInfo.level == kCGNormalWindowLevel,
+        let tags = tagsByWindowID[windowInfo.id],
         tags.contains(.document) || tags.isSuperset(of: [.floating, .modal]),
-        let spaceIDs = skyLightFramework.spaceIDs(forWindow: windowID, mask: .allSpaces),
+        let spaceIDs = skyLightFramework.spaceIDs(forWindow: windowInfo.id, mask: .allSpaces),
         spaceIDs.count == 1,
         let spaceID = spaceIDs.first
       else {
         return nil
       }
 
-      return TrackedWindow(id: windowID, processIdentifier: processIdentifier, spaceID: spaceID)
+      return TrackedWindow(id: windowInfo.id, processIdentifier: windowInfo.ownerProcessIdentifier, spaceID: spaceID)
     }
   }
 
@@ -431,7 +425,7 @@ final class SpaceIndicatorModel {
       return
     }
 
-    let liveWindowIDs = Set(windowsInfo.compactMap { $0[kCGWindowNumber as String] as? CGWindowID })
+    let liveWindowIDs = Set(windowsInfo.map(\.id))
 
     for (trackedSpaceID, trackedWindows) in spaceTrackedWindows {
       let liveTrackedWindows = trackedWindows.filter { liveWindowIDs.contains($0.id) }
@@ -447,10 +441,10 @@ final class SpaceIndicatorModel {
   private func handleWindowAdded(windowID: CGWindowID, spaceID: SpaceID) {
     guard
       !isRefreshPending,
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionIncludingWindow, .excludeDesktopElements],
-        windowID
-      ) as? [[String: Any]],
+      let windowsInfo = WindowInfo.list(
+        options: [.optionIncludingWindow, .excludeDesktopElements],
+        relativeTo: windowID
+      ),
       let trackedWindow = trackedWindows(from: windowsInfo).first,
       trackedWindow.spaceID == spaceID
     else {

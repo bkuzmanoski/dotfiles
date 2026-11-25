@@ -1,4 +1,4 @@
-// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication ScreenCapturePermission SkyLightFramework
+// Shared: Accessibility Agent CGError EventTap Log NSRunningApplication ScreenCapturePermission SkyLightFramework WindowInfo WindowManagerOverlay
 
 import AppKit
 
@@ -261,7 +261,6 @@ final class FocusManager {
     CGWindowLevelForKey(.screenSaverWindow),
     CGWindowLevelForKey(.overlayWindow)
   ]
-  private let windowManagerSuspendingWindowLevels: Set<CGWindowLevel> = [18, 19]
   private let hoverDelay: DispatchTimeInterval
   private let crossDisplayHoverDelay: DispatchTimeInterval
   private let focusChangeGracePeriod: DispatchTimeInterval
@@ -388,12 +387,7 @@ final class FocusManager {
 
   func logDiagnosticReport() {
     let isScreenLocked = isScreenLocked()
-    let suspendingWindows = suspendingWindowsOnScreen().map { windowInfo in
-      let windowID = windowInfo[kCGWindowNumber as String] as? CGWindowID ?? kCGNullWindowID
-      let ownerName = windowInfo[kCGWindowOwnerName as String] as? String ?? "<unknown>"
-
-      return "\(windowID) (\(ownerName))"
-    }
+    let suspendingWindows = suspendingWindowsOnScreen().map { "\($0.id) (\($0.ownerName ?? "<unknown>"))" }
 
     Log.info(
       """
@@ -663,29 +657,22 @@ final class FocusManager {
     return (CGSessionCopyCurrentDictionary() as? [String: Any])?["CGSSessionScreenIsLocked"] != nil
   }
 
-  private nonisolated func suspendingWindowsOnScreen() -> [[String: Any]] {
-    let windowsInfo =
-      CGWindowListCopyWindowInfo(
-        [.optionOnScreenOnly, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]] ?? []
-    return windowsInfo.filter { isSuspendingWindow(info: $0) }
+  private nonisolated func suspendingWindowsOnScreen() -> [WindowInfo] {
+    return (WindowInfo.list(options: [.optionOnScreenOnly, .excludeDesktopElements]) ?? []).filter {
+      isSuspendingWindow($0)
+    }
   }
 
-  private nonisolated func isSuspendingWindow(info windowInfo: [String: Any]) -> Bool {
-    guard let windowLevel = windowInfo[kCGWindowLayer as String] as? CGWindowLevel else {
+  private nonisolated func isSuspendingWindow(_ windowInfo: WindowInfo) -> Bool {
+    if WindowManagerOverlay.isOverlayWindow(windowInfo) {
+      return true
+    }
+
+    guard suspendingWindowLevels.contains(windowInfo.level), windowInfo.alpha > 0 else {
       return false
     }
 
-    if windowManagerSuspendingWindowLevels.contains(windowLevel) {
-      return ownerBundleIdentifier(ofWindow: windowInfo) == "com.apple.WindowManager"
-    }
-
-    guard suspendingWindowLevels.contains(windowLevel), windowInfo[kCGWindowAlpha as String] as? Double ?? 1 > 0 else {
-      return false
-    }
-
-    return !isFocusableFloatingWindow(info: windowInfo)
+    return !isFocusableFloatingWindow(windowInfo)
   }
 
   private nonisolated func isFocusableWindow(_ windowID: CGWindowID) -> Bool {
@@ -695,32 +682,24 @@ final class FocusManager {
 
     guard
       !focusableFloatingWindows.isEmpty,
-      let windowInfo = (CGWindowListCopyWindowInfo(.optionIncludingWindow, windowID) as? [[String: Any]])?.first
+      let windowInfo = WindowInfo.list(options: .optionIncludingWindow, relativeTo: windowID)?.first
     else {
       return false
     }
 
-    return isFocusableFloatingWindow(info: windowInfo)
+    return isFocusableFloatingWindow(windowInfo)
   }
 
-  private nonisolated func isFocusableFloatingWindow(info windowInfo: [String: Any]) -> Bool {
+  private nonisolated func isFocusableFloatingWindow(_ windowInfo: WindowInfo) -> Bool {
     guard
       !focusableFloatingWindows.isEmpty,
-      let title = windowInfo[kCGWindowName as String] as? String,
-      let bundleIdentifier = ownerBundleIdentifier(ofWindow: windowInfo)
+      let title = windowInfo.title,
+      let bundleIdentifier = windowInfo.ownerBundleIdentifier
     else {
       return false
     }
 
     return focusableFloatingWindows.contains(WindowIdentity(bundleIdentifier: bundleIdentifier, title: title))
-  }
-
-  private nonisolated func ownerBundleIdentifier(ofWindow windowInfo: [String: Any]) -> String? {
-    guard let ownerPID = windowInfo[kCGWindowOwnerPID as String] as? pid_t else {
-      return nil
-    }
-
-    return NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier
   }
 }
 

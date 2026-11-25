@@ -9,9 +9,6 @@ extension CGEventField {
   static let cgsEventType = CGEventField(rawValue: 55)!
   static let gestureHIDType = CGEventField(rawValue: 110)!
   static let gestureZoomValue = CGEventField(rawValue: 113)!
-  static let gestureSwipeMotion = CGEventField(rawValue: 123)!
-  static let gestureSwipeProgress = CGEventField(rawValue: 124)!
-  static let gestureSwipeVelocityX = CGEventField(rawValue: 129)!
   static let gesturePhase = CGEventField(rawValue: 132)!
 }
 
@@ -121,31 +118,5 @@ extension CGEvent {
   var gestureZoomValue: Double {
     get { getDoubleValueField(.gestureZoomValue) }
     set { self.setDoubleValueField(.gestureZoomValue, value: newValue) }
-  }
-
-  var gestureSwipeMotion: IOHIDGestureMotion? {
-    get {
-      guard let rawValue = UInt16(exactly: getIntegerValueField(.gestureSwipeMotion)) else {
-        return nil
-      }
-
-      return IOHIDGestureMotion(rawValue: rawValue)
-    }
-
-    set {
-      if let newValue {
-        self.setIntegerValueField(.gestureSwipeMotion, value: Int64(newValue.rawValue))
-      }
-    }
-  }
-
-  var gestureSwipeProgress: Double {
-    get { getDoubleValueField(.gestureSwipeProgress) }
-    set { self.setDoubleValueField(.gestureSwipeProgress, value: newValue) }
-  }
-
-  var gestureSwipeVelocityX: Double {
-    get { getDoubleValueField(.gestureSwipeVelocityX) }
-    set { self.setDoubleValueField(.gestureSwipeVelocityX, value: newValue) }
   }
 }

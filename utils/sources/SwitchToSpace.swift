@@ -1,4 +1,4 @@
-// Shared: Accessibility Agent CGEvent Log NSScreen SkyLightFramework Spaces
+// Shared: Accessibility Agent CGEvent Comparable Log NSScreen SkyLightFramework Spaces WindowManagerOverlay
 
 import AppKit
 
@@ -8,14 +8,54 @@ enum Configuration {
   static let spaceChangePollInterval: Duration = .milliseconds(10)
 }
 
-struct DockSwipeHIDEvent {
+enum ScrollDirection {
+  case natural
+  case classic
+
+  static let didChangeNotification = Notification.Name("SwipeScrollDirectionDidChangeNotification")
+
+  private static let preferenceKey = "com.apple.swipescrolldirection"
+
+  static var current: ScrollDirection {
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication)
+    return CFPreferencesCopyAppValue(preferenceKey as CFString, kCFPreferencesAnyApplication) as? Bool ?? true
+      ? .natural
+      : .classic
+  }
+}
+
+struct IOFixedPoint: RawRepresentable {
+  static let leastNonzeroMagnitude = IOFixedPoint(rawValue: 1)
+  static let min = IOFixedPoint(rawValue: .min)
+  static let max = IOFixedPoint(rawValue: .max)
+
+  private static let fractionalBits = 16
+  private static let scale = Double(1 << fractionalBits)
+
+  let rawValue: IOFixed
+
+  init(rawValue: IOFixed) {
+    self.rawValue = rawValue
+  }
+
+  init(clamping value: Double) {
+    let scaled = (value * Self.scale).rounded(.towardZero)
+    self.rawValue = IOFixed(scaled.clamped(to: Double(IOFixed.min)...Double(IOFixed.max)))
+  }
+
+  static prefix func - (value: IOFixedPoint) -> IOFixedPoint {
+    return IOFixedPoint(rawValue: value.rawValue == .min ? .max : -value.rawValue)
+  }
+}
+
+struct DockSwipeEvent {
   private static let size = 0x44
   private static let sizeWithVelocity = 0x60
   private static let cgEventDataKey: UInt16 = 0x106d
   private static let dockSwipeEventSize: UInt32 = 0x28
   private static let velocityEventSize: UInt32 = 0x1c
   private static let dockSwipeFlavor: UInt16 = 3
-  private static let positionX = 0.1
+  private static let positionX = IOFixedPoint(clamping: 0.1)
 
   private enum Offset {
     static let timestamp = 0x00
@@ -35,28 +75,13 @@ struct DockSwipeHIDEvent {
 
   private var bytes: [UInt8]
 
-  init(gesturePhase: CGGesturePhase, progress dockSwipeProgress: Double, velocityX: Double?) {
-    self.bytes = [UInt8](repeating: 0, count: velocityX == nil ? Self.size : Self.sizeWithVelocity)
-
-    setValue(mach_absolute_time(), at: Offset.timestamp)
-    setValue(UInt32(velocityX == nil ? 1 : 2), at: Offset.eventCount)
-    setValue(Self.dockSwipeEventSize, at: Offset.dockSwipeEventSize)
-    setValue(IOHIDEventType.dockSwipe.rawValue, at: Offset.dockSwipeEventType)
-    setValue(gesturePhase.rawValue << 24, at: Offset.dockSwipeOptions)
-    setValue(Self.fixedPoint(Self.positionX), at: Offset.dockSwipePositionX)
-    setValue(IOHIDGestureMotion.horizontal.rawValue, at: Offset.dockSwipeMotion)
-    setValue(Self.dockSwipeFlavor, at: Offset.dockSwipeFlavor)
-    setValue(Self.fixedPoint(dockSwipeProgress), at: Offset.dockSwipeProgress)
-
-    if let velocityX {
-      setValue(Self.velocityEventSize, at: Offset.velocityEventSize)
-      setValue(IOHIDEventType.velocity.rawValue, at: Offset.velocityEventType)
-      setValue(UInt32(1), at: Offset.velocityEventDepth)
-      setValue(Self.fixedPoint(velocityX), at: Offset.velocityX)
+  var cgEvent: CGEvent? {
+    guard let event = CGEvent(source: nil) else {
+      return nil
     }
-  }
 
-  func attach(to event: CGEvent) -> CGEvent? {
+    event.cgsEventType = .dockControl
+
     guard var eventData = event.data as Data? else {
       return nil
     }
@@ -68,13 +93,34 @@ struct DockSwipeHIDEvent {
     return CGEvent(withDataAllocator: nil, data: eventData as CFData)
   }
 
-  private mutating func setValue<T: FixedWidthInteger>(_ value: T, at offset: Int) {
-    bytes.withUnsafeMutableBytes { $0.storeBytes(of: value.littleEndian, toByteOffset: offset, as: T.self) }
+  init(
+    timestamp: UInt64 = mach_absolute_time(),
+    phase gesturePhase: CGGesturePhase,
+    progress dockSwipeProgress: IOFixedPoint,
+    velocityX: IOFixedPoint? = nil
+  ) {
+    self.bytes = [UInt8](repeating: 0, count: velocityX == nil ? Self.size : Self.sizeWithVelocity)
+
+    setValue(timestamp, at: Offset.timestamp)
+    setValue(UInt32(velocityX == nil ? 1 : 2), at: Offset.eventCount)
+    setValue(Self.dockSwipeEventSize, at: Offset.dockSwipeEventSize)
+    setValue(IOHIDEventType.dockSwipe.rawValue, at: Offset.dockSwipeEventType)
+    setValue(gesturePhase.rawValue << 24, at: Offset.dockSwipeOptions)
+    setValue(Self.positionX.rawValue, at: Offset.dockSwipePositionX)
+    setValue(IOHIDGestureMotion.horizontal.rawValue, at: Offset.dockSwipeMotion)
+    setValue(Self.dockSwipeFlavor, at: Offset.dockSwipeFlavor)
+    setValue(dockSwipeProgress.rawValue, at: Offset.dockSwipeProgress)
+
+    if let velocityX {
+      setValue(Self.velocityEventSize, at: Offset.velocityEventSize)
+      setValue(IOHIDEventType.velocity.rawValue, at: Offset.velocityEventType)
+      setValue(UInt32(1), at: Offset.velocityEventDepth)
+      setValue(velocityX.rawValue, at: Offset.velocityX)
+    }
   }
 
-  private static func fixedPoint(_ value: Double) -> Int32 {
-    let fixedPointValue = Int32((value * 65536).rounded(.towardZero))
-    return fixedPointValue == 0 && value != 0 ? (value < 0 ? -1 : 1) : fixedPointValue
+  private mutating func setValue<T: FixedWidthInteger>(_ value: T, at offset: Int) {
+    bytes.withUnsafeMutableBytes { $0.storeBytes(of: value.littleEndian, toByteOffset: offset, as: T.self) }
   }
 }
 
@@ -90,20 +136,55 @@ final class SpaceSwitcher {
     let targetSpaceIndex: Int
   }
 
+  private enum SwitchError: Error, LocalizedError {
+    case failedToCreateEvent
+    case timedOut
+
+    var errorDescription: String? {
+      switch self {
+      case .failedToCreateEvent: "Failed to create space switch gesture event."
+      case .timedOut: "Timed out waiting for space switch."
+      }
+    }
+  }
+
   private let startDate = Date.now
   private let skyLightFramework: SkyLightFramework
   private var pendingRequest: SwitchRequest?
-  private var switchTask: Task<Void, Never>?
+  private var spaceSwitchTask: Task<Void, Never>?
+  private var scrollDirection: ScrollDirection = .current
+  private var scrollDirectionObservationTask: Task<Void, Never>?
   private var timeoutCount = 0
   private var lastTimeoutDate: Date?
 
+  private var isSpaceSwitchingBlocked: Bool {
+    switch WindowManagerOverlay.onScreen {
+    case .appExpose, .showDesktop: true // App Exposé and Show Desktop don't switch spaces on Dock swipes.
+    case .missionControl, nil: false
+    }
+  }
+
   init() throws {
     try AccessibilityPermission.ensureGranted()
+
     self.skyLightFramework = try SkyLightFramework()
+
+    self.scrollDirectionObservationTask = Task { [weak self] in
+      for await _ in DistributedNotificationCenter.default().notifications(
+        named: ScrollDirection.didChangeNotification
+      ) {
+        guard let self else {
+          break
+        }
+
+        self.scrollDirection = .current
+      }
+    }
   }
 
   isolated deinit {
-    switchTask?.cancel()
+    spaceSwitchTask?.cancel()
+    scrollDirectionObservationTask?.cancel()
   }
 
   func switchSpace(direction: Direction) {
@@ -139,7 +220,8 @@ final class SpaceSwitcher {
       Diagnostic report:
         Started: \(startDate.formatted(.dateTime))
         Accessibility permission: \(AccessibilityPermission.isGranted)
-        Switch in progress: \(switchTask != nil)
+        Space switch in progress: \(spaceSwitchTask != nil)
+        Scroll direction: \(scrollDirection)
         Timeouts: \(timeoutCount)
         Last timeout: \(lastTimeoutDate?.formatted(.dateTime) ?? "never")
       """
@@ -151,18 +233,22 @@ final class SpaceSwitcher {
   }
 
   private func requestSwitch(to spaceIndex: Int, in displaySpaces: DisplaySpaces) {
-    let targetSpaceIndex = min(max(spaceIndex, 0), displaySpaces.spaceIDs.count - 1)
+    guard !displaySpaces.spaceIDs.isEmpty else {
+      return
+    }
+
+    let targetSpaceIndex = spaceIndex.clamped(to: 0...(displaySpaces.spaceIDs.count - 1))
 
     self.pendingRequest = SwitchRequest(
       displayIdentifier: displaySpaces.displayIdentifier,
       targetSpaceIndex: targetSpaceIndex
     )
 
-    guard switchTask == nil else {
+    guard spaceSwitchTask == nil else {
       return
     }
 
-    self.switchTask = Task { [weak self] in
+    self.spaceSwitchTask = Task { [weak self] in
       await self?.processPendingRequests()
     }
   }
@@ -172,11 +258,12 @@ final class SpaceSwitcher {
   private func processPendingRequests() async {
     defer {
       self.pendingRequest = nil
-      self.switchTask = nil
+      self.spaceSwitchTask = nil
     }
 
     while let request = pendingRequest, !Task.isCancelled {
       guard
+        !isSpaceSwitchingBlocked,
         NSScreen.screenContainingMouse?.displayIdentifier == request.displayIdentifier,
         let displaySpaces = skyLightFramework.displaySpaces(for: request.displayIdentifier),
         let currentSpaceIndex = displaySpaces.currentSpaceIndex
@@ -190,107 +277,70 @@ final class SpaceSwitcher {
         return
       }
 
-      guard
-        await performSpaceSwitchGestures(
-          direction: currentSpaceIndex < targetSpaceIndex ? .right : .left,
-          count: abs(targetSpaceIndex - currentSpaceIndex),
-          toward: displaySpaces.spaceIDs[targetSpaceIndex],
-          on: request.displayIdentifier
-        )
-      else {
+      do {
+        try await performSpaceSwitchGestures(from: currentSpaceIndex, to: targetSpaceIndex, in: displaySpaces)
+
+      } catch is CancellationError {
+        return
+
+      } catch {
+        if case SwitchError.timedOut = error {
+          self.timeoutCount += 1
+          self.lastTimeoutDate = .now
+        }
+
+        Log.error(error.localizedDescription)
+
         return
       }
     }
   }
 
   private func performSpaceSwitchGestures(
-    direction: Direction,
-    count: Int,
-    toward targetSpaceID: SpaceID,
-    on displayIdentifier: DisplayIdentifier
-  ) async -> Bool {
-    let isNaturalScrolling = UserDefaults.standard.object(forKey: "com.apple.swipescrolldirection") as? Bool ?? true
-    let sign: Double = (direction == .right) == isNaturalScrolling ? -1.0 : 1.0
+    from currentSpaceIndex: Int,
+    to targetSpaceIndex: Int,
+    in displaySpaces: DisplaySpaces
+  ) async throws {
+    let isLeftwardSwipe = (currentSpaceIndex < targetSpaceIndex) == (scrollDirection == .natural)
+    let progress = isLeftwardSwipe ? -IOFixedPoint.leastNonzeroMagnitude : IOFixedPoint.leastNonzeroMagnitude
+    let velocityX = isLeftwardSwipe ? -IOFixedPoint.max : IOFixedPoint.max
 
-    for _ in 0..<count {
-      guard postDockSwipeEvent(phase: .began, sign: sign) else {
-        return false
-      }
+    for _ in 0..<abs(targetSpaceIndex - currentSpaceIndex) {
+      try post(DockSwipeEvent(phase: .began, progress: progress))
 
-      guard postDockSwipeEvent(phase: .ended, sign: sign) else {
-        postDockSwipeEvent(phase: .cancelled, sign: sign)
-        return false
+      do {
+        try post(DockSwipeEvent(phase: .ended, progress: progress, velocityX: velocityX))
+      } catch {
+        try? post(DockSwipeEvent(phase: .cancelled, progress: progress))
+        throw error
       }
     }
 
-    guard await waitForCurrentSpace(targetSpaceID, on: displayIdentifier) else {
-      if !Task.isCancelled {
-        self.timeoutCount += 1
-        self.lastTimeoutDate = .now
-
-        Log.error("Timed out waiting for space switch.")
-      }
-
-      postDockSwipeEvent(phase: .cancelled, sign: sign)
-
-      return false
-    }
-
-    return true
+    try await waitForCurrentSpace(displaySpaces.spaceIDs[targetSpaceIndex], on: displaySpaces.displayIdentifier)
   }
 
-  private func waitForCurrentSpace(_ spaceID: SpaceID, on displayIdentifier: DisplayIdentifier) async -> Bool {
+  private func waitForCurrentSpace(_ spaceID: SpaceID, on displayIdentifier: DisplayIdentifier) async throws {
     let deadline = ContinuousClock.now + Configuration.spaceChangeTimeout
 
     while ContinuousClock.now < deadline {
-      do {
-        try await Task.sleep(for: Configuration.spaceChangePollInterval)
-      } catch {
-        return false
-      }
+      try await Task.sleep(for: Configuration.spaceChangePollInterval)
 
       if skyLightFramework.displaySpaces(for: displayIdentifier)?.currentSpaceID == spaceID {
-        return true
+        return
       }
     }
 
-    return false
+    try Task.checkCancellation()
+
+    throw SwitchError.timedOut
   }
 
-  @discardableResult
-  private func postDockSwipeEvent(phase gesturePhase: CGGesturePhase, sign: Double) -> Bool {
-    let gestureSwipeProgress = gesturePhase == .cancelled ? 0.0 : sign * 1.6e-5
-    let velocityX: Double? = gesturePhase == .ended ? sign * 500.0 : nil
-
-    guard let dockControlEvent = CGEvent(source: nil) else {
-      Log.error("Failed to create CGEvent for space switch gesture.")
-      return false
+  private func post(_ event: DockSwipeEvent) throws(SwitchError) {
+    guard let cgEvent = event.cgEvent else {
+      throw .failedToCreateEvent
     }
 
-    dockControlEvent.cgsEventType = .dockControl
-    dockControlEvent.gestureHIDType = .dockSwipe
-    dockControlEvent.gesturePhase = gesturePhase
-    dockControlEvent.gestureSwipeMotion = .horizontal
-    dockControlEvent.gestureSwipeProgress = gestureSwipeProgress
-
-    if let velocityX {
-      dockControlEvent.gestureSwipeVelocityX = velocityX
-    }
-
-    guard
-      let hidDockControlEvent = DockSwipeHIDEvent(
-        gesturePhase: gesturePhase,
-        progress: gestureSwipeProgress,
-        velocityX: velocityX
-      ).attach(to: dockControlEvent)
-    else {
-      Log.error("Failed to attach HID event data to space switch gesture.")
-      return false
-    }
-
-    hidDockControlEvent.post(tap: .cgSessionEventTap)
-
-    return true
+    cgEvent.post(tap: .cgSessionEventTap)
   }
 }
 
