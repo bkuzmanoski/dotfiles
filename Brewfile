@@ -45,6 +45,7 @@ cask "affinity"
 cask "alt-tab"
 cask "andreypudov/core-eq/core-eq", trusted: true
 cask "android-cli"
+cask "antigravity-cli"
 cask "apparency"
 cask "archaeology"
 cask "asset-catalog-tinkerer"
