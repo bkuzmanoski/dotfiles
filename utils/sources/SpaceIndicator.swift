@@ -529,7 +529,7 @@ struct SpaceIndicatorView: View {
       }
     }
     .padding(.horizontal, 14)
-    // Render as a single layer so the menu bar's mirrored status item stays in sync during space transitions. Nested
+    // Render as a single layer so the Menu Bar's mirrored status item stays in sync during space transitions. Nested
     // opacity, shadow, and blend layers otherwise render incorrectly and prevent opacity animation. Vertical padding
     // leaves room for shadows within the flattened bounds.
     .padding(.vertical, Self.drawingGroupInset)
