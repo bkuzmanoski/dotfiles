@@ -20,12 +20,28 @@ final class MenuBarItemManager {
     }
   }
 
+  private enum FrameSettlingResult {
+    case settled(CGRect)
+    case notLaidOut
+    case unsettled
+  }
+
+  private enum ProbeResult {
+    case rightOfBoundary(distance: CGFloat)
+    case adjacent
+    case leftOfNextItem(distance: CGFloat)
+    case overflowedLeft
+  }
+
   private static let menuBarPreferencesPath = URL.homeDirectory.appending(
     path: "Library/Group Containers/com.apple.MenuBar/Library/Preferences/com.apple.MenuBar.plist"
   ).path(percentEncoded: false)
 
-  private static let placementAttemptLimit = 8
+  private static let placementAttemptLimit = 12
+  private static let initialSearchStep = 24.0
   private static let positionIncrement = 0.1
+  private static let positionResolution = 1.0
+  private static let adjacencyTolerance: CGFloat = 1
   private static let layoutSettlingAttemptLimit = 20
   private static let layoutSettlingInterval: Duration = .milliseconds(50)
 
@@ -38,7 +54,7 @@ final class MenuBarItemManager {
   private var isHidingItems = false
 
   private var hidingStatusItemLength: CGFloat? {
-    // MenuBarAgent ignores a status item with a window wider than half of the display width.
+    // MenuBarAgent ignores a status item whose window is wider than half the display width.
     let length = ((NSScreen.screens.map(\.frame.width).min() ?? 0) / 2).rounded(.down)
 
     return length > 0 ? length : nil
@@ -117,7 +133,7 @@ final class MenuBarItemManager {
 
     self.spacerPlacementMethod = .measurement
 
-    // Spacer status items are placed by measuring the boundary item on screen.
+    // Fall back to measuring on screen; shrink the boundary item so it stays visible while probing.
     setLength(of: boundaryStatusItem, to: 1)
 
     self.hideItemsTask = Task { [weak self] in
@@ -154,16 +170,13 @@ final class MenuBarItemManager {
   }
 
   private func spacerStatusItemCount(forLength length: CGFloat) -> Int {
-    // Enough spacers that, with the boundary item, they're at least as wide as the widest display.
+    // Enough spacers to span the widest display alongside the boundary item.
     return max(Int(((NSScreen.screens.map(\.frame.width).max() ?? 0) / length).rounded(.up)) - 1, 1)
   }
 
-  private func makeSpacerStatusItem(index: Int, preferredPosition: Double) -> NSStatusItem {
-    // MenuBarAgent remembers a position per autosave name and ignores the preferred position for a name it has already
-    // placed, so the name has to encode the position it is placed at.
-    let autosaveName = "Spacer-\(preferredPosition.formatted(.fixedPoint(fractionLength: 1)))-\(index)"
-
-    // Written before `autosaveName` is set below so that its preferred position is applied.
+  private func makeSpacerStatusItem(autosaveName: String, preferredPosition: Double) -> NSStatusItem {
+    // Written before `autosaveName` is set so MenuBarAgent applies it; callers encode the position in the name because
+    // MenuBarAgent ignores preferred positions for names it has already seen.
     UserDefaults.standard.set(preferredPosition, forKey: NSStatusItem.preferredPositionKey(for: autosaveName))
 
     let spacerStatusItem = NSStatusBar.system.statusItem(withLength: 1)
@@ -190,10 +203,11 @@ final class MenuBarItemManager {
 
   private func addSpacerStatusItems(count: Int, besideBoundaryAt boundaryStatusItemPosition: Double) {
     for index in 0..<count {
-      let spacerStatusItem = makeSpacerStatusItem(
-        index: index,
-        preferredPosition: boundaryStatusItemPosition + Double(index + 1) * Self.positionIncrement
+      let preferredPosition = Self.roundedPosition(
+        boundaryStatusItemPosition + Double(index + 1) * Self.positionIncrement
       )
+      let autosaveName = "Spacer-\(preferredPosition.formatted(.fixedPoint(fractionLength: 1)))-\(index)"
+      let spacerStatusItem = makeSpacerStatusItem(autosaveName: autosaveName, preferredPosition: preferredPosition)
 
       self.spacerStatusItems.append(spacerStatusItem)
     }
@@ -201,7 +215,7 @@ final class MenuBarItemManager {
 
   private func addMeasuredSpacerStatusItems(count: Int) async {
     guard
-      let boundaryStatusItemFrame = await settledFrame(of: boundaryStatusItem),
+      case .settled(let boundaryStatusItemFrame) = await settledFrame(of: boundaryStatusItem),
       let screen = boundaryStatusItem.button?.window?.screen ?? NSScreen.main
     else {
       if !Task.isCancelled {
@@ -211,74 +225,146 @@ final class MenuBarItemManager {
       return
     }
 
-    var anchorStatusItem = boundaryStatusItem
-    var position = screen.frame.maxX - boundaryStatusItemFrame.maxX
-
-    for index in 0..<count {
-      guard
-        let placement = await addMeasuredSpacerStatusItem(leftOf: anchorStatusItem, startingAt: position, index: index)
-      else {
-        if !Task.isCancelled {
-          Log.error("Failed to place spacer status item \(spacerStatusItems.count + 1) of \(count).")
-        }
-
-        return
+    guard
+      let boundaryStatusItemPosition = await measureBoundaryStatusItemPosition(
+        startingAt: screen.frame.maxX - boundaryStatusItemFrame.maxX
+      )
+    else {
+      if !Task.isCancelled {
+        Log.error("Failed to add measured spacer status items (unable to find the boundary status item's position).")
       }
 
-      self.spacerStatusItems.append(placement.statusItem)
+      return
+    }
 
-      anchorStatusItem = placement.statusItem
-      position = placement.position + Self.positionIncrement
+    addSpacerStatusItems(count: count, besideBoundaryAt: boundaryStatusItemPosition)
+  }
+
+  private func measureBoundaryStatusItemPosition(startingAt startingPosition: Double) async -> Double? {
+    // MenuBarAgent orders items by stored positions (larger = further left) that only roughly track screen distance.
+    // Bracket the boundary item's position with probes on either side, then bisect to the lowest adjacent position so
+    // absent items cannot return between the boundary item and spacers; callers place spacers just above to avoid ties.
+    var lowerBound: Double?
+    var upperBound: Double?
+    var lowestAdjacentPosition: Double?
+    var position = max(Self.roundedPosition(startingPosition), 0)
+    var step = Self.initialSearchStep
+
+    for _ in 0..<Self.placementAttemptLimit {
+      guard let probeResult = await probeSpacerStatusItem(at: position) else {
+        guard !Task.isCancelled else {
+          return nil
+        }
+
+        // Frame didn't settle; retry the same position.
+        continue
+      }
+
+      let jumpDistance: Double
+
+      switch probeResult {
+      case .rightOfBoundary(let distance):
+        lowerBound = position
+        jumpDistance = distance
+
+      case .adjacent:
+        upperBound = position
+        lowestAdjacentPosition = position
+        jumpDistance = 0
+
+      case .leftOfNextItem(let distance):
+        upperBound = position
+        jumpDistance = distance
+
+      case .overflowedLeft:
+        upperBound = position
+        jumpDistance = 0
+      }
+
+      if let lowerBound, let upperBound {
+        if let lowestAdjacentPosition, upperBound - lowerBound <= Self.positionResolution {
+          return lowestAdjacentPosition
+        }
+
+        // Autosave names quantize positions to `positionIncrement`, so stop when no distinct midpoint exists.
+        let midpoint = Self.roundedPosition((lowerBound + upperBound) / 2)
+
+        guard midpoint > lowerBound, midpoint < upperBound else {
+          return lowestAdjacentPosition
+        }
+
+        position = midpoint
+
+      } else if let lowerBound {
+        position = Self.roundedPosition(lowerBound + max(step, jumpDistance))
+        step *= 2
+
+      } else if let upperBound {
+        guard upperBound > 0 else {
+          return lowestAdjacentPosition
+        }
+
+        position = max(Self.roundedPosition(upperBound - max(step, jumpDistance)), 0)
+        step *= 2
+      }
+    }
+
+    return lowestAdjacentPosition
+  }
+
+  private func probeSpacerStatusItem(at position: Double) async -> ProbeResult? {
+    let autosaveName = "Probe-\(position.formatted(.fixedPoint(fractionLength: 1)))"
+    let spacerStatusItem = makeSpacerStatusItem(autosaveName: autosaveName, preferredPosition: position)
+    let settlingResult = await settledFrame(of: spacerStatusItem)
+    let boundaryStatusItemFrame = boundaryStatusItem.button?.window?.frame
+
+    removeSpacerStatusItem(spacerStatusItem)
+
+    guard
+      !Task.isCancelled,
+      let boundaryStatusItemFrame,
+      !boundaryStatusItemFrame.isEmpty
+    else {
+      return nil
+    }
+
+    switch settlingResult {
+    case .settled(let spacerStatusItemFrame):
+      // Positive if left of the boundary with a gap; negative if overlapping or to its right.
+      let gap = boundaryStatusItemFrame.minX - spacerStatusItemFrame.maxX
+
+      if gap <= -Self.adjacencyTolerance {
+        return .rightOfBoundary(distance: abs(gap))
+      }
+
+      if gap < Self.adjacencyTolerance {
+        return .adjacent
+      }
+
+      return .leftOfNextItem(distance: gap)
+
+    case .notLaidOut:
+      // MenuBarAgent drops items from left to right when out of space, so an unplaced probe is too far left.
+      return .overflowedLeft
+
+    case .unsettled:
+      return nil
     }
   }
 
-  private func addMeasuredSpacerStatusItem(
-    leftOf anchorStatusItem: NSStatusItem,
-    startingAt startingPosition: Double,
-    index: Int
-  ) async -> (statusItem: NSStatusItem, position: Double)? {
-    var position = startingPosition
-
-    for attempt in 0..<Self.placementAttemptLimit {
-      guard !Task.isCancelled else {
-        return nil
-      }
-
-      let spacerStatusItem = makeSpacerStatusItem(index: index, preferredPosition: position)
-      let spacerStatusItemFrame = await settledFrame(of: spacerStatusItem)
-      let anchorStatusItemFrame = anchorStatusItem.button?.window?.frame
-
-      guard !Task.isCancelled else {
-        removeSpacerStatusItem(spacerStatusItem)
-        return nil
-      }
-
-      if let spacerStatusItemFrame, let anchorStatusItemFrame, !anchorStatusItemFrame.isEmpty {
-        let gap = anchorStatusItemFrame.minX - spacerStatusItemFrame.maxX
-
-        guard abs(gap) >= 1 else {
-          return (spacerStatusItem, position)
-        }
-
-        position -= gap
-      } else {
-        position += Double(attempt + 1)
-      }
-
-      removeSpacerStatusItem(spacerStatusItem)
-    }
-
-    return nil
-  }
-
-  private func settledFrame(of statusItem: NSStatusItem) async -> CGRect? {
+  private func settledFrame(of statusItem: NSStatusItem) async -> FrameSettlingResult {
     var previousFrame: CGRect?
+    var hasSeenNonEmptyFrame = false
 
     for _ in 0..<Self.layoutSettlingAttemptLimit {
       let frame = statusItem.button?.window?.frame
 
-      if let frame, !frame.isEmpty, frame == previousFrame {
-        return frame
+      if let frame, !frame.isEmpty {
+        if frame == previousFrame {
+          return .settled(frame)
+        }
+
+        hasSeenNonEmptyFrame = true
       }
 
       previousFrame = frame
@@ -286,11 +372,16 @@ final class MenuBarItemManager {
       do {
         try await Task.sleep(for: Self.layoutSettlingInterval)
       } catch {
-        return nil
+        return .unsettled
       }
     }
 
-    return nil
+    return hasSeenNonEmptyFrame ? .unsettled : .notLaidOut
+  }
+
+  private static func roundedPosition(_ position: Double) -> Double {
+    let scale = (1 / positionIncrement).rounded()
+    return (position * scale).rounded() / scale
   }
 
   private func widenStatusItems(to length: CGFloat) {
