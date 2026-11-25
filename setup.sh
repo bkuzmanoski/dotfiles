@@ -447,11 +447,13 @@ defaults_write com.colliderli.iina SUAutomaticallyUpdate -bool true
 defaults_write com.colliderli.iina SUEnableAutomaticChecks -bool true
 defaults_write com.colliderli.iina themeMaterial -int 4
 
+defaults_write com.google.Chrome LensOverlaySettings -int 1
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Developer Tools" "\$@i"    # Map "Developer Tools" keyboard shortcut to ⇧⌘I
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Email Link" "\U0000"       # Remove keyboard shortcut for "Email Link" (conflicts with ⇧⌘I)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab to the right" "@t" # Map "New Tab to the Right" keyboard shortcut to ⌘T
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "New tab" "\U0000"          # Remove keyboard shortcut for "New tab" (conflicts with ⌘T)
 defaults_write com.google.Chrome NSUserKeyEquivalents -dict-add "Search Tabs…" "\$@f"       # Map "Search Tabs…" keyboard shortcut to ⇧⌘F
+defaults_write com.google.Chrome SearchContentSharingSettings -int 1
 
 defaults_write com.lwouis.alt-tab-macos "NSStatusItem VisibleCC Item-0" -int 0 #
 defaults_write com.lwouis.alt-tab-macos appearanceStyle -int 2                 # Set appearance to "Titles"
@@ -464,7 +466,6 @@ defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0              #
 defaults_write com.kyome.Neo.RunCat IS_FLIPPED_HORIZONTALLY -bool true
 
 defaults_write com.superultra.Homerow auto-activate-mission-control -bool false #
-defaults_write com.superultra.Homerow enableSoundEffects -bool false            #
 defaults_write com.superultra.Homerow non-search-shortcut -string "⌥⇧Space"     # Set Clicking keyboard shortcut to ⌥⇧␣
 defaults_write com.superultra.Homerow scroll-shortcut -string ""                # Disable Scrolling keyboard shortcut
 defaults_write com.superultra.Homerow show-menubar-icon -bool false             #
