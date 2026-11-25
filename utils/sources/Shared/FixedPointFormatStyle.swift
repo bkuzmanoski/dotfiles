@@ -19,10 +19,12 @@ struct FixedPointFormatStyle: FormatStyle {
       return String(scaledValue)
     }
 
-    let fractionDigits = String(scaledValue % multiplier)
+    let (integerPart, fractionPart) = scaledValue.magnitude.quotientAndRemainder(dividingBy: UInt(multiplier))
+    let sign = scaledValue < 0 ? "-" : ""
+    let fractionDigits = String(fractionPart)
     let fractionPadding = String(repeating: "0", count: fractionLength - fractionDigits.count)
 
-    return "\(scaledValue / multiplier).\(fractionPadding)\(fractionDigits)"
+    return "\(sign)\(integerPart).\(fractionPadding)\(fractionDigits)"
   }
 }
 
