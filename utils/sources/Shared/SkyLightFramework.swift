@@ -109,12 +109,8 @@ struct SLPSEventRecord {
   }
 
   private mutating func setWindowID(_ windowID: CGWindowID) {
-    var windowID = windowID
-
-    withUnsafeBytes(of: &windowID) { idBytes in
-      for index in 0..<4 {
-        self.bytes[Offset.windowID + index] = idBytes[index]
-      }
+    bytes.withUnsafeMutableBytes {
+      $0.storeBytes(of: windowID.littleEndian, toByteOffset: Offset.windowID, as: CGWindowID.self)
     }
   }
 }

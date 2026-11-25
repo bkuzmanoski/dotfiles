@@ -46,7 +46,7 @@ final class EventTap {
   private let eventMask: CGEventMask
   private var machPort: CFMachPort?
   private var runLoopSource: CFRunLoopSource?
-  private var restoreTriggerObservationTask: Task<Void, Never>?
+  private var restoreTriggersObservationTask: Task<Void, Never>?
 
   convenience init(location: CGEventTapLocation, filtering eventTypes: [CGEventType]) throws {
     try self.init(location: location, options: .defaultTap, eventTypes: eventTypes)
@@ -65,7 +65,7 @@ final class EventTap {
 
     try createTap()
 
-    self.restoreTriggerObservationTask = Task {
+    self.restoreTriggersObservationTask = Task {
       await withDiscardingTaskGroup { [weak self] group in
         for restoreTrigger in Self.restoreTriggers {
           group.addTask {
@@ -79,7 +79,7 @@ final class EventTap {
   }
 
   isolated deinit {
-    restoreTriggerObservationTask?.cancel()
+    restoreTriggersObservationTask?.cancel()
     destroyTap()
   }
 

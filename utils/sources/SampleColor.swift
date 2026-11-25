@@ -57,7 +57,7 @@ struct RGBFormatStyle: FormatStyle {
   }
 
   private static func byte(_ component: CGFloat) -> UInt8 {
-    return UInt8(Int((component * 255).rounded()).clamped(to: 0...255))
+    return UInt8(Int((component * CGFloat(UInt8.max)).rounded()).clamped(to: Int(UInt8.min)...Int(UInt8.max)))
   }
 }
 

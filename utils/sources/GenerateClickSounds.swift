@@ -1,4 +1,4 @@
-// Shared: CommandLineOptions Log
+// Shared: CommandLineOptions Comparable Log
 
 // Renders ClickSoundEffects WAVs from cuelume's "select" cue (https://cuelume-site.pages.dev, MIT, Daniel Belyi).
 
@@ -18,8 +18,7 @@ enum Configuration {
 
 extension Data {
   mutating func appendLittleEndian<Value: FixedWidthInteger>(_ value: Value) {
-    var littleEndianValue = value.littleEndian
-    Swift.withUnsafeBytes(of: &littleEndianValue) { append(contentsOf: $0) }
+    Swift.withUnsafeBytes(of: value.littleEndian) { append(contentsOf: $0) }
   }
 }
 
@@ -146,16 +145,16 @@ struct Modifiers {
   var length = 1.0
   var brightness = 1.0
 
-  var clampedPitch: Double { min(1.25, max(0.75, pitch)) }
-  var clampedLength: Double { min(1.6, max(0.6, length)) }
+  var clampedPitch: Double { pitch.clamped(to: 0.75...1.25) }
+  var clampedLength: Double { length.clamped(to: 0.6...1.6) }
 
   static func repeatSoftening(gapMilliseconds: Double) -> Modifiers {
-    let amount = min(1, max(0, (220 - gapMilliseconds) / 150))
+    let amount = ((220 - gapMilliseconds) / 150).clamped(to: 0...1)
     return Modifiers(level: 1 - 0.22 * amount, length: 1 - 0.25 * amount, brightness: 1 - 0.2 * amount)
   }
 
   func gain(baseFrequency: Double) -> Double {
-    return min(1.5, max(0, level * (baseFrequency >= 2500 ? brightness : 1)))
+    return (level * (baseFrequency >= 2500 ? brightness : 1)).clamped(to: 0...1.5)
   }
 }
 
@@ -347,7 +346,10 @@ enum WAVFile {
         frame >= frameCount - fadeOutFrameCount ? Double(frameCount - frame) / Double(fadeOutFrameCount) : 1
 
       for sample in [signal.left[frame], signal.right[frame]] {
-        sampleData.appendLittleEndian(Int16(max(-32768, min(32767, (sample * fade * 32767).rounded()))))
+        let quantizedSample = (sample * fade * Double(Int16.max))
+          .rounded()
+          .clamped(to: Double(Int16.min)...Double(Int16.max))
+        sampleData.appendLittleEndian(Int16(quantizedSample))
       }
     }
 

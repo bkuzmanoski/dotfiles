@@ -1,6 +1,7 @@
 // Shared: Log
 
 import AppKit
+import Carbon.HIToolbox
 
 @main
 enum PasteAsPlaintext {
@@ -16,8 +17,8 @@ enum PasteAsPlaintext {
 
     guard
       let source = CGEventSource(stateID: .hidSystemState),
-      let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: true),
-      let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(9), keyDown: false)
+      let pasteKeyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true),
+      let pasteKeyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
     else {
       Log.error("Failed to create CGEvent for paste action.")
       exit(EXIT_FAILURE)

@@ -1,4 +1,4 @@
-// Shared: EventTap Log NSScreen SCShareableContent ScreenCapturePermission SkyLightFramework Spaces
+// Shared: Comparable EventTap Log NSScreen SCShareableContent ScreenCapturePermission SkyLightFramework Spaces
 
 import ScreenCaptureKit
 
@@ -246,12 +246,12 @@ enum EdgeDetector {
       switch axis {
       case .horizontal:
         let heightInPoints = CGFloat(screenCapture.height) / screenCapture.scaleFactor
-        let orthogonalPointY = max(0, min(floor(location.y), heightInPoints - 1))
+        let orthogonalPointY = floor(location.y).clamped(to: 0...max(0, heightInPoints - 1))
         let measurementPointX = location.x
         let targetPixelX = Int(floor(measurementPointX * screenCapture.scaleFactor))
         let targetPixelY = Int(CGFloat(screenCapture.height) - (orthogonalPointY + 1) * screenCapture.scaleFactor)
-        let clampedPixelX = max(0, min(targetPixelX, screenCapture.width - 1))
-        let clampedPixelY = max(0, min(targetPixelY, screenCapture.height - pixelsPerPoint))
+        let clampedPixelX = targetPixelX.clamped(to: 0...max(0, screenCapture.width - 1))
+        let clampedPixelY = targetPixelY.clamped(to: 0...max(0, screenCapture.height - pixelsPerPoint))
         let rowStartBufferIndex = clampedPixelY * screenCapture.pixelsPerRow
 
         var leadingPixelX = clampedPixelX
@@ -302,12 +302,12 @@ enum EdgeDetector {
 
       case .vertical:
         let widthInPoints = CGFloat(screenCapture.width) / screenCapture.scaleFactor
-        let orthogonalPointX = max(0, min(floor(location.x), widthInPoints - 1))
+        let orthogonalPointX = floor(location.x).clamped(to: 0...max(0, widthInPoints - 1))
         let measurementPointY = location.y
         let targetPixelX = Int(orthogonalPointX * screenCapture.scaleFactor)
         let targetPixelY = Int(CGFloat(screenCapture.height) - floor(measurementPointY * screenCapture.scaleFactor) - 1)
-        let clampedPixelX = max(0, min(targetPixelX, screenCapture.width - pixelsPerPoint))
-        let clampedPixelY = max(0, min(targetPixelY, screenCapture.height - 1))
+        let clampedPixelX = targetPixelX.clamped(to: 0...max(0, screenCapture.width - pixelsPerPoint))
+        let clampedPixelY = targetPixelY.clamped(to: 0...max(0, screenCapture.height - 1))
         let columnStartBufferIndex = clampedPixelX
 
         var topPixelY = clampedPixelY
@@ -489,9 +489,12 @@ final class MeasurementView: NSView {
         }
       }
 
+      let minX = bounds.minX + margin
+      let minY = bounds.minY + margin
+
       return CGRect(
-        x: max(bounds.minX + margin, min(originX, bounds.maxX - size.width - margin)),
-        y: max(bounds.minY + margin, min(originY, bounds.maxY - size.height - margin)),
+        x: originX.clamped(to: minX...max(minX, bounds.maxX - size.width - margin)),
+        y: originY.clamped(to: minY...max(minY, bounds.maxY - size.height - margin)),
         width: size.width,
         height: size.height
       )
