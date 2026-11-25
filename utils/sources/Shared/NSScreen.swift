@@ -10,4 +10,8 @@ extension NSScreen {
   static func screen(for displayID: CGDirectDisplayID) -> NSScreen? {
     return screens.first { $0.cgDirectDisplayID == displayID }
   }
+
+  static func cocoaPoint(fromQuartz point: CGPoint) -> CGPoint {
+    return CGPoint(x: point.x, y: (screens.first?.frame.height ?? 0) - point.y)
+  }
 }

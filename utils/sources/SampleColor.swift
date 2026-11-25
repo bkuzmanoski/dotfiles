@@ -1,4 +1,4 @@
-// Shared: CommandLineOptions Comparable EventTap Log NSScreen SCShareableContent ScreenCapturePermission
+// Shared: CommandLineOptions Comparable EventTap Log NSScreen SCShareableContent ScreenCapturePermission WindowInfo
 
 import AppKit
 import ScreenCaptureKit
@@ -14,7 +14,7 @@ enum Configuration {
   static let captureSettleDuration: Duration = .milliseconds(100)
 }
 
-struct HexIntegerFormatStyle<Value: BinaryInteger>: FormatStyle {
+struct HexIntegerFormatStyle<Value: UnsignedInteger>: FormatStyle {
   typealias FormatInput = Value
   typealias FormatOutput = String
 
@@ -123,8 +123,8 @@ enum PixelCapture {
     // NSColorSampler picks the pixel at the rounded (not floored) pixel coordinate of the pointer.
     let pixelX = Int(((location.x - screen.frame.minX) * CGFloat(pixelsPerPoint)).rounded())
     let pixelYFromBottom = Int(((location.y - screen.frame.minY) * CGFloat(pixelsPerPoint)).rounded())
-    let targetX = pixelX.clamped(to: 0...(displayWidth - 1))
-    let targetY = (displayHeight - 1 - pixelYFromBottom).clamped(to: 0...(displayHeight - 1))
+    let targetX = pixelX.clamped(to: 0...max(0, displayWidth - 1))
+    let targetY = (displayHeight - 1 - pixelYFromBottom).clamped(to: 0...max(0, displayHeight - 1))
 
     let configuration = SCStreamConfiguration()
     // Capture the whole point containing the target pixel as source rects that aren't aligned to whole points produce
@@ -230,28 +230,37 @@ final class LabelView: NSView {
 
 @MainActor
 final class LiveColorPreview: NSObject {
-  static let colorSamplerProcessName = "ColorSampler"
-  static let colorSamplerLoupeRadius: CGFloat = 60.5
+  private static let colorSamplerProcessName = "ColorSampler"
+  private static let colorSamplerLoupeRadius: CGFloat = 60.5
 
-  private enum State {
-    case idle
-    case running
-    case stopped
+  enum Error: Swift.Error, LocalizedError {
+    case alreadyRunning
+    case previousCaptureInProgress
+
+    var errorDescription: String? {
+      switch self {
+      case .alreadyRunning: "Live color preview is already running."
+      case .previousCaptureInProgress: "A capture from the previous live color preview session is still in progress."
+      }
+    }
+  }
+
+  private struct Session {
+    let displayLink: CADisplayLink
+    let eventTap: EventTap?
+    var hasDetectedLoupe = false
+    var contentFilter: (displayID: CGDirectDisplayID, filter: SCContentFilter)?
+    var lastMouseLocation: CGPoint?
+    var lastCapture: (location: CGPoint, time: ContinuousClock.Instant)?
   }
 
   private let format: RGBFormatStyle
   private let colorSpace: NSColorSpace?
   private let window: NSWindow
   private let labelView = LabelView()
-  private var eventTap: EventTap?
-  private var displayLink: CADisplayLink?
-  private var contentFilter: (displayID: CGDirectDisplayID, filter: SCContentFilter)?
-  private var isLoupeVisible = false
-  private var state: State = .idle
+  private var session: Session?
   private var captureTask: Task<Void, Never>?
-  private var finishTask: Task<Void, Never>?
-  private var lastMouseLocation: CGPoint?
-  private var lastCapture: (location: CGPoint, time: ContinuousClock.Instant)?
+  private var stopTask: Task<Void, Never>?
 
   init(format: RGBFormatStyle, colorSpace: NSColorSpace?) {
     let window = NSWindow(
@@ -277,78 +286,87 @@ final class LiveColorPreview: NSObject {
     super.init()
   }
 
-  func start() {
-    guard state == .idle else {
-      return
+  func start() throws(Error) {
+    guard session == nil else {
+      throw Error.alreadyRunning
     }
 
-    self.state = .running
+    // A capture still in flight from a previous session would apply its result to the new one.
+    guard captureTask == nil, stopTask == nil else {
+      throw Error.previousCaptureInProgress
+    }
 
+    labelView.setText("")
+    window.alphaValue = 0
     window.orderFrontRegardless()
-
-    // NSColorSampler consumes pointer events, preventing event monitors from receiving them. An event tap still
-    // receives them, but requires accessibility permission. Without accessibility permission the label updates only on
-    // display-link ticks.
-    if let eventTap = try? EventTap(
-      location: .cghidEventTap,
-      observing: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
-    ) {
-      eventTap.eventObserver = { [weak self] event in
-        self?.handlePointer(at: Self.cocoaPoint(from: event.location))
-      }
-      eventTap.isEnabled = true
-
-      self.eventTap = eventTap
-    }
 
     let displayLink = labelView.displayLink(target: self, selector: #selector(displayLinkDidFire))
     displayLink.add(to: .main, forMode: .common)
 
-    self.displayLink = displayLink
+    // NSColorSampler consumes pointer events, preventing event monitors from receiving them. An event tap still
+    // receives them, but requires accessibility permission. Without accessibility permission the label updates only on
+    // display-link ticks.
+    let eventTap = try? EventTap(
+      location: .cghidEventTap,
+      observing: [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
+    )
+
+    eventTap?.eventObserver = { [weak self] event in
+      self?.handlePointer(at: NSScreen.cocoaPoint(fromQuartz: event.location))
+    }
+
+    eventTap?.isEnabled = true
+
+    self.session = Session(displayLink: displayLink, eventTap: eventTap)
   }
 
-  func stop() {
-    guard state != .stopped else {
+  func stop() async {
+    endSession()
+
+    if let stopTask {
+      await stopTask.value
       return
     }
 
-    self.state = .stopped
+    guard let captureTask else {
+      return
+    }
 
-    hide()
-  }
-
-  func finish() async {
-    if finishTask == nil {
-      stop()
-
-      // Wait for an in-progress capture before exiting as exiting immediately causes ScreenCaptureKit to show a permission prompt.
-      self.finishTask = Task { [captureTask] in
-        guard let captureTask else {
-          return
-        }
-
+    let stopTask = Task {
+      // Wait for an in-progress capture before exiting as exiting immediately causes ScreenCaptureKit to show a
+      // permission prompt.
+      await withTaskCancellationShield {
         await captureTask.value
         try? await Task.sleep(for: Configuration.captureSettleDuration)
       }
     }
 
-    await finishTask?.value
+    self.stopTask = stopTask
+
+    defer {
+      self.stopTask = nil
+    }
+
+    await stopTask.value
   }
 
-  private func hide() {
-    displayLink?.invalidate()
+  private func endSession() {
+    session?.displayLink.invalidate()
     window.orderOut(nil)
 
-    self.displayLink = nil
-    self.eventTap = nil
+    self.session = nil
   }
 
   @objc private func displayLinkDidFire(_ displayLink: CADisplayLink) {
+    guard let session else {
+      return
+    }
+
     let mouseLocation = NSEvent.mouseLocation
 
     // NSColorSampler sometimes keeps its loupe hidden until the pointer moves.
-    if !isLoupeVisible, Self.isLoupeOnScreen(near: mouseLocation) {
-      self.isLoupeVisible = true
+    if !session.hasDetectedLoupe, Self.isLoupeOnScreen(near: mouseLocation) {
+      self.session?.hasDetectedLoupe = true
       updateVisibility()
     }
 
@@ -356,12 +374,12 @@ final class LiveColorPreview: NSObject {
   }
 
   private func handlePointer(at mouseLocation: CGPoint) {
-    guard state == .running, let screen = NSScreen.screen(containing: mouseLocation) else {
+    guard let session, let screen = NSScreen.screen(containing: mouseLocation) else {
       return
     }
 
-    if mouseLocation != lastMouseLocation {
-      self.lastMouseLocation = mouseLocation
+    if mouseLocation != session.lastMouseLocation {
+      self.session?.lastMouseLocation = mouseLocation
       positionWindow(at: mouseLocation, on: screen)
     }
 
@@ -369,69 +387,65 @@ final class LiveColorPreview: NSObject {
   }
 
   private func captureIfNeeded(at mouseLocation: CGPoint, on screen: NSScreen) {
-    guard captureTask == nil, let displayID = screen.cgDirectDisplayID else {
+    // Read `session` through `self` (not a local binding) so the capture task below checks the live session.
+    guard session != nil, captureTask == nil, let displayID = screen.cgDirectDisplayID else {
       return
     }
 
-    if let lastCapture,
+    if let lastCapture = session?.lastCapture,
       lastCapture.location == mouseLocation,
       ContinuousClock.now - lastCapture.time < Configuration.idleCaptureInterval
     {
       return
     }
 
-    let cachedContentFilter = contentFilter.flatMap { $0.displayID == displayID ? $0.filter : nil }
+    let cachedContentFilter = session?.contentFilter.flatMap { $0.displayID == displayID ? $0.filter : nil }
 
-    self.lastCapture = (mouseLocation, .now)
+    self.session?.lastCapture = (mouseLocation, .now)
 
     self.captureTask = Task { [weak self] in
-      do {
-        let filter: SCContentFilter
+      let result = await Result {
+        try await Self.captureColor(at: mouseLocation, on: screen, displayID: displayID, reusing: cachedContentFilter)
+      }
 
-        if let cachedContentFilter {
-          filter = cachedContentFilter
-        } else {
-          let result = try await PixelCapture.contentFilter(for: displayID)
-          filter = result.filter
+      guard let self else {
+        return
+      }
 
-          if result.excludesColorSampler {
-            self?.contentFilter = (displayID, result.filter)
-          }
+      self.captureTask = nil
+
+      guard session != nil else {
+        return
+      }
+
+      switch result {
+      case .success(let capture):
+        if let contentFilter = capture.contentFilterToCache {
+          self.session?.contentFilter = (displayID, contentFilter)
         }
 
-        let color = try await PixelCapture.color(
-          at: mouseLocation,
-          on: (screen.frame, screen.backingScaleFactor),
-          using: filter
-        )
-
-        guard let self, state == .running else {
-          return
-        }
-
-        self.captureTask = nil
-
-        update(with: color, on: screen)
+        update(with: capture.color, on: screen)
         handlePointer(at: NSEvent.mouseLocation)
-      } catch {
-        guard let self, state == .running else {
-          return
-        }
 
-        self.captureTask = nil
+      case .failure(PixelCapture.Error.pixelFullyTransparent):
+        break
 
+      case .failure(let error):
         if cachedContentFilter != nil {
-          self.contentFilter = nil // May be stale (e.g. the display was reconfigured).
+          self.session?.contentFilter = nil // May be stale (e.g. the display was reconfigured).
         } else {
           Log.error("Live preview unavailable: \(error.localizedDescription)")
-          stop()
+          endSession()
         }
       }
     }
   }
 
   private func update(with capturedColor: NSColor, on screen: NSScreen) {
-    guard let color = colorSpace.map({ capturedColor.usingColorSpace($0) }) ?? capturedColor else {
+    guard
+      let color = colorSpace.map({ capturedColor.usingColorSpace($0) }) ?? capturedColor,
+      color.colorSpace.colorSpaceModel == .rgb
+    else {
       return
     }
 
@@ -443,7 +457,7 @@ final class LiveColorPreview: NSObject {
 
     labelView.setText(text)
 
-    if let lastMouseLocation {
+    if let lastMouseLocation = session?.lastMouseLocation {
       positionWindow(at: lastMouseLocation, on: screen)
     }
 
@@ -451,11 +465,16 @@ final class LiveColorPreview: NSObject {
   }
 
   private func updateVisibility() {
-    window.alphaValue = isLoupeVisible && labelView.labelSize != .zero ? 1 : 0
+    window.alphaValue = session?.hasDetectedLoupe == true && !labelView.text.isEmpty ? 1 : 0
   }
 
   private func positionWindow(at mouseLocation: CGPoint, on screen: NSScreen) {
     let labelSize = labelView.labelSize
+
+    guard labelSize != .zero else {
+      return
+    }
+
     let screenFrame = screen.frame
     let offset = Self.colorSamplerLoupeRadius + Configuration.labelOffset
     var originY = mouseLocation.y - offset - labelSize.height
@@ -480,36 +499,43 @@ final class LiveColorPreview: NSObject {
     }
   }
 
-  private static func cocoaPoint(from quartzPoint: CGPoint) -> CGPoint {
-    return CGPoint(x: quartzPoint.x, y: (NSScreen.screens.first?.frame.height ?? 0) - quartzPoint.y)
-  }
-
   private static func isLoupeOnScreen(near mouseLocation: CGPoint) -> Bool {
-    guard
-      let windowsInfo = CGWindowListCopyWindowInfo(
-        [.optionOnScreenOnly, .excludeDesktopElements],
-        kCGNullWindowID
-      ) as? [[String: Any]]
-    else {
-      return false
-    }
+    let windowsInfo = WindowInfo.list(options: [.optionOnScreenOnly, .excludeDesktopElements]) ?? []
 
     return windowsInfo.contains { windowInfo in
       guard
-        windowInfo[kCGWindowOwnerName as String] as? String == Self.colorSamplerProcessName,
+        windowInfo.ownerName == Self.colorSamplerProcessName,
         // The loupe is at cursor level; the sampler's full-screen windows are above it.
-        windowInfo[kCGWindowLayer as String] as? CGWindowLevel == CGWindowLevelForKey(.cursorWindow),
-        let boundsDictionary = windowInfo[kCGWindowBounds as String] as? NSDictionary,
-        let bounds = CGRect(dictionaryRepresentation: boundsDictionary)
+        windowInfo.level == CGWindowLevelForKey(.cursorWindow)
       else {
         return false
       }
 
-      // While hidden, the loupe is parked off-screen.
-      let center = cocoaPoint(from: CGPoint(x: bounds.midX, y: bounds.midY))
+      let bounds = windowInfo.bounds
+      let center = NSScreen.cocoaPoint(fromQuartz: CGPoint(x: bounds.midX, y: bounds.midY))
 
+      // While hidden, the loupe is parked off-screen.
       return abs(center.x - mouseLocation.x) <= bounds.width && abs(center.y - mouseLocation.y) <= bounds.height
     }
+  }
+
+  private static func captureColor(
+    at mouseLocation: CGPoint,
+    on screen: NSScreen,
+    displayID: CGDirectDisplayID,
+    reusing contentFilter: SCContentFilter?
+  ) async throws -> (color: NSColor, contentFilterToCache: SCContentFilter?) {
+    let screenGeometry = (frame: screen.frame, scaleFactor: screen.backingScaleFactor)
+
+    if let contentFilter {
+      return (try await PixelCapture.color(at: mouseLocation, on: screenGeometry, using: contentFilter), nil)
+    }
+
+    let result = try await PixelCapture.contentFilter(for: displayID)
+    let color = try await PixelCapture.color(at: mouseLocation, on: screenGeometry, using: result.filter)
+
+    // ColorSampler may not be in the shareable content yet; only cache a filter that actually excludes it.
+    return (color, result.excludesColorSampler ? result.filter : nil)
   }
 }
 
@@ -562,6 +588,10 @@ struct CommandLineOptions: ParsableCommandLineOptions {
 enum SampleColor {
   static func main() {
     let options = CommandLineOptions.parseOrExit()
+
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+
     let liveColorPreview =
       ScreenCapturePermission.isGranted
       ? LiveColorPreview(format: options.format, colorSpace: options.colorSpace)
@@ -571,19 +601,18 @@ enum SampleColor {
       let exitCode = output(color, format: format, colorSpace: colorSpace)
 
       Task { @MainActor in
-        await liveColorPreview?.finish()
+        await liveColorPreview?.stop()
         exit(exitCode)
       }
     }
 
-    let application = NSApplication.shared
-    application.setActivationPolicy(.accessory)
-
-    liveColorPreview?.start()
-
-    withExtendedLifetime(liveColorPreview) {
-      application.run()
+    do {
+      try liveColorPreview?.start()
+    } catch {
+      Log.error(error.localizedDescription)
     }
+
+    application.run()
   }
 
   private static func output(_ color: NSColor?, format: RGBFormatStyle, colorSpace: NSColorSpace?) -> Int32 {
@@ -591,12 +620,19 @@ enum SampleColor {
       return EXIT_SUCCESS
     }
 
-    guard let color = colorSpace.map({ color.usingColorSpace($0) }) ?? color else {
+    let convertedColor = colorSpace.map { color.usingColorSpace($0) } ?? color
+
+    guard let convertedColor else {
       Log.error("Failed to convert color to the specified color space.")
       return EXIT_FAILURE
     }
 
-    let result = color.formatted(format)
+    guard convertedColor.colorSpace.colorSpaceModel == .rgb else {
+      Log.error("Sampled color has an unsupported color space.")
+      return EXIT_FAILURE
+    }
+
+    let result = convertedColor.formatted(format)
 
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(result, forType: .string)
