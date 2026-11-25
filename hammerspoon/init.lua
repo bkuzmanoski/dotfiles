@@ -15,6 +15,7 @@ hs.window.animationDuration = 0
 
 utils.createSpaces(settings.numberOfSpaces)
 
+hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background --efficiency AutoLaunchCoreEQ")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background --efficiency BatteryWarning")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background --normal-priority ClickSoundEffects")
 hs.execute("${HOME}/.dotfiles/utils/run_util.sh --background --normal-priority FloatingMenuBar")

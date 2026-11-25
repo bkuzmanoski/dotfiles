@@ -1,4 +1,4 @@
-// Shared: Accessibility Agent CGEvent EventTap Log
+// Shared: Accessibility Agent AudioDevice CGEvent EventTap Log
 
 import AppKit
 import AudioToolbox
@@ -6,33 +6,6 @@ import AudioToolbox
 enum Configuration {
   static let subsystem = "industries.britown.ClickSoundEffects"
   static let soundFileDirectoryPath = "~/.dotfiles/utils/assets"
-}
-
-typealias AudioDeviceTransportType = UInt32
-
-extension AudioDeviceTransportType {
-  var isBluetooth: Bool { self == kAudioDeviceTransportTypeBluetooth || self == kAudioDeviceTransportTypeBluetoothLE }
-}
-
-extension OSStatus {
-  var fourCharCodeString: String? {
-    let bytes = [
-      UInt8((self >> 24) & 0xff),
-      UInt8((self >> 16) & 0xff),
-      UInt8((self >> 8) & 0xff),
-      UInt8(self & 0xff)
-    ]
-
-    guard bytes.allSatisfy({ $0 >= 0x20 && $0 <= 0x7e }) else {
-      return nil
-    }
-
-    let scalars = bytes.compactMap { UnicodeScalar($0) }
-
-    return String(String.UnicodeScalarView(scalars))
-  }
-
-  var statusDescription: String { fourCharCodeString.map { "\($0) (\(self))" } ?? String(self) }
 }
 
 enum SoundEffect: CaseIterable, CustomStringConvertible {
@@ -214,168 +187,30 @@ final class ClickMonitor {
   }
 }
 
-final class OutputDeviceMonitor {
-  enum Error: Swift.Error, LocalizedError {
-    case failedToDetermineOutputDevice(status: OSStatus)
-    case failedToDetermineDeviceTransportType(deviceID: AudioObjectID, status: OSStatus)
-    case failedToObserveOutputDeviceChanges(status: OSStatus)
-
-    var errorDescription: String? {
-      switch self {
-      case .failedToDetermineOutputDevice(let status):
-        "Failed to determine the output audio device: \(status.statusDescription)"
-
-      case .failedToDetermineDeviceTransportType(let deviceID, let status):
-        "Failed to determine the transport type for device '\(deviceID)': \(status.statusDescription)"
-
-      case .failedToObserveOutputDeviceChanges(let status):
-        "Failed to observe output device changes: \(status.statusDescription)"
-      }
-    }
-  }
-
-  private let systemObjectID = AudioObjectID(kAudioObjectSystemObject)
-  private let defaultSystemOutputDevicePropertyAddress = AudioObjectPropertyAddress(
-    mSelector: kAudioHardwarePropertyDefaultSystemOutputDevice,
-    mScope: kAudioObjectPropertyScopeGlobal,
-    mElement: kAudioObjectPropertyElementMain
-  )
-  private let transportTypePropertyAddress = AudioObjectPropertyAddress(
-    mSelector: kAudioDevicePropertyTransportType,
-    mScope: kAudioObjectPropertyScopeGlobal,
-    mElement: kAudioObjectPropertyElementMain
-  )
-  private lazy var systemOutputDevicePropertyListenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
-    self?.handleOutputDeviceChanged()
-  }
-  private var continuation: AsyncStream<AudioDeviceTransportType>.Continuation?
-
-  init() throws {
-    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
-
-    let status = AudioObjectAddPropertyListenerBlock(
-      systemObjectID,
-      &defaultSystemOutputDevicePropertyAddress,
-      .main,
-      systemOutputDevicePropertyListenerBlock
-    )
-
-    guard status == kAudioHardwareNoError else {
-      throw Error.failedToObserveOutputDeviceChanges(status: status)
-    }
-  }
-
-  deinit {
-    continuation?.finish()
-
-    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
-    AudioObjectRemovePropertyListenerBlock(
-      systemObjectID,
-      &defaultSystemOutputDevicePropertyAddress,
-      .main,
-      systemOutputDevicePropertyListenerBlock
-    )
-  }
-
-  func transportTypes() -> AsyncStream<AudioDeviceTransportType> {
-    continuation?.finish()
-
-    let (stream, continuation) = AsyncStream.makeStream(of: AudioDeviceTransportType.self)
-
-    self.continuation = continuation
-
-    return stream
-  }
-
-  func currentTransportType() throws -> AudioDeviceTransportType {
-    var defaultSystemOutputDevicePropertyAddress = defaultSystemOutputDevicePropertyAddress
-    var defaultSystemOutputDeviceID = kAudioObjectUnknown
-    var defaultSystemOutputDevicePropertyDataSize = UInt32(MemoryLayout.size(ofValue: defaultSystemOutputDeviceID))
-
-    let getDefaultSystemOutputDevicePropertyStatus = AudioObjectGetPropertyData(
-      systemObjectID,
-      &defaultSystemOutputDevicePropertyAddress,
-      0,
-      nil,
-      &defaultSystemOutputDevicePropertyDataSize,
-      &defaultSystemOutputDeviceID
-    )
-
-    guard
-      getDefaultSystemOutputDevicePropertyStatus == kAudioHardwareNoError,
-      defaultSystemOutputDeviceID != kAudioObjectUnknown
-    else {
-      throw Error.failedToDetermineOutputDevice(status: getDefaultSystemOutputDevicePropertyStatus)
-    }
-
-    var transportTypePropertyAddress = transportTypePropertyAddress
-
-    guard AudioObjectHasProperty(defaultSystemOutputDeviceID, &transportTypePropertyAddress) else {
-      return kAudioDeviceTransportTypeUnknown
-    }
-
-    var transportType = kAudioDeviceTransportTypeUnknown
-    var transportTypePropertyDataSize = UInt32(MemoryLayout.size(ofValue: transportType))
-
-    let getTransportTypePropertyStatus = AudioObjectGetPropertyData(
-      defaultSystemOutputDeviceID,
-      &transportTypePropertyAddress,
-      0,
-      nil,
-      &transportTypePropertyDataSize,
-      &transportType
-    )
-
-    guard getTransportTypePropertyStatus == kAudioHardwareNoError else {
-      throw Error.failedToDetermineDeviceTransportType(
-        deviceID: defaultSystemOutputDeviceID,
-        status: getTransportTypePropertyStatus
-      )
-    }
-
-    return transportType
-  }
-
-  private func handleOutputDeviceChanged() {
-    let transportType: AudioDeviceTransportType
-
-    do {
-      transportType = try currentTransportType()
-    } catch {
-      Log.error(error.localizedDescription)
-      transportType = kAudioDeviceTransportTypeUnknown
-    }
-
-    continuation?.yield(transportType)
-  }
-}
-
 @MainActor
 final class AppDelegate: NSObject, AgentDelegate {
-  private var outputDeviceMonitor: OutputDeviceMonitor?
   private var clickMonitor: ClickMonitor?
-  private var transportTypeObservationTask: Task<Void, Never>?
+  private var systemOutputDeviceObservationTask: Task<Void, Never>?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
-      let outputDeviceMonitor = try OutputDeviceMonitor()
+      let defaultSystemOutputDeviceUpdates = try AudioDevice.defaultDeviceUpdates(for: .systemOutput)
       let soundEffectManager = try SoundEffectManager(
         soundFileDirectoryURL: URL(filePath: Configuration.soundFileDirectoryPath, directoryHint: .isDirectory)
       )
       let clickMonitor = try ClickMonitor(
         soundEffectManager: soundEffectManager,
-        isSuspended: outputDeviceMonitor.currentTransportType().isBluetooth
+        isSuspended: true
       )
 
-      self.outputDeviceMonitor = outputDeviceMonitor
       self.clickMonitor = clickMonitor
-      self.transportTypeObservationTask = Task { [weak self] in
-        for await transportType in outputDeviceMonitor.transportTypes() {
-          guard let self else {
-            break
+      self.systemOutputDeviceObservationTask = Task {
+        for await defaultSystemOutputDevice in defaultSystemOutputDeviceUpdates {
+          do {
+            clickMonitor.setSuspended(try defaultSystemOutputDevice?.transportType.isBluetooth ?? true)
+          } catch {
+            Log.error(error.localizedDescription)
           }
-
-          self.clickMonitor?.setSuspended(transportType.isBluetooth)
         }
       }
     } catch {
@@ -385,10 +220,9 @@ final class AppDelegate: NSObject, AgentDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    transportTypeObservationTask?.cancel()
+    systemOutputDeviceObservationTask?.cancel()
 
-    self.transportTypeObservationTask = nil
-    self.outputDeviceMonitor = nil
+    self.systemOutputDeviceObservationTask = nil
     self.clickMonitor = nil
   }
 
