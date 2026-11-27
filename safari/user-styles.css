@@ -20,22 +20,23 @@ html.spotify__container--is-web {
 }
 
 /* YouTube */
-ytd-masthead #background,
-#chips-wrapper,
-#header:has(chip-bar-view-model) {
+#frosted-glass,
+ytd-masthead #background {
+  backdrop-filter: none !important;
   background-color: #fff !important;
 }
 
 html[dark],
 html[dark] ytd-app,
+html[dark] #frosted-glass,
 html[dark] ytd-masthead #background,
+html[dark] #chips-wrapper,
+html[dark] #header:has(chip-bar-view-model),
 html[dark] .button-container.ytd-rich-shelf-renderer,
-html[darl] #chips-wrapper,
 html[dark]
   #chips-content
   > :is(#left-arrow, #right-arrow)
-  > [id$="-arrow-button"],
-html[dark] #header:has(chip-bar-view-model) {
+  > [id$="-arrow-button"] {
   background-color: #212121 !important;
 }
 
@@ -43,10 +44,17 @@ html[dark] ytd-playlist-video-list-renderer yt-icon {
   color: #c8c8c8 !important;
 }
 
-html[dark] #chips-content > #right-arrow::before,
-html[dark] #chips-content > #left-arrow::after {
+html[dark] #chips-content > #right-arrow::before {
   background: linear-gradient(
     to left,
+    #212121 20%,
+    rgb(33 33 33 / 0) 80%
+  ) !important;
+}
+
+html[dark] #chips-content > #left-arrow::after {
+  background: linear-gradient(
+    to right,
     #212121 20%,
     rgb(33 33 33 / 0) 80%
   ) !important;
