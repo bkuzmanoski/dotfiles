@@ -20,66 +20,113 @@ html.spotify__container--is-web {
 }
 
 /* YouTube */
-ytd-app {
-  #country-code,
-  #voice-search-button,
-  ytd-masthead #end > *,
-  #guide-renderer yt-icon,
-  ytd-guide-section-renderer > h3,
-  #footer,
-  ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
-  ytd-guide-entry-renderer:has(
-    a:is(
-      [title="Shorts"],
-      [title="You"],
-      [title="Your videos"],
-      [title="Downloads"],
-      [title="Show more"],
-      [href*="/feed/storefront"],
-      [href="/gaming"],
-      [href="/feed/hype"]
-    )
-  ),
-  #items:has(a[href="/feed/subscriptions"])
-    > :is(ytd-guide-entry-renderer, ytd-guide-collapsible-entry-renderer),
-  ytd-guide-section-renderer:has(
-    a:is([href*="youtubekids.com"], [href="/reporthistory"])
-  ),
-  .ytListItemViewModelHost:has(
-    a:is([href="/feed/downloads"], [href="/feed/you"])
-  ),
-  .ytListItemViewModelHost:not(yt-dialog-view-model *):has(
-      a[href*="/channel"]
-    ) {
-    display: none !important;
-  }
+ytd-masthead #background,
+#chips-wrapper,
+#header:has(chip-bar-view-model) {
+  background-color: #fff !important;
+}
 
-  #sections > ytd-guide-section-renderer {
-    padding-bottom: 0 !important;
-    border-bottom: none !important;
-    margin-bottom: 4px !important;
+html[dark],
+html[dark] ytd-app,
+html[dark] ytd-masthead #background,
+html[dark] .button-container.ytd-rich-shelf-renderer,
+html[darl] #chips-wrapper,
+html[dark]
+  #chips-content
+  > :is(#left-arrow, #right-arrow)
+  > [id$="-arrow-button"],
+html[dark] #header:has(chip-bar-view-model) {
+  background-color: #212121 !important;
+}
 
-    &:not(:first-child) {
-      padding-top: 0 !important;
-    }
-  }
+html[dark] ytd-playlist-video-list-renderer yt-icon {
+  color: #c8c8c8 !important;
+}
 
-  #section-items > ytd-guide-entry-renderer:not(:last-child) {
-    margin-bottom: 4px;
-  }
+html[dark] #chips-content > #right-arrow::before,
+html[dark] #chips-content > #left-arrow::after {
+  background: linear-gradient(
+    to left,
+    #212121 20%,
+    rgb(33 33 33 / 0) 80%
+  ) !important;
+}
 
-  tp-yt-app-drawer ytd-guide-entry-renderer {
-    yt-formatted-string {
-      font-size: 16px !important;
-      font-weight: 400 !important;
-    }
+#country-code,
+#voice-search-button,
+ytd-masthead #end *,
+#guide-renderer yt-icon,
+ytd-guide-section-renderer > h3,
+#footer,
+ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
+ytd-guide-entry-renderer:has(
+  a:is(
+    [title="Shorts"],
+    [title="You"],
+    [title="Your videos"],
+    [title="Downloads"],
+    [title="Show more"],
+    [href*="/feed/storefront"],
+    [href="/gaming"],
+    [href="/feed/hype"]
+  )
+),
+#items:has(a[href="/feed/subscriptions"])
+  > :is(ytd-guide-entry-renderer, ytd-guide-collapsible-entry-renderer),
+ytd-guide-section-renderer:has(
+  a:is([href*="youtubekids.com"], [href="/reporthistory"])
+),
+.ytListItemViewModelHost:has(
+  a:is([href="/feed/downloads"], [href="/feed/you"])
+),
+.ytListItemViewModelHost:not(yt-dialog-view-model *):has(a[href*="/channel"]) {
+  display: none !important;
+}
 
-    &[active] yt-formatted-string {
-      font-weight: 500 !important;
-    }
-  }
+#sections ytd-guide-section-renderer {
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+  margin-bottom: 4px !important;
+}
 
-  ytd-rich-grid-renderer {
-    margin-right: 20px;
-  }
+#sections ytd-guide-section-renderer:not(:first-child) {
+  padding-top: 0 !important;
+}
+
+#section-items > ytd-guide-entry-renderer:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+tp-yt-app-drawer ytd-guide-entry-renderer yt-formatted-string {
+  font-size: 16px !important;
+  font-weight: 400 !important;
+}
+
+tp-yt-app-drawer ytd-guide-entry-renderer[active] yt-formatted-string {
+  font-weight: 500 !important;
+}
+
+ytd-rich-grid-renderer {
+  margin-right: 20px;
+}
+
+ytd-playlist-video-list-renderer {
+  padding-bottom: 20px;
+}
+
+ytd-browse[page-subtype="playlist"] {
+  overflow: clip !important;
+}
+
+ytd-item-section-renderer[use-chip-bar-view-model-header] > #header {
+  position: sticky !important;
+  top: var(--ytd-item-section-header-top, 56px) !important;
+  padding: 12px 0 !important;
+  margin-block: 0 !important;
+}
+
+ytd-item-section-renderer[use-chip-bar-view-model-header]
+  > #header
+  > chip-bar-view-model {
+  margin-block: 0 !important;
 }
