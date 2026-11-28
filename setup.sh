@@ -568,6 +568,7 @@ defaults_write com.lwouis.alt-tab-macos hideSpaceNumberLabels -bool true       #
 defaults_write com.lwouis.alt-tab-macos hideStatusIcons -bool true             #
 defaults_write com.lwouis.alt-tab-macos windowDisplayDelay -int 0              #
 
+defaults_write com.kyome.Neo.RunCat HAS_SHOWN_ONBOARDING -bool true
 defaults_write com.kyome.Neo.RunCat IS_FLIPPED_HORIZONTALLY -bool true
 
 defaults_write com.superultra.Homerow auto-activate-mission-control -bool false #
