@@ -72,6 +72,7 @@ cask "sentry-cli"
 cask "sf-symbols"
 cask "sloth"
 cask "utm"
+cask "virtualbuddy"
 cask "visual-studio-code"
 
 mas "Aqua Swatch", id: 1565479346
