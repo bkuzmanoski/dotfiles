@@ -582,6 +582,7 @@ defaults_write org.hammerspoon.Hammerspoon MJShowMenuIconKey -bool false
 defaults_write org.hammerspoon.Hammerspoon SUAutomaticallyUpdate -bool true
 defaults_write org.hammerspoon.Hammerspoon SUEnableAutomaticChecks -bool true
 
+defaults_write pl.maketheweb.cleanshotx annotateAlwaysOnTop -bool true
 defaults_write pl.maketheweb.cleanshotx dimScreenWhileRecording -bool false
 defaults_write pl.maketheweb.cleanshotx doNotDisturbWhileRecording -bool true
 defaults_write pl.maketheweb.cleanshotx exportPath -string "${HOME}/Downloads"
